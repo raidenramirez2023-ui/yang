@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
+import 'sales_report_page.dart'; // <-- Import the Sales Report Page
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -15,7 +16,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   final List<Widget> _pages = [
     const SharedPOSWidget(userRole: 'Admin'), // POS System
     const InventorySection(),                  // Inventory Management
-             // Sales Reports (real page)
+    const SalesReportPage(),                   // Sales Reports (updated)
     const UserManagementSection(),             // User Management
     const SettingsSection(),                   // Settings
   ];
@@ -167,7 +168,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
   }
 }
 
+// -----------------------------
 // Placeholder sections
+// -----------------------------
 class InventorySection extends StatelessWidget {
   const InventorySection({super.key});
 
