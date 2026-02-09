@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "58922100698",
+    "project_id": "ycprms-ab68e",
+    "storage_bucket": "ycprms-ab68e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:58922100698:android:770791d7864bd5441002e3",
+        "android_client_info": {
+          "package_name": "com.example.yang_chow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCp2aSZ-zWgvzc00pChx7es2jvMNjlGxg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
