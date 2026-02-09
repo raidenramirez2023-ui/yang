@@ -4,6 +4,7 @@ import 'pages/admin_dashboard.dart';
 import 'pages/pos_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/inventory_page.dart';
+import 'pages/sales_report_page.dart'; // Add this import
 
 void main() {
   runApp(const YangChowApp());
@@ -28,6 +29,7 @@ class YangChowApp extends StatelessWidget {
         '/pos': (context) => const AdminMainPage(),
         '/staff-dashboard': (context) => const StaffDashboardPage(),
         '/inventory': (context) => const InventoryPage(),
+        '/sales-report': (context) => const SalesReportPage(),
       },
     );
   }

@@ -13,9 +13,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   // Different sections for admin
   final List<Widget> _pages = [
-    const SharedPOSWidget(userRole: 'Admin'), // POS System (same as staff)
+    const SharedPOSWidget(userRole: 'Admin'), // POS System
     const InventorySection(),                  // Inventory Management
-    const SalesReportsSection(),               // Sales Reports
+             // Sales Reports (real page)
     const UserManagementSection(),             // User Management
     const SettingsSection(),                   // Settings
   ];
@@ -167,7 +167,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   }
 }
 
-// Placeholder sections - You can implement these later
+// Placeholder sections
 class InventorySection extends StatelessWidget {
   const InventorySection({super.key});
 
@@ -181,32 +181,6 @@ class InventorySection extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'Inventory Management',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon...',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class SalesReportsSection extends StatelessWidget {
-  const SalesReportsSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.analytics, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Sales Reports & Analytics',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
