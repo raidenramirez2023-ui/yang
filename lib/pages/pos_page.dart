@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'sales_report_page.dart';
-import 'user_management.dart'; // <-- Your DataTable page
+import 'user_management.dart'; 
+import 'inventory_page.dart'; // ✅ Import real InventoryPage
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -16,7 +17,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   // Pages for admin
   final List<Widget> _pages = [
     const SharedPOSWidget(userRole: 'Admin'), // POS System
-    const InventorySection(),                  // Inventory placeholder
+    const InventoryPage(),                     // ✅ REAL Inventory Management
     const SalesReportPage(),                   // Sales Reports
     const UserManagementPage(),                // User Management DataTable
     const SettingsSection(),                   // Settings
@@ -173,35 +174,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 ),
               ),
             ),
-    );
-  }
-}
-
-// -----------------------------
-// Placeholder Inventory Section
-// -----------------------------
-class InventorySection extends StatelessWidget {
-  const InventorySection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inventory_2, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Inventory Management',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon...',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
     );
   }
 }
