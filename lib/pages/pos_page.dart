@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
-import 'sales_report_page.dart'; // <-- Import the Sales Report Page
+import 'sales_report_page.dart';
+import 'user_management.dart'; // <-- Your DataTable page
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -12,12 +13,12 @@ class AdminMainPage extends StatefulWidget {
 class _AdminMainPageState extends State<AdminMainPage> {
   int _selectedIndex = 0;
 
-  // Different sections for admin
+  // Pages for admin
   final List<Widget> _pages = [
     const SharedPOSWidget(userRole: 'Admin'), // POS System
-    const InventorySection(),                  // Inventory Management
-    const SalesReportPage(),                   // Sales Reports (updated)
-    const UserManagementSection(),             // User Management
+    const InventorySection(),                  // Inventory placeholder
+    const SalesReportPage(),                   // Sales Reports
+    const UserManagementPage(),                // User Management DataTable
     const SettingsSection(),                   // Settings
   ];
 
@@ -72,11 +73,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
             ),
             child: Row(
               children: [
-                Icon(Icons.admin_panel_settings, color: Colors.white, size: 20),
+                const Icon(Icons.admin_panel_settings, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Admin',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -141,12 +142,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 const VerticalDivider(thickness: 1, width: 1),
                 // Content area
                 Expanded(
-                  child: _pages[_selectedIndex],
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: _pages[_selectedIndex],
+                  ),
                 ),
               ],
             )
-          : _pages[_selectedIndex],
-      // Mobile bottom navigation
+          : Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: _pages[_selectedIndex],
+            ),
       bottomNavigationBar: isDesktop
           ? null
           : NavigationBar(
@@ -159,7 +165,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
               destinations: List.generate(
                 _pageTitles.length,
                 (index) => NavigationDestination(
-                  icon: Icon(_pageIcons[index]),
+                  icon: Icon(
+                    _pageIcons[index],
+                    color: _selectedIndex == index ? Colors.red.shade600 : null,
+                  ),
                   label: _pageTitles[index],
                 ),
               ),
@@ -169,7 +178,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 }
 
 // -----------------------------
-// Placeholder sections
+// Placeholder Inventory Section
 // -----------------------------
 class InventorySection extends StatelessWidget {
   const InventorySection({super.key});
@@ -197,32 +206,9 @@ class InventorySection extends StatelessWidget {
   }
 }
 
-class UserManagementSection extends StatelessWidget {
-  const UserManagementSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'User Management',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming soon...',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+// -----------------------------
+// Placeholder Settings Section
+// -----------------------------
 class SettingsSection extends StatelessWidget {
   const SettingsSection({super.key});
 
