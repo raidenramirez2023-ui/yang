@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,8 +12,12 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String selectedRole = 'Staff'; // default role
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  String selectedRole = 'Admin'; // default role
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   // Role definitions with descriptions
   final Map<String, Map<String, String>> roles = {
@@ -27,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
     },
   };
 
-  void handleLogin() {
+  Future<void> handleLogin() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
@@ -51,19 +57,92 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // Role-based navigation
-    final roleData = roles[selectedRole];
-    if (roleData != null) {
+    setState(() => _isLoading = true);
+
+    try {
+      // 🔐 Step 1: Authenticate with Firebase Auth
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // 📋 Step 2: Get user role from Firestore
+      QuerySnapshot userDoc = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (userDoc.docs.isEmpty) {
+        _showSnackBar(
+          "User not found in database",
+          Colors.red.shade700,
+          Icons.error_outline,
+        );
+        await _auth.signOut();
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Get the user's role from Firestore
+      String userRole = userDoc.docs.first.get('role');
+
+      // ✅ Step 3: Verify role matches selection
+      if (userRole != selectedRole) {
+        _showSnackBar(
+          "Invalid role. You are registered as $userRole",
+          Colors.red.shade700,
+          Icons.error_outline,
+        );
+        await _auth.signOut();
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 🎉 Step 4: Navigate based on verified role
       _showSnackBar(
-        "Login successful as $selectedRole",
+        "Login successful as $userRole",
         Colors.green.shade700,
         Icons.check_circle_outline,
       );
-      
-      // Navigate after short delay for better UX
+
       Future.delayed(const Duration(milliseconds: 500), () {
-        Navigator.pushReplacementNamed(context, roleData['route']!);
+        final roleData = roles[userRole];
+        if (roleData != null) {
+          Navigator.pushReplacementNamed(context, roleData['route']!);
+        }
       });
+
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'No user found with this email';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Invalid email or password';
+          break;
+        default:
+          errorMessage = 'Login failed: ${e.message}';
+      }
+      _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
+    } catch (e) {
+      _showSnackBar(
+        "An error occurred: $e",
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -190,6 +269,7 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
+                        enabled: !_isLoading,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey.shade50,
@@ -219,6 +299,7 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: passwordController,
                         obscureText: !_isPasswordVisible,
+                        enabled: !_isLoading,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.grey.shade50,
@@ -312,7 +393,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               );
                             }).toList(),
-                            onChanged: (value) {
+                            onChanged: _isLoading ? null : (value) {
                               if (value != null) {
                                 setState(() {
                                   selectedRole = value;
@@ -340,8 +421,17 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          onPressed: handleLogin,
-                          child: const Text("Sign In"),
+                          onPressed: _isLoading ? null : handleLogin,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Text("Sign In"),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -369,7 +459,7 @@ class _LoginPageState extends State<LoginPage> {
                       SizedBox(
                         width: double.infinity,
                         child: TextButton(
-                          onPressed: () {
+                          onPressed: _isLoading ? null : () {
                             Navigator.pushNamed(context, '/register');
                           },
                           style: TextButton.styleFrom(
@@ -396,6 +486,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),

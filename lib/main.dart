@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
-import 'pages/login_page.dart';
-import 'pages/admin_dashboard.dart';        // Admin landing/dashboard (optional)
-import 'pages/pos_page.dart';               // AdminMainPage (POS + Inventory + ...)
-import 'pages/staff_dashboard.dart';
-import 'pages/inventory_page.dart';         // Real InventoryPage
-import 'pages/sales_report_page.dart';      // Sales Report Page
-import 'pages/user_management.dart';        // User Management
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+// Pages
+import 'pages/login_page.dart';
+import 'pages/admin_dashboard.dart';
+import 'pages/pos_page.dart';
+import 'pages/staff_dashboard.dart';
+import 'pages/inventory_page.dart';
+import 'pages/sales_report_page.dart';
+import 'pages/user_management.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 🔥 Initialize Firebase (ALL platforms)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const YangChowApp());
 }
 
@@ -25,19 +36,17 @@ class YangChowApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
+        // Auth
         '/': (context) => const LoginPage(),
 
         // Admin routes
-        '/admin': (context) => const AdminMainPage(),      // Main admin hub (POS + Inventory + ...)
-        '/pos': (context) => const AdminMainPage(),        // Alias for admin main hub
-        '/inventory': (context) => const InventoryPage(),  // Optional direct inventory route
-        // SalesReportPage and UserManagementPage are accessed inside AdminMainPage
+        '/admin': (context) => const AdminMainPage(),
+        '/pos': (context) => const AdminMainPage(),
+        '/inventory': (context) => const InventoryPage(),
+        '/dashboard': (context) => const DashboardPage(),
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),
-
-        // Optional admin landing page (DashboardPage)
-        '/dashboard': (context) => const DashboardPage(),
       },
     );
   }
