@@ -11,8 +11,16 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  firebase_core: ^4.4.0
-  firebase_analytics: ^12.1.1
+
+  # ✅ Updated Firebase dependencies
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.17.5
+  
+  # Required for Firebase Web compatibility
+  js: ^0.7.1
+
+  # Optional (you can keep or remove if unused)
   fl_chart: ^0.70.1
 
 dev_dependencies:
@@ -24,4 +32,4 @@ flutter:
   uses-material-design: true
 
   assets:
-   - assets/images/
+    - assets/images/
