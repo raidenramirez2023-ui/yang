@@ -135,7 +135,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 headingRowColor:
-                    MaterialStateProperty.all(Colors.grey.shade200),
+                    WidgetStateProperty.all(Colors.grey.shade200),
                 columnSpacing: 24,
                 dataRowHeight: 60,
                 columns: const [

@@ -8,16 +8,13 @@ import 'pages/admin_dashboard.dart';
 import 'pages/pos_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/inventory_page.dart';
-import 'pages/sales_report_page.dart';
-import 'pages/user_management.dart';
+import 'pages/settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 🔥 Initialize Firebase (ALL platforms)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const YangChowApp());
 }
@@ -30,10 +27,7 @@ class YangChowApp extends StatelessWidget {
     return MaterialApp(
       title: 'Yang Chow POS System',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.red,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primarySwatch: Colors.red, useMaterial3: true),
       initialRoute: '/',
       routes: {
         // Auth
