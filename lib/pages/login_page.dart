@@ -61,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       // 🔐 Step 1: Authenticate with Firebase Auth
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );

@@ -171,7 +171,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   ),
                 ),
               ),
-      );
-    }
+    );
   }
 }
