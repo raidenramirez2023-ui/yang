@@ -457,14 +457,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
                 const Divider(thickness: 1),
 
                 ...cart.map((c) {
-                  final name = c.item.name.length > 20 ? c.item.name.substring(0, 17) + '...' : c.item.name;
+                  final name = c.item.name.length > 20 ? '${c.item.name.substring(0, 17)}...' : c.item.name;
                   final qty = c.quantity.toString().padLeft(2);
                   final price = (c.item.price * c.quantity).toStringAsFixed(2).padLeft(6);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text('$name x$qty')), Text('₱$price')]),
                   );
-                }).toList(),
+                }),
 
                 const Divider(thickness: 1),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [

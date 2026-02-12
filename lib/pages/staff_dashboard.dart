@@ -40,7 +40,10 @@ class StaffDashboardPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   'Staff User',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
