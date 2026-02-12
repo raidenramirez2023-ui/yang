@@ -7,7 +7,7 @@ import 'pages/login_page.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/pos_page.dart';
 import 'pages/staff_dashboard.dart';
-import 'pages/inventory_page.dart';
+import 'pages/inventory_management.dart';
 import 'pages/sales_report_page.dart';
 import 'pages/user_management.dart';
 

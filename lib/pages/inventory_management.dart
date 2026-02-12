@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../globals.dart' as globals;
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -8,46 +11,54 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final List<Map<String, dynamic>> _inventoryItems = [
-    {
-      'name': 'Chicken Breast',
-      'category': 'Meat',
-      'quantity': 25,
-      'unit': 'kg',
-    },
-    {
-      'name': 'Pork Belly',
-      'category': 'Meat',
-      'quantity': 12,
-      'unit': 'kg',
-    },
-    {
-      'name': 'Cabbage',
-      'category': 'Vegetables',
-      'quantity': 8,
-      'unit': 'kg',
-    },
-    {
-      'name': 'Soy Sauce',
-      'category': 'Condiments',
-      'quantity': 5,
-      'unit': 'bottles',
-    },
-    {
-      'name': 'Cooking Oil',
-      'category': 'Condiments',
-      'quantity': 2,
-      'unit': 'gallons',
-    },
-    {
-      'name': 'Soft Drinks',
-      'category': 'Beverages',
-      'quantity': 30,
-      'unit': 'pcs',
-    },
-  ];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isAdmin = false;
+  bool _isLoading = true;
 
-  void _addOrEditItem({Map<String, dynamic>? item, int? index}) {
+  @override
+  void initState() {
+    super.initState();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: user.email)
+            .limit(1)
+            .get();
+        
+        if (userDoc.docs.isNotEmpty) {
+          final userRole = userDoc.docs.first.get('role');
+          setState(() {
+            _isAdmin = userRole == 'Admin';
+            _isLoading = false;
+          });
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+      }
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _addOrEditItem({Map<String, dynamic>? item, String? docId}) {
+    // Check if user is admin
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Admin users can add/edit inventory items'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final nameController = TextEditingController(text: item?['name']);
     final categoryController = TextEditingController(text: item?['category']);
     final quantityController =
@@ -76,7 +87,8 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
               TextField(
                 controller: unitController,
-                decoration: const InputDecoration(labelText: 'Unit (kg, pcs, etc.)'),
+                decoration:
+                    const InputDecoration(labelText: 'Unit (kg, pcs, etc.)'),
               ),
             ],
           ),
@@ -88,23 +100,59 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+              
+              final user = _auth.currentUser;
+              if (user == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please login to add items'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              
               final newItem = {
-                'name': nameController.text,
-                'category': categoryController.text,
+                'name': nameController.text.trim(),
+                'category': categoryController.text.trim(),
                 'quantity': int.tryParse(quantityController.text) ?? 0,
-                'unit': unitController.text,
+                'unit': unitController.text.trim(),
+                'createdBy': user.email, // Use current user email instead of globals
+                'createdAt': FieldValue.serverTimestamp(),
               };
 
-              setState(() {
+              try {
                 if (item == null) {
-                  _inventoryItems.add(newItem);
+                  // Add new item
+                  await _firestore.collection('inventory').add(newItem);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Item added successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 } else {
-                  _inventoryItems[index!] = newItem;
+                  // Update existing item
+                  await _firestore.collection('inventory').doc(docId).update(newItem);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Item updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 }
-              });
 
-              Navigator.pop(context);
+                Navigator.pop(context);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error saving item: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Save'),
           ),
@@ -113,7 +161,18 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _deleteItem(int index) {
+  void _deleteItem(String docId) {
+    // Check if user is admin
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Admin users can delete inventory items'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -126,11 +185,25 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              setState(() {
-                _inventoryItems.removeAt(index);
-              });
-              Navigator.pop(context);
+            onPressed: () async {
+              try {
+                await _firestore.collection('inventory').doc(docId).delete();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Item deleted successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error deleting item: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Delete'),
           ),
@@ -153,12 +226,18 @@ class _InventoryPageState extends State<InventoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _isAdmin ? FloatingActionButton(
         backgroundColor: Colors.red,
         onPressed: () => _addOrEditItem(),
         child: const Icon(Icons.add),
-      ),
+      ) : null,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -170,38 +249,63 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: _inventoryItems.length,
-                itemBuilder: (context, index) {
-                  final item = _inventoryItems[index];
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _stockColor(item['quantity']),
-                        child: const Icon(Icons.inventory, color: Colors.white),
-                      ),
-                      title: Text(item['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(
-                        '${item['category']} • ${item['quantity']} ${item['unit']} • ${_stockLabel(item['quantity'])}',
-                      ),
-                      trailing: Wrap(
-                        spacing: 8,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () =>
-                                _addOrEditItem(item: item, index: index),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('inventory')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final items = snapshot.data!.docs;
+
+                  if (items.isEmpty) {
+                    return const Center(child: Text('No inventory items yet.'));
+                  }
+
+                  return ListView.builder(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final doc = items[index];
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      return Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: _stockColor(data['quantity'] ?? 0),
+                            child: const Icon(Icons.inventory, color: Colors.white),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteItem(index),
+                          title: Text(data['name'] ?? '',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            '${data['category']} • ${data['quantity']} ${data['unit']} • ${_stockLabel(data['quantity'] ?? 0)}',
                           ),
-                        ],
-                      ),
-                    ),
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              if (_isAdmin)
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _addOrEditItem(
+                                    item: data,
+                                    docId: doc.id,
+                                  ),
+                                ),
+                              if (_isAdmin)
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteItem(doc.id),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
