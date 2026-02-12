@@ -1,11 +1,11 @@
-  import 'package:flutter/material.dart';
-  import 'package:yang_chow/widgets/shared_pos_widget.dart';
-  import 'sales_report_page.dart';
-  import 'user_management.dart'; 
-  import 'inventory_management.dart'; // ✅ Import correct InventoryPage
+import 'package:flutter/material.dart';
+import 'package:yang_chow/widgets/shared_pos_widget.dart';
+import 'user_management.dart';
+import 'sales_report_page.dart';
+import 'inventory_management.dart'; // Import correct InventoryPage
 
-  class AdminMainPage extends StatefulWidget {
-    const AdminMainPage({super.key});
+class AdminMainPage extends StatefulWidget {
+  const AdminMainPage({super.key});
 
     @override
     State<AdminMainPage> createState() => _AdminMainPageState();
@@ -17,9 +17,9 @@
     // Pages for admin
     final List<Widget> _pages = [
       const SharedPOSWidget(userRole: 'Admin'), // POS System
-      const InventoryPage(),                     // ✅ REAL Inventory Management
+      const InventoryPage(),                     // Inventory Management
       const SalesReportPage(),                   // Sales Reports
-      const UserManagementPage(),                // User Management DataTable
+      const UserManagementPage(),                // User Management
     ];
 
     final List<String> _pageTitles = [
@@ -171,35 +171,6 @@
                   ),
                 ),
               ),
-      );
-    }
-  }
-
-  // -----------------------------
-  // Placeholder Settings Section
-  // -----------------------------
-  class SettingsSection extends StatelessWidget {
-    const SettingsSection({super.key});
-
-    @override
-    Widget build(BuildContext context) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.settings, size: 80, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Settings',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Coming soon...',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-            ),
-          ],
-        ),
       );
     }
   }
