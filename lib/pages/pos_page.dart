@@ -3,6 +3,7 @@ import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'user_management.dart';
 import 'sales_report_page.dart';
 import 'inventory_management.dart'; // Import correct InventoryPage
+import 'settings.dart';
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -20,6 +21,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const InventoryPage(),                     // Inventory Management
     const SalesReportPage(),                   // Sales Reports
     const UserManagementPage(),                // User Management
+    const SettingsPage(),                      // Settings
   ];
 
   final List<String> _pageTitles = [
@@ -27,6 +29,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Inventory',
     'Sales Reports',
     'User Management',
+    'Settings',
   ];
 
   final List<IconData> _pageIcons = [
@@ -34,6 +37,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.inventory_2,
     Icons.analytics,
     Icons.people,
+    Icons.settings,
   ];
 
   @override
