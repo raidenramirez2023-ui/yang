@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'utils/app_theme.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -26,7 +27,7 @@ class YangChowApp extends StatelessWidget {
     return MaterialApp(
       title: 'Yang Chow POS System',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.red, useMaterial3: true),
+      theme: AppTheme.lightTheme,
       initialRoute: '/',
       routes: {
         // Auth

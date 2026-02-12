@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -164,337 +166,308 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  IconData _getRoleIcon(String iconName) {
-    switch (iconName) {
-      case 'admin_panel_settings':
-        return Icons.admin_panel_settings;
-      case 'point_of_sale':
-        return Icons.point_of_sale;
-      default:
-        return Icons.person;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isDesktop = size.width > 800;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // 🌄 Background
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/yang.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          Container(
+      backgroundColor: AppTheme.backgroundColor,
+      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Row(
+      children: [
+        // Left side - Branding
+        Expanded(
+          child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.black.withOpacity(0.7),
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.7),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                colors: [AppTheme.primaryRed, AppTheme.primaryRedDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-          ),
-
-          // 🔑 Login form
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: size.height - 32, // Allow scrolling
-                ),
-                child: Container(
-                  width: isDesktop ? 420 : size.width * 0.9,
-                  margin: const EdgeInsets.symmetric(vertical: 16),
-                  padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                    color: AppTheme.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_menu,
+                    color: AppTheme.white,
+                    size: 64,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Yang Chow',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    color: AppTheme.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Restaurant POS System',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: AppTheme.white.withOpacity(0.8),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(
+                      color: AppTheme.white.withOpacity(0.2),
+                    ),
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo and Title
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade600,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.restaurant_menu,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        "Restaurant POS",
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Sign in to continue",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Email field
-                      TextField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          labelText: "Email Address",
-                          prefixIcon: Icon(Icons.email_outlined, 
-                            color: Colors.amber.shade700),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: Colors.amber.shade600, 
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
+                      Icon(Icons.security, color: AppTheme.white, size: 32),
                       const SizedBox(height: 12),
-
-                      // Password field
-                      TextField(
-                        controller: passwordController,
-                        obscureText: !_isPasswordVisible,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          labelText: "Password",
-                          prefixIcon: Icon(Icons.lock_outline, 
-                            color: Colors.amber.shade700),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _isPasswordVisible 
-                                ? Icons.visibility_outlined 
-                                : Icons.visibility_off_outlined,
-                              color: Colors.grey.shade600,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _isPasswordVisible = !_isPasswordVisible;
-                              });
-                            },
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: Colors.amber.shade600, 
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 🔄 Role selection
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedRole,
-                            isExpanded: true,
-                            icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade700),
-                            elevation: 2,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey.shade800,
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            items: roles.entries.map((entry) {
-                              return DropdownMenuItem<String>(
-                                value: entry.key,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      _getRoleIcon(entry.value['icon']!),
-                                      size: 18,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            entry.key,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            entry.value['description']!,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: _isLoading ? null : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  selectedRole = value;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Login button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: _isLoading ? null : handleLogin,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text("Sign In"),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Divider for "or"
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.grey.shade300)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              "or",
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: Colors.grey.shade300)),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Create account button
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton(
-                          onPressed: _isLoading ? null : () {
-                            Navigator.pushNamed(context, '/register');
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.person_add_outlined, 
-                                color: Colors.amber.shade700, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                "Create Admin Account",
-                                style: TextStyle(
-                                  color: Colors.amber.shade700,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                      Text(
+                        'Secure Login',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppTheme.white,
                         ),
                       ),
                       const SizedBox(height: 8),
+                      Text(
+                        'Protected by Firebase Authentication',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.white.withOpacity(0.7),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+        // Right side - Login Form
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.xl),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450),
+                child: _buildLoginForm(),
               ),
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
+        child: Column(
+          children: [
+            const SizedBox(height: 60),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: AppTheme.white,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Yang Chow POS',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Restaurant Management System',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppTheme.mediumGrey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 48),
+            _buildLoginForm(),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Email Field
+        Text(
+          'Email Address',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your email',
+            prefixIcon: const Icon(Icons.email_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Password Field
+        Text(
+          'Password',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: passwordController,
+          obscureText: !_isPasswordVisible,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your password',
+            prefixIcon: const Icon(Icons.lock_outline),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isPasswordVisible 
+                  ? Icons.visibility_outlined 
+                  : Icons.visibility_off_outlined,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isPasswordVisible = !_isPasswordVisible;
+                });
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Role Selection
+        Text(
+          'Login As',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppTheme.lightGrey),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedRole,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down),
+              elevation: 2,
+              style: Theme.of(context).textTheme.bodyLarge,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.lg,
+                vertical: AppTheme.md,
+              ),
+              items: ['Admin', 'Staff'].map((role) {
+                return DropdownMenuItem<String>(
+                  value: role,
+                  child: Row(
+                    children: [
+                      Icon(
+                        role == 'Admin' 
+                          ? Icons.admin_panel_settings 
+                          : Icons.point_of_sale,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(role),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: _isLoading ? null : (value) {
+                if (value != null) {
+                  setState(() {
+                    selectedRole = value;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+
+        // Login Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : handleLogin,
+            child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                  ),
+                )
+              : const Text('Sign In'),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Divider
+        Row(
+          children: [
+            Expanded(child: Divider(color: AppTheme.lightGrey, thickness: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
+              child: Text(
+                'or',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            Expanded(child: Divider(color: AppTheme.lightGrey, thickness: 1)),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Create Account Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.person_add_outlined),
+            label: const Text('Create Admin Account'),
+            onPressed: _isLoading ? null : () {
+              Navigator.pushNamed(context, '/register');
+            },
+          ),
+        ),
+      ],
     );
   }
 

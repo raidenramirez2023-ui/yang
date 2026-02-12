@@ -134,24 +134,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: Row(
-        children: [ 
-          /// MENU
-          Expanded(
-            flex: 7,
-            child: Column(
-              children: [
-                _buildCategoryBar(),
-                Expanded(child: _buildMenuGrid(items, isDesktop)),
-              ],
-            ),
-          ),
-
-          /// CART (Desktop)
-          if (isDesktop) SizedBox(width: 380, child: _buildCart()),
-        ],
-      ),
-
+      body: isDesktop ? _buildDesktopLayout(items) : _buildMobileLayout(items),
       floatingActionButton: !isDesktop && cart.isNotEmpty
           ? FloatingActionButton.extended(
               backgroundColor: Colors.red.shade600,
@@ -160,6 +143,35 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
               label: Text('₱${total().toStringAsFixed(2)}'),
             )
           : null,
+    );
+  }
+
+  Widget _buildDesktopLayout(List<MenuItem> items) {
+    return Row(
+      children: [
+        /// MENU
+        Expanded(
+          flex: 7,
+          child: Column(
+            children: [
+              _buildCategoryBar(),
+              Expanded(child: _buildMenuGrid(items, true)),
+            ],
+          ),
+        ),
+
+        /// CART (Desktop)
+        SizedBox(width: 380, child: _buildCart()),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(List<MenuItem> items) {
+    return Column(
+      children: [
+        _buildCategoryBar(),
+        Expanded(child: _buildMenuGrid(items, false)),
+      ],
     );
   }
 
@@ -199,13 +211,28 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
   /// MENU GRID
   /// =====================
   Widget _buildMenuGrid(List<MenuItem> items, bool isDesktop) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    late int crossAxisCount;
+    late double childAspectRatio;
+
+    if (isDesktop) {
+      crossAxisCount = 4;
+      childAspectRatio = 0.75;
+    } else if (screenWidth > 600) {
+      crossAxisCount = 3;
+      childAspectRatio = 0.7;
+    } else {
+      crossAxisCount = 2;
+      childAspectRatio = 0.65;
+    }
+
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isDesktop ? 4 : 2,
-        childAspectRatio: isDesktop ? 0.75 : 0.72,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: childAspectRatio,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
       ),
       itemCount: items.length,
       itemBuilder: (_, i) => _foodCard(items[i], isDesktop),
@@ -217,6 +244,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
   /// =====================
   Widget _foodCard(MenuItem item, bool isDesktop) {
     final quantity = getCartQuantity(item);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     return GestureDetector(
       onTap: () => addToCart(item),
@@ -240,34 +269,48 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
             ),
             if (item.isPopular)
               Positioned(
-                top: 8,
-                left: 8,
+                top: isMobile ? 6 : 8,
+                left: isMobile ? 6 : 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 6 : 8,
+                    vertical: isMobile ? 2 : 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.yellow.shade700,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'POPULAR',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 10 : 12,
+                    ),
                   ),
                 ),
               ),
             if (quantity > 0)
               Positioned(
-                top: 8,
-                right: 8,
+                top: isMobile ? 6 : 8,
+                right: isMobile ? 6 : 8,
                 child: CircleAvatar(
-                  radius: 14,
+                  radius: isMobile ? 12 : 14,
                   backgroundColor: Colors.red.shade600,
-                  child: Text('$quantity', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    '$quantity',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 10 : 12,
+                    ),
+                  ),
                 ),
               ),
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
+              left: isMobile ? 12 : 16,
+              right: isMobile ? 12 : 16,
+              bottom: isMobile ? 12 : 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -275,23 +318,41 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
                     item.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white, fontSize: isDesktop ? 18 : 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? 14 : (isDesktop ? 18 : 16),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: isMobile ? 4 : 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         '₱${item.price.toStringAsFixed(2)}',
-                        style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          color: Colors.amberAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 14 : 16,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 10 : 14,
+                          vertical: isMobile ? 4 : 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.shade600,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text('ADD', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'ADD',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile ? 12 : 13,
+                          ),
+                        ),
                       )
                     ],
                   )

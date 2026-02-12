@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
+import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 import 'user_management.dart';
 import 'sales_report_page.dart';
-import 'inventory_management.dart'; // Import correct InventoryPage
+import 'inventory_management.dart';
 import 'settings.dart';
 
 class AdminMainPage extends StatefulWidget {
@@ -17,11 +19,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   // Pages for admin
   final List<Widget> _pages = [
-    const SharedPOSWidget(userRole: 'Admin'), // POS System
-    const InventoryPage(),                     // Inventory Management
-    const SalesReportPage(),                   // Sales Reports
-    const UserManagementPage(),                // User Management
-    const SettingsPage(),                      // Settings
+    const SharedPOSWidget(userRole: 'Admin'),
+    const InventoryPage(),
+    const SalesReportPage(),
+    const UserManagementPage(),
+    const SettingsPage(),
   ];
 
   final List<String> _pageTitles = [
@@ -42,139 +44,171 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isDesktop = size.width > 1200;
+    final deviceType = ResponsiveUtils.getDeviceType(context);
+    final isDesktop = deviceType == DeviceType.desktop;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.red.shade600,
-        elevation: 0,
         title: Row(
           children: [
-            Icon(_pageIcons[_selectedIndex], color: Colors.white),
-            const SizedBox(width: 12),
-            Text(
-              _pageTitles[_selectedIndex],
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+            Icon(_pageIcons[_selectedIndex]),
+            const SizedBox(width: AppTheme.md),
+            Expanded(
+              child: Text(
+                _pageTitles[_selectedIndex],
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppTheme.white,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          // Admin badge
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(vertical: AppTheme.md, horizontal: AppTheme.md),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
+              color: AppTheme.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.admin_panel_settings, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
+                const Icon(Icons.admin_panel_settings, color: AppTheme.white, size: 18),
+                const SizedBox(width: AppTheme.md),
                 Text(
-                  'Admin',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  'Administrator',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppTheme.white,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pushReplacementNamed(context, '/');
-                      },
-                      child: const Text('Logout'),
-                    ),
-                  ],
-                ),
-              );
-            },
+            icon: const Icon(Icons.logout),
             tooltip: 'Logout',
+            onPressed: () => _showLogoutDialog(context),
+          ),
+          if (!isDesktop) const SizedBox(width: AppTheme.md),
+        ],
+      ),
+      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      bottomNavigationBar: !isDesktop ? _buildBottomNav() : null,
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Row(
+      children: [
+        // Sidebar Navigation
+        NavigationRail(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) {
+            setState(() => _selectedIndex = index);
+          },
+          elevation: 2,
+          backgroundColor: AppTheme.white,
+          indicatorColor: AppTheme.primaryRed.withOpacity(0.2),
+          selectedIconTheme: const IconThemeData(
+            color: AppTheme.primaryRed,
+            size: 28,
+          ),
+          selectedLabelTextStyle: const TextStyle(
+            color: AppTheme.primaryRed,
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedIconTheme: const IconThemeData(
+            color: AppTheme.mediumGrey,
+            size: 24,
+          ),
+          unselectedLabelTextStyle: const TextStyle(
+            color: AppTheme.mediumGrey,
+          ),
+          labelType: NavigationRailLabelType.all,
+          destinations: List.generate(
+            _pageTitles.length,
+            (index) => NavigationRailDestination(
+              icon: Icon(_pageIcons[index]),
+              label: Text(
+                _pageTitles[index],
+                maxLines: 2,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        // Content Area
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.lg),
+            child: _pages[_selectedIndex],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Padding(
+      padding: const EdgeInsets.all(AppTheme.md),
+      child: _pages[_selectedIndex],
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return NavigationBar(
+      selectedIndex: _selectedIndex,
+      onDestinationSelected: (index) {
+        setState(() => _selectedIndex = index);
+      },
+      backgroundColor: AppTheme.white,
+      elevation: 8,
+      destinations: List.generate(
+        _pageTitles.length,
+        (index) => NavigationDestination(
+          icon: Icon(_pageIcons[index]),
+          label: _pageTitles[index],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        ),
+        title: Text(
+          'Logout',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacementNamed(context, '/');
+            },
+            child: const Text('Logout'),
           ),
         ],
       ),
-      body: isDesktop
-          ? Row(
-              children: [
-                // Desktop Sidebar
-                NavigationRail(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
-                  },
-                  labelType: NavigationRailLabelType.all,
-                  backgroundColor: Colors.white,
-                  selectedIconTheme: IconThemeData(color: Colors.red.shade600),
-                  selectedLabelTextStyle: TextStyle(
-                    color: Colors.red.shade600,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  destinations: List.generate(
-                    _pageTitles.length,
-                    (index) => NavigationRailDestination(
-                      icon: Icon(_pageIcons[index]),
-                      label: Text(_pageTitles[index]),
-                    ),
-                  ),
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
-                // Content area
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: _pages[_selectedIndex],
-                  ),
-                ),
-              ],
-            )
-          : Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: _pages[_selectedIndex],
-              ),
-      bottomNavigationBar: isDesktop
-          ? null
-          : NavigationBar(
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (index) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                },
-                destinations: List.generate(
-                  _pageTitles.length,
-                  (index) => NavigationDestination(
-                    icon: Icon(
-                      _pageIcons[index],
-                      color: _selectedIndex == index ? Colors.red.shade600 : null,
-                    ),
-                    label: _pageTitles[index],
-                  ),
-                ),
-              ),
     );
   }
 }

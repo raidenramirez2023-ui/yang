@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -14,6 +16,7 @@ class _InventoryPageState extends State<InventoryPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isAdmin = false;
   bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -47,12 +50,12 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void _addOrEditItem({Map<String, dynamic>? item, String? docId}) {
-    // Check if user is admin
     if (!_isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Only Admin users can add/edit inventory items'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.errorRed,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -60,34 +63,44 @@ class _InventoryPageState extends State<InventoryPage> {
 
     final nameController = TextEditingController(text: item?['name']);
     final categoryController = TextEditingController(text: item?['category']);
-    final quantityController =
-        TextEditingController(text: item?['quantity']?.toString());
+    final quantityController = TextEditingController(text: item?['quantity']?.toString());
     final unitController = TextEditingController(text: item?['unit']);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(item == null ? 'Add Inventory Item' : 'Edit Inventory Item'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: Text(
+          item == null ? 'Add Inventory Item' : 'Edit Inventory Item',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         content: SingleChildScrollView(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              _buildDialogTextField(
+                label: 'Item Name',
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Item Name'),
+                icon: Icons.inventory_2,
               ),
-              TextField(
+              const SizedBox(height: AppTheme.lg),
+              _buildDialogTextField(
+                label: 'Category',
                 controller: categoryController,
-                decoration: const InputDecoration(labelText: 'Category'),
+                icon: Icons.category,
               ),
-              TextField(
+              const SizedBox(height: AppTheme.lg),
+              _buildDialogTextField(
+                label: 'Quantity',
                 controller: quantityController,
+                icon: Icons.numbers,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Quantity'),
               ),
-              TextField(
+              const SizedBox(height: AppTheme.lg),
+              _buildDialogTextField(
+                label: 'Unit (kg, pcs, etc.)',
                 controller: unitController,
-                decoration:
-                    const InputDecoration(labelText: 'Unit (kg, pcs, etc.)'),
+                icon: Icons.straighten,
               ),
             ],
           ),
@@ -98,110 +111,113 @@ class _InventoryPageState extends State<InventoryPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              if (nameController.text.trim().isEmpty) return;
-              
-              final user = _auth.currentUser;
-              if (user == null) {
+              if (nameController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please login to add items'),
-                    backgroundColor: Colors.red,
-                  ),
+                  const SnackBar(content: Text('Item name is required')),
                 );
                 return;
               }
-              
+
+              final user = _auth.currentUser;
+              if (user == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please login to add items')),
+                );
+                return;
+              }
+
               final newItem = {
                 'name': nameController.text.trim(),
                 'category': categoryController.text.trim(),
                 'quantity': int.tryParse(quantityController.text) ?? 0,
                 'unit': unitController.text.trim(),
-                'createdBy': user.email, // Use current user email instead of globals
+                'createdBy': user.email,
                 'createdAt': FieldValue.serverTimestamp(),
               };
 
               try {
                 if (item == null) {
-                  // Add new item
                   await _firestore.collection('inventory').add(newItem);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Item added successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
                 } else {
-                  // Update existing item
                   await _firestore.collection('inventory').doc(docId).update(newItem);
+                }
+
+                if (mounted) {
+                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Item updated successfully!'),
-                      backgroundColor: Colors.green,
+                    SnackBar(
+                      content: Text(item == null ? 'Item added successfully!' : 'Item updated successfully!'),
+                      backgroundColor: AppTheme.successGreen,
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
                 }
-
-                Navigator.pop(context);
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error saving item: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error saving item: $e'), backgroundColor: AppTheme.errorRed),
+                  );
+                }
               }
             },
-            child: const Text('Save'),
+            child: Text(item == null ? 'Add' : 'Update'),
           ),
         ],
       ),
     );
   }
 
-  void _deleteItem(String docId) {
-    // Check if user is admin
-    if (!_isAdmin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only Admin users can delete inventory items'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  Widget _buildDialogTextField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+      ),
+    );
+  }
+
+  void _deleteItem(String docId, String itemName) {
+    if (!_isAdmin) return;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
         title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
+        content: Text('Are you sure you want to delete "$itemName"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorRed),
             onPressed: () async {
               try {
                 await _firestore.collection('inventory').doc(docId).delete();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Item deleted successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Item deleted successfully!'),
+                      backgroundColor: AppTheme.successGreen,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error deleting item: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting item: $e'), backgroundColor: AppTheme.errorRed),
+                  );
+                }
               }
             },
             child: const Text('Delete'),
@@ -211,13 +227,13 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Color _stockColor(int qty) {
-    if (qty == 0) return Colors.red;
-    if (qty <= 5) return Colors.orange;
-    return Colors.green;
+  Color _getStockColor(int qty) {
+    if (qty == 0) return AppTheme.errorRed;
+    if (qty <= 5) return AppTheme.warningOrange;
+    return AppTheme.successGreen;
   }
 
-  String _stockLabel(int qty) {
+  String _getStockLabel(int qty) {
     if (qty == 0) return 'Out of Stock';
     if (qty <= 5) return 'Low Stock';
     return 'In Stock';
@@ -226,88 +242,183 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: AppTheme.lg),
+              Text('Loading inventory...', style: Theme.of(context).textTheme.bodyLarge),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      floatingActionButton: _isAdmin ? FloatingActionButton(
-        backgroundColor: Colors.red,
-        onPressed: () => _addOrEditItem(),
-        child: const Icon(Icons.add),
-      ) : null,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: AppTheme.backgroundColor,
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              tooltip: 'Add Item',
+              onPressed: () => _addOrEditItem(),
+              backgroundColor: AppTheme.primaryRed,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      body: SingleChildScrollView(
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            // Header
+            Text(
               'Inventory Management',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore
-                    .collection('inventory')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final items = snapshot.data!.docs;
-
-                  if (items.isEmpty) {
-                    return const Center(child: Text('No inventory items yet.'));
-                  }
-
-                  return ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final doc = items[index];
-                      final data = doc.data() as Map<String, dynamic>;
-
-                      return Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _stockColor(data['quantity'] ?? 0),
-                            child: const Icon(Icons.inventory, color: Colors.white),
-                          ),
-                          title: Text(data['name'] ?? '',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            '${data['category']} • ${data['quantity']} ${data['unit']} • ${_stockLabel(data['quantity'] ?? 0)}',
-                          ),
-                          trailing: Wrap(
-                            spacing: 8,
-                            children: [
-                              if (_isAdmin)
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  onPressed: () => _addOrEditItem(
-                                    item: data,
-                                    docId: doc.id,
-                                  ),
-                                ),
-                              if (_isAdmin)
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _deleteItem(doc.id),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+            const SizedBox(height: AppTheme.md),
+            Text(
+              'View and manage restaurant inventory items',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppTheme.mediumGrey,
               ),
+            ),
+            const SizedBox(height: AppTheme.xl),
+
+            // Search Field
+            TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'Search items...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
+              ),
+            ),
+            const SizedBox(height: AppTheme.xl),
+
+            // Inventory List
+            StreamBuilder<QuerySnapshot>(
+              stream: _firestore.collection('inventory').orderBy('createdAt', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: AppTheme.lg),
+                        Text('Loading items...', style: Theme.of(context).textTheme.bodyLarge),
+                      ],
+                    ),
+                  );
+                }
+
+                var items = snapshot.data!.docs;
+
+                // Filter items based on search query
+                if (_searchQuery.isNotEmpty) {
+                  items = items.where((doc) {
+                    final name = (doc['name'] ?? '').toString().toLowerCase();
+                    return name.contains(_searchQuery.toLowerCase());
+                  }).toList();
+                }
+
+                if (items.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox, size: 64, color: AppTheme.lightGrey),
+                        const SizedBox(height: AppTheme.lg),
+                        Text(
+                          'No inventory items found',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: AppTheme.md),
+                        if (_isAdmin)
+                          Text(
+                            'Tap the + button to add items',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppTheme.mediumGrey,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final doc = items[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final quantity = data['quantity'] ?? 0;
+                    final stockColor = _getStockColor(quantity);
+                    final stockLabel = _getStockLabel(quantity);
+
+                    return Card(
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                      margin: const EdgeInsets.only(bottom: AppTheme.lg),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(AppTheme.lg),
+                        leading: Container(
+                          padding: const EdgeInsets.all(AppTheme.md),
+                          decoration: BoxDecoration(
+                            color: stockColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
+                          child: Icon(Icons.inventory_2, color: stockColor, size: 24),
+                        ),
+                        title: Text(
+                          data['name'] ?? 'Unknown',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: AppTheme.md),
+                            Row(
+                              children: [
+                                Icon(Icons.category, size: 14, color: AppTheme.mediumGrey),
+                                const SizedBox(width: AppTheme.md),
+                                Text(
+                                  data['category'] ?? 'N/A',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppTheme.sm),
+                            Chip(
+                              label: Text('$quantity ${data['unit'] ?? ''} • $stockLabel'),
+                              backgroundColor: stockColor.withOpacity(0.15),
+                              labelStyle: TextStyle(color: stockColor, fontWeight: FontWeight.bold),
+                              avatar: Icon(Icons.production_quantity_limits, size: 14, color: stockColor),
+                            ),
+                          ],
+                        ),
+                        trailing: _isAdmin
+                            ? PopupMenuButton(
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    child: const Text('Edit'),
+                                    onTap: () => _addOrEditItem(item: data, docId: doc.id),
+                                  ),
+                                  PopupMenuItem(
+                                    child: const Text('Delete'),
+                                    onTap: () => _deleteItem(doc.id, data['name'] ?? 'Item'),
+                                  ),
+                                ],
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -315,3 +426,4 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
+
