@@ -712,7 +712,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
         children: [
           // Discount dropdown
           DropdownButtonFormField<String>(
-            value: discountType,
+            initialValue: discountType,
             decoration: InputDecoration(
               labelText: 'Discount',
               border: OutlineInputBorder(
@@ -736,7 +736,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
           const SizedBox(height: 12),
           // Payment method dropdown
           DropdownButtonFormField<String>(
-            value: paymentMethod,
+            initialValue: paymentMethod,
             decoration: InputDecoration(
               labelText: 'Payment Method',
               border: OutlineInputBorder(
