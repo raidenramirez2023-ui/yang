@@ -1,21 +1,20 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirebaseSetup {
   static Future<void> setupFirestoreDatabase() async {
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
     
     try {
       // Create users collection if it doesn't exist
       // Check if admin user already exists
-      QuerySnapshot existingAdmin = await _firestore
+      QuerySnapshot existingAdmin = await firestore
           .collection('users')
           .where('email', isEqualTo: 'adminpagsanjan@gmail.com')
           .get();
       
       if (existingAdmin.docs.isEmpty) {
         // Add admin user to Firestore
-        await _firestore.collection('users').add({
+        await firestore.collection('users').add({
           'email': 'adminpagsanjan@gmail.com',
           'role': 'Admin',
           'name': 'System Administrator',
@@ -27,7 +26,7 @@ class FirebaseSetup {
         print('✅ Admin user created in Firestore');
       } else {
         // Update existing admin to ensure correct role
-        await _firestore
+        await firestore
             .collection('users')
             .doc(existingAdmin.docs.first.id)
             .update({
@@ -52,11 +51,11 @@ class FirebaseSetup {
   }
   
   static Future<void> _createSampleData() async {
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
     
     try {
       // Create sample menu items
-      CollectionReference menuItems = _firestore.collection('menu_items');
+      CollectionReference menuItems = firestore.collection('menu_items');
       
       // Check if menu items already exist
       QuerySnapshot existingItems = await menuItems.limit(1).get();
@@ -100,7 +99,7 @@ class FirebaseSetup {
       }
       
       // Create sample categories
-      CollectionReference categories = _firestore.collection('categories');
+      CollectionReference categories = firestore.collection('categories');
       
       QuerySnapshot existingCategories = await categories.limit(1).get();
       
