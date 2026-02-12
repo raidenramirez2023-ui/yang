@@ -31,7 +31,7 @@ class StaffDashboardPage extends StatelessWidget {
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(

@@ -426,4 +426,3 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
-
