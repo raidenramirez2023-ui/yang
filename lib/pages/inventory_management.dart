@@ -17,6 +17,16 @@ class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
   bool _isLoading = true;
   String _searchQuery = '';
+  String _selectedCategory = 'All';
+
+  final List<String> categories = [
+    'All',
+    'Perishable Ingredients',
+    'Non-perishable Ingredients', 
+    'Beverages',
+   
+  
+  ];
 
   @override
   void initState() {
@@ -88,6 +98,47 @@ class _InventoryPageState extends State<InventoryPage> {
                 label: 'Category',
                 controller: categoryController,
                 icon: Icons.category,
+                readOnly: true,
+                hintText: 'Select from categories below',
+              ),
+              const SizedBox(height: AppTheme.lg),
+              Container(
+                padding: const EdgeInsets.all(AppTheme.md),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.primaryRed.withOpacity(0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Available Categories:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryRed,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: categories.where((cat) => cat != 'All').map((category) {
+                        return ActionChip(
+                          label: Text(
+                            category,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          onPressed: () {
+                            categoryController.text = category;
+                          },
+                          backgroundColor: AppTheme.primaryRed.withOpacity(0.1),
+                          side: BorderSide(color: AppTheme.primaryRed.withOpacity(0.3)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppTheme.lg),
               _buildDialogTextField(
@@ -173,12 +224,16 @@ class _InventoryPageState extends State<InventoryPage> {
     required TextEditingController controller,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    String? hintText,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hintText,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
       ),
@@ -256,6 +311,9 @@ class _InventoryPageState extends State<InventoryPage> {
       );
     }
 
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       floatingActionButton: _isAdmin
@@ -263,7 +321,12 @@ class _InventoryPageState extends State<InventoryPage> {
               tooltip: 'Add Item',
               onPressed: () => _addOrEditItem(),
               backgroundColor: AppTheme.primaryRed,
-              child: const Icon(Icons.add),
+              heroTag: "add",
+              mini: isMobile,
+              child: Icon(
+                Icons.add,
+                size: isMobile ? 20 : 24,
+              ),
             )
           : null,
       body: SingleChildScrollView(
@@ -272,30 +335,199 @@ class _InventoryPageState extends State<InventoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Text(
-              'Inventory Management',
-              style: Theme.of(context).textTheme.headlineSmall,
+            Row(
+              children: [
+                if (isMobile) 
+                  Expanded(
+                    child: Text(
+                      'Inventory',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 20,
+                          tablet: 24,
+                          desktop: 28,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Text(
+                      'Inventory Management',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 20,
+                          tablet: 24,
+                          desktop: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: AppTheme.md),
+            ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 12, desktop: 16),
             Text(
-              'View and manage restaurant inventory items',
+              isMobile ? 'Manage restaurant items' : 'View and manage restaurant inventory items',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppTheme.mediumGrey,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
               ),
             ),
-            const SizedBox(height: AppTheme.xl),
+            ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+
+            // Firestore Connection Status
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(
+                ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 12,
+                  tablet: 16,
+                  desktop: 20,
+                ),
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.primaryRed.withOpacity(0.3)),
+              ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _firestore.collection('inventory').limit(1).snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Row(
+                      children: [
+                        Icon(Icons.error, color: AppTheme.errorRed),
+                        const SizedBox(width: AppTheme.md),
+                        Expanded(
+                          child: Text(
+                            'Firestore Error: ${snapshot.error}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.errorRed,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Row(
+                      children: [
+                        const CircularProgressIndicator(strokeWidth: 2),
+                        ResponsiveUtils.horizontalSpace(context, mobile: 8, tablet: 12, desktop: 16),
+                        Text(
+                          'Connecting to Firestore...',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.primaryRed,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  
+                  return Row(
+                    children: [
+                      Icon(Icons.check_circle, color: AppTheme.successGreen, size: ResponsiveUtils.getResponsiveIconSize(context)),
+                      ResponsiveUtils.horizontalSpace(context, mobile: 8, tablet: 12, desktop: 16),
+                      Expanded(
+                        child: Text(
+                          '✅ Connected to Firestore Database',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.successGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+
+            // Category Filter
+            Container(
+              height: isMobile ? 50 : 60,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 0 : 8),
+                children: categories.map((category) {
+                  final isSelected = _selectedCategory == category;
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 6,
+                        tablet: 8,
+                        desktop: 8,
+                      ),
+                    ),
+                    child: FilterChip(
+                      label: Text(
+                        category,
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 12,
+                            tablet: 13,
+                            desktop: 14,
+                          ),
+                        ),
+                      ),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedCategory = category;
+                        });
+                      },
+                      backgroundColor: AppTheme.lightGrey,
+                      selectedColor: AppTheme.primaryRed,
+                      labelStyle: TextStyle(
+                        color: isSelected ? AppTheme.white : AppTheme.darkGrey,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
 
             // Search Field
             TextField(
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: InputDecoration(
-                hintText: 'Search items...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: isMobile ? 'Search...' : 'Search items...',
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: ResponsiveUtils.getResponsiveIconSize(context),
+                ),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 12,
+                    tablet: 16,
+                    desktop: 20,
+                  ),
+                  vertical: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 12,
+                    tablet: 14,
+                    desktop: 16,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: AppTheme.xl),
+            ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
 
             // Inventory List
             StreamBuilder<QuerySnapshot>(
@@ -315,6 +547,14 @@ class _InventoryPageState extends State<InventoryPage> {
                 }
 
                 var items = snapshot.data!.docs;
+
+                // Filter items based on category
+                if (_selectedCategory != 'All') {
+                  items = items.where((doc) {
+                    final category = (doc['category'] ?? '').toString();
+                    return category == _selectedCategory;
+                  }).toList();
+                }
 
                 // Filter items based on search query
                 if (_searchQuery.isNotEmpty) {
@@ -364,18 +604,43 @@ class _InventoryPageState extends State<InventoryPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                       margin: const EdgeInsets.only(bottom: AppTheme.lg),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(AppTheme.lg),
+                        contentPadding: EdgeInsets.all(
+                          ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 12,
+                            tablet: 16,
+                            desktop: 20,
+                          ),
+                        ),
                         leading: Container(
-                          padding: const EdgeInsets.all(AppTheme.md),
+                          padding: EdgeInsets.all(
+                            ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 8,
+                              tablet: 12,
+                              desktop: 16,
+                            ),
+                          ),
                           decoration: BoxDecoration(
                             color: stockColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                           ),
-                          child: Icon(Icons.inventory_2, color: stockColor, size: 24),
+                          child: Icon(
+                            Icons.inventory_2, 
+                            color: stockColor, 
+                            size: ResponsiveUtils.getResponsiveIconSize(context),
+                          ),
                         ),
                         title: Text(
                           data['name'] ?? 'Unknown',
-                          style: Theme.of(context).textTheme.titleSmall,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 14,
+                              tablet: 15,
+                              desktop: 16,
+                            ),
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

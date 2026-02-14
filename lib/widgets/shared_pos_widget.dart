@@ -47,7 +47,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
     'assets/images/food1.jpg',
     'assets/images/food3.jpg',
     'assets/images/food4.jpg',
-    'assets/images/food5.jpg',
+    'assets/images/food 5.jpg',
+    'assets/images/siomaii.jpg',
   ];
 
   int _imageIndex = 0;
@@ -72,6 +73,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
     _buildMenu();
   }
 
+  @override
+  void dispose() {
+    customerNameController.dispose();
+    super.dispose();
+  }
+
   void _buildMenu() {
     menu["Main Dish"]!.addAll([
       _item("Yang Chow Rice", 180, Colors.orange, isPopular: true),
@@ -80,7 +87,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
     ]);
 
     menu["Appetizers"]!.addAll([
-      _item("Siomai", 60, Colors.orange),
+      MenuItem(
+        name: "Siomai",
+        price: 60,
+        category: "Appetizers",
+        imagePath: "assets/images/siomaii.jpg",
+        color: Colors.orange,
+        isPopular: false,
+      ),
       _item("Lumpia", 50, Colors.brown, isPopular: true),
     ]);
 
@@ -134,7 +148,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: isDesktop ? _buildDesktopLayout(items) : _buildMobileLayout(items),
+      body: Column(
+        children: [
+          // Category Tabs
+          _buildCategoryBar(),
+          // Main Content
+          Expanded(
+            child: isDesktop ? _buildDesktopLayout(items) : _buildMobileLayout(items),
+          ),
+        ],
+      ),
       floatingActionButton: !isDesktop && cart.isNotEmpty
           ? FloatingActionButton.extended(
               backgroundColor: Colors.red.shade600,
@@ -154,7 +177,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
           flex: 7,
           child: Column(
             children: [
-              _buildCategoryBar(),
               Expanded(child: _buildMenuGrid(items, true)),
             ],
           ),
@@ -169,7 +191,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
   Widget _buildMobileLayout(List<MenuItem> items) {
     return Column(
       children: [
-        _buildCategoryBar(),
         Expanded(child: _buildMenuGrid(items, false)),
       ],
     );
@@ -543,11 +564,5 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    customerNameController.dispose();
-    super.dispose();
   }
 }
