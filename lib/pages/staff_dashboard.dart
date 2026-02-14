@@ -28,18 +28,20 @@ class StaffDashboardPage extends StatelessWidget {
         actions: [
           // Current user info
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.red.shade700,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                topLeft: Radius.circular(20),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.person, color: Colors.white, size: 20),
+                Icon(Icons.person, color: Colors.white, size: 16),
                 const SizedBox(width: 8),
-                Text(
-                  'Staff User',
+                const Text(
+                  'Staff',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,

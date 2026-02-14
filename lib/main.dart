@@ -13,7 +13,7 @@ import 'pages/inventory_management.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔥 Initialize Firebase (ALL platforms)
+  // Initialize Firebase (ALL platforms)
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const YangChowApp());
