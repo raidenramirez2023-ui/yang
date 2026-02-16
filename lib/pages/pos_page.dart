@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
-import 'user_management.dart';
-import 'sales_report_page.dart';
-import 'inventory_management.dart';
-import 'settings.dart';
+import 'package:yang_chow/pages/user_management.dart';
+import 'package:yang_chow/pages/sales_report_page.dart';
+import 'package:yang_chow/pages/inventory_management.dart';
+import 'package:yang_chow/pages/settings.dart';
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -19,7 +19,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   // Pages for admin
   final List<Widget> _pages = [
-    const SharedPOSWidget(userRole: 'Admin'),
     const InventoryPage(),
     const SalesReportPage(),
     const UserManagementPage(),
@@ -27,7 +26,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
   ];
 
   final List<String> _pageTitles = [
-    'POS System',
     'Inventory',
     'Sales Reports',
     'User Management',
@@ -35,7 +33,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
   ];
 
   final List<IconData> _pageIcons = [
-    Icons.point_of_sale,
     Icons.inventory_2,
     Icons.analytics,
     Icons.people,
