@@ -5,6 +5,7 @@ import 'utils/app_theme.dart';
 
 // Pages
 import 'pages/login_page.dart';
+import 'pages/forgot_password_page.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/pos_page.dart';
 import 'pages/staff_dashboard.dart';
@@ -25,13 +26,14 @@ class YangChowApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Yang Chow POS System',
+      title: 'Yang Chow Restaurant Management System',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
       routes: {
         // Auth
         '/': (context) => const LoginPage(),
+        '/forgot-password': (context) => const ForgotPasswordPage(),
 
         // Admin routes
         '/admin': (context) => const AdminMainPage(),

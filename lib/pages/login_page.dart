@@ -192,16 +192,39 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // Logo
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  width: 120,
+                  height: 120,
                   decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    color: AppTheme.white,
-                    size: 64,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/images/logo.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryRed.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.restaurant,
+                            color: AppTheme.white,
+                            size: 64,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -214,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Restaurant POS System',
+                  'Restaurant Management System',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppTheme.white.withOpacity(0.8),
                   ),
@@ -229,25 +252,12 @@ class _LoginPageState extends State<LoginPage> {
                       color: AppTheme.white.withOpacity(0.2),
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.security, color: AppTheme.white, size: 32),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Secure Login',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppTheme.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Protected by Firebase Authentication',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.white.withOpacity(0.7),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  child: Text(
+                    'Secure Login Portal',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.white,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -256,11 +266,11 @@ class _LoginPageState extends State<LoginPage> {
         ),
         // Right side - Login Form
         Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppTheme.xl),
+          child: Container(
+            padding: ResponsiveUtils.getResponsivePadding(context),
+            child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: _buildLoginForm(),
               ),
             ),
@@ -291,7 +301,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Yang Chow POS',
+              'Yang Chow',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -304,7 +314,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
             _buildLoginForm(),
             const SizedBox(height: 40),
           ],
@@ -438,33 +448,27 @@ class _LoginPageState extends State<LoginPage> {
               : const Text('Sign In'),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
 
-        // Divider
-        Row(
-          children: [
-            Expanded(child: Divider(color: AppTheme.lightGrey, thickness: 1)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
-              child: Text(
-                'or',
-                style: Theme.of(context).textTheme.bodySmall,
+        // Forgot Password Link
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _isLoading ? null : () {
+              Navigator.pushNamed(context, '/forgot-password');
+            },
+            child: Text(
+              'Forgot Password?',
+              style: TextStyle(
+                color: AppTheme.primaryRed,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 12,
+                  tablet: 13,
+                  desktop: 14,
+                ),
               ),
             ),
-            Expanded(child: Divider(color: AppTheme.lightGrey, thickness: 1)),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Create Account Button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Create Admin Account'),
-            onPressed: _isLoading ? null : () {
-              Navigator.pushNamed(context, '/register');
-            },
           ),
         ),
       ],

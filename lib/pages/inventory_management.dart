@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -613,17 +617,11 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                         ),
                         leading: Container(
-                          padding: EdgeInsets.all(
-                            ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 8,
-                              tablet: 12,
-                              desktop: 16,
-                            ),
-                          ),
+                          width: 60,
+                          height: 60,
                           decoration: BoxDecoration(
-                            color: stockColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            color: stockColor.withOpacity(0.1),
                           ),
                           child: Icon(
                             Icons.inventory_2, 

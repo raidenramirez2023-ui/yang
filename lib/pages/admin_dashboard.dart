@@ -7,7 +7,7 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     // Redirect to main admin interface immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushReplacementNamed(context, '/pos');
+      Navigator.pushReplacementNamed(context, '/admin');
     });
     
     return Scaffold(
