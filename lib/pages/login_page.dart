@@ -11,7 +11,7 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,6 +20,10 @@ class _LoginPageState extends State<LoginPage> {
   String selectedRole = 'Admin'; // default role
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _showLoginPage = false;
+
+  late AnimationController _animationController;
+  late Animation<double> _logoAnimation;
 
   // Role definitions with descriptions
   final Map<String, Map<String, String>> roles = {
@@ -34,6 +38,46 @@ class _LoginPageState extends State<LoginPage> {
       'route': '/staff-dashboard',
     },
   };
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Animation controller for 2 seconds
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+
+    // Logo animation from small to 500
+    _logoAnimation = Tween<double>(
+      begin: 50.0, // Simula sa maliit
+      end: 500.0,  // Hanggang 500
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutBack, // Smooth animation
+    ));
+
+    // Start animation
+    _animationController.forward();
+
+    // Show login page after animation completes
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showLoginPage = true;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> handleLogin() async {
     String email = emailController.text.trim();
@@ -171,24 +215,57 @@ class _LoginPageState extends State<LoginPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      backgroundColor: const Color.fromRGBO(254, 0, 2, 1),
+      body: Stack(
+        children: [
+          // Logo Animation (2 seconds mula sa gitna, lumalaki hanggang 500)
+          if (!_showLoginPage)
+            Center(
+              child: AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return Container(
+                    width: _logoAnimation.value,
+                    height: _logoAnimation.value,
+                    child: Image.asset(
+                      'assets/images/ycplogo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: _logoAnimation.value,
+                          height: _logoAnimation.value,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(
+                            Icons.restaurant,
+                            color: const Color.fromRGBO(254, 0, 2, 1),
+                            size: _logoAnimation.value * 0.5,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Login Page (lalabas pagkatapos ng 2 seconds) - 50-50 background
+          if (_showLoginPage)
+            (isDesktop ? _buildDesktopLayout() : _buildMobileLayout()),
+        ],
+      ),
     );
   }
 
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Left side - Branding
+        // Left side - Red background (50%)
         Expanded(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryRed, AppTheme.primaryRedDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            color: const Color.fromRGBO(254, 0, 2, 1),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -264,14 +341,17 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
-        // Right side - Login Form
+        // Right side - White background (50%)
         Expanded(
           child: Container(
-            padding: ResponsiveUtils.getResponsivePadding(context),
+            color: Colors.white,
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
-                child: _buildLoginForm(),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: _buildLoginForm(),
+                ),
               ),
             ),
           ),
@@ -473,12 +553,5 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ],
     );
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
   }
 }
