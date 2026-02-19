@@ -215,7 +215,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(254, 0, 2, 1),
+      backgroundColor: Colors.red.shade600,
       body: Stack(
         children: [
           // Logo Animation (2 seconds mula sa gitna, lumalaki hanggang 500)
@@ -240,7 +240,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           ),
                           child: Icon(
                             Icons.restaurant,
-                            color: const Color.fromRGBO(254, 0, 2, 1),
+                            color: Colors.red.shade600,
                             size: _logoAnimation.value * 0.5,
                           ),
                         );
@@ -265,7 +265,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         // Left side - Red background (50%)
         Expanded(
           child: Container(
-            color: const Color.fromRGBO(254, 0, 2, 1),
+            color: Colors.red.shade600,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -291,12 +291,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryRed.withOpacity(0.1),
+                            color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.restaurant,
-                            color: AppTheme.white,
+                            color: Colors.red.shade600,
                             size: 64,
                           ),
                         );
@@ -308,7 +308,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 Text(
                   'Yang Chow',
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: AppTheme.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -316,23 +316,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 Text(
                   'Restaurant Management System',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.white.withOpacity(0.8),
+                    color: Colors.white.withOpacity(0.8),
                   ),
                 ),
                 const SizedBox(height: 48),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.15),
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
+                      color: Colors.white.withOpacity(0.2),
                     ),
                   ),
                   child: Text(
                     'Secure Login Portal',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.white,
+                      color: Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -361,43 +361,47 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildMobileLayout() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
-        child: Column(
-          children: [
-            const SizedBox(height: 60),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed,
-                shape: BoxShape.circle,
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
+          child: Column(
+            children: [
+              const SizedBox(height: 60),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.restaurant_menu,
+                  color: Colors.red.shade600,
+                  size: 48,
+                ),
               ),
-              child: const Icon(
-                Icons.restaurant_menu,
-                color: AppTheme.white,
-                size: 48,
+              const SizedBox(height: 24),
+              const Text(
+                'Yang Chow',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Yang Chow',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                'Restaurant Management System',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.mediumGrey,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Restaurant Management System',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.mediumGrey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            _buildLoginForm(),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 32),
+              _buildLoginForm(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
