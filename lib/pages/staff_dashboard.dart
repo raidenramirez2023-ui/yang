@@ -6,21 +6,23 @@ class StaffDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 50,
         title: Row(
           children: [
-            Icon(Icons.point_of_sale, color: Colors.white, size: 20),
+            Icon(Icons.point_of_sale, color: Colors.red.shade600, size: 20),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Staff POS System',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black87,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -33,7 +35,7 @@ class StaffDashboardPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.red.shade700,
+              color: Colors.grey.shade200,
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(16),
                 topLeft: Radius.circular(16),
@@ -42,12 +44,12 @@ class StaffDashboardPage extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person, color: Colors.white, size: 14),
+                Icon(Icons.person, color: Colors.black54, size: 14),
                 const SizedBox(width: 6),
-                const Text(
+                Text(
                   'Staff',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black87,
                     fontWeight: FontWeight.w500,
                     fontSize: 12,
                   ),
@@ -56,7 +58,7 @@ class StaffDashboardPage extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Icon(Icons.logout, color: Colors.black54),
             onPressed: () {
               showDialog(
                 context: context,
