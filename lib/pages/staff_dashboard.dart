@@ -11,16 +11,19 @@ class StaffDashboardPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.red.shade600,
         elevation: 0,
+        toolbarHeight: 50,
         title: Row(
           children: [
-            Icon(Icons.point_of_sale, color: Colors.white),
-            const SizedBox(width: 12),
-            const Text(
-              'Staff POS System',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
+            Icon(Icons.point_of_sale, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Staff POS System',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
@@ -28,23 +31,25 @@ class StaffDashboardPage extends StatelessWidget {
         actions: [
           // Current user info
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.red.shade700,
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                topLeft: Radius.circular(20),
+                bottomLeft: Radius.circular(16),
+                topLeft: Radius.circular(16),
               ),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
+                Icon(Icons.person, color: Colors.white, size: 14),
+                const SizedBox(width: 6),
                 const Text(
                   'Staff',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
+                    fontSize: 12,
                   ),
                 ),
               ],
