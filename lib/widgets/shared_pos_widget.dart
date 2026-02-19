@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'order_list_panel.dart';
 
 /// =====================
 /// MODELS
@@ -7,17 +10,19 @@ class MenuItem {
   String name;
   double price;
   final String category;
-  final String imagePath;
+  String? customImagePath;
+  final String fallbackImagePath;
   final Color color;
-  final bool isPopular; // Best Seller / Popular badge
+  bool isPopular;
 
   MenuItem({
     required this.name,
     required this.price,
     required this.category,
-    required this.imagePath,
+    required this.fallbackImagePath,
     required this.color,
     this.isPopular = false,
+    this.customImagePath,
   });
 }
 
@@ -25,104 +30,249 @@ class CartItem {
   final MenuItem item;
   int quantity;
   CartItem(this.item, this.quantity);
+  
+  String get name => item.name;
+  double get price => item.price;
 }
 
 /// =====================
 /// SHARED POS WIDGET
 /// =====================
 class SharedPOSWidget extends StatefulWidget {
-  final String userRole; // Admin / Staff
+  final String userRole;
   const SharedPOSWidget({super.key, required this.userRole});
 
   @override
   State<SharedPOSWidget> createState() => _SharedPOSWidgetState();
 }
 
-class _SharedPOSWidgetState extends State<SharedPOSWidget> {
-  String selectedCategory = 'Main Dish';
-  final TextEditingController customerNameController = TextEditingController();
+class _SharedPOSWidgetState extends State<SharedPOSWidget>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final ImagePicker _picker = ImagePicker();
 
-  final List<String> foodImages = [
-    'assets/images/food.jpg',
-    'assets/images/food1.jpg',
-    'assets/images/food3.jpg',
-    'assets/images/food4.jpg',
-    'assets/images/food 5.jpg',
-    'assets/images/siomaii.jpg',
+  /// =====================
+  /// CATEGORY LIST
+  /// =====================
+  final List<String> categories = [
+    'Yangchow Family Bundles',
+    'Vegetables',
+    'Special Noodles',
+    'Soup',
+    'Seafood',
+    'Roast and Soy Specialties',
+    'Pork',
+    'Noodles',
+    'Mami or Noodles',
+    'Hot Pot Specialties',
+    'Fried Rice or Rice',
+    'Dimsum',
+    'Congee',
+    'Chicken',
+    'Beef',
+    'Appetizer',
   ];
 
-  int _imageIndex = 0;
-  String _nextImage() {
-    final img = foodImages[_imageIndex];
-    _imageIndex = (_imageIndex + 1) % foodImages.length;
-    return img;
-  }
-
-  final Map<String, List<MenuItem>> menu = {
-    "Main Dish": [],
-    "Appetizers": [],
-    "Drinks": [],
-    "Desserts": [],
+  /// =====================
+  /// CATEGORY IMAGES (per category)
+  /// =====================
+  final Map<String, List<String>> categoryImages = {
+    'Yangchow Family Bundles': ['assets/images/YC4.jpg', 'assets/images/YC2.png', 'assets/images/YC3.jpg', 'assets/images/YC1.png'],
+    'Vegetables': ['assets/images/veg1.jpg', 'assets/images/veg2.jpg'],
+    'Special Noodles': ['assets/images/noodles1.jpg', 'assets/images/noodles2.jpg'],
+    'Soup': ['assets/images/soup1.jpg', 'assets/images/soup2.jpg'],
+    'Seafood': ['assets/images/seafood1.jpg', 'assets/images/seafood2.jpg'],
+    'Roast and Soy Specialties': ['assets/images/roast1.jpg', 'assets/images/roast2.jpg'],
+    'Pork': ['assets/images/pork1.jpg', 'assets/images/pork2.jpg'],
+    'Noodles': ['assets/images/noodles3.jpg', 'assets/images/noodles4.jpg'],
+    'Mami or Noodles': ['assets/images/mami1.jpg', 'assets/images/mami2.jpg'],
+    'Hot Pot Specialties': ['assets/images/hotpot1.jpg', 'assets/images/hotpot2.jpg'],
+    'Fried Rice or Rice': ['assets/images/rice1.jpg', 'assets/images/rice2.jpg'],
+    'Dimsum': ['assets/images/dimsum1.jpg', 'assets/images/dimsum2.jpg'],
+    'Congee': ['assets/images/congee1.jpg', 'assets/images/congee2.jpg'],
+    'Chicken': ['assets/images/chicken1.jpg', 'assets/images/chicken2.jpg'],
+    'Beef': ['assets/images/beef1.jpg', 'assets/images/beef2.jpg'],
+    'Appetizer': ['assets/images/appetizer1.jpg', 'assets/images/appetizer2.jpg'],
+    'default': ['assets/images/food.jpg'],
   };
 
+  /// Track image index per category
+  final Map<String, int> _categoryImageIndex = {};
+
+  late Map<String, List<MenuItem>> menu;
   List<CartItem> cart = [];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: categories.length, vsync: this);
+    menu = {for (var cat in categories) cat: []};
     _buildMenu();
   }
 
-  @override
-  void dispose() {
-    customerNameController.dispose();
-    super.dispose();
+  /// =====================
+  /// Get next image for category
+  /// =====================
+  String _nextImage(String category) {
+    final images = categoryImages[category] ?? categoryImages['default']!;
+    final index = _categoryImageIndex[category] ?? 0;
+    final img = images[index];
+    _categoryImageIndex[category] = (index + 1) % images.length;
+    return img;
   }
 
+  /// =====================
+  /// BUILD MENU ITEMS
+  /// =====================
   void _buildMenu() {
-    menu["Main Dish"]!.addAll([
-      _item("Yang Chow Rice", 180, Colors.orange, isPopular: true),
-      _item("Sweet & Sour Pork", 220, Colors.red),
-      _item("Beef Broccoli", 250, Colors.green),
+    menu['Yangchow Family Bundles']!.addAll([
+      _item('Family Bundle A', 4566.80, 'Yangchow Family Bundles', Colors.orange, isPopular: true),
+      _item('Family Bundle B', 950, 'Yangchow Family Bundles', Colors.deepOrange),
+      _item('Family Bundle C', 950, 'Yangchow Family Bundles', Colors.deepOrange),
+      _item('Family Bundle D', 950, 'Yangchow Family Bundles', Colors.deepOrange),
     ]);
 
-    menu["Appetizers"]!.addAll([
-      MenuItem(
-        name: "Siomai",
-        price: 60,
-        category: "Appetizers",
-        imagePath: "assets/images/siomaii.jpg",
-        color: Colors.orange,
-        isPopular: false,
-      ),
-      _item("Lumpia", 50, Colors.brown, isPopular: true),
+    menu['Vegetables']!.addAll([
+      _item('Chopsuey', 160, 'Vegetables', Colors.green, isPopular: true),
+      _item('Kangkong Garlic', 140, 'Vegetables', Colors.lightGreen),
     ]);
 
-    menu["Drinks"]!.addAll([
-      _item("Iced Tea", 45, Colors.blue),
-      _item("Softdrinks", 40, Colors.indigo),
+    menu['Special Noodles']!.addAll([
+      _item('Yang Chow Fried Noodles', 220, 'Special Noodles', Colors.amber, isPopular: true),
+      _item('Pancit Canton', 200, 'Special Noodles', Colors.orange),
     ]);
 
-    menu["Desserts"]!.addAll([
-      _item("Halo-Halo", 90, Colors.purple, isPopular: true),
-      _item("Leche Flan", 70, Colors.amber),
+    menu['Soup']!.addAll([
+      _item('Corn Soup', 120, 'Soup', Colors.yellow),
+      _item('Wonton Soup', 130, 'Soup', Colors.orange, isPopular: true),
+    ]);
+
+    menu['Seafood']!.addAll([
+      _item('Garlic Shrimp', 300, 'Seafood', Colors.lightBlue),
+      _item('Steamed Fish', 320, 'Seafood', Colors.cyan),
+    ]);
+
+    menu['Roast and Soy Specialties']!.addAll([
+      _item('Roast Duck', 350, 'Roast and Soy Specialties', Colors.brown, isPopular: true),
+      _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber),
+    ]);
+
+    menu['Pork']!.addAll([
+      _item('Sweet & Sour Pork', 220, 'Pork', Colors.red, isPopular: true),
+      _item('Pork Asado', 200, 'Pork', Colors.brown),
+    ]);
+
+    menu['Noodles']!.addAll([
+      _item('Lo Mein', 180, 'Noodles', Colors.orange),
+      _item('Sotanghon', 150, 'Noodles', Colors.lime),
+    ]);
+
+    menu['Mami or Noodles']!.addAll([
+      _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown, isPopular: true),
+      _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber),
+    ]);
+
+    menu['Hot Pot Specialties']!.addAll([
+      _item('Seafood Hot Pot', 450, 'Hot Pot Specialties', Colors.deepOrange, isPopular: true),
+      _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green),
+    ]);
+
+    menu['Fried Rice or Rice']!.addAll([
+      _item('Yang Chow Fried Rice', 180, 'Fried Rice or Rice', Colors.orange, isPopular: true),
+      _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70),
+    ]);
+
+    menu['Dimsum']!.addAll([
+      _item('Siomai', 60, 'Dimsum', Colors.orange, isPopular: true),
+      _item('Hakaw', 70, 'Dimsum', Colors.lightBlue),
+    ]);
+
+    menu['Congee']!.addAll([
+      _item('Beef Congee', 100, 'Congee', Colors.brown, isPopular: true),
+      _item('Plain Lugaw', 60, 'Congee', Colors.grey),
+    ]);
+
+    menu['Chicken']!.addAll([
+      _item('Chicken Adobo', 200, 'Chicken', Colors.brown, isPopular: true),
+      _item('Kung Pao Chicken', 230, 'Chicken', Colors.red),
+    ]);
+
+    menu['Beef']!.addAll([
+      _item('Beef Broccoli', 250, 'Beef', Colors.green, isPopular: true),
+      _item('Beef Steak', 280, 'Beef', Colors.red),
+    ]);
+
+    menu['Appetizer']!.addAll([
+      _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown, isPopular: true),
+      _item('Fried Tofu', 60, 'Appetizer', Colors.amber),
     ]);
   }
 
-  MenuItem _item(String name, double price, Color color, {bool isPopular = false}) {
+  MenuItem _item(String name, double price, String category, Color color,
+      {bool isPopular = false}) {
     return MenuItem(
       name: name,
       price: price,
-      category: selectedCategory,
-      imagePath: _nextImage(),
+      category: category,
+      fallbackImagePath: _nextImage(category),
       color: color,
       isPopular: isPopular,
     );
   }
 
+  /// =====================
+  /// PICK IMAGE FOR ITEM
+  /// =====================
+  Future<void> _pickImageForItem(MenuItem item) async {
+    final XFile? picked =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) {
+      setState(() => item.customImagePath = picked.path);
+    }
+  }
+
+  /// =====================
+  /// BUILD IMAGE WIDGET
+  /// =====================
+  Widget _buildImageWidget(MenuItem item) {
+    if (item.customImagePath != null) {
+      return Image.file(
+        File(item.customImagePath!), 
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[300],
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          );
+        },
+      );
+    }
+    return Image.asset(
+      item.fallbackImagePath, 
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: Colors.grey[300],
+          child: const Icon(Icons.image, color: Colors.grey),
+        );
+      },
+    );
+  }
+
+  /// =====================
+  /// ADD TO CART
+  /// =====================
   void addToCart(MenuItem item) {
+    final index = cart.indexWhere((e) => e.item.name == item.name);
     setState(() {
-      final index = cart.indexWhere((e) => e.item.name == item.name);
       if (index >= 0) {
         cart[index].quantity++;
       } else {
@@ -131,11 +281,375 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
     });
   }
 
-  double total() => cart.fold(0, (sum, e) => sum + e.item.price * e.quantity);
+  /// =====================
+  /// CALCULATE TOTAL
+  /// =====================
+  double get totalAmount {
+    return cart.fold(0.0, (sum, cartItem) => sum + (cartItem.item.price * cartItem.quantity));
+  }
 
-  int getCartQuantity(MenuItem item) {
-    final index = cart.indexWhere((e) => e.item.name == item.name);
-    return index >= 0 ? cart[index].quantity : 0;
+  /// =====================
+  /// CART MANAGEMENT
+  /// =====================
+  void _increaseQuantity(CartItem cartItem) {
+    setState(() {
+      cartItem.quantity++;
+    });
+  }
+
+  void _decreaseQuantity(CartItem cartItem) {
+    setState(() {
+      if (cartItem.quantity > 1) {
+        cartItem.quantity--;
+      } else {
+        cart.remove(cartItem);
+      }
+    });
+  }
+
+  void _removeItem(CartItem cartItem) {
+    setState(() {
+      cart.remove(cartItem);
+    });
+  }
+
+  /// =====================
+  /// GENERATE RECEIPT
+  /// =====================
+  void _generateReceipt() {
+    if (cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty!')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Receipt'),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: const Icon(
+                Icons.close,
+                color: Colors.red,
+                size: 24,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Yang Chow Restaurant', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('=================='),
+              const SizedBox(height: 8),
+              ...cart.map((cartItem) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text('${cartItem.item.name} x${cartItem.quantity}'),
+                    ),
+                    Text('₱${(cartItem.item.price * cartItem.quantity).toStringAsFixed(2)}'),
+                  ],
+                ),
+              )),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    '₱${totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// =====================
+  /// SHOW ORDER LIST (MOBILE)
+  /// =====================
+  void _showOrderList() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              
+              // Header
+              Container(
+                color: Colors.red,
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'ORDER LIST',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Order Items
+              Expanded(
+                child: cart.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No items in order',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: cart.length,
+                        itemBuilder: (context, index) {
+                          final item = cart[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.item.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '₱${item.item.price.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          // Decrease button
+                                          GestureDetector(
+                                            onTap: () => _decreaseQuantity(item),
+                                            child: Container(
+                                              width: 24,
+                                              height: 24,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.remove,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          // Quantity
+                                          Container(
+                                            width: 30,
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              '${item.quantity}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          // Increase button
+                                          GestureDetector(
+                                            onTap: () => _increaseQuantity(item),
+                                            child: Container(
+                                              width: 24,
+                                              height: 24,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Center(
+                                                child: Icon(
+                                                  Icons.add,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          const SizedBox(width: 8),
+                                          
+                                          // Edit button
+                                          GestureDetector(
+                                            onTap: () {
+                                              // TODO: Implement edit functionality
+                                            },
+                                            child: const Icon(
+                                              Icons.edit,
+                                              color: Colors.blue,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          
+                                          const SizedBox(width: 8),
+                                          
+                                          // Delete button
+                                          GestureDetector(
+                                            onTap: () => _removeItem(item),
+                                            child: const Icon(
+                                              Icons.delete,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              
+              // Customer Name and Total
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Customer Name
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Customer Name',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Total
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'TOTAL:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          '₱${totalAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Print Receipt Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 36,
+                      child: ElevatedButton(
+                        onPressed: cart.isNotEmpty ? _generateReceipt : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        child: const Text(
+                          'PRINT RECEIPT',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// =====================
@@ -143,425 +657,303 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
   /// =====================
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 900;
-    final items = menu[selectedCategory]!;
-
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: Column(
-        children: [
-          // Category Tabs
-          _buildCategoryBar(),
-          // Main Content
-          Expanded(
-            child: isDesktop ? _buildDesktopLayout(items) : _buildMobileLayout(items),
-          ),
-        ],
-      ),
-      floatingActionButton: !isDesktop && cart.isNotEmpty
-          ? FloatingActionButton.extended(
-              backgroundColor: Colors.red.shade600,
-              onPressed: _showCartSheet,
-              icon: const Icon(Icons.shopping_cart),
-              label: Text('₱${total().toStringAsFixed(2)}'),
-            )
-          : null,
-    );
-  }
-
-  Widget _buildDesktopLayout(List<MenuItem> items) {
-    return Row(
-      children: [
-        /// MENU
-        Expanded(
-          flex: 7,
-          child: Column(
-            children: [
-              Expanded(child: _buildMenuGrid(items, true)),
-            ],
-          ),
-        ),
-
-        /// CART (Desktop)
-        SizedBox(width: 380, child: _buildCart()),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(List<MenuItem> items) {
-    return Column(
-      children: [
-        Expanded(child: _buildMenuGrid(items, false)),
-      ],
-    );
-  }
-
-  /// =====================
-  /// CATEGORY BAR
-  /// =====================
-  Widget _buildCategoryBar() {
-    return Container(
-      height: 70,
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: menu.keys.map((cat) {
-          final active = selectedCategory == cat;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: ChoiceChip(
-              selected: active,
-              label: Text(cat),
-              selectedColor: Colors.red.shade600,
-              labelStyle: TextStyle(
-                color: active ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-              onSelected: (_) {
-                setState(() => selectedCategory = cat);
-              },
+      appBar: AppBar(
+        title: isMobile ? null : const Text('POS MENU', style: TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red,
+        automaticallyImplyLeading: false,
+        toolbarHeight: 50,
+        actions: [
+          if (isMobile && cart.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.receipt, size: 20),
+              onPressed: _showOrderList,
+              padding: const EdgeInsets.all(8),
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  /// =====================
-  /// MENU GRID
-  /// =====================
-  Widget _buildMenuGrid(List<MenuItem> items, bool isDesktop) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    late int crossAxisCount;
-    late double childAspectRatio;
-
-    if (isDesktop) {
-      crossAxisCount = 4;
-      childAspectRatio = 0.75;
-    } else if (screenWidth > 600) {
-      crossAxisCount = 3;
-      childAspectRatio = 0.7;
-    } else {
-      crossAxisCount = 2;
-      childAspectRatio = 0.65;
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        childAspectRatio: childAspectRatio,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) => _foodCard(items[i], isDesktop),
-    );
-  }
-
-  /// =====================
-  /// FOOD CARD WITH POPULAR BADGE & QUANTITY
-  /// =====================
-  Widget _foodCard(MenuItem item, bool isDesktop) {
-    final quantity = getCartQuantity(item);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600;
-
-    return GestureDetector(
-      onTap: () => addToCart(item),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(item.imagePath, fit: BoxFit.cover),
+          if (isMobile && cart.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.print, size: 20),
+              onPressed: _generateReceipt,
+              padding: const EdgeInsets.all(8),
             ),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                  ),
-                ),
-              ),
-            ),
-            if (item.isPopular)
-              Positioned(
-                top: isMobile ? 6 : 8,
-                left: isMobile ? 6 : 8,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 6 : 8,
-                    vertical: isMobile ? 2 : 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.yellow.shade700,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'POPULAR',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isMobile ? 10 : 12,
-                    ),
-                  ),
-                ),
-              ),
-            if (quantity > 0)
-              Positioned(
-                top: isMobile ? 6 : 8,
-                right: isMobile ? 6 : 8,
-                child: CircleAvatar(
-                  radius: isMobile ? 12 : 14,
-                  backgroundColor: Colors.red.shade600,
-                  child: Text(
-                    '$quantity',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isMobile ? 10 : 12,
-                    ),
-                  ),
-                ),
-              ),
-            Positioned(
-              left: isMobile ? 12 : 16,
-              right: isMobile ? 12 : 16,
-              bottom: isMobile ? 12 : 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          if (!isMobile && cart.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                  const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      fontSize: isMobile ? 14 : (isDesktop ? 18 : 16),
-                      fontWeight: FontWeight.bold,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${cart.fold(0, (sum, item) => sum + item.quantity)}',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
-                  SizedBox(height: isMobile ? 4 : 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '₱${item.price.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: Colors.amberAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 14 : 16,
-                        ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isMobile ? 10 : 14,
-                          vertical: isMobile ? 4 : 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade600,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'ADD',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: isMobile ? 12 : 13,
-                          ),
-                        ),
-                      )
-                    ],
-                  )
                 ],
               ),
             ),
-          ],
-        ),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Mobile layout (stacked)
+          if (constraints.maxWidth < 768) {
+            return Column(
+              children: [
+                // Category Tabs
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabs: categories.map((c) => Tab(text: c)).toList(),
+                  ),
+                ),
+                // Menu Grid
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: categories.map((cat) {
+                      final items = menu[cat]!;
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(4),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                        ),
+                        itemCount: items.length,
+                        itemBuilder: (_, i) => _foodCard(items[i]),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            );
+          }
+          
+          // Desktop/Tablet layout (side by side)
+          return Row(
+            children: [
+              // Menu Items Section
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    // Category Tabs
+                    Container(
+                      color: Colors.white,
+                      child: TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        tabs: categories.map((c) => Tab(text: c)).toList(),
+                      ),
+                    ),
+                    // Menu Grid
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: categories.map((cat) {
+                          final items = menu[cat]!;
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              int crossAxisCount = 2;
+                              double childAspectRatio = 0.7;
+                              
+                              if (constraints.maxWidth > 1200) {
+                                crossAxisCount = 4;
+                                childAspectRatio = 0.8;
+                              } else if (constraints.maxWidth > 800) {
+                                crossAxisCount = 3;
+                                childAspectRatio = 0.75;
+                              } else if (constraints.maxWidth > 600) {
+                                crossAxisCount = 2;
+                                childAspectRatio = 0.7;
+                              } else {
+                                crossAxisCount = 1;
+                                childAspectRatio = 1.2;
+                              }
+                              
+                              return GridView.builder(
+                                padding: const EdgeInsets.all(12),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  childAspectRatio: childAspectRatio,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
+                                itemCount: items.length,
+                                itemBuilder: (_, i) => _foodCard(items[i]),
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Order List Panel
+              OrderListPanel(
+                cart: cart,
+                onQuantityIncreased: _increaseQuantity,
+                onQuantityDecreased: _decreaseQuantity,
+                onRemoveItem: _removeItem,
+                onPrintReceipt: _generateReceipt,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   /// =====================
-  /// CART
+  /// FOOD CARD
   /// =====================
-  Widget _buildCart() {
-    return Container(
-      color: Colors.white,
+  Widget _foodCard(MenuItem item) {
+    final cartItem = cart.firstWhere(
+      (ci) => ci.item.name == item.name,
+      orElse: () => CartItem(item, 0),
+    );
+    final quantity = cartItem.quantity;
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.red.shade600,
-            child: const Text('ORDER LIST', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-          ),
+          // Image Section
           Expanded(
-            child: cart.isEmpty
-                ? const Center(child: Text('Cart is empty'))
-                : ListView.builder(
-                    itemCount: cart.length,
-                    itemBuilder: (_, i) {
-                      final c = cart[i];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: c.item.color,
-                            backgroundImage: AssetImage(c.item.imagePath),
-                          ),
-                          title: Text(c.item.name),
-                          subtitle: Text('₱${c.item.price.toStringAsFixed(2)}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.red), onPressed: () => _decrementItem(c)),
-                              Text('${c.quantity}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.green), onPressed: () => _incrementItem(c)),
-                              IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _editCartItem(c)),
-                              IconButton(icon: const Icon(Icons.delete_forever, color: Colors.grey), onPressed: () => _deleteCartItem(c)),
-                            ],
+            flex: 3,
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: _buildImageWidget(item),
+                ),
+                if (item.isPopular)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'POPULAR',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 7,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (quantity > 0)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$quantity',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9,
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  controller: customerNameController,
-                  decoration: const InputDecoration(labelText: 'Customer Name', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                Text('TOTAL: ₱${total().toStringAsFixed(2)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600, minimumSize: const Size(double.infinity, 50)),
-                  onPressed: _printReceipt,
-                  icon: const Icon(Icons.print),
-                  label: const Text('PRINT RECEIPT'),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _showCartSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => SizedBox(height: MediaQuery.of(context).size.height * 0.85, child: _buildCart()),
-    );
-  }
-
-  /// =====================
-  /// CART ITEM FUNCTIONS
-  /// =====================
-  void _incrementItem(CartItem c) => setState(() => c.quantity++);
-  void _decrementItem(CartItem c) {
-    setState(() {
-      if (c.quantity > 1) {
-        c.quantity--;
-      } else {
-        cart.remove(c);
-      }
-    });
-  }
-
-  void _deleteCartItem(CartItem c) => setState(() => cart.remove(c));
-
-  void _editCartItem(CartItem c) {
-    final nameController = TextEditingController(text: c.item.name);
-    final priceController = TextEditingController(text: c.item.price.toString());
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Item Name')),
-            TextField(controller: priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Price')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                c.item.name = nameController.text.trim();
-                c.item.price = double.tryParse(priceController.text) ?? c.item.price;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// =====================
-  /// PRINT RECEIPT (DIALOG)
-  /// =====================
-  void _printReceipt() {
-    final customerName = customerNameController.text.trim().isEmpty ? 'Guest' : customerNameController.text.trim();
-    final date = DateTime.now();
-    final dateStr = "${date.day.toString().padLeft(2,'0')}/${date.month.toString().padLeft(2,'0')}/${date.year} ${date.hour.toString().padLeft(2,'0')}:${date.minute.toString().padLeft(2,'0')}";
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: const Text('🧾 Receipt', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('YANG CHOW RESTAURANT', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-                const Text('Areza Mall Pagsanjan Laguna', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-                const SizedBox(height: 4),
-                Text('Date: $dateStr', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
-                const Divider(thickness: 1),
-                Text('Customer: $customerName', style: const TextStyle(fontWeight: FontWeight.bold)),
-                const Divider(thickness: 1),
-
-                ...cart.map((c) {
-                  final name = c.item.name.length > 20 ? '${c.item.name.substring(0, 17)}...' : c.item.name;
-                  final qty = c.quantity.toString().padLeft(2);
-                  final price = (c.item.price * c.quantity).toStringAsFixed(2).padLeft(6);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text('$name x$qty')), Text('₱$price')]),
-                  );
-                }),
-
-                const Divider(thickness: 1),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('₱${total().toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ]),
-                const Divider(thickness: 1),
-                const SizedBox(height: 6),
-                const Text('Thank you for dining with us!', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-                const Text('Please come again!', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+          
+          // Info Section
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '₱${item.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 24,
+                    child: ElevatedButton(
+                      onPressed: () => addToCart(item),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      child: const Text(
+                        'ADD',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
