@@ -172,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             padding: const EdgeInsets.all(AppTheme.lg),
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withOpacity(0.1),
+              color: AppTheme.primaryRed.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppTheme.radiusLg),
                 topRight: Radius.circular(AppTheme.radiusLg),
@@ -349,7 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Container(
         padding: const EdgeInsets.all(AppTheme.md),
         decoration: BoxDecoration(
-          color: value ? AppTheme.primaryRed.withOpacity(0.1) : AppTheme.lightGrey,
+          color: value ? AppTheme.primaryRed.withValues(alpha: 0.1) : AppTheme.lightGrey,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         ),
         child: Icon(icon, color: value ? AppTheme.primaryRed : AppTheme.mediumGrey),
@@ -365,7 +365,7 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: AppTheme.primaryRed,
+        activeThumbColor: AppTheme.primaryRed,
       ),
     );
   }

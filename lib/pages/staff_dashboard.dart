@@ -6,7 +6,6 @@ class StaffDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 768;
     
     return Scaffold(
       backgroundColor: Colors.grey.shade100,

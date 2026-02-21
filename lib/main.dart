@@ -3,13 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'utils/app_theme.dart';
 
-// Pages
+// Features
 import 'pages/login_page.dart';
 import 'pages/forgot_password_page.dart';
-import 'pages/admin_dashboard.dart';
-import 'pages/pos_page.dart';
+import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
-import 'pages/inventory_management.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,15 +29,12 @@ class YangChowApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       initialRoute: '/',
       routes: {
-        // Auth
+        // Auth routes
         '/': (context) => const LoginPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
 
         // Admin routes
-        '/admin': (context) => const AdminMainPage(),
-        '/pos': (context) => const AdminMainPage(),
-        '/inventory': (context) => const InventoryPage(),
-        '/dashboard': (context) => const DashboardPage(),
+        '/dashboard': (context) => const AdminMainPage(),
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),

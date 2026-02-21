@@ -116,7 +116,7 @@ class _RoleSection extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: AppTheme.sm),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppTheme.primaryRed.withOpacity(0.15),
+                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.15),
                 child: Icon(_icon, color: AppTheme.primaryRed),
               ),
               title: Text(

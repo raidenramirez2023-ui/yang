@@ -450,7 +450,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
               child: Container(
                 height: 100,
                 width: double.infinity,
-                color: item.color.withOpacity(0.1),
+                color: item.color.withValues(alpha: 0.1),
                 child: Stack(
                   children: [
                     // Background placeholder
@@ -460,8 +460,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            item.color.withOpacity(0.3),
-                            item.color.withOpacity(0.1),
+                            item.color.withValues(alpha: 0.3),
+                            item.color.withValues(alpha: 0.1),
                           ],
                         ),
                       ),
@@ -543,7 +543,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
             color: Colors.red.shade600,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -643,7 +643,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: cartItem.item.color.withOpacity(0.2),
+                          backgroundColor: cartItem.item.color.withValues(alpha: 0.2),
                           backgroundImage: AssetImage(cartItem.item.imagePath),
                           child: Image.asset(
                             cartItem.item.imagePath,
@@ -702,7 +702,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -829,7 +829,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
