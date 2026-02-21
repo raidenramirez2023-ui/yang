@@ -10,14 +10,14 @@ class OrderListPanel extends StatefulWidget {
   final bool isMobile;
 
   const OrderListPanel({
-    Key? key,
+    super.key, // Fixed: use_super_parameters
     required this.cart,
     required this.onQuantityIncreased,
     required this.onQuantityDecreased,
     required this.onRemoveItem,
     required this.onPrintReceipt,
     this.isMobile = false,
-  }) : super(key: key);
+  });
 
   @override
   State<OrderListPanel> createState() => _OrderListPanelState();
@@ -26,8 +26,15 @@ class OrderListPanel extends StatefulWidget {
 class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _customerNameController = TextEditingController();
 
+  @override
+  void dispose() {
+    _customerNameController.dispose();
+    super.dispose();
+  }
+
   double get totalAmount {
-    return widget.cart.fold(0.0, (sum, item) => sum + (item.item.price * item.quantity));
+    return widget.cart.fold(
+        0.0, (sum, item) => sum + (item.item.price * item.quantity));
   }
 
   @override
@@ -55,7 +62,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
               ),
             ),
           ),
-          
+
           // Order Items
           Expanded(
             child: widget.cart.isEmpty
@@ -80,7 +87,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                           right: widget.isMobile ? 2 : 0,
                         ),
                         child: Padding(
-                          padding: EdgeInsets.all(widget.isMobile ? 6 : 12),
+                          padding:
+                              EdgeInsets.all(widget.isMobile ? 6 : 12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -95,7 +103,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                               ),
                               SizedBox(height: widget.isMobile ? 4 : 8),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '₱${item.item.price.toStringAsFixed(2)}',
@@ -108,7 +117,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                                     children: [
                                       // Decrease button
                                       GestureDetector(
-                                        onTap: () => widget.onQuantityDecreased(item),
+                                        onTap: () =>
+                                            widget.onQuantityDecreased(item),
                                         child: Container(
                                           width: widget.isMobile ? 20 : 24,
                                           height: widget.isMobile ? 20 : 24,
@@ -125,23 +135,26 @@ class _OrderListPanelState extends State<OrderListPanel> {
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Quantity
-                                      Container(
+                                      SizedBox(
                                         width: widget.isMobile ? 25 : 30,
-                                        alignment: Alignment.center,
-                                        child: Text(
-                                          '${item.quantity}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: widget.isMobile ? 14 : 16,
+                                        child: Center(
+                                          child: Text(
+                                            '${item.quantity}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize:
+                                                  widget.isMobile ? 14 : 16,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                      
+
                                       // Increase button
                                       GestureDetector(
-                                        onTap: () => widget.onQuantityIncreased(item),
+                                        onTap: () =>
+                                            widget.onQuantityIncreased(item),
                                         child: Container(
                                           width: widget.isMobile ? 20 : 24,
                                           height: widget.isMobile ? 20 : 24,
@@ -158,26 +171,24 @@ class _OrderListPanelState extends State<OrderListPanel> {
                                           ),
                                         ),
                                       ),
-                                      
-                                      SizedBox(width: widget.isMobile ? 4 : 8),
-                                      
-                                      // Edit button
-                                      GestureDetector(
-                                        onTap: () {
-                                          // TODO: Implement edit functionality
-                                        },
-                                        child: Icon(
-                                          Icons.edit,
-                                          color: Colors.blue,
-                                          size: widget.isMobile ? 16 : 20,
-                                        ),
+
+                                      SizedBox(
+                                          width: widget.isMobile ? 4 : 8),
+
+                                      // Edit button (placeholder)
+                                      Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                        size: widget.isMobile ? 16 : 20,
                                       ),
-                                      
-                                      SizedBox(width: widget.isMobile ? 4 : 8),
-                                      
+
+                                      SizedBox(
+                                          width: widget.isMobile ? 4 : 8),
+
                                       // Delete button
                                       GestureDetector(
-                                        onTap: () => widget.onRemoveItem(item),
+                                        onTap: () =>
+                                            widget.onRemoveItem(item),
                                         child: Icon(
                                           Icons.delete,
                                           color: Colors.red,
@@ -195,8 +206,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     },
                   ),
           ),
-          
-          // Customer Name and Total (only show if not mobile)
+
+          // Customer Name and Total (desktop only)
           if (!widget.isMobile)
             Container(
               padding: const EdgeInsets.all(16),
@@ -210,9 +221,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       border: OutlineInputBorder(),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Total
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,18 +245,21 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Print Receipt Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: widget.cart.isNotEmpty ? widget.onPrintReceipt : null,
+                      onPressed: widget.cart.isNotEmpty
+                          ? widget.onPrintReceipt
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),

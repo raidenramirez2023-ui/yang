@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/user_management.dart';
@@ -42,7 +41,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   @override
   Widget build(BuildContext context) {
     final deviceType = ResponsiveUtils.getDeviceType(context);
-    final isDesktop = deviceType == DeviceType.desktop;
+    final isDesktop = deviceType == 'desktop';
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -66,7 +65,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
             margin: const EdgeInsets.symmetric(vertical: AppTheme.md, horizontal: AppTheme.md),
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
             decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.2),
+              color: AppTheme.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             ),
             child: Row(
@@ -107,7 +106,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
           },
           elevation: 2,
           backgroundColor: AppTheme.white,
-          indicatorColor: AppTheme.primaryRed.withOpacity(0.2),
+          indicatorColor: AppTheme.primaryRed.withValues(alpha: 0.2),
           selectedIconTheme: const IconThemeData(
             color: AppTheme.primaryRed,
             size: 28,

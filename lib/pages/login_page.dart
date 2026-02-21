@@ -153,9 +153,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       );
 
       Future.delayed(const Duration(milliseconds: 500), () {
-        final roleData = roles[userRole];
-        if (roleData != null) {
-          Navigator.pushReplacementNamed(context, roleData['route']!);
+        if (mounted) {
+          final roleData = roles[userRole];
+          if (roleData != null) {
+            Navigator.pushReplacementNamed(context, roleData['route']!);
+          }
         }
       });
 
@@ -224,7 +226,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               child: AnimatedBuilder(
                 animation: _animationController,
                 builder: (context, child) {
-                  return Container(
+                  return SizedBox(
                     width: _logoAnimation.value,
                     height: _logoAnimation.value,
                     child: Image.asset(
@@ -277,7 +279,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -316,17 +318,17 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 Text(
                   'Restaurant Management System',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 48),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                     ),
                   ),
                   child: Text(
