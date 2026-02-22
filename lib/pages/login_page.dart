@@ -264,82 +264,14 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Left side - Red background (50%)
+        // Left side - Full image background (50%)
         Expanded(
           child: Container(
-            color: Colors.red.shade600,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      'assets/images/logo.jpg',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            Icons.restaurant,
-                            color: Colors.red.shade600,
-                            size: 64,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Yang Chow',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Restaurant Management System',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
-                const SizedBox(height: 48),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Text(
-                    'Secure Login Portal',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/yc.jpg'),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
         ),
