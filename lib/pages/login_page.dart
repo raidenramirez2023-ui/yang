@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -10,6 +11,7 @@ class LoginPage extends StatefulWidget {
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
+
 
 class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
@@ -186,6 +188,129 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     }
   }
 
+  Future<void> handleGoogleSignIn() async {
+  setState(() => _isLoading = true);
+
+  try {
+    // For google_sign_in 7.2.0 - Web implementation
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
+      clientId: '907696484085-l011o1bekvcfthf9iil3of88cjsg5vd9.apps.googleusercontent.com', // Add this line
+    );
+    
+    // Trigger the authentication flow
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+    
+    if (googleUser == null) {
+      // User canceled sign in
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // Get authentication details from the request
+    final GoogleSignInAuthentication googleAuth = 
+        await googleUser.authentication;
+
+    // Create a new credential
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    // Sign in to Firebase with the credential
+    final UserCredential userCredential = 
+        await _auth.signInWithCredential(credential);
+    
+    final User? user = userCredential.user;
+    
+    if (user != null) {
+      // Check if user exists in Firestore
+      QuerySnapshot userDoc = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: user.email)
+          .limit(1)
+          .get();
+
+      String userRole;
+      
+      if (userDoc.docs.isEmpty) {
+        // New user - create record with default role
+        userRole = 'Staff'; // Default role for new Google users
+        
+        await _firestore.collection('users').doc(user.uid).set({
+          'email': user.email,
+          'name': user.displayName,
+          'role': userRole,
+          'photoURL': user.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Existing user - get role from Firestore
+        userRole = userDoc.docs.first.get('role');
+        
+        // Update last login
+        await _firestore.collection('users').doc(user.uid).update({
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Show success message
+      _showSnackBar(
+        "Google Sign-In successful as $userRole",
+        Colors.green.shade700,
+        Icons.check_circle_outline,
+      );
+
+      // Navigate based on role
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          final roleData = roles[userRole];
+          if (roleData != null) {
+            Navigator.pushReplacementNamed(context, roleData['route']!);
+          } else {
+            Navigator.pushReplacementNamed(context, '/staff-dashboard');
+          }
+        }
+      });
+    }
+
+  } on FirebaseAuthException catch (e) {
+    String errorMessage;
+    switch (e.code) {
+      case 'account-exists-with-different-credential':
+        errorMessage = 'Account exists with different credentials';
+        break;
+      case 'invalid-credential':
+        errorMessage = 'Invalid credential';
+        break;
+      case 'operation-not-allowed':
+        errorMessage = 'Google Sign-In is not enabled';
+        break;
+      case 'user-disabled':
+        errorMessage = 'This account has been disabled';
+        break;
+      case 'popup-closed-by-user':
+        errorMessage = 'Sign-in cancelled';
+        break;
+      case 'network-request-failed':
+        errorMessage = 'Network error. Check your connection';
+        break;
+      default:
+        errorMessage = 'Google Sign-In failed: ${e.message}';
+    }
+    _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
+  } catch (e) {
+    _showSnackBar(
+      "An error occurred: $e",
+      Colors.red.shade700,
+      Icons.error_outline,
+    );
+  } finally {
+    setState(() => _isLoading = false);
+  }
+}
+
   void _showSnackBar(String message, Color color, IconData icon) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -294,36 +419,42 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
           child: Column(
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.restaurant_menu,
-                  color: Colors.red.shade600,
-                  size: 48,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/mobile-logo.png', // Make sure this path is correct
+                    width: 230,
+                    height: 230,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Yang Chow',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 3),
+              // REMOVED: Yang Chow Text
+              // const Text(
+              //   'Yang Chow',
+              //   style: TextStyle(
+              //     fontSize: 24,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 8),
               Text(
                 'Restaurant Management System',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.mediumGrey,
+                  color: const Color.fromARGB(255, 119, 36, 36),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _buildLoginForm(),
               const SizedBox(height: 40),
             ],
@@ -407,6 +538,45 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               : const Text('Sign In'),
           ),
         ),
+        const SizedBox(height: 8),
+        Center(child: Text('or', style: Theme.of(context).textTheme.titleSmall)),
+        const SizedBox(height: 8),
+      // Connect with Google Button
+        SizedBox(
+          width: double.infinity,
+          height: 30,
+          child: OutlinedButton(
+            onPressed: _isLoading ? null : handleGoogleSignIn,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black87,
+              side: const BorderSide(color: Colors.grey),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/images/glogo.png',
+                  height: 24,
+                  width: 24,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Sign in with Google',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
         const SizedBox(height: 8),
 
         // Forgot Password Link
