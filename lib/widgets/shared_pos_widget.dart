@@ -48,8 +48,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Removed unused ImagePicker _picker
-
   final List<String> categories = [
     'Yangchow Family Bundles',
     'Vegetables',
@@ -71,109 +69,134 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   final Map<String, List<String>> categoryImages = {
     'Yangchow Family Bundles': [
-      'assets/YC1.png',
-      'assets/YC2.png',
-      'assets/YC3.jpg',
-      'assets/YC4.jpg',
-      'assets/Overloadmeals.png',
-      'assets/MPEHotPot.png',
+      'assets/images/YC1.png',
+      'assets/images/YC2.png',
+      'assets/images/YC3.jpg',
+      'assets/images/YC4.jpg',
+      'assets/images/Overloadmeals.png',
+      'assets/images/MPEHotPot.png',
+      'assets/images/yc.jpg',
     ],
     'Vegetables': [
-      'assets/HSSalad.jpg',
-      'assets/Lohanchay.png',
-      'assets/BihonGuisado.jpg',
-      'assets/FreshEgg.jpg',
+      'assets/images/HSSalad.jpg',
+      'assets/images/Lohanchay.png',
+      'assets/images/BihonGuisado.jpg',
+      'assets/images/FreshEgg.jpg',
+      'assets/images/CenturyEgg.jpg',
+      'assets/images/JellyFCE.jpg',
     ],
     'Special Noodles': [
-      'assets/YCFriedRice.png',
-      'assets/PancitCLM.jpg',
-      'assets/BBNoodles.png',
-      'assets/BBWantonN.jpg',
-      'assets/SBHofan.jpg',
+      'assets/images/YCFriedRice.jpg',
+      'assets/images/PancitCLM.jpg',
+      'assets/images/BBNoodles.png',
+      'assets/images/BBWantonN.jpg',
+      'assets/images/SBHofan.jpg',
+      'assets/images/WantonNoodles.jpg',
+      'assets/images/BeefFriedRice.png',
     ],
     'Soup': [
-      'assets/CNoodleMM.jpg',
-      'assets/WantonNoodles.jpg',
-      'assets/HSSoup.jpg',
-      'assets/SSSoup.jpg',
-      'assets/NSoupQE.png',
+      'assets/images/CNoodleMM.jpg',
+      'assets/images/WantonNoodles.jpg',
+      'assets/images/HSSoup.jpg',
+      'assets/images/SSSoup.jpg',
+      'assets/images/NSoupQE.png',
+      'assets/images/PLCongee.jpg',
+      'assets/images/BBCongee.jpg',
     ],
     'Seafood': [
-      'assets/BFShrimp.jpg',
-      'assets/FFilletSA.jpg',
-      'assets/BFOyster.png',
-      'assets/TPOyster.png',
-      'assets/JellyFish.jpg',
-      'assets/CenturyEgg.jpg',
+      'assets/images/BFShrimp.jpg',
+      'assets/images/FFilletSA.jpg',
+      'assets/images/BFOyster.png',
+      'assets/images/TPOyster.png',
+      'assets/images/JellyFish.jpg',
+      'assets/images/CenturyEgg.jpg',
+      'assets/images/Calamares.jpg',
     ],
     'Roast and Soy Specialties': [
-      'assets/LechonMacau.jpg',
-      'assets/YCFChicken.jpg',
-      'assets/LemonChicken.jpg',
-      'assets/ButteredChicken.jpg',
-      'assets/ChickenFeet.jpg',
+      'assets/images/LechonMacau.jpg',
+      'assets/images/YCFChicken.jpg',
+      'assets/images/LemonChicken.jpg',
+      'assets/images/ButteredChicken.jpg',
+      'assets/images/ChickenFeet.jpg',
+      'assets/images/RPAsado.jpg',
     ],
     'Pork': [
-      'assets/PatatimCuapao.jpg',
-      'assets/RPAsado.jpg',
-      'assets/CuapaoMantau.jpg',
-      'assets/AsadoSiopao.png',
+      'assets/images/PatatimCuapao.jpg',
+      'assets/images/RPAsado.jpg',
+      'assets/images/CuapaoMantau.jpg',
+      'assets/images/AsadoSiopao.png',
+      'assets/images/BBSiopao.jpg',
+      'assets/images/LumpiangShanghai.jpg',
     ],
     'Noodles': [
-      'assets/BBNoodles.png',
-      'assets/BBWantonN.jpg',
-      'assets/SBHofan.jpg',
-      'assets/BihonGuisado.jpg',
+      'assets/images/BBNoodles.png',
+      'assets/images/BBWantonN.jpg',
+      'assets/images/SBHofan.jpg',
+      'assets/images/BihonGuisado.jpg',
+      'assets/images/PancitCLM.jpg',
+      'assets/images/WantonNoodles.jpg',
     ],
     'Mami or Noodles': [
-      'assets/BeefBLK.jpg',
-      'assets/CNoodleMM.jpg',
-      'assets/WantonNoodles.jpg',
+      'assets/images/BeefBLK.jpg',
+      'assets/images/CNoodleMM.jpg',
+      'assets/images/WantonNoodles.jpg',
+      'assets/images/BBNoodles.png',
+      'assets/images/BBWantonN.jpg',
     ],
     'Hot Pot Specialties': [
-      'assets/STHotPot.jpg',
-      'assets/FFTHotPot.jpg',
-      'assets/BBRHotPot.jpg',
-      'assets/MPEHotPot.png',
+      'assets/images/STHotPot.jpg',
+      'assets/images/FFTHotPot.jpg',
+      'assets/images/BBRHotPot.jpg',
+      'assets/images/MPEHotPot.png',
+      'assets/images/TPOyster.png',
+      'assets/images/BFOyster.png',
     ],
     'Fried Rice or Rice': [
-      'assets/BeefFriedRice.png',
-      'assets/CSFFriedRice.jpg',
-      'assets/YCFriedRice.png',
+      'assets/images/BeefFriedRice.png',
+      'assets/images/CSFFriedRice.jpg',
+      'assets/images/YCFriedRice.jpg',
+      'assets/images/Overloadmeals.png',
     ],
     'Dimsum': [
-      'assets/LumpiangShanghai.jpg',
-      'assets/BBSiopao.jpg',
-      'assets/AsadoSiopao.png',
-      'assets/CuapaoMantau.jpg',
+      'assets/images/LumpiangShanghai.jpg',
+      'assets/images/BBSiopao.jpg',
+      'assets/images/AsadoSiopao.png',
+      'assets/images/CuapaoMantau.jpg',
+      'assets/images/PatatimCuapao.jpg',
     ],
     'Congee': [
-      'assets/PLCongee.jpg',
-      'assets/BBCongee.jpg',
-      'assets/CenturyEgg.jpg',
-      'assets/JellyFCE.jpg',
+      'assets/images/PLCongee.jpg',
+      'assets/images/BBCongee.jpg',
+      'assets/images/CenturyEgg.jpg',
+      'assets/images/JellyFCE.jpg',
+      'assets/images/CNoodleMM.jpg',
     ],
     'Chicken': [
-      'assets/LemonChicken.jpg',
-      'assets/YCFChicken.jpg',
-      'assets/ButteredChicken.jpg',
-      'assets/ChickenFeet.jpg',
+      'assets/images/LemonChicken.jpg',
+      'assets/images/YCFChicken.jpg',
+      'assets/images/ButteredChicken.jpg',
+      'assets/images/ChickenFeet.jpg',
+      'assets/images/BeefBLK.jpg',
     ],
     'Beef': [
-      'assets/BeefGP.png',
-      'assets/BeefBF.jpg',
-      'assets/BeefBLK.jpg',
-      'assets/BeefFriedRice.png',
+      'assets/images/BeefGP.png',
+      'assets/images/BeefBF.jpg',
+      'assets/images/BeefBLK.jpg',
+      'assets/images/BeefFriedRice.png',
+      'assets/images/RPAsado.jpg',
+      'assets/images/PatatimCuapao.jpg',
     ],
     'Appetizer': [
-      'assets/LumpiangShanghai.jpg',
-      'assets/Calamares.jpg',
-      'assets/JellyFish.jpg',
-      'assets/CenturyEgg.jpg',
-      'assets/FreshEgg.jpg',
-      'assets/SOkSauce.jpg',
+      'assets/images/LumpiangShanghai.jpg',
+      'assets/images/Calamares.jpg',
+      'assets/images/JellyFish.jpg',
+      'assets/images/CenturyEgg.jpg',
+      'assets/images/FreshEgg.jpg',
+      'assets/images/SOkSauce.jpg',
+      'assets/images/JellyFCE.jpg',
+      'assets/images/ChickenFeet.jpg',
     ],
-    'default': ['assets/YCFriedRice.png'],
+    'default': ['assets/images/YCFriedRice.jpg'],
   };
 
   final Map<String, int> _categoryImageIndex = {};
@@ -197,144 +220,262 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   }
 
   void _buildMenu() {
+    // ── Yangchow Family Bundles ──────────────────────────────────────────────
     menu['Yangchow Family Bundles']!.addAll([
-      _item(
-        'Family Bundle A',
-        1880.80,
-        'Yangchow Family Bundles',
-        Colors.orange,
-        isPopular: true,
-      ),
-      _item(
-        'Family Bundle B',
-        1880.80,
-        'Yangchow Family Bundles',
-        Colors.deepOrange,
-      ),
-      _item(
-        'Family Bundle C',
-        3588.80,
-        'Yangchow Family Bundles',
-        Colors.deepOrange,
-      ),
-      _item(
-        'Family Bundle D',
-        4588.80,
-        'Yangchow Family Bundles',
-        Colors.deepOrange,
-      ),
-      _item(
-        'Overload Meal',
-        298.80,
-        'Yangchow Family Bundles',
-        Colors.deepOrange,
-      ),
+      _item('Family Bundle A', 1880.80, 'Yangchow Family Bundles', Colors.orange,
+          customImagePath: 'assets/images/YC1.png', isPopular: true),
+      _item('Family Bundle B', 1880.80, 'Yangchow Family Bundles', Colors.deepOrange,
+          customImagePath: 'assets/images/YC2.png'),
+      _item('Family Bundle C', 3588.80, 'Yangchow Family Bundles', Colors.deepOrange,
+          customImagePath: 'assets/images/YC3.jpg'),
+      _item('Family Bundle D', 4588.80, 'Yangchow Family Bundles', Colors.deepOrange,
+          customImagePath: 'assets/images/YC4.jpg'),
+      _item('Overload Meal', 298.80, 'Yangchow Family Bundles', Colors.deepOrange,
+          customImagePath: 'assets/images/Overloadmeals.png'),
     ]);
+
+    // ── Vegetables ───────────────────────────────────────────────────────────
     menu['Vegetables']!.addAll([
-      _item('Chopsuey', 160, 'Vegetables', Colors.green, 
-        customImagePath: 'assets/Chopsuey.png', isPopular: true),
-      _item('Kangkong Garlic', 140, 'Vegetables', Colors.lightGreen,
-        customImagePath: 'assets/KangkongGarlic.png'),
+      _item('Chopsuey', 160, 'Vegetables', Colors.green,
+          customImagePath: 'assets/images/Lohanchay.png', isPopular: true),
+      _item('Hot Salad', 140, 'Vegetables', Colors.lightGreen,
+          customImagePath: 'assets/images/HSSalad.jpg'),
+      _item('Bihon Guisado', 150, 'Vegetables', Colors.green,
+          customImagePath: 'assets/images/BihonGuisado.jpg'),
+      _item('Fresh Egg', 80, 'Vegetables', Colors.yellow,
+          customImagePath: 'assets/images/FreshEgg.jpg'),
+      _item('Century Egg', 90, 'Vegetables', Colors.brown,
+          customImagePath: 'assets/images/CenturyEgg.jpg'),
+      _item('Jelly Fish Century Egg', 120, 'Vegetables', Colors.orange,
+          customImagePath: 'assets/images/JellyFCE.jpg'),
     ]);
+
+    // ── Special Noodles ──────────────────────────────────────────────────────
     menu['Special Noodles']!.addAll([
-      _item(
-        'Yang Chow Fried Noodles',
-        220,
-        'Special Noodles',
-        Colors.amber,
-        customImagePath: 'assets/YCFriedRice.png', isPopular: true),
+      _item('Yang Chow Fried Noodles', 220, 'Special Noodles', Colors.amber,
+          customImagePath: 'assets/images/YCFriedRice.jpg', isPopular: true),
       _item('Pancit Canton', 200, 'Special Noodles', Colors.orange,
-        customImagePath: 'assets/PancitCLM.jpg'),
+          customImagePath: 'assets/images/PancitCLM.jpg'),
+      _item('Big Bowl Noodles', 180, 'Special Noodles', Colors.red,
+          customImagePath: 'assets/images/BBNoodles.png'),
+      _item('Big Bowl Wonton Noodles', 190, 'Special Noodles', Colors.purple,
+          customImagePath: 'assets/images/BBWantonN.jpg'),
+      _item('Sotanghon Bihon', 170, 'Special Noodles', Colors.lime,
+          customImagePath: 'assets/images/SBHofan.jpg'),
+      _item('Wanton Noodles', 160, 'Special Noodles', Colors.brown,
+          customImagePath: 'assets/images/WantonNoodles.jpg'),
+      _item('Beef Fried Rice Noodles', 210, 'Special Noodles', Colors.deepOrange,
+          customImagePath: 'assets/images/BeefFriedRice.png'),
     ]);
+
+    // ── Soup ─────────────────────────────────────────────────────────────────
     menu['Soup']!.addAll([
       _item('Corn Soup', 120, 'Soup', Colors.yellow,
-        customImagePath: 'assets/CNoodleMM.jpg'),
-      _item('Wonton Soup', 130, 'Soup', Colors.orange, 
-        customImagePath: 'assets/WantonNoodles.png', isPopular: true),
+          customImagePath: 'assets/images/CNoodleMM.jpg'),
+      _item('Wonton Soup', 130, 'Soup', Colors.orange,
+          customImagePath: 'assets/images/WantonNoodles.jpg', isPopular: true),
+      _item('Hot Sour Soup', 110, 'Soup', Colors.red,
+          customImagePath: 'assets/images/HSSoup.jpg'),
+      _item('Special Soup', 125, 'Soup', Colors.purple,
+          customImagePath: 'assets/images/SSSoup.jpg'),
+      _item('Noodle Soup', 140, 'Soup', Colors.brown,
+          customImagePath: 'assets/images/NSoupQE.png'),
+      _item('Plain Congee', 90, 'Soup', Colors.grey,
+          customImagePath: 'assets/images/PLCongee.jpg'),
+      _item('Beef Congee', 100, 'Soup', Colors.deepOrange,
+          customImagePath: 'assets/images/BBCongee.jpg'),
     ]);
+
+    // ── Seafood ──────────────────────────────────────────────────────────────
     menu['Seafood']!.addAll([
       _item('Garlic Shrimp', 300, 'Seafood', Colors.lightBlue,
-        customImagePath: 'assets/BFShrimp.jpg'),
+          customImagePath: 'assets/images/BFShrimp.jpg'),
       _item('Steamed Fish', 320, 'Seafood', Colors.cyan,
-        customImagePath: 'assets/FFilletSA.jpg'),
+          customImagePath: 'assets/images/FFilletSA.jpg'),
+      _item('Big Fried Oyster', 350, 'Seafood', Colors.orange,
+          customImagePath: 'assets/images/BFOyster.png'),
+      _item('Tiger Prawns Oyster', 380, 'Seafood', Colors.red,
+          customImagePath: 'assets/images/TPOyster.png'),
+      _item('Jelly Fish', 280, 'Seafood', Colors.pink,
+          customImagePath: 'assets/images/JellyFish.jpg'),
+      _item('Century Egg', 150, 'Seafood', Colors.brown,
+          customImagePath: 'assets/images/CenturyEgg.jpg'),
+      _item('Calamares', 260, 'Seafood', Colors.deepOrange,
+          customImagePath: 'assets/images/Calamares.jpg'),
     ]);
+
+    // ── Roast and Soy Specialties ────────────────────────────────────────────
     menu['Roast and Soy Specialties']!.addAll([
-      _item(
-        'Roast Duck',
-        350,
-        'Roast and Soy Specialties',
-        Colors.brown,
-        customImagePath: 'assets/LechonMacau.jpg', isPopular: true),
+      _item('Roast Duck', 350, 'Roast and Soy Specialties', Colors.brown,
+          customImagePath: 'assets/images/LechonMacau.jpg', isPopular: true),
       _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber,
-        customImagePath: 'assets/YCFChicken.jpg'),
+          customImagePath: 'assets/images/YCFChicken.jpg'),
+      _item('Lemon Chicken', 260, 'Roast and Soy Specialties', Colors.yellow,
+          customImagePath: 'assets/images/LemonChicken.jpg'),
+      _item('Buttered Chicken', 240, 'Roast and Soy Specialties', Colors.orange,
+          customImagePath: 'assets/images/ButteredChicken.jpg'),
+      _item('Chicken Feet', 180, 'Roast and Soy Specialties', Colors.red,
+          customImagePath: 'assets/images/ChickenFeet.jpg'),
+      _item('Red Pork Asado', 220, 'Roast and Soy Specialties', Colors.pink,
+          customImagePath: 'assets/images/RPAsado.jpg'),
     ]);
+
+    // ── Pork ─────────────────────────────────────────────────────────────────
     menu['Pork']!.addAll([
-      _item('Sweet & Sour Pork', 220, 'Pork', Colors.red, 
-        customImagePath: 'assets/ButteredChicken.jpg', isPopular: true),
+      _item('Sweet & Sour Pork', 220, 'Pork', Colors.red,
+          customImagePath: 'assets/images/ButteredChicken.jpg', isPopular: true),
       _item('Pork Asado', 200, 'Pork', Colors.brown,
-        customImagePath: 'assets/PatatimCuapao.jpg'),
+          customImagePath: 'assets/images/PatatimCuapao.jpg'),
+      _item('Red Pork Asado', 210, 'Pork', Colors.pink,
+          customImagePath: 'assets/images/RPAsado.jpg'),
+      _item('Cuapao Mantau', 180, 'Pork', Colors.orange,
+          customImagePath: 'assets/images/CuapaoMantau.jpg'),
+      _item('Asado Siopao', 160, 'Pork', Colors.amber,
+          customImagePath: 'assets/images/AsadoSiopao.png'),
+      _item('Big Bowl Siopao', 140, 'Pork', Colors.purple,
+          customImagePath: 'assets/images/BBSiopao.jpg'),
+      _item('Lumpiang Shanghai', 120, 'Pork', Colors.green,
+          customImagePath: 'assets/images/LumpiangShanghai.jpg'),
     ]);
+
+    // ── Noodles ──────────────────────────────────────────────────────────────
     menu['Noodles']!.addAll([
       _item('Lo Mein', 180, 'Noodles', Colors.orange,
-        customImagePath: 'assets/BBNoodles.png'),
+          customImagePath: 'assets/images/BBNoodles.png'),
       _item('Sotanghon', 150, 'Noodles', Colors.lime,
-        customImagePath: 'assets/BBWantonN.jpg'),
+          customImagePath: 'assets/images/BBWantonN.jpg'),
+      _item('Sotanghon Bihon', 170, 'Noodles', Colors.green,
+          customImagePath: 'assets/images/SBHofan.jpg'),
+      _item('Bihon Guisado', 160, 'Noodles', Colors.yellow,
+          customImagePath: 'assets/images/BihonGuisado.jpg'),
+      _item('Pancit Canton', 190, 'Noodles', Colors.red,
+          customImagePath: 'assets/images/PancitCLM.jpg'),
+      _item('Wanton Noodles', 175, 'Noodles', Colors.purple,
+          customImagePath: 'assets/images/WantonNoodles.jpg'),
     ]);
+
+    // ── Mami or Noodles ──────────────────────────────────────────────────────
     menu['Mami or Noodles']!.addAll([
-      _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown, 
-        customImagePath: 'assets/BeefBLK.jpg', isPopular: true),
+      _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown,
+          customImagePath: 'assets/images/BeefBLK.jpg', isPopular: true),
       _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber,
-        customImagePath: 'assets/CNoodleMM.jpg'),
+          customImagePath: 'assets/images/CNoodleMM.jpg'),
+      _item('Wanton Noodles', 130, 'Mami or Noodles', Colors.orange,
+          customImagePath: 'assets/images/WantonNoodles.jpg'),
+      _item('Big Bowl Noodles', 125, 'Mami or Noodles', Colors.red,
+          customImagePath: 'assets/images/BBNoodles.png'),
+      _item('Big Bowl Wonton Noodles', 135, 'Mami or Noodles', Colors.purple,
+          customImagePath: 'assets/images/BBWantonN.jpg'),
     ]);
+
+    // ── Hot Pot Specialties ──────────────────────────────────────────────────
     menu['Hot Pot Specialties']!.addAll([
-      _item(
-        'Seafood Hot Pot',
-        450,
-        'Hot Pot Specialties',
-        Colors.deepOrange,
-        customImagePath: 'assets/STHotPot.jpg', isPopular: true),
+      _item('Seafood Hot Pot', 450, 'Hot Pot Specialties', Colors.deepOrange,
+          customImagePath: 'assets/images/STHotPot.jpg', isPopular: true),
       _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green,
-        customImagePath: 'assets/FFTHotPot.jpg'),
+          customImagePath: 'assets/images/FFTHotPot.jpg'),
+      _item('Big Bowl Hot Pot', 380, 'Hot Pot Specialties', Colors.red,
+          customImagePath: 'assets/images/BBRHotPot.jpg'),
+      _item('MPE Hot Pot', 420, 'Hot Pot Specialties', Colors.purple,
+          customImagePath: 'assets/images/MPEHotPot.png'),
+      _item('Tiger Prawns Oyster', 480, 'Hot Pot Specialties', Colors.orange,
+          customImagePath: 'assets/images/TPOyster.png'),
+      _item('Big Fried Oyster', 460, 'Hot Pot Specialties', Colors.pink,
+          customImagePath: 'assets/images/BFOyster.png'),
     ]);
+
+    // ── Fried Rice or Rice ───────────────────────────────────────────────────
     menu['Fried Rice or Rice']!.addAll([
-      _item(
-        'Yang Chow Fried Rice',
-        180,
-        'Fried Rice or Rice',
-        Colors.orange,
-        customImagePath: 'assets/BeefFriedRice.png', isPopular: true),
+      _item('Yang Chow Fried Rice', 180, 'Fried Rice or Rice', Colors.orange,
+          customImagePath: 'assets/images/BeefFriedRice.png', isPopular: true),
       _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70,
-        customImagePath: 'assets/CSFFriedRice.jpg'),
+          customImagePath: 'assets/images/CSFFriedRice.jpg'),
+      _item('Chinese Style Fried Rice', 190, 'Fried Rice or Rice', Colors.red,
+          customImagePath: 'assets/images/YCFriedRice.jpg'),
+      _item('Overload Meal Rice', 250, 'Fried Rice or Rice', Colors.deepOrange,
+          customImagePath: 'assets/images/Overloadmeals.png'),
     ]);
+
+    // ── Dimsum ───────────────────────────────────────────────────────────────
     menu['Dimsum']!.addAll([
-      _item('Siomai', 60, 'Dimsum', Colors.orange, 
-        customImagePath: 'assets/LumpiangShanghai.jpg', isPopular: true),
+      _item('Siomai', 60, 'Dimsum', Colors.orange,
+          customImagePath: 'assets/images/LumpiangShanghai.jpg', isPopular: true),
       _item('Hakaw', 70, 'Dimsum', Colors.lightBlue,
-        customImagePath: 'assets/BBSiopao.jpg'),
+          customImagePath: 'assets/images/BBSiopao.jpg'),
+      _item('Asado Siopao', 65, 'Dimsum', Colors.purple,
+          customImagePath: 'assets/images/AsadoSiopao.png'),
+      _item('Cuapao Mantau', 55, 'Dimsum', Colors.amber,
+          customImagePath: 'assets/images/CuapaoMantau.jpg'),
+      _item('Patatim Cuapao', 75, 'Dimsum', Colors.brown,
+          customImagePath: 'assets/images/PatatimCuapao.jpg'),
     ]);
+
+    // ── Congee ───────────────────────────────────────────────────────────────
     menu['Congee']!.addAll([
-      _item('Beef Congee', 100, 'Congee', Colors.brown, 
-        customImagePath: 'assets/PLCongee.jpg', isPopular: true),
+      _item('Beef Congee', 100, 'Congee', Colors.brown,
+          customImagePath: 'assets/images/PLCongee.jpg', isPopular: true),
       _item('Plain Lugaw', 60, 'Congee', Colors.grey,
-        customImagePath: 'assets/CenturyEgg.jpg'),
+          customImagePath: 'assets/images/CenturyEgg.jpg'),
+      _item('Beef Congee', 95, 'Congee', Colors.deepOrange,
+          customImagePath: 'assets/images/BBCongee.jpg'),
+      _item('Century Egg Congee', 85, 'Congee', Colors.yellow,
+          customImagePath: 'assets/images/CenturyEgg.jpg'),
+      _item('Jelly Fish Century Egg', 90, 'Congee', Colors.orange,
+          customImagePath: 'assets/images/JellyFCE.jpg'),
+      _item('Corn Noodle Congee', 110, 'Congee', Colors.amber,
+          customImagePath: 'assets/images/CNoodleMM.jpg'),
     ]);
+
+    // ── Chicken ──────────────────────────────────────────────────────────────
     menu['Chicken']!.addAll([
-      _item('Chicken Adobo', 200, 'Chicken', Colors.brown, 
-        customImagePath: 'assets/LemonChicken.jpg', isPopular: true),
+      _item('Chicken Adobo', 200, 'Chicken', Colors.brown,
+          customImagePath: 'assets/images/LemonChicken.jpg', isPopular: true),
       _item('Kung Pao Chicken', 230, 'Chicken', Colors.red,
-        customImagePath: 'assets/CuapaoMantau.jpg'),
+          customImagePath: 'assets/images/CuapaoMantau.jpg'),
+      _item('Lemon Chicken', 210, 'Chicken', Colors.yellow,
+          customImagePath: 'assets/images/LemonChicken.jpg'),
+      _item('Yang Chow Fried Chicken', 190, 'Chicken', Colors.orange,
+          customImagePath: 'assets/images/YCFChicken.jpg'),
+      _item('Buttered Chicken', 180, 'Chicken', Colors.amber,
+          customImagePath: 'assets/images/ButteredChicken.jpg'),
+      _item('Chicken Feet', 150, 'Chicken', Colors.red,
+          customImagePath: 'assets/images/ChickenFeet.jpg'),
     ]);
+
+    // ── Beef ─────────────────────────────────────────────────────────────────
     menu['Beef']!.addAll([
-      _item('Beef Broccoli', 250, 'Beef', Colors.green, 
-        customImagePath: 'assets/BeefGP.png', isPopular: true),
+      _item('Beef Broccoli', 250, 'Beef', Colors.green,
+          customImagePath: 'assets/images/BeefGP.png', isPopular: true),
       _item('Beef Steak', 280, 'Beef', Colors.red,
-        customImagePath: 'assets/BeefBF.jpg'),
+          customImagePath: 'assets/images/BeefBF.jpg'),
+      _item('Beef Black Pepper', 260, 'Beef', Colors.brown,
+          customImagePath: 'assets/images/BeefBLK.jpg'),
+      _item('Beef Fried Rice', 220, 'Beef', Colors.orange,
+          customImagePath: 'assets/images/BeefFriedRice.png'),
+      _item('Red Pork Asado', 240, 'Beef', Colors.pink,
+          customImagePath: 'assets/images/RPAsado.jpg'),
+      _item('Patatim Cuapao', 230, 'Beef', Colors.purple,
+          customImagePath: 'assets/images/PatatimCuapao.jpg'),
     ]);
+
+    // ── Appetizer ────────────────────────────────────────────────────────────
     menu['Appetizer']!.addAll([
-      _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown, 
-        customImagePath: 'assets/LumpiangShanghai.jpg', isPopular: true),
-      _item('Fried Tofu', 60, 'Appetizer', Colors.amber,
-        customImagePath: 'assets/Calamares.jpg'),
+      _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown,
+          customImagePath: 'assets/images/LumpiangShanghai.jpg', isPopular: true),
+      _item('Calamares', 90, 'Appetizer', Colors.deepOrange,
+          customImagePath: 'assets/images/Calamares.jpg'),
+      _item('Jelly Fish', 120, 'Appetizer', Colors.pink,
+          customImagePath: 'assets/images/JellyFish.jpg'),
+      _item('Century Egg', 70, 'Appetizer', Colors.brown,
+          customImagePath: 'assets/images/CenturyEgg.jpg'),
+      _item('Fresh Egg', 50, 'Appetizer', Colors.yellow,
+          customImagePath: 'assets/images/FreshEgg.jpg'),
+      _item('Soy Sauce', 30, 'Appetizer', Colors.black87,
+          customImagePath: 'assets/images/SOkSauce.jpg'),
+      _item('Jelly Fish Century Egg', 100, 'Appetizer', Colors.orange,
+          customImagePath: 'assets/images/JellyFCE.jpg'),
+      _item('Chicken Feet', 110, 'Appetizer', Colors.red,
+          customImagePath: 'assets/images/ChickenFeet.jpg'),
     ]);
   }
 
@@ -357,26 +498,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     );
   }
 
-  // Fixed: replaced Container whitespace with SizedBox (sized_box_for_whitespace lint)
   Widget _buildImageWidget(MenuItem item) {
-    if (item.customImagePath != null) {
-      return Image.asset(
-        item.customImagePath!,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => const SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: ColoredBox(
-            color: Color(0xFFE0E0E0),
-            child: Icon(Icons.broken_image, color: Colors.grey),
-          ),
-        ),
-      );
-    }
+    final imagePath = item.customImagePath ?? item.fallbackImagePath;
     return Image.asset(
-      item.fallbackImagePath,
+      imagePath,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
@@ -385,7 +510,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         height: double.infinity,
         child: ColoredBox(
           color: Color(0xFFE0E0E0),
-          child: Icon(Icons.image, color: Colors.grey),
+          child: Icon(Icons.broken_image, color: Colors.grey),
         ),
       ),
     );
@@ -422,9 +547,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _generateReceipt() {
     if (cart.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cart is empty!')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Cart is empty!')));
       return;
     }
     showDialog(
@@ -445,10 +569,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Yang Chow Restaurant',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text('Yang Chow Restaurant',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const Text('=================='),
               const SizedBox(height: 8),
               ...cart.map(
@@ -458,9 +580,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(child: Text('${c.item.name} x${c.quantity}')),
-                      Text(
-                        'P${(c.item.price * c.quantity).toStringAsFixed(2)}',
-                      ),
+                      Text('P${(c.item.price * c.quantity).toStringAsFixed(2)}'),
                     ],
                   ),
                 ),
@@ -469,14 +589,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'P${totalAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Total:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('P${totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -533,11 +649,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                      child: const Icon(Icons.close,
+                          color: Colors.white, size: 24),
                     ),
                   ],
                 ),
@@ -545,11 +658,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               Expanded(
                 child: cart.isEmpty
                     ? const Center(
-                        child: Text(
-                          'No items in order',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
+                        child: Text('No items in order',
+                            style: TextStyle(color: Colors.grey)))
                     : ListView.builder(
                         controller: scrollController,
                         padding: const EdgeInsets.all(8),
@@ -566,9 +676,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                   Text(
                                     item.item.name,
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16),
                                   ),
                                   const SizedBox(height: 8),
                                   Row(
@@ -578,9 +687,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                       Text(
                                         'P${item.item.price.toStringAsFixed(2)}',
                                         style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
+                                            fontSize: 14, color: Colors.grey),
                                       ),
                                       Row(
                                         children: [
@@ -595,24 +702,19 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Center(
-                                                child: Icon(
-                                                  Icons.remove,
-                                                  color: Colors.white,
-                                                  size: 16,
-                                                ),
+                                                child: Icon(Icons.remove,
+                                                    color: Colors.white,
+                                                    size: 16),
                                               ),
                                             ),
                                           ),
                                           Container(
                                             width: 30,
                                             alignment: Alignment.center,
-                                            child: Text(
-                                              '${item.quantity}',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
+                                            child: Text('${item.quantity}',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16)),
                                           ),
                                           GestureDetector(
                                             onTap: () =>
@@ -625,29 +727,20 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Center(
-                                                child: Icon(
-                                                  Icons.add,
-                                                  color: Colors.white,
-                                                  size: 16,
-                                                ),
+                                                child: Icon(Icons.add,
+                                                    color: Colors.white,
+                                                    size: 16),
                                               ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          // Edit (TODO: implement)
-                                          const Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                            size: 20,
-                                          ),
+                                          const Icon(Icons.edit,
+                                              color: Colors.blue, size: 20),
                                           const SizedBox(width: 8),
                                           GestureDetector(
                                             onTap: () => _removeItem(item),
-                                            child: const Icon(
-                                              Icons.delete,
-                                              color: Colors.red,
-                                              size: 20,
-                                            ),
+                                            child: const Icon(Icons.delete,
+                                                color: Colors.red, size: 20),
                                           ),
                                         ],
                                       ),
@@ -664,7 +757,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                  border:
+                      Border(top: BorderSide(color: Colors.grey[300]!)),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -674,30 +768,21 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         labelText: 'Customer Name',
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
+                            horizontal: 8, vertical: 8),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'TOTAL:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'P${totalAmount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.red,
-                          ),
-                        ),
+                        const Text('TOTAL:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('P${totalAmount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.red)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -705,22 +790,19 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       width: double.infinity,
                       height: 36,
                       child: ElevatedButton(
-                        onPressed: cart.isNotEmpty ? _generateReceipt : null,
+                        onPressed:
+                            cart.isNotEmpty ? _generateReceipt : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                              borderRadius: BorderRadius.circular(6)),
                         ),
-                        child: const Text(
-                          'PRINT RECEIPT',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                        child: const Text('PRINT RECEIPT',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
                       ),
                     ),
                   ],
@@ -764,11 +846,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.shopping_cart,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  const Icon(Icons.shopping_cart,
+                      color: Colors.white, size: 20),
                   const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.all(2),
@@ -779,10 +858,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     child: Text(
                       '${cart.fold(0, (sum, item) => sum + item.quantity)}',
                       style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10),
                     ),
                   ),
                 ],
@@ -812,11 +890,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         padding: const EdgeInsets.all(4),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.7,
-                              crossAxisSpacing: 6,
-                              mainAxisSpacing: 6,
-                            ),
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                        ),
                         itemCount: items.length,
                         itemBuilder: (_, i) => _foodCard(items[i]),
                       );
@@ -867,11 +945,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 padding: const EdgeInsets.all(12),
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossAxisCount,
-                                      childAspectRatio: childAspectRatio,
-                                      crossAxisSpacing: 12,
-                                      mainAxisSpacing: 12,
-                                    ),
+                                  crossAxisCount: crossAxisCount,
+                                  childAspectRatio: childAspectRatio,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
                                 itemCount: items.length,
                                 itemBuilder: (_, i) => _foodCard(items[i]),
                               );
@@ -906,7 +984,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -914,10 +993,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             flex: 3,
             child: Stack(
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: _buildImageWidget(item),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12)),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: _buildImageWidget(item),
+                  ),
                 ),
                 if (item.isPopular)
                   Positioned(
@@ -925,9 +1008,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     left: 4,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: Colors.orange,
                         borderRadius: BorderRadius.circular(6),
@@ -935,10 +1016,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       child: const Text(
                         'POPULAR',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 7,
-                        ),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 7),
                       ),
                     ),
                   ),
@@ -950,17 +1030,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       width: 18,
                       height: 18,
                       decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
+                          color: Colors.red, shape: BoxShape.circle),
                       child: Center(
                         child: Text(
                           '$quantity',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 9,
-                          ),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 9),
                         ),
                       ),
                     ),
@@ -982,9 +1059,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       Text(
                         item.name,
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
+                            fontWeight: FontWeight.bold, fontSize: 11),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -992,10 +1067,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       Text(
                         'P${item.price.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13),
                       ),
                     ],
                   ),
@@ -1007,18 +1081,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 4),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                            borderRadius: BorderRadius.circular(4)),
                       ),
-                      child: const Text(
-                        'ADD',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 9,
-                        ),
-                      ),
+                      child: const Text('ADD',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 9)),
                     ),
                   ),
                 ],
