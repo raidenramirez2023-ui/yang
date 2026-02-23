@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'firebase_options.dart';  // Keep this import
 import 'utils/app_theme.dart';
 
 // Features
@@ -12,7 +12,7 @@ import 'pages/staff_dashboard.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase (ALL platforms)
+  // Initialize Firebase (ALL platforms) - Keep this
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const YangChowApp());
