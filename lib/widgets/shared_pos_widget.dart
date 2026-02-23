@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'order_list_panel.dart';
 
@@ -72,43 +71,109 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   final Map<String, List<String>> categoryImages = {
     'Yangchow Family Bundles': [
-      'assets/images/YC1.png',
-      'assets/images/YC2.png',
-      'assets/images/YC3.jpg',
-      'assets/images/YC4.jpg',
-      'assets/images/Overloadeals.png',
+      'assets/YC1.png',
+      'assets/YC2.png',
+      'assets/YC3.jpg',
+      'assets/YC4.jpg',
+      'assets/Overloadmeals.png',
+      'assets/MPEHotPot.png',
     ],
-    'Vegetables': ['assets/images/veg1.jpg', 'assets/images/veg2.jpg'],
+    'Vegetables': [
+      'assets/HSSalad.jpg',
+      'assets/Lohanchay.png',
+      'assets/BihonGuisado.jpg',
+      'assets/FreshEgg.jpg',
+    ],
     'Special Noodles': [
-      'assets/images/noodles1.jpg',
-      'assets/images/noodles2.jpg',
+      'assets/YCFriedRice.png',
+      'assets/PancitCLM.jpg',
+      'assets/BBNoodles.png',
+      'assets/BBWantonN.jpg',
+      'assets/SBHofan.jpg',
     ],
-    'Soup': ['assets/images/soup1.jpg', 'assets/images/soup2.jpg'],
-    'Seafood': ['assets/images/seafood1.jpg', 'assets/images/seafood2.jpg'],
+    'Soup': [
+      'assets/CNoodleMM.jpg',
+      'assets/WantonNoodles.jpg',
+      'assets/HSSoup.jpg',
+      'assets/SSSoup.jpg',
+      'assets/NSoupQE.png',
+    ],
+    'Seafood': [
+      'assets/BFShrimp.jpg',
+      'assets/FFilletSA.jpg',
+      'assets/BFOyster.png',
+      'assets/TPOyster.png',
+      'assets/JellyFish.jpg',
+      'assets/CenturyEgg.jpg',
+    ],
     'Roast and Soy Specialties': [
-      'assets/images/roast1.jpg',
-      'assets/images/roast2.jpg',
+      'assets/LechonMacau.jpg',
+      'assets/YCFChicken.jpg',
+      'assets/LemonChicken.jpg',
+      'assets/ButteredChicken.jpg',
+      'assets/ChickenFeet.jpg',
     ],
-    'Pork': ['assets/images/pork1.jpg', 'assets/images/pork2.jpg'],
-    'Noodles': ['assets/images/noodles3.jpg', 'assets/images/noodles4.jpg'],
-    'Mami or Noodles': ['assets/images/mami1.jpg', 'assets/images/mami2.jpg'],
+    'Pork': [
+      'assets/PatatimCuapao.jpg',
+      'assets/RPAsado.jpg',
+      'assets/CuapaoMantau.jpg',
+      'assets/AsadoSiopao.png',
+    ],
+    'Noodles': [
+      'assets/BBNoodles.png',
+      'assets/BBWantonN.jpg',
+      'assets/SBHofan.jpg',
+      'assets/BihonGuisado.jpg',
+    ],
+    'Mami or Noodles': [
+      'assets/BeefBLK.jpg',
+      'assets/CNoodleMM.jpg',
+      'assets/WantonNoodles.jpg',
+    ],
     'Hot Pot Specialties': [
-      'assets/images/hotpot1.jpg',
-      'assets/images/hotpot2.jpg',
+      'assets/STHotPot.jpg',
+      'assets/FFTHotPot.jpg',
+      'assets/BBRHotPot.jpg',
+      'assets/MPEHotPot.png',
     ],
     'Fried Rice or Rice': [
-      'assets/images/rice1.jpg',
-      'assets/images/rice2.jpg',
+      'assets/BeefFriedRice.png',
+      'assets/CSFFriedRice.jpg',
+      'assets/YCFriedRice.png',
     ],
-    'Dimsum': ['assets/images/dimsum1.jpg', 'assets/images/dimsum2.jpg'],
-    'Congee': ['assets/images/congee1.jpg', 'assets/images/congee2.jpg'],
-    'Chicken': ['assets/images/chicken1.jpg', 'assets/images/chicken2.jpg'],
-    'Beef': ['assets/images/beef1.jpg', 'assets/images/beef2.jpg'],
+    'Dimsum': [
+      'assets/LumpiangShanghai.jpg',
+      'assets/BBSiopao.jpg',
+      'assets/AsadoSiopao.png',
+      'assets/CuapaoMantau.jpg',
+    ],
+    'Congee': [
+      'assets/PLCongee.jpg',
+      'assets/BBCongee.jpg',
+      'assets/CenturyEgg.jpg',
+      'assets/JellyFCE.jpg',
+    ],
+    'Chicken': [
+      'assets/LemonChicken.jpg',
+      'assets/YCFChicken.jpg',
+      'assets/ButteredChicken.jpg',
+      'assets/ChickenFeet.jpg',
+    ],
+    'Beef': [
+      'assets/BeefGP.png',
+      'assets/BeefBF.jpg',
+      'assets/BeefBLK.jpg',
+      'assets/BeefFriedRice.png',
+    ],
     'Appetizer': [
-      'assets/images/appetizer1.jpg',
-      'assets/images/appetizer2.jpg',
+      'assets/LumpiangShanghai.jpg',
+      'assets/Calamares.jpg',
+      'assets/JellyFish.jpg',
+      'assets/CenturyEgg.jpg',
+      'assets/FreshEgg.jpg',
+      'assets/SOkSauce.jpg',
     ],
-    'default': ['assets/images/food.jpg'],
+    'default': ['assets/YCFriedRice.png'],
   };
 
   final Map<String, int> _categoryImageIndex = {};
@@ -166,8 +231,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       ),
     ]);
     menu['Vegetables']!.addAll([
-      _item('Chopsuey', 160, 'Vegetables', Colors.green, isPopular: true),
-      _item('Kangkong Garlic', 140, 'Vegetables', Colors.lightGreen),
+      _item('Chopsuey', 160, 'Vegetables', Colors.green, 
+        customImagePath: 'assets/Chopsuey.png', isPopular: true),
+      _item('Kangkong Garlic', 140, 'Vegetables', Colors.lightGreen,
+        customImagePath: 'assets/KangkongGarlic.png'),
     ]);
     menu['Special Noodles']!.addAll([
       _item(
@@ -175,17 +242,21 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         220,
         'Special Noodles',
         Colors.amber,
-        isPopular: true,
-      ),
-      _item('Pancit Canton', 200, 'Special Noodles', Colors.orange),
+        customImagePath: 'assets/YCFriedRice.png', isPopular: true),
+      _item('Pancit Canton', 200, 'Special Noodles', Colors.orange,
+        customImagePath: 'assets/PancitCLM.jpg'),
     ]);
     menu['Soup']!.addAll([
-      _item('Corn Soup', 120, 'Soup', Colors.yellow),
-      _item('Wonton Soup', 130, 'Soup', Colors.orange, isPopular: true),
+      _item('Corn Soup', 120, 'Soup', Colors.yellow,
+        customImagePath: 'assets/CNoodleMM.jpg'),
+      _item('Wonton Soup', 130, 'Soup', Colors.orange, 
+        customImagePath: 'assets/WantonNoodles.png', isPopular: true),
     ]);
     menu['Seafood']!.addAll([
-      _item('Garlic Shrimp', 300, 'Seafood', Colors.lightBlue),
-      _item('Steamed Fish', 320, 'Seafood', Colors.cyan),
+      _item('Garlic Shrimp', 300, 'Seafood', Colors.lightBlue,
+        customImagePath: 'assets/BFShrimp.jpg'),
+      _item('Steamed Fish', 320, 'Seafood', Colors.cyan,
+        customImagePath: 'assets/FFilletSA.jpg'),
     ]);
     menu['Roast and Soy Specialties']!.addAll([
       _item(
@@ -193,21 +264,27 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         350,
         'Roast and Soy Specialties',
         Colors.brown,
-        isPopular: true,
-      ),
-      _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber),
+        customImagePath: 'assets/LechonMacau.jpg', isPopular: true),
+      _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber,
+        customImagePath: 'assets/YCFChicken.jpg'),
     ]);
     menu['Pork']!.addAll([
-      _item('Sweet & Sour Pork', 220, 'Pork', Colors.red, isPopular: true),
-      _item('Pork Asado', 200, 'Pork', Colors.brown),
+      _item('Sweet & Sour Pork', 220, 'Pork', Colors.red, 
+        customImagePath: 'assets/ButteredChicken.jpg', isPopular: true),
+      _item('Pork Asado', 200, 'Pork', Colors.brown,
+        customImagePath: 'assets/PatatimCuapao.jpg'),
     ]);
     menu['Noodles']!.addAll([
-      _item('Lo Mein', 180, 'Noodles', Colors.orange),
-      _item('Sotanghon', 150, 'Noodles', Colors.lime),
+      _item('Lo Mein', 180, 'Noodles', Colors.orange,
+        customImagePath: 'assets/BBNoodles.png'),
+      _item('Sotanghon', 150, 'Noodles', Colors.lime,
+        customImagePath: 'assets/BBWantonN.jpg'),
     ]);
     menu['Mami or Noodles']!.addAll([
-      _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown, isPopular: true),
-      _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber),
+      _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown, 
+        customImagePath: 'assets/BeefBLK.jpg', isPopular: true),
+      _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber,
+        customImagePath: 'assets/CNoodleMM.jpg'),
     ]);
     menu['Hot Pot Specialties']!.addAll([
       _item(
@@ -215,9 +292,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         450,
         'Hot Pot Specialties',
         Colors.deepOrange,
-        isPopular: true,
-      ),
-      _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green),
+        customImagePath: 'assets/STHotPot.jpg', isPopular: true),
+      _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green,
+        customImagePath: 'assets/FFTHotPot.jpg'),
     ]);
     menu['Fried Rice or Rice']!.addAll([
       _item(
@@ -225,29 +302,39 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         180,
         'Fried Rice or Rice',
         Colors.orange,
-        isPopular: true,
-      ),
-      _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70),
+        customImagePath: 'assets/BeefFriedRice.png', isPopular: true),
+      _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70,
+        customImagePath: 'assets/CSFFriedRice.jpg'),
     ]);
     menu['Dimsum']!.addAll([
-      _item('Siomai', 60, 'Dimsum', Colors.orange, isPopular: true),
-      _item('Hakaw', 70, 'Dimsum', Colors.lightBlue),
+      _item('Siomai', 60, 'Dimsum', Colors.orange, 
+        customImagePath: 'assets/LumpiangShanghai.jpg', isPopular: true),
+      _item('Hakaw', 70, 'Dimsum', Colors.lightBlue,
+        customImagePath: 'assets/BBSiopao.jpg'),
     ]);
     menu['Congee']!.addAll([
-      _item('Beef Congee', 100, 'Congee', Colors.brown, isPopular: true),
-      _item('Plain Lugaw', 60, 'Congee', Colors.grey),
+      _item('Beef Congee', 100, 'Congee', Colors.brown, 
+        customImagePath: 'assets/PLCongee.jpg', isPopular: true),
+      _item('Plain Lugaw', 60, 'Congee', Colors.grey,
+        customImagePath: 'assets/CenturyEgg.jpg'),
     ]);
     menu['Chicken']!.addAll([
-      _item('Chicken Adobo', 200, 'Chicken', Colors.brown, isPopular: true),
-      _item('Kung Pao Chicken', 230, 'Chicken', Colors.red),
+      _item('Chicken Adobo', 200, 'Chicken', Colors.brown, 
+        customImagePath: 'assets/LemonChicken.jpg', isPopular: true),
+      _item('Kung Pao Chicken', 230, 'Chicken', Colors.red,
+        customImagePath: 'assets/CuapaoMantau.jpg'),
     ]);
     menu['Beef']!.addAll([
-      _item('Beef Broccoli', 250, 'Beef', Colors.green, isPopular: true),
-      _item('Beef Steak', 280, 'Beef', Colors.red),
+      _item('Beef Broccoli', 250, 'Beef', Colors.green, 
+        customImagePath: 'assets/BeefGP.png', isPopular: true),
+      _item('Beef Steak', 280, 'Beef', Colors.red,
+        customImagePath: 'assets/BeefBF.jpg'),
     ]);
     menu['Appetizer']!.addAll([
-      _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown, isPopular: true),
-      _item('Fried Tofu', 60, 'Appetizer', Colors.amber),
+      _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown, 
+        customImagePath: 'assets/LumpiangShanghai.jpg', isPopular: true),
+      _item('Fried Tofu', 60, 'Appetizer', Colors.amber,
+        customImagePath: 'assets/Calamares.jpg'),
     ]);
   }
 
@@ -257,22 +344,24 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     String category,
     Color color, {
     bool isPopular = false,
+    String? customImagePath,
   }) {
     return MenuItem(
       name: name,
       price: price,
       category: category,
-      fallbackImagePath: _nextImage(category),
+      fallbackImagePath: customImagePath ?? _nextImage(category),
       color: color,
       isPopular: isPopular,
+      customImagePath: customImagePath,
     );
   }
 
   // Fixed: replaced Container whitespace with SizedBox (sized_box_for_whitespace lint)
   Widget _buildImageWidget(MenuItem item) {
     if (item.customImagePath != null) {
-      return Image.file(
-        File(item.customImagePath!),
+      return Image.asset(
+        item.customImagePath!,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
