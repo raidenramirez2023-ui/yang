@@ -419,36 +419,42 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
           child: Column(
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.restaurant_menu,
-                  color: Colors.red.shade600,
-                  size: 48,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/mobile-logo.png', // Make sure this path is correct
+                    width: 230,
+                    height: 230,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Yang Chow',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 3),
+              // REMOVED: Yang Chow Text
+              // const Text(
+              //   'Yang Chow',
+              //   style: TextStyle(
+              //     fontSize: 24,
+              //     fontWeight: FontWeight.bold,
+              //   ),
+              // ),
+              // const SizedBox(height: 8),
               Text(
                 'Restaurant Management System',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.mediumGrey,
+                  color: const Color.fromARGB(255, 119, 36, 36),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _buildLoginForm(),
               const SizedBox(height: 40),
             ],
