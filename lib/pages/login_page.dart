@@ -17,7 +17,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  String selectedRole = 'Admin'; // default role
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _showLoginPage = false;
@@ -28,6 +27,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   // Role definitions with descriptions
   final Map<String, Map<String, String>> roles = {
     'Admin': {
+      'icon': 'admin_panel_settings',
+      'description': 'Full system access',
+      'route': '/dashboard',
+    },
+    'admin2': {
       'icon': 'admin_panel_settings',
       'description': 'Full system access',
       'route': '/dashboard',
@@ -133,19 +137,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       // Get the user's role from Firestore
       String userRole = userDoc.docs.first.get('role');
 
-      // ✅ Step 3: Verify role matches selection
-      if (userRole != selectedRole) {
-        _showSnackBar(
-          "Invalid role. You are registered as $userRole",
-          Colors.red.shade700,
-          Icons.error_outline,
-        );
-        await _auth.signOut();
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // 🎉 Step 4: Navigate based on verified role
+      // 🎉 Step 3: Navigate based on user's role from Firestore
       _showSnackBar(
         "Login successful as $userRole",
         Colors.green.shade700,
@@ -393,57 +385,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Role Selection
-        Text(
-          'Login As',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.lightGrey),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedRole,
-              isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down),
-              elevation: 2,
-              style: Theme.of(context).textTheme.bodyLarge,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.lg,
-                vertical: AppTheme.md,
-              ),
-              items: ['Admin', 'Staff'].map((role) {
-                return DropdownMenuItem<String>(
-                  value: role,
-                  child: Row(
-                    children: [
-                      Icon(
-                        role == 'Admin' 
-                          ? Icons.admin_panel_settings 
-                          : Icons.point_of_sale,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(role),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: _isLoading ? null : (value) {
-                if (value != null) {
-                  setState(() {
-                    selectedRole = value;
-                  });
-                }
-              },
             ),
           ),
         ),
