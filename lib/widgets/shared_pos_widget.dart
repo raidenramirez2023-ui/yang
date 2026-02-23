@@ -71,22 +71,43 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   ];
 
   final Map<String, List<String>> categoryImages = {
-    'Yangchow Family Bundles': ['assets/images/YC4.jpg', 'assets/images/YC2.png', 'assets/images/YC3.jpg', 'assets/images/YC1.png'],
+    'Yangchow Family Bundles': [
+      'assets/images/YC1.png',
+      'assets/images/YC2.png',
+      'assets/images/YC3.jpg',
+      'assets/images/YC4.jpg',
+      'assets/images/Overloadeals.png',
+    ],
     'Vegetables': ['assets/images/veg1.jpg', 'assets/images/veg2.jpg'],
-    'Special Noodles': ['assets/images/noodles1.jpg', 'assets/images/noodles2.jpg'],
+    'Special Noodles': [
+      'assets/images/noodles1.jpg',
+      'assets/images/noodles2.jpg',
+    ],
     'Soup': ['assets/images/soup1.jpg', 'assets/images/soup2.jpg'],
     'Seafood': ['assets/images/seafood1.jpg', 'assets/images/seafood2.jpg'],
-    'Roast and Soy Specialties': ['assets/images/roast1.jpg', 'assets/images/roast2.jpg'],
+    'Roast and Soy Specialties': [
+      'assets/images/roast1.jpg',
+      'assets/images/roast2.jpg',
+    ],
     'Pork': ['assets/images/pork1.jpg', 'assets/images/pork2.jpg'],
     'Noodles': ['assets/images/noodles3.jpg', 'assets/images/noodles4.jpg'],
     'Mami or Noodles': ['assets/images/mami1.jpg', 'assets/images/mami2.jpg'],
-    'Hot Pot Specialties': ['assets/images/hotpot1.jpg', 'assets/images/hotpot2.jpg'],
-    'Fried Rice or Rice': ['assets/images/rice1.jpg', 'assets/images/rice2.jpg'],
+    'Hot Pot Specialties': [
+      'assets/images/hotpot1.jpg',
+      'assets/images/hotpot2.jpg',
+    ],
+    'Fried Rice or Rice': [
+      'assets/images/rice1.jpg',
+      'assets/images/rice2.jpg',
+    ],
     'Dimsum': ['assets/images/dimsum1.jpg', 'assets/images/dimsum2.jpg'],
     'Congee': ['assets/images/congee1.jpg', 'assets/images/congee2.jpg'],
     'Chicken': ['assets/images/chicken1.jpg', 'assets/images/chicken2.jpg'],
     'Beef': ['assets/images/beef1.jpg', 'assets/images/beef2.jpg'],
-    'Appetizer': ['assets/images/appetizer1.jpg', 'assets/images/appetizer2.jpg'],
+    'Appetizer': [
+      'assets/images/appetizer1.jpg',
+      'assets/images/appetizer2.jpg',
+    ],
     'default': ['assets/images/food.jpg'],
   };
 
@@ -112,17 +133,50 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _buildMenu() {
     menu['Yangchow Family Bundles']!.addAll([
-      _item('Family Bundle A', 4566.80, 'Yangchow Family Bundles', Colors.orange, isPopular: true),
-      _item('Family Bundle B', 950, 'Yangchow Family Bundles', Colors.deepOrange),
-      _item('Family Bundle C', 950, 'Yangchow Family Bundles', Colors.deepOrange),
-      _item('Family Bundle D', 950, 'Yangchow Family Bundles', Colors.deepOrange),
+      _item(
+        'Family Bundle A',
+        1880.80,
+        'Yangchow Family Bundles',
+        Colors.orange,
+        isPopular: true,
+      ),
+      _item(
+        'Family Bundle B',
+        1880.80,
+        'Yangchow Family Bundles',
+        Colors.deepOrange,
+      ),
+      _item(
+        'Family Bundle C',
+        3588.80,
+        'Yangchow Family Bundles',
+        Colors.deepOrange,
+      ),
+      _item(
+        'Family Bundle D',
+        4588.80,
+        'Yangchow Family Bundles',
+        Colors.deepOrange,
+      ),
+      _item(
+        'Overload Meal',
+        298.80,
+        'Yangchow Family Bundles',
+        Colors.deepOrange,
+      ),
     ]);
     menu['Vegetables']!.addAll([
       _item('Chopsuey', 160, 'Vegetables', Colors.green, isPopular: true),
       _item('Kangkong Garlic', 140, 'Vegetables', Colors.lightGreen),
     ]);
     menu['Special Noodles']!.addAll([
-      _item('Yang Chow Fried Noodles', 220, 'Special Noodles', Colors.amber, isPopular: true),
+      _item(
+        'Yang Chow Fried Noodles',
+        220,
+        'Special Noodles',
+        Colors.amber,
+        isPopular: true,
+      ),
       _item('Pancit Canton', 200, 'Special Noodles', Colors.orange),
     ]);
     menu['Soup']!.addAll([
@@ -134,7 +188,13 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       _item('Steamed Fish', 320, 'Seafood', Colors.cyan),
     ]);
     menu['Roast and Soy Specialties']!.addAll([
-      _item('Roast Duck', 350, 'Roast and Soy Specialties', Colors.brown, isPopular: true),
+      _item(
+        'Roast Duck',
+        350,
+        'Roast and Soy Specialties',
+        Colors.brown,
+        isPopular: true,
+      ),
       _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber),
     ]);
     menu['Pork']!.addAll([
@@ -150,11 +210,23 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber),
     ]);
     menu['Hot Pot Specialties']!.addAll([
-      _item('Seafood Hot Pot', 450, 'Hot Pot Specialties', Colors.deepOrange, isPopular: true),
+      _item(
+        'Seafood Hot Pot',
+        450,
+        'Hot Pot Specialties',
+        Colors.deepOrange,
+        isPopular: true,
+      ),
       _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green),
     ]);
     menu['Fried Rice or Rice']!.addAll([
-      _item('Yang Chow Fried Rice', 180, 'Fried Rice or Rice', Colors.orange, isPopular: true),
+      _item(
+        'Yang Chow Fried Rice',
+        180,
+        'Fried Rice or Rice',
+        Colors.orange,
+        isPopular: true,
+      ),
       _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70),
     ]);
     menu['Dimsum']!.addAll([
@@ -179,8 +251,13 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     ]);
   }
 
-  MenuItem _item(String name, double price, String category, Color color,
-      {bool isPopular = false}) {
+  MenuItem _item(
+    String name,
+    double price,
+    String category,
+    Color color, {
+    bool isPopular = false,
+  }) {
     return MenuItem(
       name: name,
       price: price,
@@ -256,9 +333,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _generateReceipt() {
     if (cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cart is empty!')));
       return;
     }
     showDialog(
@@ -279,27 +356,38 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Yang Chow Restaurant',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Yang Chow Restaurant',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const Text('=================='),
               const SizedBox(height: 8),
-              ...cart.map((c) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: Text('${c.item.name} x${c.quantity}')),
-                        Text('P${(c.item.price * c.quantity).toStringAsFixed(2)}'),
-                      ],
-                    ),
-                  )),
+              ...cart.map(
+                (c) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(child: Text('${c.item.name} x${c.quantity}')),
+                      Text(
+                        'P${(c.item.price * c.quantity).toStringAsFixed(2)}',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const Divider(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('P${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Total:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'P${totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ],
@@ -346,14 +434,21 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('ORDER LIST',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18)),
+                    const Text(
+                      'ORDER LIST',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),
@@ -361,8 +456,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               Expanded(
                 child: cart.isEmpty
                     ? const Center(
-                        child: Text('No items in order',
-                            style: TextStyle(color: Colors.grey)))
+                        child: Text(
+                          'No items in order',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
                     : ListView.builder(
                         controller: scrollController,
                         padding: const EdgeInsets.all(8),
@@ -376,66 +474,91 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(item.item.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16)),
+                                  Text(
+                                    item.item.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'P${item.item.price.toStringAsFixed(2)}',
                                         style: const TextStyle(
-                                            fontSize: 14, color: Colors.grey),
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
                                       ),
                                       Row(
                                         children: [
                                           GestureDetector(
-                                            onTap: () => _decreaseQuantity(item),
+                                            onTap: () =>
+                                                _decreaseQuantity(item),
                                             child: Container(
                                               width: 24,
                                               height: 24,
                                               decoration: const BoxDecoration(
-                                                  color: Colors.red,
-                                                  shape: BoxShape.circle),
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
                                               child: const Center(
-                                                  child: Icon(Icons.remove,
-                                                      color: Colors.white,
-                                                      size: 16)),
+                                                child: Icon(
+                                                  Icons.remove,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                           Container(
                                             width: 30,
                                             alignment: Alignment.center,
-                                            child: Text('${item.quantity}',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16)),
+                                            child: Text(
+                                              '${item.quantity}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
                                           ),
                                           GestureDetector(
-                                            onTap: () => _increaseQuantity(item),
+                                            onTap: () =>
+                                                _increaseQuantity(item),
                                             child: Container(
                                               width: 24,
                                               height: 24,
                                               decoration: const BoxDecoration(
-                                                  color: Colors.green,
-                                                  shape: BoxShape.circle),
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
                                               child: const Center(
-                                                  child: Icon(Icons.add,
-                                                      color: Colors.white,
-                                                      size: 16)),
+                                                child: Icon(
+                                                  Icons.add,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           // Edit (TODO: implement)
-                                          const Icon(Icons.edit,
-                                              color: Colors.blue, size: 20),
+                                          const Icon(
+                                            Icons.edit,
+                                            color: Colors.blue,
+                                            size: 20,
+                                          ),
                                           const SizedBox(width: 8),
                                           GestureDetector(
                                             onTap: () => _removeItem(item),
-                                            child: const Icon(Icons.delete,
-                                                color: Colors.red, size: 20),
+                                            child: const Icon(
+                                              Icons.delete,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -461,22 +584,31 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       decoration: InputDecoration(
                         labelText: 'Customer Name',
                         border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TOTAL:',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('P${totalAmount.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.red)),
+                        const Text(
+                          'TOTAL:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          'P${totalAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -490,11 +622,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
-                        child: const Text('PRINT RECEIPT',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        child: const Text(
+                          'PRINT RECEIPT',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -538,8 +675,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.shopping_cart,
-                      color: Colors.white, size: 20),
+                  const Icon(
+                    Icons.shopping_cart,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.all(2),
@@ -550,9 +690,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     child: Text(
                       '${cart.fold(0, (sum, item) => sum + item.quantity)}',
                       style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10),
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ],
@@ -582,11 +723,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         padding: const EdgeInsets.all(4),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.7,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
-                        ),
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.7,
+                              crossAxisSpacing: 6,
+                              mainAxisSpacing: 6,
+                            ),
                         itemCount: items.length,
                         itemBuilder: (_, i) => _foodCard(items[i]),
                       );
@@ -637,11 +778,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 padding: const EdgeInsets.all(12),
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  childAspectRatio: childAspectRatio,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                ),
+                                      crossAxisCount: crossAxisCount,
+                                      childAspectRatio: childAspectRatio,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                    ),
                                 itemCount: items.length,
                                 itemBuilder: (_, i) => _foodCard(items[i]),
                               );
@@ -694,17 +835,22 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     top: 4,
                     left: 4,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.orange,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text('POPULAR',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 7)),
+                      child: const Text(
+                        'POPULAR',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 7,
+                        ),
+                      ),
                     ),
                   ),
                 if (quantity > 0)
@@ -715,13 +861,18 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       width: 18,
                       height: 18,
                       decoration: const BoxDecoration(
-                          color: Colors.red, shape: BoxShape.circle),
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
                       child: Center(
-                        child: Text('$quantity',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 9)),
+                        child: Text(
+                          '$quantity',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -742,7 +893,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       Text(
                         item.name,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 11),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -750,9 +903,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       Text(
                         'P${item.price.toStringAsFixed(2)}',
                         style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13),
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -766,11 +920,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
-                      child: const Text('ADD',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 9)),
+                      child: const Text(
+                        'ADD',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
                     ),
                   ),
                 ],
