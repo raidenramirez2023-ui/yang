@@ -15,7 +15,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _emailSent = false;
-  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void dispose() {
@@ -29,7 +28,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      await _supabase.auth.resetPasswordForEmail(
+      await Supabase.instance.client.auth.resetPasswordForEmail(
         _emailController.text.trim(),
       );
 
@@ -40,27 +39,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         });
       }
     } on AuthException catch (e) {
-      String errorMessage = 'An error occurred';
-      
-      switch (e.message) {
-        case 'User not found':
-          errorMessage = 'No account found with this email address';
-          break;
-        case 'Invalid email':
-          errorMessage = 'The email address is not valid';
-          break;
-        case 'too-many-requests':
-          errorMessage = 'Too many requests. Try again later';
-          break;
-        default:
-          errorMessage = e.message ?? 'Failed to send reset email';
-      }
-
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
+            content: Text(_getErrorMessage(e.message)),
             backgroundColor: AppTheme.errorRed,
             behavior: SnackBarBehavior.floating,
           ),
@@ -77,6 +60,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         );
       }
+    }
+  }
+
+  String _getErrorMessage(String? message) {
+    switch (message) {
+      case 'User not found':
+        return 'No account found with this email address';
+      case 'Invalid email':
+        return 'The email address is not valid';
+      case 'too-many-requests':
+        return 'Too many requests. Try again later';
+      default:
+        return message ?? 'Failed to send reset email';
     }
   }
 
@@ -97,15 +93,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo/Icon
                   Container(
                     padding: EdgeInsets.all(
-                      ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 20,
-                        tablet: 24,
-                        desktop: 28,
-                      ),
+                      ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                     ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryRed.withValues(alpha: 0.1),
@@ -113,48 +103,31 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                     child: Icon(
                       Icons.lock_reset,
-                      size: ResponsiveUtils.getResponsiveIconSize(
-                        context,
-                        mobile: 40,
-                        tablet: 48,
-                        desktop: 56,
-                      ),
+                      size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 40, tablet: 48, desktop: 56),
                       color: AppTheme.primaryRed,
                     ),
                   ),
                   
                   ResponsiveUtils.verticalSpace(context, mobile: 24, tablet: 32, desktop: 40),
                   
-                  // Title
                   Text(
                     'Reset Password',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 24,
-                        tablet: 28,
-                        desktop: 32,
-                      ),
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 24, tablet: 28, desktop: 32),
                     ),
                     textAlign: TextAlign.center,
                   ),
                   
                   ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 12, desktop: 16),
                   
-                  // Subtitle
                   Text(
                     _emailSent 
                         ? 'Check your email for reset instructions'
                         : 'Enter your email address and we\'ll send you a link to reset your password',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppTheme.mediumGrey,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 14,
-                        tablet: 15,
-                        desktop: 16,
-                      ),
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 15, desktop: 16),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -162,12 +135,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ResponsiveUtils.verticalSpace(context, mobile: 32, tablet: 40, desktop: 48),
                   
                   if (!_emailSent) ...[
-                    // Form
                     Form(
                       key: _formKey,
                       child: Column(
                         children: [
-                          // Email Field
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -178,20 +149,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               prefixIcon: const Icon(Icons.email_outlined),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                              ),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveUtils.getResponsiveFontSize(
-                                  context,
-                                  mobile: 16,
-                                  tablet: 18,
-                                  desktop: 20,
-                                ),
-                                vertical: ResponsiveUtils.getResponsiveFontSize(
-                                  context,
-                                  mobile: 14,
-                                  tablet: 16,
-                                  desktop: 18,
-                                ),
                               ),
                             ),
                             validator: (value) {
@@ -207,15 +164,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           
                           ResponsiveUtils.verticalSpace(context, mobile: 24, tablet: 32, desktop: 40),
                           
-                          // Reset Button
                           SizedBox(
                             width: double.infinity,
-                            height: ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 48,
-                              tablet: 52,
-                              desktop: 56,
-                            ),
+                            height: ResponsiveUtils.getResponsiveFontSize(context, mobile: 48, tablet: 52, desktop: 56),
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _resetPassword,
                               style: ElevatedButton.styleFrom(
@@ -227,52 +178,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 elevation: 2,
                               ),
                               child: _isLoading
-                                  ? Row(
+                                  ? const Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         SizedBox(
-                                          width: ResponsiveUtils.getResponsiveIconSize(
-                                            context,
-                                            mobile: 16,
-                                            tablet: 18,
-                                            desktop: 20,
-                                          ),
-                                          height: ResponsiveUtils.getResponsiveIconSize(
-                                            context,
-                                            mobile: 16,
-                                            tablet: 18,
-                                            desktop: 20,
-                                          ),
-                                          child: const CircularProgressIndicator(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                           ),
                                         ),
-                                        ResponsiveUtils.horizontalSpace(context, mobile: 12, tablet: 16, desktop: 20),
-                                        Text(
-                                          'Sending...',
-                                          style: TextStyle(
-                                            fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                              context,
-                                              mobile: 14,
-                                              tablet: 15,
-                                              desktop: 16,
-                                            ),
-                                          ),
-                                        ),
+                                        SizedBox(width: 12),
+                                        Text('Sending...'),
                                       ],
                                     )
-                                  : Text(
+                                  : const Text(
                                       'Send Reset Link',
-                                      style: TextStyle(
-                                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                          context,
-                                          mobile: 14,
-                                          tablet: 15,
-                                          desktop: 16,
-                                        ),
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: TextStyle(fontWeight: FontWeight.w600),
                                     ),
                             ),
                           ),
@@ -280,15 +203,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                     ),
                   ] else ...[
-                    // Success Message
                     Container(
                       padding: EdgeInsets.all(
-                        ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 16,
-                          tablet: 20,
-                          desktop: 24,
-                        ),
+                        ResponsiveUtils.getResponsiveFontSize(context, mobile: 16, tablet: 20, desktop: 24),
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.successGreen.withValues(alpha: 0.1),
@@ -302,12 +219,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           Icon(
                             Icons.check_circle_outline,
                             color: AppTheme.successGreen,
-                            size: ResponsiveUtils.getResponsiveIconSize(
-                              context,
-                              mobile: 48,
-                              tablet: 56,
-                              desktop: 64,
-                            ),
+                            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 48, tablet: 56, desktop: 64),
                           ),
                           ResponsiveUtils.verticalSpace(context, mobile: 12, tablet: 16, desktop: 20),
                           Text(
@@ -315,12 +227,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               color: AppTheme.successGreen,
                               fontWeight: FontWeight.bold,
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                context,
-                                mobile: 16,
-                                tablet: 17,
-                                desktop: 18,
-                              ),
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 16, tablet: 17, desktop: 18),
                             ),
                           ),
                           ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 12, desktop: 16),
@@ -328,12 +235,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             'We\'ve sent a password reset link to ${_emailController.text}',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppTheme.mediumGrey,
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                context,
-                                mobile: 13,
-                                tablet: 14,
-                                desktop: 15,
-                              ),
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 13, tablet: 14, desktop: 15),
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -343,15 +245,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     
                     ResponsiveUtils.verticalSpace(context, mobile: 24, tablet: 32, desktop: 40),
                     
-                    // Back to Login Button
                     SizedBox(
                       width: double.infinity,
-                      height: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 48,
-                        tablet: 52,
-                        desktop: 56,
-                      ),
+                      height: ResponsiveUtils.getResponsiveFontSize(context, mobile: 48, tablet: 52, desktop: 56),
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
@@ -361,17 +257,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                           ),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Back to Login',
-                          style: TextStyle(
-                            fontSize: ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 14,
-                              tablet: 15,
-                              desktop: 16,
-                            ),
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -379,7 +267,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   
                   ResponsiveUtils.verticalSpace(context, mobile: 24, tablet: 32, desktop: 40),
                   
-                  // Help Text
                   if (!_emailSent)
                     Column(
                       children: [
@@ -387,12 +274,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           'Need help?',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.mediumGrey,
-                            fontSize: ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 12,
-                              tablet: 13,
-                              desktop: 14,
-                            ),
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 13, desktop: 14),
                           ),
                         ),
                         ResponsiveUtils.verticalSpace(context, mobile: 4, tablet: 6, desktop: 8),
@@ -400,12 +282,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           'Contact your system administrator if you don\'t receive the email',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.mediumGrey,
-                            fontSize: ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 12,
-                              tablet: 13,
-                              desktop: 14,
-                            ),
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 13, desktop: 14),
                           ),
                           textAlign: TextAlign.center,
                         ),

@@ -11,13 +11,11 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final SupabaseClient _supabase = Supabase.instance.client;
   bool _isAdmin = false;
-  bool _isLoading = true;
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
-  final List<String> categories = [
+  static const List<String> categories = [
     'All',
     'Perishable Ingredients',
     'Non-perishable Ingredients',
@@ -27,50 +25,32 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   void initState() {
     super.initState();
-    setState(() {
-      _isLoading = false;
-    });
+    _checkUserRole();
   }
 
   Future<void> _checkUserRole() async {
-    final user = _supabase.auth.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
-      print('Current user email: ${user.email}'); // Debug print
       try {
-        final userResponse = await _supabase
+        final userResponse = await Supabase.instance.client
             .from('users')
             .select('role')
             .eq('email', user.email!)
             .maybeSingle();
 
-        print('User found: ${userResponse != null}'); // Debug print
-        
-        if (userResponse != null) {
-          final userRole = userResponse['role'] ?? 'unknown';
-          print('User role: $userRole'); // Debug print
-          
-          if (mounted) {
-            setState(() {
-              _isAdmin = userRole.toString().toLowerCase() == 'admin' || 
-                        userRole.toString().toLowerCase() == 'adm';
-              _isLoading = false;
-              print('Is admin: $_isAdmin'); // Debug print
-            });
-          }
-        } else {
-          print('No user document found for email: ${user.email}');
-          if (mounted) setState(() => _isLoading = false);
+        if (userResponse != null && mounted) {
+          final userRole = userResponse['role']?.toString() ?? '';
+          setState(() {
+            _isAdmin = userRole.toLowerCase() == 'admin' || userRole.toLowerCase() == 'adm';
+          });
         }
       } catch (e) {
-        print('Error checking user role: $e'); // Debug print
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) setState(() {});
       }
-    } else {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _addOrEditItem({Map<String, dynamic>? item, dynamic docId}) {
+  void _addOrEditItem({Map<String, dynamic>? item}) {
     final nameController = TextEditingController(text: item?['name']);
     final categoryController = TextEditingController(text: item?['category']);
     final quantityController =
@@ -216,7 +196,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           return;
                         }
 
-                        final user = _supabase.auth.currentUser;
+                        final user = Supabase.instance.client.auth.currentUser;
                         if (user == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -240,12 +220,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
                         try {
                           if (item == null) {
-                            await _supabase.from('inventory').insert(newItem);
+                            await Supabase.instance.client.from('inventory').insert(newItem);
                           } else {
-                            await _supabase
+                            await Supabase.instance.client
                                 .from('inventory')
                                 .update(newItem)
-                                .eq('id', docId);
+                                .eq('id', item['id']);
                           }
 
                           nav.pop();
@@ -375,8 +355,9 @@ class _InventoryPageState extends State<InventoryPage> {
               const SizedBox(height: AppTheme.md),
               Text(
                 'Are you sure you want to delete "$itemName"?',
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.mediumGrey,
+                ),
               ),
               const SizedBox(height: AppTheme.lg),
               Row(
@@ -407,7 +388,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         final messenger = ScaffoldMessenger.of(context);
 
                         try {
-                          await _supabase.from('inventory').delete().eq('id', docId);
+                          await Supabase.instance.client.from('inventory').delete().eq('id', docId);
                           nav.pop();
                           messenger.showSnackBar(
                             const SnackBar(
@@ -452,22 +433,6 @@ class _InventoryPageState extends State<InventoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: AppTheme.lg),
-              Text('Loading inventory...',
-                  style: Theme.of(context).textTheme.bodyLarge),
-            ],
-          ),
-        ),
-      );
-    }
-
     final isMobile = ResponsiveUtils.isMobile(context);
 
     return Scaffold(
@@ -543,7 +508,7 @@ class _InventoryPageState extends State<InventoryPage> {
               ],
             ),
             child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _supabase
+              stream: Supabase.instance.client
                   .from('inventory')
                   .stream(primaryKey: ['id']),
               builder: (context, snapshot) {
@@ -740,7 +705,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
                   // Inventory List
                   StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: _supabase
+                    stream: Supabase.instance.client
                         .from('inventory')
                         .stream(primaryKey: ['id']),
                     builder: (context, snapshot) {
@@ -921,7 +886,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ],
                                       ),
                                       onTap: () => _addOrEditItem(
-                                          item: data, docId: data['id']),
+                                          item: data),
                                     ),
                                     PopupMenuItem(
                                       child: Row(
