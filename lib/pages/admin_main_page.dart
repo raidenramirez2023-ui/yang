@@ -16,8 +16,6 @@ class AdminMainPage extends StatefulWidget {
 
 class _AdminMainPageState extends State<AdminMainPage> {
   int _selectedIndex = 0;
-  bool _isAdmin = false;
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -27,35 +25,27 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Future<void> _checkUserRole() async {
     final isAdmin = await RoleHelper.isAdmin();
-    if (mounted) {
-      setState(() {
-        _isAdmin = isAdmin;
-        _isLoading = false;
-      });
-    }
-
-    // If not admin, redirect to staff dashboard
+    
     if (!isAdmin && mounted) {
       Navigator.pushReplacementNamed(context, '/staff-dashboard');
     }
   }
 
-  // Pages for admin
-  final List<Widget> _pages = [
-    const InventoryPage(),
-    const SalesReportPage(),
-    const UserManagementPage(),
-    const SettingsPage(),
+  static const List<Widget> _pages = [
+    InventoryPage(),
+    SalesReportPage(),
+    UserManagementPage(),
+    SettingsPage(),
   ];
 
-  final List<String> _pageTitles = [
+  static const List<String> _pageTitles = [
     'Inventory',
     'Sales Reports',
     'User Management',
     'Settings',
   ];
 
-  final List<IconData> _pageIcons = [
+  static const List<IconData> _pageIcons = [
     Icons.inventory_2,
     Icons.analytics,
     Icons.people,
@@ -64,8 +54,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final deviceType = ResponsiveUtils.getDeviceType(context);
-    final isDesktop = deviceType == 'desktop';
+    final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -122,12 +111,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Sidebar Navigation
         NavigationRail(
           selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) {
-            setState(() => _selectedIndex = index);
-          },
+          onDestinationSelected: (index) => setState(() => _selectedIndex = index),
           elevation: 2,
           backgroundColor: AppTheme.white,
           indicatorColor: AppTheme.primaryRed.withValues(alpha: 0.2),
@@ -160,7 +146,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
           ),
         ),
         const VerticalDivider(width: 1),
-        // Content Area
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.lg),
@@ -181,9 +166,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildBottomNav() {
     return NavigationBar(
       selectedIndex: _selectedIndex,
-      onDestinationSelected: (index) {
-        setState(() => _selectedIndex = index);
-      },
+      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
       backgroundColor: AppTheme.white,
       elevation: 8,
       destinations: List.generate(

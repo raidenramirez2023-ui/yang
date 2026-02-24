@@ -10,12 +10,10 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-
 class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _showLoginPage = false;
@@ -23,48 +21,25 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   late AnimationController _animationController;
   late Animation<double> _logoAnimation;
 
-  // Role definitions with descriptions
-  final Map<String, Map<String, String>> roles = {
-    'Admin': {
-      'icon': 'admin_panel_settings',
-      'description': 'Full system access',
-      'route': '/dashboard',
-    },
-    'admin2': {
-      'icon': 'admin_panel_settings',
-      'description': 'Full system access',
-      'route': '/dashboard',
-    },
-    'Staff': {
-      'icon': 'point_of_sale',
-      'description': 'POS & Transactions',
-      'route': '/staff-dashboard',
-    },
-  };
-
   @override
   void initState() {
     super.initState();
-    
-    // Animation controller for 2 seconds
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     );
 
-    // Logo animation from small to 500
     _logoAnimation = Tween<double>(
-      begin: 50.0, // Simula sa maliit
-      end: 500.0,  // Hanggang 500
+      begin: 50.0,
+      end: 500.0,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeOutBack, // Smooth animation
+      curve: Curves.easeOutBack,
     ));
 
-    // Start animation
     _animationController.forward();
 
-    // Show login page after animation completes
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -86,7 +61,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    // Input validation
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar(
         "Please enter email and password",
@@ -96,7 +70,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       return;
     }
 
-    // Email format validation
     if (!email.contains('@')) {
       _showSnackBar(
         "Please enter a valid email address",
@@ -109,52 +82,44 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     setState(() => _isLoading = true);
 
     try {
-      // 🔐 Step 1: Authenticate with Supabase Auth
-      final response = await _supabase.auth.signInWithPassword(
+      await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
-      // 📋 Step 2: Get user role from Supabase database
-      final userResponse = await _supabase
+      final userResponse = await Supabase.instance.client
           .from('users')
           .select('role')
           .eq('email', email)
           .maybeSingle();
 
       if (userResponse == null) {
-        // Auto-create admin user if not exists (for first-time setup)
         if (email == 'adm.pagsanjan@gmail.com') {
-          await _supabase.from('users').insert({
+          await Supabase.instance.client.from('users').insert({
             'email': email,
             'role': 'admin',
           });
-          
+
           _showSnackBar(
             "Admin account created successfully!",
             Colors.green.shade700,
             Icons.check_circle_outline,
           );
-          
-          // Navigate to admin dashboard
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          }
+
+          Navigator.pushReplacementNamed(context, '/dashboard');
         } else {
           _showSnackBar(
             "User not found in database",
             Colors.red.shade700,
             Icons.error_outline,
           );
-          await _supabase.auth.signOut();
+          await Supabase.instance.client.auth.signOut();
           setState(() => _isLoading = false);
           return;
         }
       } else {
-        // Get the user's role from Supabase
         String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
-        
-        // 🎉 Step 3: Navigate based on user's role
+
         _showSnackBar(
           "Login successful as $userRole!",
           Colors.green.shade700,
@@ -162,7 +127,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         );
 
         if (mounted) {
-          // Navigate based on role
           if (userRole == 'admin') {
             Navigator.pushReplacementNamed(context, '/dashboard');
           } else {
@@ -170,7 +134,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           }
         }
       }
-
     } on AuthException catch (e) {
       String errorMessage;
       switch (e.message.toLowerCase()) {
@@ -224,7 +187,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       backgroundColor: Colors.red.shade600,
       body: Stack(
         children: [
-          // Logo Animation (2 seconds mula sa gitna, lumalaki hanggang 500)
           if (!_showLoginPage)
             Center(
               child: AnimatedBuilder(
@@ -257,7 +219,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               ),
             ),
 
-          // Login Page (lalabas pagkatapos ng 2 seconds) - 50-50 background
           if (_showLoginPage)
             (isDesktop ? _buildDesktopLayout() : _buildMobileLayout()),
         ],
@@ -268,7 +229,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Left side - Full image background (50%)
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -279,7 +239,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
           ),
         ),
-        // Right side - White background (50%)
         Expanded(
           child: Container(
             color: Colors.white,
@@ -315,7 +274,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 ),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/images/mobile-logo.png', // Make sure this path is correct
+                    'assets/images/mobile-logo.png',
                     width: 230,
                     height: 230,
                     fit: BoxFit.cover,
@@ -323,15 +282,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 ),
               ),
               const SizedBox(height: 3),
-              // REMOVED: Yang Chow Text
-              // const Text(
-              //   'Yang Chow',
-              //   style: TextStyle(
-              //     fontSize: 24,
-              //     fontWeight: FontWeight.bold,
-              //   ),
-              // ),
-              // const SizedBox(height: 8),
               Text(
                 'Restaurant Management System',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -425,30 +375,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               : const Text('Sign In'),
           ),
         ),
-        const SizedBox(height: 8),
-
-        // Register Link
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: _isLoading ? null : () {
-              Navigator.pushNamed(context, '/register');
-            },
-            child: Text(
-              'Create Account',
-              style: TextStyle(
-                color: AppTheme.primaryRed,
-                fontSize: ResponsiveUtils.getResponsiveFontSize(
-                  context,
-                  mobile: 12,
-                  tablet: 13,
-                  desktop: 14,
-                ),
-              ),
-            ),
-          ),
-        ),
-
         const SizedBox(height: 8),
 
         // Forgot Password Link
