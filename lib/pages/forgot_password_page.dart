@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -15,6 +15,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _emailSent = false;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   @override
   void dispose() {
@@ -28,8 +29,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
+      await _supabase.auth.resetPasswordForEmail(
+        _emailController.text.trim(),
       );
 
       if (mounted) {
@@ -38,14 +39,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           _emailSent = true;
         });
       }
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       String errorMessage = 'An error occurred';
       
-      switch (e.code) {
-        case 'user-not-found':
+      switch (e.message) {
+        case 'User not found':
           errorMessage = 'No account found with this email address';
           break;
-        case 'invalid-email':
+        case 'Invalid email':
           errorMessage = 'The email address is not valid';
           break;
         case 'too-many-requests':

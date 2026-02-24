@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/utils/role_helper.dart';
 import 'package:yang_chow/pages/user_management.dart';
 import 'package:yang_chow/pages/sales_report_page.dart';
 import 'package:yang_chow/pages/inventory_management.dart';
@@ -15,6 +16,29 @@ class AdminMainPage extends StatefulWidget {
 
 class _AdminMainPageState extends State<AdminMainPage> {
   int _selectedIndex = 0;
+  bool _isAdmin = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    final isAdmin = await RoleHelper.isAdmin();
+    if (mounted) {
+      setState(() {
+        _isAdmin = isAdmin;
+        _isLoading = false;
+      });
+    }
+
+    // If not admin, redirect to staff dashboard
+    if (!isAdmin && mounted) {
+      Navigator.pushReplacementNamed(context, '/staff-dashboard');
+    }
+  }
 
   // Pages for admin
   final List<Widget> _pages = [

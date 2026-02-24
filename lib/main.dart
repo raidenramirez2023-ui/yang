@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';  // Keep this import
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_options.dart';  // Supabase configuration
 import 'utils/app_theme.dart';
 
 // Features
@@ -12,8 +12,21 @@ import 'pages/staff_dashboard.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase (ALL platforms) - Keep this
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    // Initialize Supabase with platform-specific configuration
+    await Supabase.initialize(
+      url: SupabaseOptions.supabaseUrl,
+      anonKey: SupabaseOptions.supabaseAnonKey,
+      debug: true, // Enable debug mode for better error messages
+    );
+    print('✅ Supabase initialized successfully');
+  } catch (e) {
+    print('❌ Supabase initialization failed: $e');
+    print('Please check your Supabase configuration in lib/supabase_options.dart');
+    
+    // Continue with app even if Supabase fails (for testing)
+    print('⚠️ Continuing with app in offline mode...');
+  }
 
   runApp(const YangChowApp());
 }
