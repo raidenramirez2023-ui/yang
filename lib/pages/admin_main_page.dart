@@ -6,6 +6,7 @@ import 'package:yang_chow/pages/user_management.dart';
 import 'package:yang_chow/pages/sales_report_page.dart';
 import 'package:yang_chow/pages/inventory_management.dart';
 import 'package:yang_chow/pages/settings.dart';
+import 'package:yang_chow/pages/admin_dashboard.dart';
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -32,22 +33,25 @@ class _AdminMainPageState extends State<AdminMainPage> {
   }
 
   static const List<Widget> _pages = [
-    InventoryPage(),
+    AdminDashboardPage(),
     SalesReportPage(),
+    InventoryPage(),
     UserManagementPage(),
     SettingsPage(),
   ];
 
   static const List<String> _pageTitles = [
-    'Inventory',
+    'Dashboard',
     'Sales Reports',
+    'Inventory',
     'User Management',
     'Settings',
   ];
 
   static const List<IconData> _pageIcons = [
-    Icons.inventory_2,
+    Icons.dashboard,
     Icons.analytics,
+    Icons.inventory_2,
     Icons.people,
     Icons.settings,
   ];
