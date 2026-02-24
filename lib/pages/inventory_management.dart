@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -12,8 +11,7 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
   bool _isAdmin = false;
   bool _isLoading = true;
   String _searchQuery = '';
@@ -35,22 +33,20 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Future<void> _checkUserRole() async {
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user != null) {
       print('Current user email: ${user.email}'); // Debug print
       try {
-        final userDoc = await _firestore
-            .collection('users')
-            .where('email', isEqualTo: user.email)
-            .limit(1)
-            .get();
+        final userResponse = await _supabase
+            .from('users')
+            .select('role')
+            .eq('email', user.email!)
+            .maybeSingle();
 
-        print('User documents found: ${userDoc.docs.length}'); // Debug print
+        print('User found: ${userResponse != null}'); // Debug print
         
-        if (userDoc.docs.isNotEmpty) {
-          final userData = userDoc.docs.first.data();
-          print('User data: $userData'); // Debug print
-          final userRole = userData['role'] ?? userData['userRole'] ?? 'unknown';
+        if (userResponse != null) {
+          final userRole = userResponse['role'] ?? 'unknown';
           print('User role: $userRole'); // Debug print
           
           if (mounted) {
@@ -74,7 +70,7 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  void _addOrEditItem({Map<String, dynamic>? item, String? docId}) {
+  void _addOrEditItem({Map<String, dynamic>? item, dynamic docId}) {
     final nameController = TextEditingController(text: item?['name']);
     final categoryController = TextEditingController(text: item?['category']);
     final quantityController =
@@ -220,7 +216,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           return;
                         }
 
-                        final user = _auth.currentUser;
+                        final user = _supabase.auth.currentUser;
                         if (user == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -235,7 +231,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           'quantity': int.tryParse(quantityController.text) ?? 0,
                           'unit': unitController.text.trim(),
                           'createdBy': user.email,
-                          'createdAt': FieldValue.serverTimestamp(),
+                          'createdAt': DateTime.now().toIso8601String(),
                         };
 
                         // Capture navigator and messenger before async gap
@@ -244,12 +240,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
                         try {
                           if (item == null) {
-                            await _firestore.collection('inventory').add(newItem);
+                            await _supabase.from('inventory').insert(newItem);
                           } else {
-                            await _firestore
-                                .collection('inventory')
-                                .doc(docId)
-                                .update(newItem);
+                            await _supabase
+                                .from('inventory')
+                                .update(newItem)
+                                .eq('id', docId);
                           }
 
                           nav.pop();
@@ -346,7 +342,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _deleteItem(String docId, String itemName) {
+  void _deleteItem(dynamic docId, String itemName) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -411,7 +407,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         final messenger = ScaffoldMessenger.of(context);
 
                         try {
-                          await _firestore.collection('inventory').doc(docId).delete();
+                          await _supabase.from('inventory').delete().eq('id', docId);
                           nav.pop();
                           messenger.showSnackBar(
                             const SnackBar(
@@ -546,16 +542,16 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
               ],
             ),
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('inventory')
-                  .snapshots(),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _supabase
+                  .from('inventory')
+                  .stream(primaryKey: ['id']),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const SizedBox(height: 80);
                 }
 
-                final items = snapshot.data!.docs;
+                final items = snapshot.data!;
                 final totalItems = items.length;
                 final outOfStock = items.where((doc) => (doc['quantity'] ?? 0) == 0).length;
                 final lowStock = items.where((doc) {
@@ -743,11 +739,10 @@ class _InventoryPageState extends State<InventoryPage> {
                       mobile: 16, tablet: 20, desktop: 24),
 
                   // Inventory List
-                  StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('inventory')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _supabase
+                        .from('inventory')
+                        .stream(primaryKey: ['id']),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return Center(
@@ -763,7 +758,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         );
                       }
 
-                      var items = snapshot.data!.docs;
+                      var items = snapshot.data!;
 
                       if (_selectedCategory != 'All') {
                         items = items.where((doc) {
@@ -815,8 +810,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
-                          final doc = items[index];
-                          final data = doc.data() as Map<String, dynamic>;
+                          final data = items[index];
                           final quantity = data['quantity'] ?? 0;
                           final stockColor = _getStockColor(quantity);
                           final stockLabel = _getStockLabel(quantity);
@@ -927,7 +921,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ],
                                       ),
                                       onTap: () => _addOrEditItem(
-                                          item: data, docId: doc.id),
+                                          item: data, docId: data['id']),
                                     ),
                                     PopupMenuItem(
                                       child: Row(
@@ -938,7 +932,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         ],
                                       ),
                                       onTap: () => _deleteItem(
-                                          doc.id,
+                                          data['id'],
                                           data['name'] ?? 'Item'),
                                     ),
                                   ],
