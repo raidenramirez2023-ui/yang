@@ -10,48 +10,21 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _showLoginPage = false;
-
-  late AnimationController _animationController;
-  late Animation<double> _logoAnimation;
 
   @override
   void initState() {
     super.initState();
-
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-
-    _logoAnimation = Tween<double>(
-      begin: 50.0,
-      end: 500.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
-
-    _animationController.forward();
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _showLoginPage = true;
-        });
-      }
-    });
+    // No animation initialization needed
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -106,7 +79,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             Icons.check_circle_outline,
           );
 
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
         } else {
           _showSnackBar(
             "User not found in database",
@@ -157,11 +132,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         Icons.error_outline,
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _showSnackBar(String message, Color color, IconData icon) {
+    if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -184,51 +163,15 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: Colors.red.shade600,
-      body: Stack(
-        children: [
-          if (!_showLoginPage)
-            Center(
-              child: AnimatedBuilder(
-                animation: _animationController,
-                builder: (context, child) {
-                  return SizedBox(
-                    width: _logoAnimation.value,
-                    height: _logoAnimation.value,
-                    child: Image.asset(
-                      'assets/images/ycplogo.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: _logoAnimation.value,
-                          height: _logoAnimation.value,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            Icons.restaurant,
-                            color: Colors.red.shade600,
-                            size: _logoAnimation.value * 0.5,
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          if (_showLoginPage)
-            (isDesktop ? _buildDesktopLayout() : _buildMobileLayout()),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
 
   Widget _buildDesktopLayout() {
     return Row(
       children: [
+        // Left side - Full image background (50%)
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -239,6 +182,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             ),
           ),
         ),
+        // Right side - White background (50%)
         Expanded(
           child: Container(
             color: Colors.white,
@@ -266,6 +210,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           child: Column(
             children: [
               const SizedBox(height: 20),
+              // Logo
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -278,10 +223,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     width: 230,
                     height: 230,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 230,
+                        height: 230,
+                        color: Colors.grey.shade200,
+                        child: Icon(
+                          Icons.restaurant,
+                          size: 100,
+                          color: Colors.grey.shade400,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
               const SizedBox(height: 3),
+              // Title
               Text(
                 'Restaurant Management System',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -292,6 +250,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 40),
+              // Login Form
               _buildLoginForm(),
               const SizedBox(height: 40),
             ],
@@ -363,13 +322,18 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           width: double.infinity,
           child: ElevatedButton(
             onPressed: _isLoading ? null : handleLogin,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            ),
             child: _isLoading
               ? const SizedBox(
                   height: 20,
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
               : const Text('Sign In'),
