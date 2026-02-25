@@ -1,4 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'dart:math';
+import 'dart:core';
 import 'order_list_panel.dart';
 
 /// =====================
@@ -31,6 +34,300 @@ class CartItem {
 
   String get name => item.name;
   double get price => item.price;
+}
+
+/// =====================
+/// RECEIPT TEMPLATE
+/// =====================
+class ReceiptTemplate extends StatelessWidget {
+  final List<CartItem> cart;
+  final double totalAmount;
+  final String? customerName;
+  final String paymentMethod;
+  final String transactionId;
+  final DateTime transactionDate;
+
+  ReceiptTemplate({
+    super.key,
+    required this.cart,
+    required this.totalAmount,
+    this.customerName,
+    this.paymentMethod = 'VISA',
+    this.transactionId = '97413347',
+    DateTime? transactionDate,
+  }) : transactionDate = transactionDate ?? DateTime.now();
+
+  String get _formattedDate {
+    return '${transactionDate.month.toString().padLeft(2, '0')}/${transactionDate.day.toString().padLeft(2, '0')}/${transactionDate.year}';
+  }
+
+  String get _formattedTime {
+    final hour = transactionDate.hour;
+    final minute = transactionDate.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '$displayHour:$minute$period';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 300, // Standard receipt width
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header - Restaurant Info
+          const Center(
+            child: Column(
+              children: [
+                Text(
+                  'YANG CHOW',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+                Text(
+                  'RESTAURANT',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Order Number
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('ORDER:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('#${transactionId.substring(0, 3)}'),
+            ],
+          ),
+          
+          // Host and Date/Time - Matching the image style
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('HOST: ${customerName ?? 'BOB'}'),
+              Text('$_formattedDate    $_formattedTime'),
+            ],
+          ),
+          
+          const Divider(thickness: 1, height: 24),
+          
+          // Column Headers
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text('QTY', style: _headerStyle),
+              ),
+              Expanded(
+                flex: 5,
+                child: Text('ITEM', style: _headerStyle),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text('PRICE', style: _headerStyle, textAlign: TextAlign.right),
+              ),
+            ],
+          ),
+          
+          const Divider(thickness: 1, height: 8),
+          
+          // Cart Items
+          ...cart.map((item) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text('${item.quantity}'),
+                ),
+                Expanded(
+                  flex: 5,
+                  child: Text(
+                    item.item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'P${NumberFormat('#,##0.00', 'en_US').format(item.item.price * item.quantity)}',  
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          )),
+          
+          const Divider(thickness: 1, height: 16),
+          
+          // Separator line
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            child: const Text('---', style: TextStyle(letterSpacing: 4)),
+          ),
+          
+          // Payment Info - VISA SALE
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('VISA', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text('SALE', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Totals
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('SUBTOTAL'),
+              Text('P ${NumberFormat('#,##0.00', 'en_US').format(totalAmount)}'),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('TAX'),
+              const Text('P 0.00'),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('P ${NumberFormat('#,##0.00', 'en_US').format(totalAmount)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          
+          const Divider(thickness: 1, height: 16),
+          
+          // Transaction Details
+          _buildTransactionRow('TRANSACTION TYPE:', 'SALE'),
+          _buildTransactionRow('AUTHORIZATION:', 'APPROVED'),
+          _buildTransactionRow('PAYMENT CODE:', transactionId),
+          _buildTransactionRow('PAYMENT ID:', '132427422'),
+          _buildTransactionRow('CARD READER:', 'SWIPED/CHIP'),
+          
+          const SizedBox(height: 16),
+          
+          // Tip and Total lines
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text('TIP:', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                flex: 3,
+                child: Container(
+                  height: 20,
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text('TOTAL:', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                flex: 3,
+                child: Container(
+                  height: 20,
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Signature line
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 20,
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.grey[400]!)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('X', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Footer
+          const Center(
+            child: Column(
+              children: [
+                Text('CUSTOMER COPY',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                SizedBox(height: 4),
+                Text('THANKS FOR VISITING',
+                    style: TextStyle(fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextStyle get _headerStyle => const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      );
+
+  Widget _buildTransactionRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11)),
+          Text(value, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
 }
 
 /// =====================
@@ -202,6 +499,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   final Map<String, int> _categoryImageIndex = {};
   late Map<String, List<MenuItem>> menu;
   List<CartItem> cart = [];
+  final TextEditingController _mobileCustomerNameController = TextEditingController();
 
   @override
   void initState() {
@@ -209,6 +507,13 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     _tabController = TabController(length: categories.length, vsync: this);
     menu = {for (var cat in categories) cat: []};
     _buildMenu();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _mobileCustomerNameController.dispose();
+    super.dispose();
   }
 
   String _nextImage(String category) {
@@ -545,65 +850,39 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _removeItem(CartItem cartItem) => setState(() => cart.remove(cartItem));
 
-  void _generateReceipt() {
+  void _generateReceipt([String customerName = '']) {
     if (cart.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Cart is empty!')));
       return;
     }
+
+    // Snapshot the cart and total NOW — before the OrderListPanel
+    // has a chance to clear the cart after calling this callback.
+    final cartSnapshot = cart.map((c) => CartItem(c.item, c.quantity)).toList();
+    final snapshotTotal = cartSnapshot.fold(
+        0.0, (sum, c) => sum + (c.item.price * c.quantity));
+
+    // Generate a random transaction ID
+    final transactionId = '${DateTime.now().millisecond}${Random().nextInt(1000)}'.padRight(8, '0').substring(0, 8);
+
+    // Use the widget's own context (Scaffold context) so the dialog
+    // displays above any modal bottom sheet that may be open.
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Receipt'),
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.close, color: Colors.red, size: 24),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Yang Chow Restaurant',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const Text('=================='),
-              const SizedBox(height: 8),
-              ...cart.map(
-                (c) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: Text('${c.item.name} x${c.quantity}')),
-                      Text('P${(c.item.price * c.quantity).toStringAsFixed(2)}'),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Total:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('P${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ],
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: ReceiptTemplate(
+            cart: cartSnapshot,
+            totalAmount: snapshotTotal,
+            customerName: customerName.isNotEmpty ? customerName : null,
+            paymentMethod: 'VISA',
+            transactionId: transactionId,
+            transactionDate: DateTime.now(),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }
@@ -685,7 +964,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'P${item.item.price.toStringAsFixed(2)}',
+                                        'P${NumberFormat('#,##0.00', 'en_US').format(item.item.price)}',
                                         style: const TextStyle(
                                             fontSize: 14, color: Colors.grey),
                                       ),
@@ -763,8 +1042,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const TextField(
-                      decoration: InputDecoration(
+                    TextField(
+                      controller: _mobileCustomerNameController,
+                      decoration: const InputDecoration(
                         labelText: 'Customer Name',
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(
@@ -778,7 +1058,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         const Text('TOTAL:',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('P${totalAmount.toStringAsFixed(2)}',
+                        Text('P${NumberFormat('#,##0.00', 'en_US').format(totalAmount)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -790,8 +1070,17 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       width: double.infinity,
                       height: 36,
                       child: ElevatedButton(
-                        onPressed:
-                            cart.isNotEmpty ? _generateReceipt : null,
+                        onPressed: cart.isNotEmpty
+                            ? () {
+                                // Close the bottom sheet first, then show
+                                // the receipt dialog using the parent context.
+                                Navigator.pop(context);
+                                _generateReceipt(
+                                  _mobileCustomerNameController.text.trim(),
+                                );
+                                _mobileCustomerNameController.clear();
+                              }
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
@@ -966,7 +1255,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 onQuantityIncreased: _increaseQuantity,
                 onQuantityDecreased: _decreaseQuantity,
                 onRemoveItem: _removeItem,
-                onPrintReceipt: _generateReceipt,
+                onPrintReceipt: (customerName) => _generateReceipt(customerName),
               ),
             ],
           );
@@ -1046,7 +1335,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             ),
           ),
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Column(
@@ -1065,7 +1354,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        'P${item.price.toStringAsFixed(2)}',
+                        'P${NumberFormat('#,##0.00', 'en_US').format(item.price)}',
                         style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
@@ -1075,7 +1364,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                   ),
                   SizedBox(
                     width: double.infinity,
-                    height: 24,
+                    height: 28,
                     child: ElevatedButton(
                       onPressed: () => addToCart(item),
                       style: ElevatedButton.styleFrom(
