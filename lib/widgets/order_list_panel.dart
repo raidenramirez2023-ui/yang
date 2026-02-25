@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'shared_pos_widget.dart';
 
 class OrderListPanel extends StatefulWidget {
@@ -6,11 +7,11 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final Function() onPrintReceipt;
+  final Function(String customerName) onPrintReceipt;
   final bool isMobile;
 
   const OrderListPanel({
-    super.key, // Fixed: use_super_parameters
+    super.key,
     required this.cart,
     required this.onQuantityIncreased,
     required this.onQuantityDecreased,
@@ -25,6 +26,18 @@ class OrderListPanel extends StatefulWidget {
 
 class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _customerNameController = TextEditingController();
+  
+  // Direct initialization of currency formatter
+  final NumberFormat currencyFormatter = NumberFormat.currency(
+    locale: 'en_PH',
+    symbol: '₱',
+    decimalDigits: 2,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -46,7 +59,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
         children: [
           // ORDER LIST Header
           Container(
-            color: Colors.red,
+            color: Colors.grey[50],
             padding: EdgeInsets.symmetric(
               vertical: widget.isMobile ? 8.0 : 16.0,
               horizontal: 16.0,
@@ -55,7 +68,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
               child: Text(
                 'ORDER LIST',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                   fontSize: widget.isMobile ? 14 : 18,
                 ),
@@ -79,7 +92,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     padding: EdgeInsets.all(widget.isMobile ? 4 : 8),
                     itemCount: widget.cart.length,
                     itemBuilder: (context, index) {
-                      final item = widget.cart[index];
+                      final reversedCart = widget.cart.reversed.toList();
+                      final item = reversedCart[index];
                       return Card(
                         margin: EdgeInsets.only(
                           bottom: widget.isMobile ? 2 : 8,
@@ -87,41 +101,64 @@ class _OrderListPanelState extends State<OrderListPanel> {
                           right: widget.isMobile ? 2 : 0,
                         ),
                         child: Padding(
-                          padding:
-                              EdgeInsets.all(widget.isMobile ? 6 : 12),
+                          padding: EdgeInsets.all(widget.isMobile ? 6 : 12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                item.item.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: widget.isMobile ? 12 : 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: widget.isMobile ? 4 : 8),
+                              // Row for Product Name and Price
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
+                                  // Product Name (Left side)
+                                  Expanded(
+                                    child: Text(
+                                      item.item.name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: widget.isMobile ? 12 : 16,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  
+                                  // Price with NumberFormat (Right side)
                                   Text(
-                                    '₱${item.item.price.toStringAsFixed(2)}',
+                                    currencyFormatter.format(item.item.price),
                                     style: TextStyle(
-                                      fontSize: widget.isMobile ? 10 : 14,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: widget.isMobile ? 12 : 16,
                                       color: Colors.grey,
                                     ),
                                   ),
+                                ],
+                              ),
+                              
+                              SizedBox(height: widget.isMobile ? 8 : 12),
+                              
+                              // Row for Quantity Controls
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  // Total Price with NumberFormat (Left side)
+                                  Text(
+                                    'Total: ${currencyFormatter.format(item.item.price * item.quantity)}',
+                                    style: TextStyle(
+                                      fontSize: widget.isMobile ? 11 : 14,
+                                      color: Colors.grey.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  
+                                  // Quantity Controls (Right side)
                                   Row(
                                     children: [
                                       // Decrease button
                                       GestureDetector(
-                                        onTap: () =>
-                                            widget.onQuantityDecreased(item),
+                                        onTap: () => widget.onQuantityDecreased(item),
                                         child: Container(
-                                          width: widget.isMobile ? 20 : 24,
-                                          height: widget.isMobile ? 20 : 24,
+                                          width: widget.isMobile ? 24 : 28,
+                                          height: widget.isMobile ? 24 : 28,
                                           decoration: const BoxDecoration(
                                             color: Colors.red,
                                             shape: BoxShape.circle,
@@ -130,7 +167,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                                             child: Icon(
                                               Icons.remove,
                                               color: Colors.white,
-                                              size: widget.isMobile ? 14 : 16,
+                                              size: widget.isMobile ? 16 : 18,
                                             ),
                                           ),
                                         ),
@@ -138,14 +175,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                                       // Quantity
                                       SizedBox(
-                                        width: widget.isMobile ? 25 : 30,
+                                        width: widget.isMobile ? 30 : 35,
                                         child: Center(
                                           child: Text(
                                             '${item.quantity}',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              fontSize:
-                                                  widget.isMobile ? 14 : 16,
+                                              fontSize: widget.isMobile ? 14 : 16,
                                             ),
                                           ),
                                         ),
@@ -153,11 +189,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                                       // Increase button
                                       GestureDetector(
-                                        onTap: () =>
-                                            widget.onQuantityIncreased(item),
+                                        onTap: () => widget.onQuantityIncreased(item),
                                         child: Container(
-                                          width: widget.isMobile ? 20 : 24,
-                                          height: widget.isMobile ? 20 : 24,
+                                          width: widget.isMobile ? 24 : 28,
+                                          height: widget.isMobile ? 24 : 28,
                                           decoration: const BoxDecoration(
                                             color: Colors.green,
                                             shape: BoxShape.circle,
@@ -166,33 +201,21 @@ class _OrderListPanelState extends State<OrderListPanel> {
                                             child: Icon(
                                               Icons.add,
                                               color: Colors.white,
-                                              size: widget.isMobile ? 14 : 16,
+                                              size: widget.isMobile ? 16 : 18,
                                             ),
                                           ),
                                         ),
                                       ),
 
-                                      SizedBox(
-                                          width: widget.isMobile ? 4 : 8),
-
-                                      // Edit button (placeholder)
-                                      Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                        size: widget.isMobile ? 16 : 20,
-                                      ),
-
-                                      SizedBox(
-                                          width: widget.isMobile ? 4 : 8),
+                                      const SizedBox(width: 8),
 
                                       // Delete button
                                       GestureDetector(
-                                        onTap: () =>
-                                            widget.onRemoveItem(item),
+                                        onTap: () => widget.onRemoveItem(item),
                                         child: Icon(
                                           Icons.delete,
                                           color: Colors.red,
-                                          size: widget.isMobile ? 16 : 20,
+                                          size: widget.isMobile ? 18 : 22,
                                         ),
                                       ),
                                     ],
@@ -224,7 +247,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                   const SizedBox(height: 16),
 
-                  // Total
+                  // Total with NumberFormat
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -236,11 +259,11 @@ class _OrderListPanelState extends State<OrderListPanel> {
                         ),
                       ),
                       Text(
-                        '₱${totalAmount.toStringAsFixed(2)}',
+                        currencyFormatter.format(totalAmount),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
-                          color: Colors.red,
+                          color: Colors.black,
                         ),
                       ),
                     ],
@@ -248,30 +271,120 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                   const SizedBox(height: 16),
 
-                  // Print Receipt Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: widget.cart.isNotEmpty
-                          ? widget.onPrintReceipt
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  // Buttons Row
+                  Row(
+                    children: [
+                      // Cancel Order Button
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: OutlinedButton(
+                            onPressed: widget.cart.isNotEmpty
+                                ? () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Cancel Order'),
+                                        content: const Text('Are you sure you want to cancel this order? All items will be removed.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('No'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              for (var item in widget.cart.toList()) {
+                                                widget.onRemoveItem(item);
+                                              }
+                                            },
+                                            child: const Text('Yes'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'CANCEL ORDER',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'PRINT RECEIPT',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      
+                      const SizedBox(width: 12),
+                      
+                      // Print Receipt Button - UPDATED
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: widget.cart.isNotEmpty
+                                ? () {
+                                    // Print the receipt with the customer name
+                                    widget.onPrintReceipt(
+                                      _customerNameController.text.trim(),
+                                    );
+                                    
+                                    // Clear the cart
+                                    for (var item in widget.cart.toList()) {
+                                      widget.onRemoveItem(item);
+                                    }
+                                    
+                                    // Show success message
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle, color: Colors.white),
+                                            const SizedBox(width: 8),
+                                            const Text('Order completed and cart cleared'),
+                                          ],
+                                        ),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'PRINT RECEIPT',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
