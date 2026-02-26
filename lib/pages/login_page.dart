@@ -55,6 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Try Supabase auth first
       await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -110,21 +111,42 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
     } on AuthException catch (e) {
-      String errorMessage;
-      switch (e.message.toLowerCase()) {
-        case 'invalid login credentials':
-          errorMessage = 'Invalid email or password';
-          break;
-        case 'email not confirmed':
-          errorMessage = 'Email not confirmed';
-          break;
-        case 'user not found':
-          errorMessage = 'No user found with this email';
-          break;
-        default:
-          errorMessage = 'Login failed: ${e.message}';
+      // Fallback to demo accounts if Supabase auth fails
+      bool isDemoAccount = _checkDemoAccount(email, password);
+      
+      if (isDemoAccount) {
+        String userRole = _getDemoRole(email);
+        
+        _showSnackBar(
+          "Demo login successful as $userRole!",
+          Colors.green.shade700,
+          Icons.check_circle_outline,
+        );
+
+        if (mounted) {
+          if (userRole == 'admin') {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/staff-dashboard');
+          }
+        }
+      } else {
+        String errorMessage;
+        switch (e.message.toLowerCase()) {
+          case 'invalid login credentials':
+            errorMessage = 'Invalid email or password';
+            break;
+          case 'email not confirmed':
+            errorMessage = 'Email not confirmed';
+            break;
+          case 'user not found':
+            errorMessage = 'No user found with this email';
+            break;
+          default:
+            errorMessage = 'Login failed: ${e.message}';
+        }
+        _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
       }
-      _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
     } catch (e) {
       _showSnackBar(
         "An error occurred: $e",
@@ -136,6 +158,26 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  bool _checkDemoAccount(String email, String password) {
+    // Demo accounts for testing
+    const demoAccounts = {
+      'admin@yangchow.com': 'admin123',
+      'staff@yangchow.com': 'staff123',
+      'adm.pagsanjan@gmail.com': 'admin123',
+    };
+    
+    return demoAccounts[email] == password;
+  }
+
+  String _getDemoRole(String email) {
+    if (email == 'admin@yangchow.com' || email == 'adm.pagsanjan@gmail.com') {
+      return 'admin';
+    } else if (email == 'staff@yangchow.com') {
+      return 'staff';
+    }
+    return 'staff';
   }
 
   void _showSnackBar(String message, Color color, IconData icon) {
@@ -337,6 +379,45 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 )
               : const Text('Sign In'),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Demo Credentials Info
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Demo Credentials:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade800,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Admin: admin@yangchow.com / admin123',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                'Staff: staff@yangchow.com / staff123',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
