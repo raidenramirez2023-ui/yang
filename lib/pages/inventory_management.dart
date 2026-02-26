@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -12,6 +13,7 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
+  bool _isLoading = false;
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
@@ -28,387 +30,128 @@ class _InventoryPageState extends State<InventoryPage> {
     _checkUserRole();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Future<void> _checkUserRole() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      try {
-        final userResponse = await Supabase.instance.client
-            .from('users')
-            .select('role')
-            .eq('email', user.email!)
-            .maybeSingle();
+    if (user == null) return;
 
-        if (userResponse != null && mounted) {
-          final userRole = userResponse['role']?.toString() ?? '';
-          setState(() {
-            _isAdmin = userRole.toLowerCase() == 'admin' || userRole.toLowerCase() == 'adm';
-          });
-        }
-      } catch (e) {
-        if (mounted) setState(() {});
-      }
-    }
+    final res = await Supabase.instance.client
+        .from('users')
+        .select('role')
+        .eq('email', user.email!)
+        .maybeSingle();
+
+    if (!mounted) return;
+    final role = (res?['role'] ?? '').toString().toLowerCase();
+    setState(() => _isAdmin = role == 'admin' || role == 'adm');
   }
 
   void _addOrEditItem({Map<String, dynamic>? item}) {
-    final nameController = TextEditingController(text: item?['name']);
-    final categoryController = TextEditingController(text: item?['category']);
-    final quantityController =
-        TextEditingController(text: item?['quantity']?.toString());
-    final unitController = TextEditingController(text: item?['unit']);
+    final nameCtrl = TextEditingController(text: item?['name'] ?? '');
+    final catCtrl = TextEditingController(text: item?['category'] ?? '');
+    final qtyCtrl = TextEditingController(text: item?['quantity']?.toString() ?? '');
+    final unitCtrl = TextEditingController(text: item?['unit'] ?? '');
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
+          padding: const EdgeInsets.all(20),
           constraints: BoxConstraints(
-            maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 500,
+            maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 400,
+            maxHeight: ResponsiveUtils.isMobile(context) ? MediaQuery.of(context).size.height * 0.8 : 600,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      ),
-                      child: Icon(
-                        Icons.inventory_2,
-                        color: AppTheme.primaryRed,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.md),
-                    Expanded(
-                      child: Text(
-                        item == null ? 'Add Inventory Item' : 'Edit Inventory Item',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item == null ? 'Add Item' : 'Edit Item',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.darkGrey,
                 ),
-                const SizedBox(height: AppTheme.lg),
-                _buildDialogTextField(
-                  label: 'Item Name',
-                  controller: nameController,
-                  icon: Icons.inventory_2,
-                ),
-                const SizedBox(height: AppTheme.lg),
-                _buildDialogTextField(
-                  label: 'Category',
-                  controller: categoryController,
-                  icon: Icons.category,
-                  readOnly: true,
-                  hintText: 'Select from categories below',
-                ),
-                const SizedBox(height: AppTheme.lg),
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.md),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.2)),
-                  ),
+              ),
+              const SizedBox(height: 20),
+              
+              Expanded(
+                child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Available Categories:',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryRed,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: categories
-                            .where((cat) => cat != 'All')
-                            .map((category) {
-                          return ActionChip(
-                            label: Text(
-                              category,
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                            onPressed: () {
-                              categoryController.text = category;
-                            },
-                            backgroundColor:
-                                AppTheme.primaryRed.withValues(alpha: 0.1),
-                            side: BorderSide(
-                                color:
-                                    AppTheme.primaryRed.withValues(alpha: 0.3)),
+                      _input(nameCtrl, 'Item Name', Icons.inventory_2_outlined),
+                      const SizedBox(height: 16),
+                      
+                      DropdownButtonFormField<String>(
+                        value: catCtrl.text.isEmpty ? null : catCtrl.text,
+                        decoration: _decoration('Category', Icons.category_outlined),
+                        items: categories.where((cat) => cat != 'All').map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
                           );
                         }).toList(),
+                        onChanged: (value) {
+                          if (value != null) catCtrl.text = value;
+                        },
                       ),
+                      const SizedBox(height: 16),
+                      
+                      _input(qtyCtrl, 'Quantity', Icons.numbers, isNumber: true),
+                      const SizedBox(height: 16),
+                      
+                      _input(unitCtrl, 'Unit', Icons.straighten),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppTheme.lg),
-                _buildDialogTextField(
-                  label: 'Quantity',
-                  controller: quantityController,
-                  icon: Icons.numbers,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: AppTheme.lg),
-                _buildDialogTextField(
-                  label: 'Unit (kg, pcs, etc.)',
-                  controller: unitController,
-                  icon: Icons.straighten,
-                ),
-                const SizedBox(height: AppTheme.lg),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.lg,
-                          vertical: AppTheme.md,
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: AppTheme.md),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (nameController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Item name is required')),
-                          );
-                          return;
-                        }
-
-                        final user = Supabase.instance.client.auth.currentUser;
-                        if (user == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Please login to add items')),
-                          );
-                          return;
-                        }
-
-                        final newItem = {
-                          'name': nameController.text.trim(),
-                          'category': categoryController.text.trim(),
-                          'quantity': int.tryParse(quantityController.text) ?? 0,
-                          'unit': unitController.text.trim(),
-                          'createdBy': user.email,
-                          'createdAt': DateTime.now().toIso8601String(),
-                        };
-
-                        // Capture navigator and messenger before async gap
-                        final nav = Navigator.of(context);
-                        final messenger = ScaffoldMessenger.of(context);
-
-                        try {
-                          if (item == null) {
-                            await Supabase.instance.client.from('inventory').insert(newItem);
-                          } else {
-                            await Supabase.instance.client
-                                .from('inventory')
-                                .update(newItem)
-                                .eq('id', item['id']);
-                          }
-
-                          nav.pop();
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(item == null
-                                  ? 'Item added successfully!'
-                                  : 'Item updated successfully!'),
-                              backgroundColor: AppTheme.successGreen,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } catch (e) {
-                          nav.pop();
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Error saving item: $e'),
-                              backgroundColor: AppTheme.errorRed,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryRed,
-                        foregroundColor: AppTheme.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.lg,
-                          vertical: AppTheme.md,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                      ),
-                      child: Text(item == null ? 'Add Item' : 'Update Item'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDialogTextField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool readOnly = false,
-    String? hintText,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        readOnly: readOnly,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hintText,
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(8),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: AppTheme.primaryRed,
-            ),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: AppTheme.white,
-          contentPadding: const EdgeInsets.all(AppTheme.md),
-        ),
-      ),
-    );
-  }
-
-  void _deleteItem(dynamic docId, String itemName) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.errorRed.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                ),
-                child: Icon(
-                  Icons.warning_rounded,
-                  color: AppTheme.errorRed,
-                  size: 48,
-                ),
               ),
-              const SizedBox(height: AppTheme.lg),
-              Text(
-                'Delete Item',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppTheme.md),
-              Text(
-                'Are you sure you want to delete "$itemName"?',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.mediumGrey,
-                ),
-              ),
-              const SizedBox(height: AppTheme.lg),
+              
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppTheme.md),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: AppTheme.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.errorRed,
-                        foregroundColor: AppTheme.white,
-                        padding: const EdgeInsets.symmetric(vertical: AppTheme.md),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                      ),
-                      onPressed: () async {
-                        // Capture navigator and messenger before async gap
-                        final nav = Navigator.of(context);
-                        final messenger = ScaffoldMessenger.of(context);
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final qty = int.tryParse(qtyCtrl.text);
+                      if (nameCtrl.text.isEmpty ||
+                          catCtrl.text.isEmpty ||
+                          unitCtrl.text.isEmpty ||
+                          qty == null) return;
 
-                        try {
-                          await Supabase.instance.client.from('inventory').delete().eq('id', docId);
-                          nav.pop();
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Item deleted successfully!'),
-                              backgroundColor: AppTheme.successGreen,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } catch (e) {
-                          nav.pop();
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Error deleting item: $e'),
-                              backgroundColor: AppTheme.errorRed,
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Delete'),
-                    ),
+                      final user = Supabase.instance.client.auth.currentUser;
+
+                      final payload = {
+                        'name': nameCtrl.text.trim(),
+                        'category': catCtrl.text.trim(),
+                        'quantity': qty,
+                        'unit': unitCtrl.text.trim(),
+                        'created_by': user?.email,
+                        'created_at': DateTime.now().toIso8601String(),
+                      };
+
+                      if (item == null) {
+                        await Supabase.instance.client.from('inventory').insert(payload);
+                      } else {
+                        await Supabase.instance.client
+                            .from('inventory')
+                            .update(payload)
+                            .eq('id', item['id']);
+                      }
+
+                      if (mounted) Navigator.pop(context);
+                    },
+                    child: const Text('Save'),
                   ),
                 ],
               ),
@@ -419,498 +162,122 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Color _getStockColor(int qty) {
-    if (qty == 0) return AppTheme.errorRed;
-    if (qty <= 5) return AppTheme.warningOrange;
+  InputDecoration _decoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: AppTheme.primaryRed),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: AppTheme.lightGrey),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: AppTheme.primaryRed),
+      ),
+      filled: true,
+      fillColor: AppTheme.backgroundColor,
+    );
+  }
+
+  Widget _input(TextEditingController ctrl, String label, IconData icon, {bool isNumber = false}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: _decoration(label, icon),
+    );
+  }
+
+  Future<void> _deleteItem(String id) async {
+    try {
+      setState(() => _isLoading = true);
+      await Supabase.instance.client.from('inventory').delete().eq('id', id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Item deleted successfully'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Delete failed: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _getStockStatus(int quantity) {
+    if (quantity == 0) return '0';
+    if (quantity < 10) return 'LOW STOCK';
+    if (quantity < 50) return 'NORMAL';
+    return 'HIGH STOCK';
+  }
+
+  Color _getStockStatusColor(int quantity) {
+    if (quantity == 0) return AppTheme.errorRed;
+    if (quantity < 10) return AppTheme.warningOrange;
+    if (quantity < 50) return AppTheme.infoBlue;
     return AppTheme.successGreen;
   }
 
-  String _getStockLabel(int qty) {
-    if (qty == 0) return 'Out of Stock';
-    if (qty <= 5) return 'Low Stock';
-    return 'In Stock';
+  IconData _getStockStatusIcon(int quantity) {
+    if (quantity == 0) return Icons.remove_circle_rounded;
+    if (quantity < 10) return Icons.warning_amber_rounded;
+    if (quantity < 50) return Icons.inventory_2_rounded;
+    return Icons.check_circle_rounded;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.white,
-        elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              child: Icon(
-                Icons.inventory_2,
-                color: AppTheme.primaryRed,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: AppTheme.md),
-            Text(
-              isMobile ? 'Inventory' : 'Inventory Management',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (!isMobile)
-            Container(
-              margin: const EdgeInsets.only(right: AppTheme.md),
-              child: ElevatedButton.icon(
-                onPressed: () => _addOrEditItem(),
-                icon: const Icon(Icons.add),
-                label: const Text('Add Item'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
-                  foregroundColor: AppTheme.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  ),
-                ),
-              ),
-            ),
-        ],
+  Widget _buildCompactMonitorCard(String range, String count, Color color) {
+    String label;
+    switch (range) {
+      case '0':
+        label = '0';
+        break;
+      case '1-9':
+        label = 'LOW STOCK';
+        break;
+      case '10-49':
+        label = 'NORMAL';
+        break;
+      case '50+':
+        label = 'HIGH STOCK';
+        break;
+      default:
+        label = 'UNKNOWN';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppTheme.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppTheme.white.withOpacity(0.3)),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        tooltip: 'Add Item',
-        onPressed: () => _addOrEditItem(),
-        backgroundColor: AppTheme.primaryRed,
-        heroTag: "add",
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
-      ),
-      body: Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Stats Cards
-          Container(
-            width: double.infinity,
-            padding: ResponsiveUtils.getResponsivePadding(context),
-            decoration: BoxDecoration(
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
               color: AppTheme.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: Supabase.instance.client
-                  .from('inventory')
-                  .stream(primaryKey: ['id']),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const SizedBox(height: 80);
-                }
-
-                final items = snapshot.data!;
-                final totalItems = items.length;
-                final outOfStock = items.where((doc) => (doc['quantity'] ?? 0) == 0).length;
-                final lowStock = items.where((doc) {
-                  final qty = doc['quantity'] ?? 0;
-                  return qty > 0 && qty <= 5;
-                }).length;
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        context,
-                        'Total Items',
-                        totalItems.toString(),
-                        Icons.inventory_2,
-                        AppTheme.primaryRed,
-                      ),
-                    ),
-                    if (!isMobile) ...[
-                      const SizedBox(width: AppTheme.md),
-                      Expanded(
-                        child: _buildStatCard(
-                          context,
-                          'Low Stock',
-                          lowStock.toString(),
-                          Icons.warning,
-                          AppTheme.warningOrange,
-                        ),
-                      ),
-                      const SizedBox(width: AppTheme.md),
-                      Expanded(
-                        child: _buildStatCard(
-                          context,
-                          'Out of Stock',
-                          outOfStock.toString(),
-                          Icons.error,
-                          AppTheme.errorRed,
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
             ),
           ),
-
-          // Main Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: ResponsiveUtils.getResponsivePadding(context),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          isMobile ? 'Inventory' : 'Inventory Management',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontSize: ResponsiveUtils.getResponsiveFontSize(
-                              context,
-                              mobile: 20,
-                              tablet: 24,
-                              desktop: 28,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  ResponsiveUtils.verticalSpace(context,
-                      mobile: 8, tablet: 12, desktop: 16),
-                  Text(
-                    isMobile
-                        ? 'Manage restaurant items'
-                        : 'View and manage restaurant inventory items',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppTheme.mediumGrey,
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 14,
-                            tablet: 15,
-                            desktop: 16,
-                          ),
-                        ),
-                  ),
-                  ResponsiveUtils.verticalSpace(context,
-                      mobile: 16, tablet: 20, desktop: 24),
-
-                  // Search and Filter Section
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.lg),
-                    decoration: BoxDecoration(
-                      color: AppTheme.white,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Search & Filter',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.md),
-                        TextField(
-                          onChanged: (value) =>
-                              setState(() => _searchQuery = value),
-                          decoration: InputDecoration(
-                            hintText: isMobile ? 'Search items...' : 'Search by item name...',
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: AppTheme.primaryRed,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: AppTheme.lightGrey.withValues(alpha: 0.3),
-                            contentPadding: const EdgeInsets.all(AppTheme.md),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.md),
-                        Text(
-                          'Categories',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.sm),
-                        SizedBox(
-                          height: isMobile ? 50 : 60,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: categories.map((category) {
-                              final isSelected = _selectedCategory == category;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: AppTheme.sm),
-                                child: FilterChip(
-                                  label: Text(
-                                    category,
-                                    style: TextStyle(
-                                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                        context,
-                                        mobile: 12,
-                                        tablet: 13,
-                                        desktop: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  selected: isSelected,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      _selectedCategory = category;
-                                    });
-                                  },
-                                  backgroundColor: AppTheme.lightGrey.withValues(alpha: 0.3),
-                                  selectedColor: AppTheme.primaryRed,
-                                  labelStyle: TextStyle(
-                                    color: isSelected ? AppTheme.white : AppTheme.darkGrey,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ResponsiveUtils.verticalSpace(context,
-                      mobile: 16, tablet: 20, desktop: 24),
-
-                  // Inventory List
-                  StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: Supabase.instance.client
-                        .from('inventory')
-                        .stream(primaryKey: ['id']),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const CircularProgressIndicator(),
-                              const SizedBox(height: AppTheme.lg),
-                              Text('Loading items...',
-                                  style: Theme.of(context).textTheme.bodyLarge),
-                            ],
-                          ),
-                        );
-                      }
-
-                      var items = snapshot.data!;
-
-                      if (_selectedCategory != 'All') {
-                        items = items.where((doc) {
-                          final category =
-                              (doc['category'] ?? '').toString();
-                          return category == _selectedCategory;
-                        }).toList();
-                      }
-
-                      if (_searchQuery.isNotEmpty) {
-                        items = items.where((doc) {
-                          final name =
-                              (doc['name'] ?? '').toString().toLowerCase();
-                          return name
-                              .contains(_searchQuery.toLowerCase());
-                        }).toList();
-                      }
-
-                      if (items.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.inbox,
-                                  size: 64, color: AppTheme.lightGrey),
-                              const SizedBox(height: AppTheme.lg),
-                              Text(
-                                'No inventory items found',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall,
-                              ),
-                              const SizedBox(height: AppTheme.md),
-                              if (_isAdmin)
-                                Text(
-                                  'Tap the + button to add items',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(color: AppTheme.mediumGrey),
-                                ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final data = items[index];
-                          final quantity = data['quantity'] ?? 0;
-                          final stockColor = _getStockColor(quantity);
-                          final stockLabel = _getStockLabel(quantity);
-
-                          return Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusMd)),
-                            margin:
-                                const EdgeInsets.only(bottom: AppTheme.lg),
-                            child: ListTile(
-                              contentPadding: EdgeInsets.all(
-                                ResponsiveUtils.getResponsiveFontSize(
-                                  context,
-                                  mobile: 12,
-                                  tablet: 16,
-                                  desktop: 20,
-                                ),
-                              ),
-                              leading: Container(
-                                padding: EdgeInsets.all(
-                                  ResponsiveUtils.getResponsiveFontSize(
-                                    context,
-                                    mobile: 8,
-                                    tablet: 12,
-                                    desktop: 16,
-                                  ),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: stockColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(
-                                      AppTheme.radiusMd),
-                                ),
-                                child: Icon(
-                                  Icons.inventory_2,
-                                  color: stockColor,
-                                  size: ResponsiveUtils.getResponsiveIconSize(
-                                      context),
-                                ),
-                              ),
-                              title: Text(
-                                data['name'] ?? 'Unknown',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(
-                                      fontSize:
-                                          ResponsiveUtils.getResponsiveFontSize(
-                                        context,
-                                        mobile: 14,
-                                        tablet: 15,
-                                        desktop: 16,
-                                      ),
-                                    ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: AppTheme.md),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.category,
-                                          size: 14,
-                                          color: AppTheme.mediumGrey),
-                                      const SizedBox(width: AppTheme.md),
-                                      Text(
-                                        data['category'] ?? 'N/A',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: AppTheme.sm),
-                                  Chip(
-                                    label: Text(
-                                        '$quantity ${data['unit'] ?? ''} • $stockLabel'),
-                                    backgroundColor:
-                                        stockColor.withValues(alpha: 0.15),
-                                    labelStyle: TextStyle(
-                                        color: stockColor,
-                                        fontWeight: FontWeight.bold),
-                                    avatar: Icon(
-                                        Icons.production_quantity_limits,
-                                        size: 14,
-                                        color: stockColor),
-                                  ),
-                                ],
-                              ),
-                              trailing: Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                                ),
-                                child: PopupMenuButton(
-                                  icon: Icon(
-                                    Icons.more_vert,
-                                    color: AppTheme.primaryRed,
-                                  ),
-                                  itemBuilder: (context) => [
-                                    PopupMenuItem(
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.edit, color: AppTheme.primaryRed, size: 16),
-                                          const SizedBox(width: 8),
-                                          const Text('Edit'),
-                                        ],
-                                      ),
-                                      onTap: () => _addOrEditItem(
-                                          item: data),
-                                    ),
-                                    PopupMenuItem(
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete, color: AppTheme.errorRed, size: 16),
-                                          const SizedBox(width: 8),
-                                          const Text('Delete'),
-                                        ],
-                                      ),
-                                      onTap: () => _deleteItem(
-                                          data['id'],
-                                          data['name'] ?? 'Item'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.white,
             ),
           ),
         ],
@@ -918,59 +285,409 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
-    final isMobile = ResponsiveUtils.isMobile(context);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Real-time Inventory Monitoring Board
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryRed,
+                    AppTheme.primaryRedDark,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryRed.withOpacity(0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.dashboard_rounded, color: AppTheme.white, size: 18),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Inventory Monitor',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.white,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.refresh_rounded, color: AppTheme.white.withOpacity(0.8), size: 14),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: Supabase.instance.client
+                        .from('inventory')
+                        .stream(primaryKey: ['id']),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const SizedBox(
+                          height: 50,
+                          child: Center(
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(color: AppTheme.white, strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
 
-    return Container(
-      padding: EdgeInsets.all(
-        isMobile ? AppTheme.md : AppTheme.lg,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
+                      final items = snapshot.data!;
+                      int outOfStock = 0;
+                      int lowStock = 0;
+                      int normalStock = 0;
+                      int highStock = 0;
+
+                      for (var item in items) {
+                        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+                        if (quantity == 0) {
+                          outOfStock++;
+                        } else if (quantity < 10) {
+                          lowStock++;
+                        } else if (quantity < 50) {
+                          normalStock++;
+                        } else {
+                          highStock++;
+                        }
+                      }
+
+                      return SizedBox(
+                        height: 50,
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildCompactMonitorCard('0', outOfStock.toString(), AppTheme.errorRed)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _buildCompactMonitorCard('1-9', lowStock.toString(), AppTheme.warningOrange)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _buildCompactMonitorCard('10-49', normalStock.toString(), AppTheme.successGreen)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _buildCompactMonitorCard('50+', highStock.toString(), AppTheme.infoBlue)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            
+            // Search and Filter Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.darkGrey.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    decoration: InputDecoration(
+                      hintText: 'Search items...',
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.primaryRed),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: AppTheme.mediumGrey),
+                              onPressed: () => setState(() => _searchQuery = ''),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: AppTheme.lightGrey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: AppTheme.primaryRed),
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.backgroundColor,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: categories.map((category) {
+                        final isSelected = _selectedCategory == category;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(category),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() => _selectedCategory = category);
+                            },
+                            backgroundColor: AppTheme.white,
+                            selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                            checkmarkColor: AppTheme.primaryRed,
+                            labelStyle: TextStyle(
+                              color: isSelected ? AppTheme.primaryRed : AppTheme.darkGrey,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                            side: BorderSide(
+                              color: isSelected ? AppTheme.primaryRed : AppTheme.lightGrey,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Inventory Grid
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: Supabase.instance.client
+                    .from('inventory')
+                    .stream(primaryKey: ['id'])
+                    .order('created_at', ascending: false),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        'Error loading inventory: ${snapshot.error}',
+                        style: const TextStyle(color: AppTheme.errorRed),
+                      ),
+                    );
+                  }
+
+                  final items = snapshot.data ?? [];
+                  final filteredItems = items.where((item) {
+                    final name = (item['name'] ?? '').toString().toLowerCase();
+                    final category = (item['category'] ?? '').toString().toLowerCase();
+                    final query = _searchQuery.toLowerCase();
+                    final matchesSearch = name.contains(query) || category.contains(query);
+                    final matchesCategory = _selectedCategory == 'All' || 
+                                         item['category']?.toString() == _selectedCategory;
+                    return matchesSearch && matchesCategory;
+                  }).toList();
+
+                  if (filteredItems.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 64, color: AppTheme.mediumGrey),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No inventory items found',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: AppTheme.mediumGrey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: GridView.builder(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: ResponsiveUtils.isMobile(context) ? 4 : ResponsiveUtils.isTablet(context) ? 5 : 6,
+                        crossAxisSpacing: 6,
+                        mainAxisSpacing: 6,
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredItems[index];
+                        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+                        final stockStatus = _getStockStatus(quantity);
+                        final stockColor = _getStockStatusColor(quantity);
+                        final stockIcon = _getStockStatusIcon(quantity);
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppTheme.white,
+                                AppTheme.lightGrey.withOpacity(0.3),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.darkGrey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: stockColor.withOpacity(0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item['name'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.darkGrey,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (_isAdmin)
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            _addOrEditItem(item: item);
+                                          } else if (value == 'delete') {
+                                            _deleteItem(item['id'].toString());
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit, size: 16, color: AppTheme.primaryRed),
+                                                SizedBox(width: 8),
+                                                Text('Edit'),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete, size: 16, color: AppTheme.errorRed),
+                                                SizedBox(width: 8),
+                                                Text('Delete'),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                        child: const Icon(Icons.more_vert, size: 14, color: AppTheme.mediumGrey),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  item['category'] ?? 'Uncategorized',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: AppTheme.mediumGrey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const Spacer(),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: stockColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: stockColor.withOpacity(0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(stockIcon, size: 10, color: stockColor),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            stockStatus,
+                                            style: TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w600,
+                                              color: stockColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$quantity ${item['unit'] ?? ''}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.primaryRed,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: isMobile ? 16 : 20,
-            ),
-          ),
-          const SizedBox(width: AppTheme.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.mediumGrey,
-                    fontSize: isMobile ? 10 : 12,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: isMobile ? 16 : 20,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () => _addOrEditItem(),
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: AppTheme.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Item'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            )
+          : null,
     );
   }
 }
