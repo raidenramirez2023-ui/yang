@@ -13,6 +13,13 @@ class StaffDashboardPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 50,
+        leading: IconButton(  // <- ADD THIS FOR BACK BUTTON
+          icon: const Icon(Icons.arrow_back, color: Colors.black),  // <- SET COLOR TO BLACK
+          onPressed: () {
+            Navigator.pop(context);  // <- GO BACK TO PREVIOUS SCREEN
+          },
+          tooltip: 'Back',
+        ),
         title: Row(
           children: [
             Icon(Icons.point_of_sale, color: Colors.red.shade600, size: 20),
