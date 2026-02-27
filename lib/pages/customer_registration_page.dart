@@ -3,49 +3,79 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class CustomerRegistrationPage extends StatefulWidget {
+  const CustomerRegistrationPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<CustomerRegistrationPage> createState() => _CustomerRegistrationPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // No animation initialization needed
-  }
+  bool _agreeToTerms = false;
 
   @override
   void dispose() {
+    nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> handleLogin() async {
+  Future<void> handleRegistration() async {
+    String name = nameController.text.trim();
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    // Validation
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _showSnackBar(
-        "Please enter email and password",
+        "Please fill in all fields",
         Colors.red.shade700,
         Icons.error_outline,
       );
       return;
     }
 
-    if (!email.contains('@')) {
+    if (!email.contains('@') || !email.contains('.')) {
       _showSnackBar(
         "Please enter a valid email address",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      _showSnackBar(
+        "Password must be at least 6 characters",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showSnackBar(
+        "Passwords do not match",
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+      return;
+    }
+
+    if (!_agreeToTerms) {
+      _showSnackBar(
+        "Please agree to the terms and conditions",
         Colors.orange.shade700,
         Icons.warning_amber,
       );
@@ -55,82 +85,56 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Supabase auth
-      await Supabase.instance.client.auth.signInWithPassword(
+      // Create user in Supabase Auth (without email confirmation for testing)
+      final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'name': name,
+          'role': 'customer',
+        },
       );
 
-      final userResponse = await Supabase.instance.client
-          .from('users')
-          .select('role')
-          .eq('email', email)
-          .maybeSingle();
-
-      if (userResponse == null) {
-        if (email == 'adm.pagsanjan@gmail.com') {
-          await Supabase.instance.client.from('users').insert({
-            'email': email,
-            'role': 'admin',
-          });
-
-          _showSnackBar(
-            "Admin account created successfully!",
-            Colors.green.shade700,
-            Icons.check_circle_outline,
-          );
-
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          }
-        } else {
-          _showSnackBar(
-            "User not found in database",
-            Colors.red.shade700,
-            Icons.error_outline,
-          );
-          await Supabase.instance.client.auth.signOut();
-          setState(() => _isLoading = false);
-          return;
-        }
-      } else {
-        String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
+      if (authResponse.user != null) {
+        // Create customer record in users table
+        await Supabase.instance.client.from('users').insert({
+          'id': authResponse.user!.id,
+          'email': email,
+          'name': name,
+          'role': 'customer',
+          'created_at': DateTime.now().toIso8601String(),
+        });
 
         _showSnackBar(
-          "Login successful as $userRole!",
+          "Registration successful! Please check your email to verify your account.",
           Colors.green.shade700,
           Icons.check_circle_outline,
         );
 
+        // Navigate back to login after successful registration
         if (mounted) {
-          if (userRole == 'admin') {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          } else if (userRole == 'customer') {
-            Navigator.pushReplacementNamed(context, '/customer-dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/staff-dashboard');
-          }
+          Navigator.of(context).pop();
         }
       }
     } on AuthException catch (e) {
       String errorMessage;
       switch (e.message.toLowerCase()) {
-        case 'invalid login credentials':
-          errorMessage = 'Invalid email or password';
+        case 'user already registered':
+          errorMessage = 'An account with this email already exists';
           break;
-        case 'email not confirmed':
-          errorMessage = 'Email not confirmed';
+        case 'invalid email':
+          errorMessage = 'Please enter a valid email address';
           break;
-        case 'user not found':
-          errorMessage = 'No user found with this email';
+        case 'password too short':
+          errorMessage = 'Password must be at least 6 characters';
           break;
         default:
-          errorMessage = 'Login failed: ${e.message}';
+          errorMessage = 'Registration failed: ${e.message}';
       }
       _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
     } catch (e) {
       _showSnackBar(
-        "An error occurred: $e",
+        "An error occurred during registration: $e",
         Colors.red.shade700,
         Icons.error_outline,
       );
@@ -167,6 +171,12 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Customer Registration'),
+        backgroundColor: AppTheme.primaryRed,
+        foregroundColor: Colors.white,
+        elevation: 2,
+      ),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -189,12 +199,14 @@ class _LoginPageState extends State<LoginPage> {
         Expanded(
           child: Container(
             color: Colors.white,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: _buildLoginForm(),
+            child: SingleChildScrollView(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: _buildRegistrationForm(),
+                  ),
                 ),
               ),
             ),
@@ -223,17 +235,17 @@ class _LoginPageState extends State<LoginPage> {
                 child: ClipOval(
                   child: Image.asset(
                     'assets/images/mobile-logo.png',
-                    width: 230,
-                    height: 230,
+                    width: 150,
+                    height: 150,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: 230,
-                        height: 230,
+                        width: 150,
+                        height: 150,
                         color: Colors.grey.shade200,
                         child: Icon(
                           Icons.restaurant,
-                          size: 100,
+                          size: 80,
                           color: Colors.grey.shade400,
                         ),
                       );
@@ -241,20 +253,19 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 20),
               // Title
               Text(
-                'Restaurant Management System',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                'Create Customer Account',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: const Color.fromARGB(255, 119, 36, 36),
-                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-              // Login Form
-              _buildLoginForm(),
+              const SizedBox(height: 30),
+              // Registration Form
+              _buildRegistrationForm(),
               const SizedBox(height: 40),
             ],
           ),
@@ -263,17 +274,36 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLoginForm() {
+  Widget _buildRegistrationForm() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Full Name Field
+        Text(
+          'Full Name',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: nameController,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your full name',
+            prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Email Field
         Text(
           'Email Address',
           style: Theme.of(context).textTheme.titleSmall,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
@@ -286,20 +316,20 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
 
         // Password Field
         Text(
           'Password',
           style: Theme.of(context).textTheme.titleSmall,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextField(
           controller: passwordController,
           obscureText: !_isPasswordVisible,
           enabled: !_isLoading,
           decoration: InputDecoration(
-            hintText: 'Enter your password',
+            hintText: 'Create a password',
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
@@ -318,13 +348,67 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 12),
 
-        // Login Button
+        // Confirm Password Field
+        Text(
+          'Confirm Password',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: confirmPasswordController,
+          obscureText: !_isConfirmPasswordVisible,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Confirm your password',
+            prefixIcon: const Icon(Icons.lock_outline),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isConfirmPasswordVisible 
+                  ? Icons.visibility_outlined 
+                  : Icons.visibility_off_outlined,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                });
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Terms and Conditions Checkbox
+        Row(
+          children: [
+            Checkbox(
+              value: _agreeToTerms,
+              onChanged: _isLoading ? null : (bool? value) {
+                setState(() {
+                  _agreeToTerms = value ?? false;
+                });
+              },
+              activeColor: AppTheme.primaryRed,
+            ),
+            Expanded(
+              child: Text(
+                'I agree to the Terms and Conditions and Privacy Policy',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Register Button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : handleLogin,
+            onPressed: _isLoading ? null : handleRegistration,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: AppTheme.primaryRed,
@@ -339,42 +423,20 @@ class _LoginPageState extends State<LoginPage> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text('Sign In'),
+              : const Text('Create Account'),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // Register Button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: _isLoading ? null : () {
-              Navigator.pushNamed(context, '/register');
-            },
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: AppTheme.primaryRed),
-            ),
-            child: Text(
-              'Create New Account',
-              style: TextStyle(
-                color: AppTheme.primaryRed,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Forgot Password Link
+        // Back to Login Link
         Align(
-          alignment: Alignment.centerRight,
+          alignment: Alignment.center,
           child: TextButton(
             onPressed: _isLoading ? null : () {
-              Navigator.pushNamed(context, '/forgot-password');
+              Navigator.of(context).pop();
             },
             child: Text(
-              'Forgot Password?',
+              'Already have an account? Sign In',
               style: TextStyle(
                 color: AppTheme.primaryRed,
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
