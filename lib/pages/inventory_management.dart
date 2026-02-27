@@ -13,7 +13,6 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
-  bool _isLoading = false;
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
@@ -189,7 +188,6 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Future<void> _deleteItem(String id) async {
     try {
-      setState(() => _isLoading = true);
       await Supabase.instance.client.from('inventory').delete().eq('id', id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,8 +206,6 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 

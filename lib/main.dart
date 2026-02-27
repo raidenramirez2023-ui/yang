@@ -6,7 +6,6 @@ import 'utils/app_theme.dart';
 // Features
 import 'pages/login_page.dart';
 import 'pages/forgot_password_page.dart';
-import 'pages/update_password_page.dart';
 import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
 
