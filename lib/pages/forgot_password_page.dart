@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/pages/update_password_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -35,8 +37,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _emailSent = true;
         });
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdatePasswordPage(email: _emailController.text.trim()),
+          ),
+        );
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -123,8 +131,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   
                   Text(
                     _emailSent 
-                        ? 'Check your email for reset instructions'
-                        : 'Enter your email address and we\'ll send you a link to reset your password',
+                        ? 'Check your email for the 8-digit code'
+                        : 'Enter your email address and we\'ll send you an 8-digit code to reset your password',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppTheme.mediumGrey,
                       fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 15, desktop: 16),
@@ -194,7 +202,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                       ],
                                     )
                                   : const Text(
-                                      'Send Reset Link',
+                                      'Send Reset Code',
                                       style: TextStyle(fontWeight: FontWeight.w600),
                                     ),
                             ),
@@ -223,7 +231,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           ResponsiveUtils.verticalSpace(context, mobile: 12, tablet: 16, desktop: 20),
                           Text(
-                            'Reset Email Sent!',
+                            'Reset Code Sent!',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               color: AppTheme.successGreen,
                               fontWeight: FontWeight.bold,
@@ -232,7 +240,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 12, desktop: 16),
                           Text(
-                            'We\'ve sent a password reset link to ${_emailController.text}',
+                            'We\'ve sent an 8-digit password reset code to ${_emailController.text}',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppTheme.mediumGrey,
                               fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 13, tablet: 14, desktop: 15),
