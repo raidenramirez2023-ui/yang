@@ -165,14 +165,14 @@ class _LoginPageState extends State<LoginPage> {
     const demoAccounts = {
       'admin@yangchow.com': 'admin123',
       'staff@yangchow.com': 'staff123',
-      'adm.pagsanjan@gmail.com': 'admin123',
+      'admn.pagsanjan@gmail.com': 'admin123',
     };
     
     return demoAccounts[email] == password;
   }
 
   String _getDemoRole(String email) {
-    if (email == 'admin@yangchow.com' || email == 'adm.pagsanjan@gmail.com') {
+    if (email == 'admin@yangchow.com' || email == 'admn.pagsanjan@gmail.com') {
       return 'admin';
     } else if (email == 'staff@yangchow.com') {
       return 'staff';
