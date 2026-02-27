@@ -5,6 +5,9 @@ import 'utils/app_theme.dart';
 
 // Features
 import 'pages/login_page.dart';
+import 'pages/customer_registration_page.dart';
+import 'pages/customer_dashboard.dart';
+import 'pages/admin_reservations_page.dart';
 import 'pages/forgot_password_page.dart';
 import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
@@ -44,10 +47,15 @@ class YangChowApp extends StatelessWidget {
       routes: {
         // Auth routes
         '/': (context) => const LoginPage(),
+        '/register': (context) => const CustomerRegistrationPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
+
+        // Customer routes
+        '/customer-dashboard': (context) => const CustomerDashboardPage(),
 
         // Admin routes
         '/dashboard': (context) => const AdminMainPage(),
+        '/admin-reservations': (context) => const AdminReservationsPage(),
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),
