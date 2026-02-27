@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'shared_pos_widget.dart';
 
 class OrderListPanel extends StatefulWidget {
@@ -6,11 +7,11 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final Function() onPrintReceipt;
+  final Function(String customerName) onPrintReceipt;
   final bool isMobile;
 
   const OrderListPanel({
-    super.key, // Fixed: use_super_parameters
+    super.key,
     required this.cart,
     required this.onQuantityIncreased,
     required this.onQuantityDecreased,
@@ -24,259 +25,478 @@ class OrderListPanel extends StatefulWidget {
 }
 
 class _OrderListPanelState extends State<OrderListPanel> {
-  final TextEditingController _customerNameController = TextEditingController();
+  final TextEditingController _customerNameController =
+      TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+
+  final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
+
+  // ── Constants ──────────────────────────────────────────────────────────────
+  static const _indigo = Color(0xFF4F46E5);
+  static const _bg = Color(0xFFF5F6FA);
+  static const _border = Color(0xFFE5E7EB);
+  static const _grey = Color(0xFF6B7280);
+  static const _textDark = Color(0xFF1A1A2E);
 
   @override
   void dispose() {
     _customerNameController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  double get totalAmount {
-    return widget.cart.fold(
-        0.0, (sum, item) => sum + (item.item.price * item.quantity));
-  }
+  double get _subtotal => widget.cart.fold(
+      0.0, (sum, item) => sum + (item.item.price * item.quantity));
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: widget.isMobile ? double.infinity : 350,
-      color: Colors.grey[50],
+      width: widget.isMobile ? double.infinity : 310,
+      color: Colors.white,
       child: Column(
         children: [
-          // ORDER LIST Header
-          Container(
-            color: Colors.red,
-            padding: EdgeInsets.symmetric(
-              vertical: widget.isMobile ? 8.0 : 16.0,
-              horizontal: 16.0,
+          // ── Header ─────────────────────────────────────────────────────────
+          _buildHeader(),
+          // ── Scrollable body ────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 14),
+                  // Customer name row
+                  _buildCustomerRow(),
+                  const SizedBox(height: 10),
+                  // Note field
+                  _buildNoteField(),
+                  const SizedBox(height: 16),
+                  // Items header
+                  _buildItemsHeader(),
+                  const SizedBox(height: 8),
+                  // Cart items
+                  if (widget.cart.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text('No items added yet',
+                            style: TextStyle(
+                                color: _grey, fontSize: 13)),
+                      ),
+                    )
+                  else
+                    ...widget.cart.reversed.map(_buildCartItem),
+                  const SizedBox(height: 16),
+                  // Divider
+                  const Divider(color: _border, height: 1),
+                  const SizedBox(height: 12),
+                  // Totals
+                  _buildTotals(),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-            child: Center(
-              child: Text(
-                'ORDER LIST',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: widget.isMobile ? 14 : 18,
+          ),
+          // ── Footer buttons ─────────────────────────────────────────────────
+          _buildFooter(),
+        ],
+      ),
+    );
+  }
+
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: _border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Order Details',
+            style: TextStyle(
+              color: _textDark,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Customer name row ──────────────────────────────────────────────────────
+  Widget _buildCustomerRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              controller: _customerNameController,
+              style:
+                  const TextStyle(fontSize: 13, color: _textDark),
+              decoration: InputDecoration(
+                hintText: "Customer's name",
+                hintStyle:
+                    const TextStyle(color: _grey, fontSize: 13),
+                filled: true,
+                fillColor: _bg,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: _border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: _border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide:
+                      const BorderSide(color: _indigo, width: 1.5),
                 ),
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
 
-          // Order Items
-          Expanded(
-            child: widget.cart.isEmpty
-                ? Center(
-                    child: Text(
-                      'No items in order',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: widget.isMobile ? 12 : 14,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(widget.isMobile ? 4 : 8),
-                    itemCount: widget.cart.length,
-                    itemBuilder: (context, index) {
-                      final item = widget.cart[index];
-                      return Card(
-                        margin: EdgeInsets.only(
-                          bottom: widget.isMobile ? 2 : 8,
-                          left: widget.isMobile ? 2 : 0,
-                          right: widget.isMobile ? 2 : 0,
-                        ),
-                        child: Padding(
-                          padding:
-                              EdgeInsets.all(widget.isMobile ? 6 : 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.item.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: widget.isMobile ? 12 : 16,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: widget.isMobile ? 4 : 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '₱${item.item.price.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: widget.isMobile ? 10 : 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      // Decrease button
-                                      GestureDetector(
-                                        onTap: () =>
-                                            widget.onQuantityDecreased(item),
-                                        child: Container(
-                                          width: widget.isMobile ? 20 : 24,
-                                          height: widget.isMobile ? 20 : 24,
-                                          decoration: const BoxDecoration(
-                                            color: Colors.red,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.remove,
-                                              color: Colors.white,
-                                              size: widget.isMobile ? 14 : 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Quantity
-                                      SizedBox(
-                                        width: widget.isMobile ? 25 : 30,
-                                        child: Center(
-                                          child: Text(
-                                            '${item.quantity}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize:
-                                                  widget.isMobile ? 14 : 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Increase button
-                                      GestureDetector(
-                                        onTap: () =>
-                                            widget.onQuantityIncreased(item),
-                                        child: Container(
-                                          width: widget.isMobile ? 20 : 24,
-                                          height: widget.isMobile ? 20 : 24,
-                                          decoration: const BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.add,
-                                              color: Colors.white,
-                                              size: widget.isMobile ? 14 : 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      SizedBox(
-                                          width: widget.isMobile ? 4 : 8),
-
-                                      // Edit button (placeholder)
-                                      Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                        size: widget.isMobile ? 16 : 20,
-                                      ),
-
-                                      SizedBox(
-                                          width: widget.isMobile ? 4 : 8),
-
-                                      // Delete button
-                                      GestureDetector(
-                                        onTap: () =>
-                                            widget.onRemoveItem(item),
-                                        child: Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                          size: widget.isMobile ? 16 : 20,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+  // ── Note field ─────────────────────────────────────────────────────────────
+  Widget _buildNoteField() {
+    return SizedBox(
+      height: 36,
+      child: TextField(
+        controller: _noteController,
+        style: const TextStyle(fontSize: 13, color: _textDark),
+        decoration: InputDecoration(
+          hintText: 'Note',
+          hintStyle: const TextStyle(color: _grey, fontSize: 13),
+          filled: true,
+          fillColor: _bg,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: _border),
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: _border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: const BorderSide(color: _indigo, width: 1.5),
+          ),
+        ),
+      ),
+    );
+  }
 
-          // Customer Name and Total (desktop only)
-          if (!widget.isMobile)
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Customer Name
-                  TextField(
-                    controller: _customerNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Customer Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+  // ── Items header ───────────────────────────────────────────────────────────
+  Widget _buildItemsHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text('Items',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: _textDark)),
+        GestureDetector(
+          onTap: widget.cart.isNotEmpty
+              ? () {
+                  for (var item in widget.cart.toList()) {
+                    widget.onRemoveItem(item);
+                  }
+                }
+              : null,
+          child: Text(
+            'Clear',
+            style: TextStyle(
+                color: widget.cart.isNotEmpty
+                    ? _indigo
+                    : _grey,
+                fontSize: 13,
+                fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
 
-                  const SizedBox(height: 16),
-
-                  // Total
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'TOTAL:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      Text(
-                        '₱${totalAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Print Receipt Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: widget.cart.isNotEmpty
-                          ? widget.onPrintReceipt
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'PRINT RECEIPT',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+  // ── Single cart item ───────────────────────────────────────────────────────
+  Widget _buildCartItem(CartItem item) {
+    final imagePath =
+        item.item.customImagePath ?? item.item.fallbackImagePath;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              imagePath,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 48,
+                height: 48,
+                color: const Color(0xFFE5E7EB),
+                child:
+                    const Icon(Icons.fastfood, color: _grey, size: 20),
               ),
             ),
+          ),
+          const SizedBox(width: 10),
+          // Name + price + qty controls
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.item.name,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _textDark),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => widget.onRemoveItem(item),
+                      child: const Icon(Icons.close,
+                          size: 14, color: _grey),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Price
+                Text(
+                  '\$ ${_fmt.format(item.item.price)}',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: _textDark),
+                ),
+                const SizedBox(height: 6),
+                // Qty controls + Edit
+                Row(
+                  children: [
+                    // Decrease
+                    _qtyButton(
+                      icon: Icons.remove,
+                      onTap: () => widget.onQuantityDecreased(item),
+                    ),
+                    SizedBox(
+                      width: 28,
+                      child: Center(
+                        child: Text(
+                          '${item.quantity}',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: _textDark),
+                        ),
+                      ),
+                    ),
+                    // Increase
+                    _qtyButton(
+                      icon: Icons.add,
+                      onTap: () => widget.onQuantityIncreased(item),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _qtyButton(
+      {required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          border: Border.all(color: _border),
+          borderRadius: BorderRadius.circular(4),
+          color: Colors.white,
+        ),
+        child: Icon(icon, size: 14, color: _textDark),
+      ),
+    );
+  }
+
+  // ── Totals ─────────────────────────────────────────────────────────────────
+  Widget _buildTotals() {
+    final subtotal = _subtotal;
+    const discount = 0.0;
+    const vat = 0.0;
+    final total = subtotal - discount + vat;
+
+    return Column(
+      children: [
+        _totalRow('Sub Total', '\$ ${_fmt.format(subtotal)}',
+            valueColor: _textDark),
+        const SizedBox(height: 6),
+        _totalRow('Discount', '- \$ ${_fmt.format(discount)}',
+            valueColor: const Color(0xFFEF4444)),
+        const SizedBox(height: 6),
+        _totalRow('VAT (0%)', '\$ ${_fmt.format(vat)}',
+            valueColor: _textDark),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Total',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _textDark)),
+            Text('\$ ${_fmt.format(total)}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _textDark)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _totalRow(String label, String value,
+      {required Color valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 13, color: _grey)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: valueColor)),
+      ],
+    );
+  }
+
+  // ── Footer ─────────────────────────────────────────────────────────────────
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Hold + Discount row
+          Row(
+            children: [
+              Expanded(
+                child: _outlineBtn(
+                  label: 'Hold',
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _outlineBtn(
+                  label: 'Discount',
+                  onTap: () {},
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Proceed Payment
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: widget.cart.isNotEmpty
+                  ? () {
+                      widget.onPrintReceipt(
+                          _customerNameController.text.trim());
+                      for (var item in widget.cart.toList()) {
+                        widget.onRemoveItem(item);
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.check_circle,
+                                  color: Colors.white),
+                              SizedBox(width: 8),
+                              Text('Order completed!'),
+                            ],
+                          ),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFB8B8D0),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: const Text('Proceed Payment',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _outlineBtn(
+      {required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _border, width: 1.5),
+        ),
+        child: Center(
+          child: Text(label,
+              style: const TextStyle(
+                  color: _textDark,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14)),
+        ),
       ),
     );
   }
