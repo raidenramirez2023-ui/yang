@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
           errorMessage = 'Invalid email or password';
           break;
         case 'email not confirmed':
-          errorMessage = 'Email not confirmed';
+          errorMessage = 'Email not confirmed. Please register again to activate your account.';
           break;
         case 'user not found':
           errorMessage = 'No user found with this email';
