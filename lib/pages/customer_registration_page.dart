@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:postgrest/postgrest.dart';
 
 class CustomerRegistrationPage extends StatefulWidget {
   const CustomerRegistrationPage({super.key});
@@ -85,7 +86,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Create user in Supabase Auth (without email confirmation for testing)
+      // Create user in Supabase Auth
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
@@ -96,7 +97,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       );
 
       if (authResponse.user != null) {
-        // Create customer record in users table
+        // Immediately sign in to activate the account
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+
+        // Create customer record in users table (now authenticated)
         await Supabase.instance.client.from('users').insert({
           'id': authResponse.user!.id,
           'email': email,
@@ -106,14 +113,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         });
 
         _showSnackBar(
-          "Registration successful! Please check your email to verify your account.",
+          "Registration successful! Account is now ready to use.",
           Colors.green.shade700,
           Icons.check_circle_outline,
         );
 
-        // Navigate back to login after successful registration
+        // Navigate to customer dashboard after successful registration
         if (mounted) {
-          Navigator.of(context).pop();
+          Navigator.pushReplacementNamed(context, '/customer-dashboard');
         }
       }
     } on AuthException catch (e) {
@@ -130,6 +137,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           break;
         default:
           errorMessage = 'Registration failed: ${e.message}';
+      }
+      _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
+    } on PostgrestException catch (e) {
+      String errorMessage;
+      if (e.code == '23505') {
+        errorMessage = 'An account with this email already exists in our system';
+      } else if (e.message.contains('duplicate')) {
+        errorMessage = 'This email is already registered. Please use a different email.';
+      } else {
+        errorMessage = 'Database error: ${e.message}';
       }
       _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
     } catch (e) {
