@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:math';
 import 'dart:core';
 import 'order_list_panel.dart';
@@ -867,6 +868,14 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // Generate a random transaction ID
     final transactionId = '${DateTime.now().millisecond}${Random().nextInt(1000)}'.padRight(8, '0').substring(0, 8);
 
+    // Persist to Supabase (fire-and-forget, errors shown via snackbar)
+    _saveOrderToDatabase(
+      cartSnapshot: cartSnapshot,
+      total: snapshotTotal,
+      customerName: customerName,
+      transactionId: transactionId,
+    );
+
     // Use the widget's own context (Scaffold context) so the dialog
     // displays above any modal bottom sheet that may be open.
     showDialog(
@@ -886,6 +895,60 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         ),
       ),
     );
+  }
+
+  Future<void> _saveOrderToDatabase({
+    required List<CartItem> cartSnapshot,
+    required double total,
+    required String customerName,
+    required String transactionId,
+  }) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final staffEmail =
+          supabase.auth.currentUser?.email ?? 'staff';
+
+      // Insert the order header and get back the generated ID
+      final orderRes = await supabase
+          .from('orders')
+          .insert({
+            'transaction_id': transactionId,
+            'customer_name':
+                customerName.isNotEmpty ? customerName : 'Guest',
+            'total_amount': total,
+            'item_count': cartSnapshot.fold(0, (s, c) => s + c.quantity),
+            'staff_email': staffEmail,
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select('id')
+          .single();
+
+      final orderId = orderRes['id'].toString();
+
+      // Insert each line item
+      final itemRows = cartSnapshot
+          .map((c) => {
+                'order_id': orderId,
+                'item_name': c.item.name,
+                'quantity': c.quantity,
+                'unit_price': c.item.price,
+                'subtotal': c.item.price * c.quantity,
+              })
+          .toList();
+
+      await supabase.from('order_items').insert(itemRows);
+    } catch (e) {
+      // Non-blocking: show a warning but don't block the receipt
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Could not save order to database: $e'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _showOrderList() {
