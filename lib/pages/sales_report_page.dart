@@ -127,7 +127,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         return [1080000, 1110000, 1050000, 1130000, 1100000, 1150000, 1180000, 1210000, 1140000, 1170000, 1200000, 1180000];
       } else if (selectedYear == '2025') {
         return [1100000, 1130000, 1070000, 1150000, 1120000, 1170000, 1200000, 1230000, 1160000, 1190000, 1220000, 1250000];
-      } else { // 2026 - show all months but Apr-Dec are blank (future months)
+      } else { // 2026 - show all months but March-Dec are blank (future months)
         return [1150000, 1180000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       }
     } else {
@@ -143,7 +143,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         11500000, // 2023
         11800000, // 2024
         12000000, // 2025
-        12500000, // 2026 (projected)
+        1165000, // 2026 (projected)
       ];
     }
   }
