@@ -143,7 +143,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         11500000, // 2023
         11800000, // 2024
         12000000, // 2025
-        1165000, // 2026 (projected)
+        2330000, // 2026 (projected)
       ];
     }
   }
