@@ -11,6 +11,7 @@ class SalesReportPage extends StatefulWidget {
 class _SalesReportPageState extends State<SalesReportPage>
     with TickerProviderStateMixin {
   String selectedPeriod = 'Daily';
+  String selectedYear = '2026'; // For monthly view
   final Random _rand = Random(10);
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -45,45 +46,105 @@ class _SalesReportPageState extends State<SalesReportPage>
   Map<String, int> getSalesSummary() {
     if (selectedPeriod == 'Daily') {
       final revenue = 35000 + _rand.nextInt(5000); // 30k–40k
-      final orders = revenue ~/ 100;
+      final orders = (revenue / 400).round(); // Average order ₱400
 
       return {
         'revenue': revenue,
         'orders': orders,
-        'customers': (orders * 0.7).toInt(),
+        'customers': orders, // 1 customer per order
       };
     }
 
     if (selectedPeriod == 'Weekly') {
       final revenue = 200000;
-      final orders = revenue ~/ 100;
+      final orders = (revenue / 400).round();
 
       return {
         'revenue': revenue,
         'orders': orders,
-        'customers': (orders * 0.75).toInt(),
+        'customers': orders,
       };
     }
 
     // Monthly
-    final revenue = 900000 + _rand.nextInt(100000); // 900k–1M
-    final orders = revenue ~/ 100;
+    if (selectedPeriod == 'Monthly') {
+      final revenue = 1050000 + _rand.nextInt(150000); // 900k–1.2M
+      final orders = (revenue / 400).round();
+
+      return {
+        'revenue': revenue,
+        'orders': orders,
+        'customers': orders,
+      };
+    }
+
+    // Annual
+    final revenue = 10850000 + _rand.nextInt(1500000); // 9.7M–12M
+    final orders = (revenue / 400).round();
 
     return {
       'revenue': revenue,
       'orders': orders,
-      'customers': (orders * 0.8).toInt(),
+      'customers': orders,
     };
   }
 
   /// ================= CHART DATA =================
+  String _formatCurrency(double amount) {
+    if (amount >= 1000000) {
+      return '₱${(amount / 1000000).toStringAsFixed(2)}m';
+    } else if (amount >= 1000) {
+      return '₱${(amount / 1000).toStringAsFixed(0)}k';
+    } else {
+      return '₱${amount.toStringAsFixed(0)}';
+    }
+  }
+
   List<double> getChartData() {
     if (selectedPeriod == 'Daily') {
       return [32000, 35000, 33000, 38000, 36000, 39000, 37000];
     } else if (selectedPeriod == 'Weekly') {
       return [180000, 195000, 188000, 205000, 198000, 210000, 200000];
+    } else if (selectedPeriod == 'Monthly') {
+      // Different data for each year
+      if (selectedYear == '2016') {
+        return [850000, 880000, 820000, 900000, 870000, 920000, 950000, 980000, 910000, 940000, 970000, 970000];
+      } else if (selectedYear == '2017') {
+        return [920000, 950000, 890000, 970000, 940000, 990000, 1020000, 1050000, 980000, 1010000, 1040000, 1020000];
+      } else if (selectedYear == '2018') {
+        return [880000, 910000, 850000, 930000, 900000, 950000, 980000, 1010000, 940000, 970000, 1000000, 980000];
+      } else if (selectedYear == '2019') {
+        return [950000, 980000, 920000, 1000000, 970000, 1020000, 1050000, 1080000, 1010000, 1040000, 1070000, 1050000];
+      } else if (selectedYear == '2020') {
+        return [910000, 940000, 880000, 960000, 930000, 980000, 1010000, 1040000, 970000, 1000000, 1030000, 1010000];
+      } else if (selectedYear == '2021') {
+        return [980000, 1010000, 950000, 1030000, 1000000, 1050000, 1080000, 1110000, 1040000, 1070000, 1100000, 1080000];
+      } else if (selectedYear == '2022') {
+        return [1000000, 1030000, 970000, 1050000, 1020000, 1070000, 1100000, 1130000, 1060000, 1090000, 1120000, 1100000];
+      } else if (selectedYear == '2023') {
+        return [1050000, 1080000, 1020000, 1100000, 1070000, 1120000, 1150000, 1180000, 1110000, 1140000, 1170000, 1150000];
+      } else if (selectedYear == '2024') {
+        return [1080000, 1110000, 1050000, 1130000, 1100000, 1150000, 1180000, 1210000, 1140000, 1170000, 1200000, 1180000];
+      } else if (selectedYear == '2025') {
+        return [1100000, 1130000, 1070000, 1150000, 1120000, 1170000, 1200000, 1230000, 1160000, 1190000, 1220000, 1250000];
+      } else { // 2026 - show all months but March-Dec are blank (future months)
+        return [1150000, 1180000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      }
     } else {
-      return [850000, 920000, 880000, 950000, 910000, 980000, 920000];
+      // Annual - 2016 to current year (2026)
+      return [
+        9700000, // 2016
+        10200000, // 2017
+        9800000, // 2018
+        10500000, // 2019
+        10100000, // 2020
+        10800000, // 2021
+        11000000, // 2022
+        11500000, // 2023
+        11800000, // 2024
+        12000000, // 2025
+        2330000, // 2026 (projected)
+      ];
     }
   }
 
@@ -92,8 +153,11 @@ class _SalesReportPageState extends State<SalesReportPage>
       return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     } else if (selectedPeriod == 'Weekly') {
       return ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7'];
+    } else if (selectedPeriod == 'Monthly') {
+      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     } else {
-      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+      // Annual - 2016 to current year (2026)
+      return ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
     }
   }
 
@@ -167,39 +231,91 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
             ],
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: DropdownButton<String>(
-              value: selectedPeriod,
-              underline: const SizedBox(),
-              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
-              items: const ['Daily', 'Weekly', 'Monthly']
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(
-                        e,
-                        style: TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w500,
-                        ),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Year selector (only show for Monthly)
+                if (selectedPeriod == 'Monthly')
+                  Flexible(
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButton<String>(
+                        value: selectedYear,
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                        items: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']
+                            .map(
+                              (e) => DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  e,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1E293B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() {
+                              selectedYear = v;
+                              _cardAnimationController.reset();
+                              _cardAnimationController.forward();
+                            });
+                          }
+                        },
                       ),
                     ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() {
-                    selectedPeriod = v;
-                    _cardAnimationController.reset();
-                    _cardAnimationController.forward();
-                  });
-                }
-              },
+                  ),
+                // Period selector
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: DropdownButton<String>(
+                      value: selectedPeriod,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                      items: const ['Daily', 'Weekly', 'Monthly', 'Annually']
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e,
+                              child: Text(
+                                e,
+                                style: TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            selectedPeriod = v;
+                            _cardAnimationController.reset();
+                            _cardAnimationController.forward();
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -226,7 +342,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       ),
       _summaryCard(
         'Avg Order',
-        '₱100',
+        '₱${(data['revenue']! / data['orders']!).round()}',
         Icons.receipt_long,
         const Color(0xFFF59E0B),
         '+3.1%',
@@ -386,7 +502,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
               const SizedBox(width: 12),
               Text(
-                'Revenue Analytics - $selectedPeriod',
+                'Revenue Analytics - $selectedPeriod${selectedPeriod == 'Monthly' ? ' ($selectedYear)' : ''}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -439,7 +555,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '₱${(chartData[index] / 1000).toInt()}k',
+                      _formatCurrency(chartData[index]),
                       style: const TextStyle(
                         color: Color(0xFF1E293B),
                         fontSize: 9,
@@ -456,9 +572,9 @@ class _SalesReportPageState extends State<SalesReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _summaryItem('Peak', '₱${(maxValue / 1000).toInt()}k', Icons.arrow_upward, Colors.green),
-              _summaryItem('Average', '₱${(chartData.reduce((a, b) => a + b) / chartData.length / 1000).toInt()}k', Icons.equalizer, Colors.blue),
-              _summaryItem('Low', '₱${(chartData.reduce((a, b) => a < b ? a : b) / 1000).toInt()}k', Icons.arrow_downward, Colors.orange),
+              _summaryItem('Peak', _formatCurrency(maxValue), Icons.arrow_upward, Colors.green),
+              _summaryItem('Average', _formatCurrency(chartData.reduce((a, b) => a + b) / chartData.length), Icons.equalizer, Colors.blue),
+              _summaryItem('Low', _formatCurrency(chartData.reduce((a, b) => a < b ? a : b)), Icons.arrow_downward, Colors.orange),
             ],
           ),
         ],
@@ -532,7 +648,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           const SizedBox(height: 16),
           Text(
-            'Your ${selectedPeriod.toLowerCase()} performance shows strong growth with a ${(selectedPeriod == 'Daily' ? '12.5%' : selectedPeriod == 'Weekly' ? '15.2%' : '18.7%')} increase in revenue.',
+            'Your ${selectedPeriod.toLowerCase()} performance shows strong growth with a ${(selectedPeriod == 'Daily' ? '12.5%' : selectedPeriod == 'Weekly' ? '15.2%' : selectedPeriod == 'Monthly' ? '18.7%' : '22.3%')} increase in revenue.',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
