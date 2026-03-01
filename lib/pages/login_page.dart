@@ -61,13 +61,20 @@ class _LoginPageState extends State<LoginPage> {
         password: password,
       );
 
+      print('=== LOGIN DEBUG ===');
+      print('Email: $email');
+      print('Auth successful');
+
       final userResponse = await Supabase.instance.client
           .from('users')
           .select('role')
           .eq('email', email)
           .maybeSingle();
 
+      print('User response from database: $userResponse');
+
       if (userResponse == null) {
+        print('User not found in users table, checking if it\'s a customer');
         if (email == 'adm.pagsanjan@gmail.com') {
           await Supabase.instance.client.from('users').insert({
             'email': email,
@@ -84,17 +91,23 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacementNamed(context, '/dashboard');
           }
         } else {
+          // If not in users table, treat as customer
+          print('Treating as customer account');
+          String userRole = 'customer';
+
           _showSnackBar(
-            "User not found in database",
-            Colors.red.shade700,
-            Icons.error_outline,
+            "Login successful as $userRole!",
+            Colors.green.shade700,
+            Icons.check_circle_outline,
           );
-          await Supabase.instance.client.auth.signOut();
-          setState(() => _isLoading = false);
-          return;
+
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          }
         }
       } else {
         String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
+        print('User role found: $userRole');
 
         _showSnackBar(
           "Login successful as $userRole!",

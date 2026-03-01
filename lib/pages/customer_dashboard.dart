@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/pages/login_page.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   const CustomerDashboardPage({super.key});
@@ -13,12 +14,10 @@ class CustomerDashboardPage extends StatefulWidget {
 
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   int _selectedIndex = 0;
-  bool _isLoading = false;
   List<Map<String, dynamic>> customerReservations = [];
-  Timer? _refreshTimer;
-  Map<String, String> _lastKnownStatuses = {};
-  
-  // Reservation form controllers
+  bool _isLoading = false;
+
+  // Form controllers
   final TextEditingController _eventController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _startTimeController = TextEditingController();
@@ -29,48 +28,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   void initState() {
     super.initState();
     _loadCustomerReservations();
-    
-    // Set up automatic refresh every 10 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      _loadCustomerReservations();
+    // Set up periodic refresh
+    Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        _loadCustomerReservations();
+      }
     });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    _eventController.dispose();
-    _dateController.dispose();
-    _startTimeController.dispose();
-    _durationController.dispose();
-    _guestsController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadCustomerReservations() async {
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser?.email == null) return;
+      if (currentUser == null) return;
 
       final response = await Supabase.instance.client
           .from('reservations')
           .select('*')
-          .eq('customer_email', currentUser!.email!)
+          .eq('customer_email', currentUser.email!)
           .order('created_at', ascending: false);
-
-      // Check for status changes
-      for (var reservation in response) {
-        String reservationId = reservation['id'].toString();
-        String newStatus = reservation['status'];
-        
-        if (_lastKnownStatuses.containsKey(reservationId)) {
-          String oldStatus = _lastKnownStatuses[reservationId]!;
-          if (oldStatus != newStatus) {
-            _showStatusChangeNotification(reservation['event_type'], oldStatus, newStatus);
-          }
-        }
-        _lastKnownStatuses[reservationId] = newStatus;
-      }
 
       setState(() {
         customerReservations = List<Map<String, dynamic>>.from(response);
@@ -78,72 +53,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     } catch (e) {
       print('Error loading customer reservations: $e');
     }
-  }
-
-  Future<void> _deleteReservation(String reservationId) async {
-  try {
-    await Supabase.instance.client
-        .from('reservations')
-        .delete()
-        .eq('id', reservationId);
-
-    _showSnackBar('Reservation deleted successfully', Colors.green);
-    _loadCustomerReservations(); // Refresh the list
-  } catch (e) {
-    _showSnackBar('Error deleting reservation: $e', Colors.red);
-  }
-}
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              color == Colors.green ? Icons.check_circle : Icons.error_outline,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
-  void _showStatusChangeNotification(String eventType, String oldStatus, String newStatus) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              newStatus == 'confirmed' ? Icons.check_circle : 
-              newStatus == 'cancelled' ? Icons.cancel : 
-              Icons.info,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Your "$eventType" reservation is now $newStatus',
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: newStatus == 'confirmed' ? Colors.green : 
-                           newStatus == 'cancelled' ? Colors.red : 
-                           Colors.blue,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 5),
-      ),
-    );
   }
 
   @override
@@ -156,12 +65,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         title: const Text('Customer Dashboard'),
         backgroundColor: AppTheme.primaryRed,
         foregroundColor: Colors.white,
-        elevation: 2,
         actions: [
           IconButton(
             onPressed: _loadCustomerReservations,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Reservations',
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+          ),
+          IconButton(
+            onPressed: () {
+              // Show account menu
+            },
+            icon: const Icon(Icons.account_circle_rounded),
+            tooltip: 'Account',
+          ),
+          IconButton(
+            onPressed: _showLogoutDialog,
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -169,104 +89,213 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
+  // =========================
+  // DESKTOP LAYOUT (WHITE NAV)
+  // =========================
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Navigation Rail
-        NavigationRail(
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: (int index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          labelType: NavigationRailLabelType.all,
-          destinations: const [
-            NavigationRailDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: Text('Home'),
+        // White Navigation Rail
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
-            NavigationRailDestination(
-              icon: Icon(Icons.event_available_outlined),
-              selectedIcon: Icon(Icons.event_available),
-              label: Text('Reservations'),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white,
+              width: 1,
             ),
-            NavigationRailDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: Text('Profile'),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          margin: const EdgeInsets.all(16),
+          child: NavigationRail(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() => _selectedIndex = index);
+            },
+
+            // ⭐ FIX: REMOVE GRAY
+            backgroundColor: Colors.white,
+            indicatorColor: Colors.white,
+
+            labelType: NavigationRailLabelType.all,
+
+            selectedLabelTextStyle: const TextStyle(
+              color: AppTheme.primaryRed,
+              fontWeight: FontWeight.bold,
             ),
-            NavigationRailDestination(
-              icon: Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history),
-              label: Text('History'),
+            unselectedLabelTextStyle: const TextStyle(
+              color: Colors.black54,
+              fontWeight: FontWeight.normal,
             ),
-          ],
+
+            destinations: [
+              NavigationRailDestination(
+                icon: Icon(
+                  Icons.home_outlined,
+                  color: _selectedIndex == 0 ? AppTheme.primaryRed : Colors.black54,
+                ),
+                selectedIcon: const Icon(Icons.home_rounded, color: AppTheme.primaryRed),
+                label: Text(
+                  'Home',
+                  style: TextStyle(
+                    color: _selectedIndex == 0 ? AppTheme.primaryRed : Colors.black54,
+                  ),
+                ),
+              ),
+              NavigationRailDestination(
+                icon: Icon(
+                  Icons.event_available_outlined,
+                  color: _selectedIndex == 1 ? AppTheme.primaryRed : Colors.black54,
+                ),
+                selectedIcon: const Icon(Icons.event_available_rounded, color: AppTheme.primaryRed),
+                label: Text(
+                  'Reservations',
+                  style: TextStyle(
+                    color: _selectedIndex == 1 ? AppTheme.primaryRed : Colors.black54,
+                  ),
+                ),
+              ),
+              NavigationRailDestination(
+                icon: Icon(
+                  Icons.person_outline,
+                  color: _selectedIndex == 2 ? AppTheme.primaryRed : Colors.black54,
+                ),
+                selectedIcon: const Icon(Icons.person_rounded, color: AppTheme.primaryRed),
+                label: Text(
+                  'Profile',
+                  style: TextStyle(
+                    color: _selectedIndex == 2 ? AppTheme.primaryRed : Colors.black54,
+                  ),
+                ),
+              ),
+              NavigationRailDestination(
+                icon: Icon(
+                  Icons.history_outlined,
+                  color: _selectedIndex == 3 ? AppTheme.primaryRed : Colors.black54,
+                ),
+                selectedIcon: const Icon(Icons.history_rounded, color: AppTheme.primaryRed),
+                label: Text(
+                  'History',
+                  style: TextStyle(
+                    color: _selectedIndex == 3 ? AppTheme.primaryRed : Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+
         // Main Content
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: _buildContent(),
+          child: Container(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: _buildContent(),
+            ),
           ),
         ),
       ],
     );
   }
 
+  // =========================
+  // MOBILE LAYOUT (BOTTOM NAV)
+  // =========================
   Widget _buildMobileLayout() {
     return Column(
       children: [
-        // Mobile Navigation
+        // Main Content
+        Expanded(
+          child: Container(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildContent(),
+            ),
+          ),
+        ),
+        // Enhanced Mobile Navigation at Bottom
         Container(
-          color: AppTheme.primaryRed,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withOpacity(0.8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryRed.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 0;
-                  });
-                },
-                icon: const Icon(Icons.home, color: Colors.white),
+              _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
+              _buildMobileNavItem(1, Icons.event_available_rounded, 'Reservations'),
+              _buildMobileNavItem(2, Icons.person_rounded, 'Profile'),
+              _buildMobileNavItem(3, Icons.history_rounded, 'History'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileNavItem(int index, IconData icon, String label) {
+    final isSelected = _selectedIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            border: Border(
+              top: BorderSide(
+                color: isSelected ? Colors.white : Colors.transparent,
+                width: 2,
               ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 1;
-                  });
-                },
-                icon: const Icon(Icons.event_available, color: Colors.white),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: Colors.white,
+                size: 20,
               ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 2;
-                  });
-                },
-                icon: const Icon(Icons.person, color: Colors.white),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedIndex = 3;
-                  });
-                },
-                icon: const Icon(Icons.history, color: Colors.white),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
         ),
-        // Main Content
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _buildContent(),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -289,179 +318,240 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Welcome, Customer!',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: AppTheme.primaryRed,
-            fontWeight: FontWeight.bold,
+        // Welcome Header
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withOpacity(0.8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryRed.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 20),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Quick Actions',
-                  style: Theme.of(context).textTheme.titleLarge,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 16),
-                Row(
+                child: const Icon(
+                  Icons.waving_hand,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Navigate to reservations
-                          setState(() {
-                            _selectedIndex = 1;
-                          });
-                        },
-                        icon: const Icon(Icons.event_available),
-                        label: const Text('Make Reservation'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
+                    Text(
+                      'Welcome to Yang Chow!',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          // Navigate to profile
-                          setState(() {
-                            _selectedIndex = 2;
-                          });
-                        },
-                        icon: const Icon(Icons.person),
-                        label: const Text('My Profile'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your premium dining experience awaits',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 20),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Recent Reservations',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                customerReservations.isEmpty
-                    ? const Text(
-                        'No recent reservations found. Start making reservations to see your reservation history here!',
-                        style: TextStyle(color: Colors.grey),
-                      )
-                    : Column(
-                        children: customerReservations.take(3).map((reservation) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          reservation['event_type'],
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${reservation['event_date']} at ${reservation['start_time']}',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      _buildStatusChip(reservation['status']),
-                                      const SizedBox(width: 8),
-                                      if (reservation['status'] == 'pending')
-                                        IconButton(
-                                          onPressed: () {
-                                            _showDeleteConfirmationDialog(reservation['id'], reservation['event_type']);
-                                          },
-                                          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                          tooltip: 'Delete Reservation',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                if (customerReservations.length > 3)
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedIndex = 3; // Go to history
-                      });
-                    },
-                    child: const Text('View All Reservations'),
-                  ),
-              ],
+        const SizedBox(height: 32),
+        
+        // Quick Stats
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                Icons.event_available_rounded,
+                'Active Reservations',
+                '${customerReservations.where((r) => r['status'] == 'pending' || r['status'] == 'confirmed').length}',
+                AppTheme.primaryRed,
+              ),
             ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                Icons.history_rounded,
+                'Total Events',
+                '${customerReservations.length}',
+                AppTheme.primaryRed,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
+        // Quick Actions
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Quick Actions',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryRed,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionButton(
+                      Icons.event_rounded,
+                      'Make Reservation',
+                      AppTheme.primaryRed,
+                      () {
+                        setState(() {
+                          _selectedIndex = 1;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildActionButton(
+                      Icons.person_rounded,
+                      'My Profile',
+                      AppTheme.primaryRed,
+                      () {
+                        setState(() {
+                          _selectedIndex = 2;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color color;
-    IconData icon;
-    
-    switch (status) {
-      case 'pending':
-        color = Colors.orange;
-        icon = Icons.pending;
-        break;
-      case 'confirmed':
-        color = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'cancelled':
-        color = Colors.red;
-        icon = Icons.cancel;
-        break;
-      default:
-        color = Colors.grey;
-        icon = Icons.help;
-    }
-
-    return Chip(
-      label: Text(status.toUpperCase()),
-      backgroundColor: color.withOpacity(0.1),
-      labelStyle: TextStyle(
-        color: color,
-        fontWeight: FontWeight.bold,
-        fontSize: 10,
+  Widget _buildStatCard(IconData icon, String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
-      avatar: Icon(icon, size: 14, color: color),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
+              fontSize: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, String label, Color color, VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -669,45 +759,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  Widget _buildOrdersSection() {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'My Orders',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No orders yet',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Place your first order to get started!',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildHistorySection() {
     return Card(
       child: Padding(
@@ -715,9 +766,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Reservation History',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             customerReservations.isEmpty
@@ -808,6 +859,40 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
+  Widget _buildStatusChip(String status) {
+    Color color;
+    IconData icon;
+    
+    switch (status) {
+      case 'pending':
+        color = Colors.orange;
+        icon = Icons.pending;
+        break;
+      case 'confirmed':
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'cancelled':
+        color = Colors.red;
+        icon = Icons.cancel;
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.help;
+    }
+
+    return Chip(
+      label: Text(status.toUpperCase()),
+      backgroundColor: color.withOpacity(0.1),
+      labelStyle: TextStyle(
+        color: color,
+        fontWeight: FontWeight.bold,
+        fontSize: 10,
+      ),
+      avatar: Icon(icon, size: 14, color: color),
+    );
+  }
+
   void _showDeleteConfirmationDialog(String reservationId, String eventType) {
     showDialog(
       context: context,
@@ -859,6 +944,41 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             child: const Text('Delete'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _deleteReservation(String reservationId) async {
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .delete()
+          .eq('id', reservationId);
+
+      _showSnackBar('Reservation deleted successfully', Colors.green);
+      _loadCustomerReservations();
+    } catch (e) {
+      _showSnackBar('Error deleting reservation: $e', Colors.red);
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              color == Colors.green ? Icons.check_circle : Icons.error_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -976,5 +1096,53 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.logout, color: AppTheme.primaryRed),
+            const SizedBox(width: 12),
+            const Text('Logout'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await Supabase.instance.client.auth.signOut();
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
   }
 }
