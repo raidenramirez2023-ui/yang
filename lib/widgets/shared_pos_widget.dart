@@ -128,7 +128,7 @@ class ReceiptTemplate extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('HOST: ${customerName ?? 'BOB'}'),
+              Text('HOST: ${customerName ?? 'Guest'}'),
               Text('$_formattedDate    $_formattedTime'),
             ],
           ),
@@ -500,7 +500,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   final Map<String, int> _categoryImageIndex = {};
   late Map<String, List<MenuItem>> menu;
   List<CartItem> cart = [];
-  final TextEditingController _mobileCustomerNameController = TextEditingController();
+  final TextEditingController _mobileCustomerNameController =
+      TextEditingController();
+
+  // ── Design tokens (Dynamic) ────────────────────────────────────────────────
+  Color get _bg => Theme.of(context).scaffoldBackgroundColor;
+  Color get _cardBg => Theme.of(context).colorScheme.surface;
+  Color get _border => Theme.of(context).dividerColor;
+  Color get _grey => Theme.of(context).hintColor;
+  Color get _textDark => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1A1A2E);
+  Color get _indigo => Theme.of(context).brightness == Brightness.light ? const Color.fromARGB(255, 0, 0, 0) : Colors.white;
 
   @override
   void initState() {
@@ -960,9 +969,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         minChildSize: 0.4,
         maxChildSize: 0.85,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -972,7 +981,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: _border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1029,8 +1038,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                     children: [
                                       Text(
                                         'P${NumberFormat('#,##0.00', 'en_US').format(item.item.price)}',
-                                        style: const TextStyle(
-                                            fontSize: 14, color: Colors.grey),
+                                        style: TextStyle(
+                                            fontSize: 14, color: _grey),
                                       ),
                                       Row(
                                         children: [
@@ -1099,9 +1108,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: _bg,
                   border:
-                      Border(top: BorderSide(color: Colors.grey[300]!)),
+                      Border(top: BorderSide(color: _border)),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1186,9 +1195,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   // ── Mobile Layout ─────────────────────────────────────────────────────────
   Widget _buildMobileLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _cardBg,
         elevation: 0,
         automaticallyImplyLeading: false,
         toolbarHeight: 56,
@@ -1210,9 +1219,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Order Menu',
+            Text('Order Menu',
                 style: TextStyle(
-                    color: Color(0xFF1A1A2E),
+                    color: _textDark,
                     fontWeight: FontWeight.bold,
                     fontSize: 18)),
           ],
@@ -1282,13 +1291,13 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   // ── Desktop Layout ────────────────────────────────────────────────────────
   Widget _buildDesktopLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: _bg,
       body: Column(
         children: [
           // ── Top Header Bar ───────────────────────────────────────────────
           Container(
             height: 56,
-            color: Colors.white,
+            color: _cardBg,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
@@ -1309,9 +1318,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text('Order Menu',
+                Text('Order Menu',
                     style: TextStyle(
-                        color: Color(0xFF1A1A2E),
+                        color: _textDark,
                         fontWeight: FontWeight.bold,
                         fontSize: 20)),
                 const Spacer(),
@@ -1323,11 +1332,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F0F5),
+                    color: _bg,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.tune_rounded,
-                      size: 18, color: Color(0xFF6B7280)),
+                  child: Icon(Icons.tune_rounded,
+                      size: 18, color: _grey),
                 ),
               ],
             ),
@@ -1366,7 +1375,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   Widget _buildCategorySidebar() {
     return Container(
       width: 150,
-      color: Colors.white,
+      color: _cardBg,
       child: Column(
         children: [
           const Padding(
@@ -1376,7 +1385,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF9CA3AF),
+                color: Colors.grey,
                 letterSpacing: 0.5,
               ),
             ),
@@ -1409,7 +1418,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFFEEEdFD)
+              ? _grey.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -1436,7 +1445,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected
                       ? const Color.fromARGB(255, 255, 0, 0)
-                      : const Color(0xFF374151),
+                      : _textDark,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1453,18 +1462,18 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     return Container(
       height: 38,
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F1F5),
+        color: _bg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-        style: const TextStyle(fontSize: 13),
-        decoration: const InputDecoration(
+        style: TextStyle(fontSize: 13, color: _textDark),
+        decoration: InputDecoration(
           hintText: 'Search',
-          hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+          hintStyle: TextStyle(color: _grey, fontSize: 13),
           prefixIcon:
-              Icon(Icons.search, color: Color(0xFF9CA3AF), size: 18),
+              Icon(Icons.search, color: _grey, size: 18),
           border: InputBorder.none,
           contentPadding:
               EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -1490,19 +1499,19 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF4F46E5) : Colors.white,
+          color: selected ? _indigo : _cardBg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
-                ? const Color(0xFF4F46E5)
-                : const Color(0xFFE5E7EB),
+                ? _indigo
+                : _border,
           ),
         ),
         child: Text(
           categories[index],
           style: TextStyle(
             color:
-                selected ? Colors.white : const Color(0xFF374151),
+                selected ? (Theme.of(context).brightness == Brightness.light ? Colors.white : Colors.black) : _textDark,
             fontWeight:
                 selected ? FontWeight.w600 : FontWeight.w400,
             fontSize: 13,
@@ -1523,9 +1532,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             .toList();
 
     if (items.isEmpty) {
-      return const Center(
+      return Center(
           child: Text('No items found',
-              style: TextStyle(color: Color(0xFF9CA3AF))));
+              style: TextStyle(color: _grey)));
     }
 
     return GridView.builder(
@@ -1556,7 +1565,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           borderRadius: BorderRadius.circular(10),
           border: inCart
               ? Border.all(color: const Color.fromARGB(255, 255, 0, 0), width: 2)
-              : Border.all(color: const Color(0xFFE5E7EB)),
+              : Border.all(color: _border),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.08),

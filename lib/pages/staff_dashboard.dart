@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/pages/staff_order_history_page.dart';
+import 'package:yang_chow/main.dart'; // Import themeNotifier
 
 class StaffDashboardPage extends StatelessWidget {
   const StaffDashboardPage({super.key});
@@ -8,25 +9,25 @@ class StaffDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: theme.appBarTheme.backgroundColor,
+        surfaceTintColor: theme.appBarTheme.backgroundColor,
+        elevation: 0.5,
         toolbarHeight: 50,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
             Icon(Icons.point_of_sale, color: Colors.red.shade600, size: 20),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Staff POS System',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            Text(
+              'Staff POS System',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -36,30 +37,28 @@ class StaffDashboardPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                topLeft: Radius.circular(16),
+              color: theme.colorScheme.surface,
+              border: Border.all(
+                color: isDark ? Colors.white : Colors.grey.shade400,
               ),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person, color: Colors.black54, size: 14),
+                Icon(Icons.person, color: theme.hintColor, size: 14),
                 const SizedBox(width: 6),
                 Text(
                   'Staff',
-                  style: TextStyle(
-                    color: Colors.black87,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w500,
-                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.history, color: Colors.black54),
+            icon: Icon(Icons.history, color: theme.hintColor),
             tooltip: 'Order History',
             onPressed: () {
               Navigator.push(
@@ -70,8 +69,25 @@ class StaffDashboardPage extends StatelessWidget {
               );
             },
           ),
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeNotifier,
+            builder: (context, currentMode, child) {
+              final isDarkTheme = currentMode == ThemeMode.dark;
+              return IconButton(
+                icon: Icon(
+                  isDarkTheme ? Icons.light_mode : Icons.dark_mode,
+                  color: theme.hintColor,
+                ),
+                tooltip: isDarkTheme ? 'Light Mode' : 'Dark Mode',
+                onPressed: () {
+                  themeNotifier.value =
+                      isDarkTheme ? ThemeMode.light : ThemeMode.dark;
+                },
+              );
+            },
+          ),
           IconButton(
-            icon: Icon(Icons.logout, color: Colors.black54),
+            icon: Icon(Icons.logout, color: theme.hintColor),
             onPressed: () {
               showDialog(
                 context: context,

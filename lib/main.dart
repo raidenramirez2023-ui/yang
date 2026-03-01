@@ -34,31 +34,40 @@ Future<void> main() async {
   runApp(const YangChowApp());
 }
 
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+
 class YangChowApp extends StatelessWidget {
   const YangChowApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Yang Chow Restaurant Management System',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      initialRoute: '/',
-      routes: {
-        // Auth routes
-        '/': (context) => const LoginPage(),
-        '/register': (context) => const CustomerRegistrationPage(),
-        '/forgot-password': (context) => const ForgotPasswordPage(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, child) {
+        return MaterialApp(
+          title: 'Yang Chow Restaurant Management System',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            // Auth routes
+            '/': (context) => const LoginPage(),
+            '/register': (context) => const CustomerRegistrationPage(),
+            '/forgot-password': (context) => const ForgotPasswordPage(),
 
-        // Customer routes
-        '/customer-dashboard': (context) => const CustomerDashboardPage(),
+            // Customer routes
+            '/customer-dashboard': (context) => const CustomerDashboardPage(),
 
-        // Admin routes
-        '/dashboard': (context) => const AdminMainPage(),
-        '/admin-reservations': (context) => const AdminReservationsPage(),
+            // Admin routes
+            '/dashboard': (context) => const AdminMainPage(),
+            '/admin-reservations': (context) => const AdminReservationsPage(),
 
-        // Staff routes
-        '/staff-dashboard': (context) => const StaffDashboardPage(),
+            // Staff routes
+            '/staff-dashboard': (context) => const StaffDashboardPage(),
+          },
+        );
       },
     );
   }

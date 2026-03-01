@@ -10,12 +10,13 @@ class StaffOrderHistoryPage extends StatefulWidget {
 }
 
 class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
-  // ── Design tokens ──────────────────────────────────────────────────────────
-  static const _red = Color(0xFFDC2626);
-  static const _bg = Color(0xFFF5F6FA);
-  static const _border = Color(0xFFE5E7EB);
-  static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  // ── Design tokens (Dynamic) ────────────────────────────────────────────────
+  Color get _red => const Color(0xFFDC2626);
+  Color get _bg => Theme.of(context).scaffoldBackgroundColor;
+  Color get _cardBg => Theme.of(context).cardColor;
+  Color get _border => Theme.of(context).dividerColor;
+  Color get _grey => Theme.of(context).hintColor;
+  Color get _textDark => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1A1A2E);
 
   final _supabase = Supabase.instance.client;
   final _fmt = NumberFormat('#,##0.00', 'en_US');
@@ -23,13 +24,21 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Today', 'This Week'];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   // ── Fetch orders with items joined ─────────────────────────────────────────
-  Stream<List<Map<String, dynamic>>> _ordersStream() {
-    return _supabase
+  Future<List<Map<String, dynamic>>> _fetchOrders() async {
+    final res = await _supabase
         .from('orders')
-        .stream(primaryKey: ['id'])
+        .select()
         .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(res);
   }
 
   Future<List<Map<String, dynamic>>> _fetchItems(String orderId) async {
@@ -81,14 +90,15 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        surfaceTintColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: 0.5,
         automaticallyImplyLeading: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _textDark),
+          icon: Icon(Icons.arrow_back, color: _textDark),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Order History',
           style: TextStyle(
             color: _textDark,
@@ -109,19 +119,23 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
 
   Widget _buildSearchBar() {
     return Container(
-      color: Colors.white,
+      color: _cardBg,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
+        controller: _searchController,
         onChanged: (v) => setState(() => _searchQuery = v),
-        style: const TextStyle(fontSize: 13, color: _textDark),
+        style: TextStyle(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
           hintText: 'Search by customer or order #…',
-          hintStyle: const TextStyle(color: _grey, fontSize: 13),
-          prefixIcon: const Icon(Icons.search, color: _grey, size: 18),
+          hintStyle: TextStyle(color: _grey, fontSize: 13),
+          prefixIcon: Icon(Icons.search, color: _grey, size: 18),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, color: _grey, size: 18),
-                  onPressed: () => setState(() => _searchQuery = ''),
+                  icon: Icon(Icons.clear, color: _grey, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
                 )
               : null,
           filled: true,
@@ -130,15 +144,15 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _border),
+            borderSide: BorderSide(color: _border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _border),
+            borderSide: BorderSide(color: _border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _red, width: 1.5),
+            borderSide: BorderSide(color: _red, width: 1.5),
           ),
         ),
       ),
@@ -147,7 +161,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
 
   Widget _buildFilterChips() {
     return Container(
-      color: Colors.white,
+      color: _cardBg,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Row(
         children: _filters.map((f) {
@@ -174,17 +188,33 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
   }
 
   Widget _buildOrderList() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _ordersStream(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchOrders(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
               child: CircularProgressIndicator(color: _red));
         }
         if (snapshot.hasError) {
           return Center(
-            child: Text('Error: ${snapshot.error}',
-                style: const TextStyle(color: _red)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: _red, size: 48),
+                  const SizedBox(height: 16),
+                  Text('Fetch Error: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: _red)),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
@@ -199,7 +229,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                 Icon(Icons.receipt_long_outlined,
                     size: 64, color: _grey.withOpacity(0.4)),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No orders found',
                   style: TextStyle(
                     color: _grey,
@@ -208,7 +238,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Completed orders will appear here.',
                   style: TextStyle(color: _grey, fontSize: 13),
                 ),
@@ -240,11 +270,12 @@ class _OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<_OrderCard> {
-  static const _red = Color(0xFFDC2626);
-  static const _bg = Color(0xFFF5F6FA);
-  static const _border = Color(0xFFE5E7EB);
-  static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  Color get _red => const Color(0xFFDC2626);
+  Color get _bg => Theme.of(context).scaffoldBackgroundColor;
+  Color get _cardBg => Theme.of(context).cardColor;
+  Color get _border => Theme.of(context).dividerColor;
+  Color get _grey => Theme.of(context).hintColor;
+  Color get _textDark => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1A1A2E);
 
   bool _expanded = false;
   List<Map<String, dynamic>>? _items;
@@ -274,10 +305,20 @@ class _OrderCardState extends State<_OrderCard> {
     if (raw == null) return '—';
     final dt = DateTime.tryParse(raw)?.toLocal();
     if (dt == null) return raw;
-    // Format: MM/dd/yyyy    h:mm a (matching ReceiptTemplate in shared_pos_widget.dart)
-    final date = DateFormat('MM/dd/yyyy').format(dt);
-    final time = DateFormat('h:mm a').format(dt);
-    return '$date    $time';
+
+    // EXACT MATCH with ReceiptTemplate in shared_pos_widget.dart
+    final month = dt.month.toString().padLeft(2, '0');
+    final day = dt.day.toString().padLeft(2, '0');
+    final year = dt.year;
+    final formattedDate = '$month/$day/$year';
+
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final formattedTime = '$displayHour:$minute$period';
+
+    return '$formattedDate    $formattedTime';
   }
 
   @override
@@ -286,14 +327,15 @@ class _OrderCardState extends State<_OrderCard> {
     final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
     final customer = (o['customer_name'] ?? 'Guest').toString();
     final transactionId = (o['transaction_id'] ?? '').toString();
-    final shortId = transactionId.length >= 3 ? transactionId.substring(0, 3) : transactionId;
+    final shortId =
+        transactionId.length >= 3 ? transactionId.substring(0, 3) : transactionId;
     final ts = _formatTs(o['created_at']?.toString());
     final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _border),
         boxShadow: [
@@ -306,7 +348,7 @@ class _OrderCardState extends State<_OrderCard> {
       ),
       child: Column(
         children: [
-          // ── Header row ────────────────────────────────────────────────────
+          // ── Header row (Matching ReceiptTemplate Style) ───────────────────
           InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {
@@ -314,92 +356,61 @@ class _OrderCardState extends State<_OrderCard> {
               if (_expanded) _loadItems();
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
                 children: [
-                  // Order icon
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: _red.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.receipt_long,
-                        color: _red, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  // Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              '#$shortId',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _textDark,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              customer,
-                              style: const TextStyle(
-                                  fontSize: 13, color: _grey),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(ts,
-                            style: const TextStyle(
-                                fontSize: 11, color: _grey)),
-                        if (itemCount > 0)
-                          Text('$itemCount item${itemCount != 1 ? 's' : ''}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: _grey)),
-                      ],
-                    ),
-                  ),
-                  // Total
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  // Row 1: Order Number & Total
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Row(
+                        children: [
+                          Text('ORDER: ',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: _textDark)),
+                          Text('#$shortId',
+                              style: TextStyle(
+                                  fontSize: 13, color: _textDark)),
+                        ],
+                      ),
                       Text(
                         '₱ ${widget.fmt.format(total)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: _textDark,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: Colors.green.shade200),
-                        ),
-                        child: Text('Paid',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w600)),
-                      ),
                     ],
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
-                    color: _grey,
-                    size: 20,
+                  const SizedBox(height: 4),
+                  // Row 2: Host & Date/Time
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('HOST: $customer',
+                          style: TextStyle(fontSize: 11, color: _grey)),
+                      Text(ts,
+                          style: TextStyle(fontSize: 11, color: _grey)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (itemCount > 0)
+                        Text('$itemCount item${itemCount != 1 ? 's' : ''}',
+                            style: TextStyle(fontSize: 11, color: _grey))
+                      else
+                        const SizedBox.shrink(),
+                      Icon(
+                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        color: _grey,
+                        size: 20,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -409,12 +420,12 @@ class _OrderCardState extends State<_OrderCard> {
           // ── Expanded items ────────────────────────────────────────────────
           if (_expanded)
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: _border)),
               ),
               child: _loadingItems
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Center(
                           child: SizedBox(
                         width: 18,
@@ -424,8 +435,8 @@ class _OrderCardState extends State<_OrderCard> {
                       )),
                     )
                   : _items == null || _items!.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
                           child: Text('No item details found.',
                               style:
                                   TextStyle(color: _grey, fontSize: 13)),
@@ -437,7 +448,7 @@ class _OrderCardState extends State<_OrderCard> {
                             children: [
                               // Column headers
                               Row(
-                                children: const [
+                                children: [
                                   Expanded(
                                     flex: 5,
                                     child: Text('Item',
@@ -467,7 +478,7 @@ class _OrderCardState extends State<_OrderCard> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              const Divider(
+                              Divider(
                                   color: _border, height: 1),
                               const SizedBox(height: 8),
                               ..._items!.map((it) {
@@ -488,7 +499,7 @@ class _OrderCardState extends State<_OrderCard> {
                                       Expanded(
                                         flex: 5,
                                         child: Text(name,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 fontSize: 13,
                                                 color: _textDark),
                                             maxLines: 2,
@@ -499,7 +510,7 @@ class _OrderCardState extends State<_OrderCard> {
                                         width: 36,
                                         child: Text('×$qty',
                                             textAlign: TextAlign.center,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 fontSize: 13,
                                                 color: _grey)),
                                       ),
@@ -508,7 +519,7 @@ class _OrderCardState extends State<_OrderCard> {
                                         child: Text(
                                             '₱ ${widget.fmt.format(sub)}',
                                             textAlign: TextAlign.right,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 fontSize: 13,
                                                 color: _textDark,
                                                 fontWeight:
@@ -518,19 +529,19 @@ class _OrderCardState extends State<_OrderCard> {
                                   ),
                                 );
                               }),
-                              const Divider(color: _border, height: 16),
+                              Divider(color: _border, height: 16),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Total',
+                                  Text('Total',
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
                                           color: _textDark)),
                                   Text(
                                       '₱ ${widget.fmt.format(total)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
                                           color: _textDark)),

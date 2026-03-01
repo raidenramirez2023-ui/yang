@@ -31,12 +31,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
-  // ── Constants ──────────────────────────────────────────────────────────────
-  static const _indigo = Color(0xFF4F46E5);
-  static const _bg = Color(0xFFF5F6FA);
-  static const _border = Color(0xFFE5E7EB);
-  static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  // ── Design tokens (Dynamic) ────────────────────────────────────────────────
+  Color get _indigo => Theme.of(context).brightness == Brightness.light ? const Color.fromARGB(255, 0, 0, 0) : Colors.white;
+  Color get _bg => Theme.of(context).scaffoldBackgroundColor;
+  Color get _cardBg => Theme.of(context).colorScheme.surface;
+  Color get _border => Theme.of(context).dividerColor;
+  Color get _grey => Theme.of(context).hintColor;
+  Color get _textDark => Theme.of(context).textTheme.bodyLarge?.color ?? const Color(0xFF1A1A2E);
 
   @override
   void dispose() {
@@ -52,7 +53,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
   Widget build(BuildContext context) {
     return Container(
       width: widget.isMobile ? double.infinity : 310,
-      color: Colors.white,
+      color: _cardBg,
       child: Column(
         children: [
           // ── Header ─────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     ...widget.cart.reversed.map(_buildCartItem),
                   const SizedBox(height: 16),
                   // Divider
-                  const Divider(color: _border, height: 1),
+                  Divider(color: _border, height: 1),
                   const SizedBox(height: 12),
                   // Totals
                   _buildTotals(),
@@ -109,14 +110,14 @@ class _OrderListPanelState extends State<OrderListPanel> {
     return Container(
       height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: _cardBg,
         border: Border(bottom: BorderSide(color: _border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'Order Details',
             style: TextStyle(
               color: _textDark,
@@ -139,27 +140,26 @@ class _OrderListPanelState extends State<OrderListPanel> {
             child: TextField(
               controller: _customerNameController,
               style:
-                  const TextStyle(fontSize: 13, color: _textDark),
+                  TextStyle(fontSize: 13, color: _textDark),
               decoration: InputDecoration(
                 hintText: "Customer's name",
                 hintStyle:
-                    const TextStyle(color: _grey, fontSize: 13),
+                    TextStyle(color: _grey, fontSize: 13),
                 filled: true,
                 fillColor: _bg,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: _border),
+                  borderSide: BorderSide(color: _border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: _border),
+                  borderSide: BorderSide(color: _border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide:
-                      const BorderSide(color: _indigo, width: 1.5),
+                  borderSide: BorderSide(color: _indigo, width: 1.5),
                 ),
               ),
             ),
@@ -175,25 +175,25 @@ class _OrderListPanelState extends State<OrderListPanel> {
       height: 36,
       child: TextField(
         controller: _noteController,
-        style: const TextStyle(fontSize: 13, color: _textDark),
+        style: TextStyle(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
           hintText: 'Note',
-          hintStyle: const TextStyle(color: _grey, fontSize: 13),
+          hintStyle: TextStyle(color: _grey, fontSize: 13),
           filled: true,
           fillColor: _bg,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _border),
+            borderSide: BorderSide(color: _border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _border),
+            borderSide: BorderSide(color: _border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _indigo, width: 1.5),
+            borderSide: BorderSide(color: _indigo, width: 1.5),
           ),
         ),
       ),
@@ -205,7 +205,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('Items',
+        Text('Items',
             style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
@@ -252,10 +252,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
               errorBuilder: (_, __, ___) => Container(
                 width: 48,
                 height: 48,
-                color: const Color(0xFFE5E7EB),
-                child:
-                    const Icon(Icons.fastfood, color: _grey, size: 20),
-              ),
+                  color: _bg,
+                  child:
+                      Icon(Icons.fastfood, color: _grey, size: 20),
+                ),
             ),
           ),
           const SizedBox(width: 10),
@@ -270,7 +270,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     Expanded(
                       child: Text(
                         item.item.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: _textDark),
@@ -280,7 +280,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     ),
                     GestureDetector(
                       onTap: () => widget.onRemoveItem(item),
-                      child: const Icon(Icons.close,
+                      child: Icon(Icons.close,
                           size: 14, color: _grey),
                     ),
                   ],
@@ -288,13 +288,14 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 const SizedBox(height: 4),
                 // Price
                 Text(
-                  '\$ ${_fmt.format(item.item.price)}',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: _textDark),
+                  'P${_fmt.format(item.item.price)}',
+                  style: TextStyle(
+                    color: _indigo,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 // Qty controls + Edit
                 Row(
                   children: [
@@ -308,7 +309,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       child: Center(
                         child: Text(
                           '${item.quantity}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: _textDark),
@@ -340,7 +341,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
         decoration: BoxDecoration(
           border: Border.all(color: _border),
           borderRadius: BorderRadius.circular(4),
-          color: Colors.white,
+          color: _cardBg,
         ),
         child: Icon(icon, size: 14, color: _textDark),
       ),
@@ -368,13 +369,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Total',
+            Text('Total',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: _textDark)),
             Text('\$ ${_fmt.format(total)}',
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: _textDark)),
@@ -390,7 +391,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(fontSize: 13, color: _grey)),
+            style: TextStyle(fontSize: 13, color: _grey)),
         Text(value,
             style: TextStyle(
                 fontSize: 13,
@@ -404,8 +405,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
   Widget _buildFooter() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: _cardBg,
         border: Border(top: BorderSide(color: _border)),
       ),
       child: Column(
@@ -442,6 +443,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       for (var item in widget.cart.toList()) {
                         widget.onRemoveItem(item);
                       }
+                      _customerNameController.clear();
+                      _noteController.clear();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Row(
@@ -486,13 +489,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _cardBg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _border, width: 1.5),
         ),
         child: Center(
           child: Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: _textDark,
                   fontWeight: FontWeight.w500,
                   fontSize: 14)),
