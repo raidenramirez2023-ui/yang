@@ -61,11 +61,15 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
 
       // Search filter
       if (_searchQuery.isNotEmpty) {
-        final customer =
-            (o['customer_name'] ?? '').toString().toLowerCase();
-        final id = (o['id'] ?? '').toString().toLowerCase();
+        final customer = (o['customer_name'] ?? '').toString().toLowerCase();
+        final transactionId = (o['transaction_id'] ?? '').toString().toLowerCase();
         final q = _searchQuery.toLowerCase();
-        if (!customer.contains(q) && !id.contains(q)) return false;
+        
+        // Use startsWith for transaction ID to match user request
+        final idMatch = transactionId.startsWith(q);
+        final nameMatch = customer.contains(q);
+        
+        if (!idMatch && !nameMatch) return false;
       }
       return true;
     }).toList();
@@ -111,7 +115,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
         onChanged: (v) => setState(() => _searchQuery = v),
         style: const TextStyle(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
-          hintText: 'Search by customer or order ID…',
+          hintText: 'Search by customer or order #…',
           hintStyle: const TextStyle(color: _grey, fontSize: 13),
           prefixIcon: const Icon(Icons.search, color: _grey, size: 18),
           suffixIcon: _searchQuery.isNotEmpty
@@ -270,7 +274,10 @@ class _OrderCardState extends State<_OrderCard> {
     if (raw == null) return '—';
     final dt = DateTime.tryParse(raw)?.toLocal();
     if (dt == null) return raw;
-    return DateFormat('MMM d, yyyy  h:mm a').format(dt);
+    // Format: MM/dd/yyyy    h:mm a (matching ReceiptTemplate in shared_pos_widget.dart)
+    final date = DateFormat('MM/dd/yyyy').format(dt);
+    final time = DateFormat('h:mm a').format(dt);
+    return '$date    $time';
   }
 
   @override
@@ -278,8 +285,8 @@ class _OrderCardState extends State<_OrderCard> {
     final o = widget.order;
     final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
     final customer = (o['customer_name'] ?? 'Guest').toString();
-    final orderId = (o['id'] ?? '').toString();
-    final shortId = orderId.length >= 8 ? orderId.substring(0, 8) : orderId;
+    final transactionId = (o['transaction_id'] ?? '').toString();
+    final shortId = transactionId.length >= 3 ? transactionId.substring(0, 3) : transactionId;
     final ts = _formatTs(o['created_at']?.toString());
     final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
 
