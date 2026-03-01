@@ -35,27 +35,27 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   static const List<Widget> _pages = [
     AdminDashboardPage(),
-    AdminReservationsPage(),
     SalesReportPage(),
     InventoryPage(),
+    AdminReservationsPage(),
     UserManagementPage(),
     SettingsPage(),
   ];
 
   static const List<String> _pageTitles = [
     'Dashboard',
-    'Reservations',
     'Sales Reports',
     'Inventory',
+    'Reservations',
     'User Management',
     'Settings',
   ];
 
   static const List<IconData> _pageIcons = [
     Icons.dashboard,
-    Icons.event_available,
     Icons.analytics,
     Icons.inventory_2,
+    Icons.event_available,
     Icons.people,
     Icons.settings,
   ];
