@@ -400,18 +400,20 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
       final user = Supabase.instance.client.auth.currentUser;
       
       // Check if item exists
-      final existingItem = await Supabase.instance.client
+      final existingItems = await Supabase.instance.client
           .from('inventory')
           .select()
           .eq('name', name)
-          .maybeSingle();
+          .limit(1);
 
-      if (existingItem != null) {
+      if (existingItems.isNotEmpty) {
         // Update existing item quantity
+        final existingItem = existingItems.first;
         final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
         await Supabase.instance.client
             .from('inventory')
-            .update({'quantity': currentQty + quantity});
+            .update({'quantity': currentQty + quantity})
+            .eq('id', existingItem['id']);
       } else {
         // Create new item
         await Supabase.instance.client.from('inventory').insert({
@@ -446,16 +448,18 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
       final user = Supabase.instance.client.auth.currentUser;
       
       // Check if item exists and get current quantity
-      final existingItem = await Supabase.instance.client
+      final existingItems = await Supabase.instance.client
           .from('inventory')
           .select()
           .eq('name', itemName)
-          .maybeSingle();
+          .limit(1);
 
-      if (existingItem == null) {
+      if (existingItems.isEmpty) {
         _showErrorSnackBar('Item not found in inventory');
         return;
       }
+
+      final existingItem = existingItems.first;
 
       final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
       if (currentQty < quantity) {
@@ -467,7 +471,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
       await Supabase.instance.client
           .from('inventory')
           .update({'quantity': currentQty - quantity})
-          .eq('name', itemName);
+          .eq('id', existingItem['id']);
 
       // Log the transaction
       await Supabase.instance.client.from('stock_transactions').insert({
