@@ -84,61 +84,59 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: SingleChildScrollView(
-        padding: ResponsiveUtils.getResponsivePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Text(
-              'Restaurant Settings',
-              style: Theme.of(context).textTheme.headlineSmall,
+    return SingleChildScrollView(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Text(
+            'Restaurant Settings',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: AppTheme.md),
+          Text(
+            'Manage your restaurant information and preferences',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppTheme.mediumGrey,
             ),
-            const SizedBox(height: AppTheme.md),
-            Text(
-              'Manage your restaurant information and preferences',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.mediumGrey,
-              ),
-            ),
-            const SizedBox(height: AppTheme.xl),
+          ),
+          const SizedBox(height: AppTheme.xl),
 
-            // Restaurant Information Section
-            _buildSectionCard(
-              context,
-              title: 'Restaurant Information',
-              icon: Icons.restaurant,
-              child: _buildRestaurantForm(),
-            ),
-            const SizedBox(height: AppTheme.xl),
+          // Restaurant Information Section
+          _buildSectionCard(
+            context,
+            title: 'Restaurant Information',
+            icon: Icons.restaurant,
+            child: _buildRestaurantForm(),
+          ),
+          const SizedBox(height: AppTheme.xl),
 
-            // Business Settings Section
-            _buildSectionCard(
-              context,
-              title: 'Business Settings',
-              icon: Icons.business,
-              child: _buildBusinessSettings(),
-            ),
-            const SizedBox(height: AppTheme.xl),
+          // Business Settings Section
+          _buildSectionCard(
+            context,
+            title: 'Business Settings',
+            icon: Icons.business,
+            child: _buildBusinessSettings(),
+          ),
+          const SizedBox(height: AppTheme.xl),
 
-            // App Settings Section
-            _buildSectionCard(
-              context,
-              title: 'Application Settings',
-              icon: Icons.settings,
-              child: _buildAppSettings(),
-            ),
-            const SizedBox(height: AppTheme.xxl),
+          // App Settings Section
+          _buildSectionCard(
+            context,
+            title: 'Application Settings',
+            icon: Icons.settings,
+            child: _buildAppSettings(),
+          ),
+          const SizedBox(height: AppTheme.xxl),
 
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _saveSettings,
-                icon: _isLoading ? null : const Icon(Icons.save),
-                label: _isLoading
+          // Save Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _saveSettings,
+              icon: _isLoading ? null : const Icon(Icons.save),
+              label: _isLoading
                   ? const SizedBox(
                       height: 20,
                       width: 20,
@@ -148,11 +146,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     )
                   : const Text('Save All Settings'),
-              ),
             ),
-            const SizedBox(height: AppTheme.lg),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppTheme.lg),
+        ],
       ),
     );
   }

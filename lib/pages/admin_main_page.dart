@@ -18,6 +18,7 @@ class AdminMainPage extends StatefulWidget {
 
 class _AdminMainPageState extends State<AdminMainPage> {
   int _selectedIndex = 0;
+  bool _isSidebarOpen = true;
 
   @override
   void initState() {
@@ -62,13 +63,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: Row(
           children: [
+            IconButton(
+              icon: Icon(_isSidebarOpen ? Icons.menu_open : Icons.menu),
+              tooltip: 'Toggle Sidebar',
+              onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
+            ),
+            const SizedBox(width: AppTheme.md),
             Icon(_pageIcons[_selectedIndex]),
             const SizedBox(width: AppTheme.md),
             Expanded(
@@ -108,81 +113,47 @@ class _AdminMainPageState extends State<AdminMainPage> {
             tooltip: 'Logout',
             onPressed: () => _showLogoutDialog(context),
           ),
-          if (!isDesktop) const SizedBox(width: AppTheme.md),
         ],
       ),
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
-      bottomNavigationBar: !isDesktop ? _buildBottomNav() : null,
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Row(
-      children: [
-        NavigationRail(
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-          elevation: 2,
-          backgroundColor: AppTheme.white,
-          indicatorColor: AppTheme.primaryRed.withValues(alpha: 0.2),
-          selectedIconTheme: const IconThemeData(
-            color: AppTheme.primaryRed,
-            size: 28,
+      body: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: _isSidebarOpen ? 280 : 0,
+            color: AppTheme.white,
+            child: _isSidebarOpen
+                ? ListView(
+                    padding: EdgeInsets.zero,
+                    children: List.generate(
+                      _pageTitles.length,
+                      (index) => ListTile(
+                        leading: Icon(
+                          _pageIcons[index],
+                          color: _selectedIndex == index ? AppTheme.primaryRed : AppTheme.mediumGrey,
+                        ),
+                        title: Text(
+                          _pageTitles[index],
+                          style: TextStyle(
+                            color: _selectedIndex == index ? AppTheme.primaryRed : AppTheme.darkGrey,
+                            fontWeight: _selectedIndex == index ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        onTap: () {
+                          setState(() => _selectedIndex = index);
+                        },
+                      ),
+                    ),
+                  )
+                : null,
           ),
-          selectedLabelTextStyle: const TextStyle(
-            color: AppTheme.primaryRed,
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedIconTheme: const IconThemeData(
-            color: AppTheme.mediumGrey,
-            size: 24,
-          ),
-          unselectedLabelTextStyle: const TextStyle(
-            color: AppTheme.mediumGrey,
-          ),
-          labelType: NavigationRailLabelType.all,
-          destinations: List.generate(
-            _pageTitles.length,
-            (index) => NavigationRailDestination(
-              icon: Icon(_pageIcons[index]),
-              label: Text(
-                _pageTitles[index],
-                maxLines: 2,
-                textAlign: TextAlign.center,
-              ),
+          const VerticalDivider(width: 1),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.lg),
+              child: _pages[_selectedIndex],
             ),
           ),
-        ),
-        const VerticalDivider(width: 1),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.lg),
-            child: _pages[_selectedIndex],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.md),
-      child: _pages[_selectedIndex],
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return NavigationBar(
-      selectedIndex: _selectedIndex,
-      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-      backgroundColor: AppTheme.white,
-      elevation: 8,
-      destinations: List.generate(
-        _pageTitles.length,
-        (index) => NavigationDestination(
-          icon: Icon(_pageIcons[index]),
-          label: _pageTitles[index],
-        ),
+        ],
       ),
     );
   }

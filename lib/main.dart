@@ -11,6 +11,7 @@ import 'pages/admin_reservations_page.dart';
 import 'pages/forgot_password_page.dart';
 import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
+import 'pages/pagsanjaninv_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,7 @@ class YangChowApp extends StatelessWidget {
         // Admin routes
         '/dashboard': (context) => const AdminMainPage(),
         '/admin-reservations': (context) => const AdminReservationsPage(),
+        '/pagsanjaninv-dashboard': (context) => const PagsanjaninvDashboardPage(),
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),

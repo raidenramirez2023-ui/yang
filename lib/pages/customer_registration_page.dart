@@ -103,43 +103,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           password: password,
         );
 
-        // Create customer record in users table (now authenticated)
-        try {
-          print('=== INSERTING INTO USERS TABLE ===');
-          print('User ID: ${authResponse.user!.id}');
-          print('Email: $email');
-          print('Name: $name');
-          print('Role: customer');
-          
-          final insertResponse = await Supabase.instance.client.from('users').insert({
-            'id': authResponse.user!.id,
-            'email': email,
-            'name': name,
-            'role': 'customer',
-            'created_at': DateTime.now().toIso8601String(),
-          }).select();
-
-          print('Insert response: $insertResponse');
-
-          if (insertResponse.isEmpty) {
-            print('WARNING: Insert returned empty response');
-          } else {
-            print('SUCCESS: Customer added to users table');
-          }
-        } catch (dbError) {
-          print('Database insert error: $dbError');
-          // Even if database insert fails, the auth user was created
-          _showSnackBar(
-            "Account created in auth, but database setup failed. Please contact support.",
-            Colors.orange.shade700,
-            Icons.warning_amber,
-          );
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-          return;
-        }
-
+        // Customer record created via auth metadata only
+        print('=== CUSTOMER CREATED VIA AUTH ===');
+        print('User ID: ${authResponse.user!.id}');
+        print('Email: $email');
+        print('Name: $name');
+        print('SUCCESS: Customer account ready');
+        
         _showSnackBar(
           "Registration successful! Account is now ready to use.",
           Colors.green.shade700,

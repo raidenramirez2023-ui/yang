@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Responsive breakpoints and utilities
 class ResponsiveUtils {
   static const double mobileBreakpoint = 600;
-  static const double tabletBreakpoint = 1200;
+  static const double tabletBreakpoint = 900;
 
   /// Check if device is mobile
   static bool isMobile(BuildContext context) {
