@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -163,7 +164,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 1024;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     final data = getSalesSummary();
 
     return Scaffold(
@@ -232,91 +233,175 @@ class _SalesReportPageState extends State<SalesReportPage>
             ],
           ),
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Year selector (only show for Monthly)
-                if (selectedPeriod == 'Monthly')
-                  Flexible(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: DropdownButton<String>(
-                        value: selectedYear,
-                        underline: const SizedBox(),
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
-                        items: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(
-                                  e,
-                                  style: const TextStyle(
-                                    color: Color(0xFF1E293B),
-                                    fontWeight: FontWeight.w500,
+            child: ResponsiveUtils.isMobile(context)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Year selector (only show for Monthly)
+                      if (selectedPeriod == 'Monthly')
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: DropdownButton<String>(
+                            value: selectedYear,
+                            underline: const SizedBox(),
+                            isExpanded: true,
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                            items: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(
+                                      e,
+                                      style: const TextStyle(
+                                        color: Color(0xFF1E293B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() {
+                                  selectedYear = v;
+                                  _cardAnimationController.reset();
+                                  _cardAnimationController.forward();
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      // Period selector
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: DropdownButton<String>(
+                          value: selectedPeriod,
+                          underline: const SizedBox(),
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                          items: const ['Daily', 'Weekly', 'Monthly', 'Annually']
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(
+                                    e,
+                                    style: TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            setState(() {
-                              selectedYear = v;
-                              _cardAnimationController.reset();
-                              _cardAnimationController.forward();
-                            });
-                          }
-                        },
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                selectedPeriod = v;
+                                _cardAnimationController.reset();
+                                _cardAnimationController.forward();
+                              });
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                  ),
-                // Period selector
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: selectedPeriod,
-                      underline: const SizedBox(),
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
-                      items: const ['Daily', 'Weekly', 'Monthly', 'Annually']
-                          .map(
-                            (e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(
-                                e,
-                                style: TextStyle(
-                                  color: Color(0xFF1E293B),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Year selector (only show for Monthly)
+                      if (selectedPeriod == 'Monthly')
+                        Flexible(
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() {
-                            selectedPeriod = v;
-                            _cardAnimationController.reset();
-                            _cardAnimationController.forward();
-                          });
-                        }
-                      },
-                    ),
+                            child: DropdownButton<String>(
+                              value: selectedYear,
+                              underline: const SizedBox(),
+                              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                              items: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e,
+                                      child: Text(
+                                        e,
+                                        style: const TextStyle(
+                                          color: Color(0xFF1E293B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() {
+                                    selectedYear = v;
+                                    _cardAnimationController.reset();
+                                    _cardAnimationController.forward();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      // Period selector
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: DropdownButton<String>(
+                            value: selectedPeriod,
+                            underline: const SizedBox(),
+                            icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                            items: const ['Daily', 'Weekly', 'Monthly', 'Annually']
+                                .map(
+                                  (e) => DropdownMenuItem(
+                                    value: e,
+                                    child: Text(
+                                      e,
+                                      style: TextStyle(
+                                        color: Color(0xFF1E293B),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() {
+                                  selectedPeriod = v;
+                                  _cardAnimationController.reset();
+                                  _cardAnimationController.forward();
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

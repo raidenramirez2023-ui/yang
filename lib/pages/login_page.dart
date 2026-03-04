@@ -75,6 +75,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (userResponse == null) {
         print('User not found in users table, checking if it\'s a customer');
+        
         if (email == 'adm.pagsanjan@gmail.com') {
           await Supabase.instance.client.from('users').insert({
             'email': email,
@@ -96,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
           String userRole = 'customer';
 
           _showSnackBar(
-            "Login successful as $userRole!",
+            "Welcome back, customer!",
             Colors.green.shade700,
             Icons.check_circle_outline,
           );
@@ -116,8 +117,13 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (mounted) {
-          if (userRole == 'admin') {
+          if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
+            // Direct to pagsanjaninv's dedicated inventory dashboard
+            Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+          } else if (userRole == 'admin') {
             Navigator.pushReplacementNamed(context, '/dashboard');
+          } else if (userRole == 'inventory staff') {
+            Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
           } else if (userRole == 'customer') {
             Navigator.pushReplacementNamed(context, '/customer-dashboard');
           } else {

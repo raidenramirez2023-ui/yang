@@ -107,35 +107,41 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Reservations Management'),
-        backgroundColor: AppTheme.primaryRed,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        actions: [
-          IconButton(
-            onPressed: _loadReservations,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header with refresh button
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Reservations Management',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            IconButton(
+              onPressed: _loadReservations,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.lg),
+        Expanded(
+          child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+        ),
+      ],
     );
   }
 
   Widget _buildDesktopLayout() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        children: [
-          _buildFilterSection(),
-          const SizedBox(height: 20),
-          Expanded(child: _buildReservationsTable()),
-        ],
-      ),
+    return Column(
+      children: [
+        _buildFilterSection(),
+        const SizedBox(height: 20),
+        Expanded(child: _buildReservationsTable()),
+      ],
     );
   }
 
@@ -154,7 +160,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget _buildFilterSection() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12.0 : 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -162,7 +168,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               'Filter by Status',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -232,24 +238,31 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
     return Card(
       child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Customer')),
-            DataColumn(label: Text('Event')),
-            DataColumn(label: Text('Date')),
-            DataColumn(label: Text('Time')),
-            DataColumn(label: Text('Guests')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Actions')),
+          columnSpacing: ResponsiveUtils.isMobile(context) ? 12 : 24,
+          horizontalMargin: ResponsiveUtils.isMobile(context) ? 8 : 16,
+          columns: [
+            const DataColumn(label: Text('Customer')),
+            if (!ResponsiveUtils.isMobile(context)) const DataColumn(label: Text('Event')),
+            const DataColumn(label: Text('Date')),
+            const DataColumn(label: Text('Time')),
+            if (!ResponsiveUtils.isMobile(context)) const DataColumn(label: Text('Guests')),
+            const DataColumn(label: Text('Status')),
+            const DataColumn(label: Text('Actions')),
           ],
           rows: _filteredReservations.map((reservation) {
             return DataRow(
               cells: [
-                DataCell(Text('${reservation['customer_name']}\n${reservation['customer_email']}')),
-                DataCell(Text(reservation['event_type'])),
+                DataCell(
+                  ResponsiveUtils.isMobile(context)
+                      ? Text(reservation['customer_name']?.toString().split(' ')[0] ?? '')
+                      : Text('${reservation['customer_name']}\n${reservation['customer_email']}')
+                ),
+                if (!ResponsiveUtils.isMobile(context)) DataCell(Text(reservation['event_type'])),
                 DataCell(Text(reservation['event_date'])),
                 DataCell(Text(reservation['start_time'])),
-                DataCell(Text('${reservation['number_of_guests']}')),
+                if (!ResponsiveUtils.isMobile(context)) DataCell(Text('${reservation['number_of_guests']}')),
                 DataCell(_buildStatusChip(reservation['status'])),
                 DataCell(_buildActionButtons(reservation)),
               ],
@@ -284,14 +297,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
       itemCount: _filteredReservations.length,
       itemBuilder: (context, index) {
         final reservation = _filteredReservations[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: EdgeInsets.only(bottom: ResponsiveUtils.isMobile(context) ? 8 : 12),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12.0 : 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -309,22 +322,25 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     _buildStatusChip(reservation['status']),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: ResponsiveUtils.isMobile(context) ? 6 : 8),
                 Text('Customer: ${reservation['customer_name']}'),
-                Text('Email: ${reservation['customer_email']}'),
-                const SizedBox(height: 8),
+                if (!ResponsiveUtils.isMobile(context)) 
+                  Text('Email: ${reservation['customer_email']}'),
+                SizedBox(height: ResponsiveUtils.isMobile(context) ? 6 : 8),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                    Icon(Icons.calendar_today, size: ResponsiveUtils.isMobile(context) ? 14 : 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text('${reservation['event_date']} at ${reservation['start_time']}'),
-                    const SizedBox(width: 16),
-                    Icon(Icons.people, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text('${reservation['number_of_guests']} guests'),
+                    if (!ResponsiveUtils.isMobile(context)) const SizedBox(width: 16),
+                    if (!ResponsiveUtils.isMobile(context)) ...[
+                      Icon(Icons.people, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text('${reservation['number_of_guests']} guests'),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 12),
                 _buildActionButtons(reservation),
               ],
             ),

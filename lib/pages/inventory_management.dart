@@ -46,7 +46,15 @@ class _InventoryPageState extends State<InventoryPage> {
 
     if (!mounted) return;
     final role = (res?['role'] ?? '').toString().toLowerCase();
-    setState(() => _isAdmin = role == 'admin' || role == 'adm');
+    final userEmail = user.email?.toLowerCase() ?? '';
+    
+    // pagsanjaninv@gmail.com and inventory staff have full inventory control
+    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
+      setState(() => _isAdmin = true);
+    } else {
+      // Other admins have view-only access
+      setState(() => _isAdmin = false);
+    }
   }
 
   void _addOrEditItem({Map<String, dynamic>? item}) {
@@ -290,8 +298,8 @@ class _InventoryPageState extends State<InventoryPage> {
           children: [
             // Real-time Inventory Monitoring Board
             Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(12),
+              margin: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
+              padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -389,8 +397,8 @@ class _InventoryPageState extends State<InventoryPage> {
             
             // Search and Filter Section
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
+              margin: EdgeInsets.symmetric(horizontal: ResponsiveUtils.isMobile(context) ? 12 : 16),
+              padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
               decoration: BoxDecoration(
                 color: AppTheme.white,
                 borderRadius: BorderRadius.circular(12),
@@ -517,10 +525,10 @@ class _InventoryPageState extends State<InventoryPage> {
                     padding: const EdgeInsets.all(12),
                     child: GridView.builder(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: ResponsiveUtils.isMobile(context) ? 4 : ResponsiveUtils.isTablet(context) ? 5 : 6,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                        childAspectRatio: 0.8,
+                        crossAxisCount: ResponsiveUtils.isMobile(context) ? 2 : ResponsiveUtils.isTablet(context) ? 4 : 6,
+                        crossAxisSpacing: ResponsiveUtils.isMobile(context) ? 8 : 6,
+                        mainAxisSpacing: ResponsiveUtils.isMobile(context) ? 8 : 6,
+                        childAspectRatio: ResponsiveUtils.isMobile(context) ? 0.7 : 0.8,
                       ),
                       itemCount: filteredItems.length,
                       itemBuilder: (context, index) {
@@ -648,7 +656,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '$quantity ${item['unit'] ?? ''}',
+                                      '$quantity ${item['unit']?.toString().trim() ?? 'pcs'}'.trim(),
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800,

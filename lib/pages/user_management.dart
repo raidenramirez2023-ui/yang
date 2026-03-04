@@ -17,44 +17,41 @@ class UserManagementPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Padding(
-        padding: ResponsiveUtils.getResponsivePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Text(
-              'Staff List',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: AppTheme.sm),
-            Text(
-              'Grouped by role',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: AppTheme.mediumGrey),
-            ),
-            const SizedBox(height: AppTheme.xl),
+    return Padding(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Text(
+            'Staff List',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: AppTheme.sm),
+          Text(
+            'Grouped by role',
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(color: AppTheme.mediumGrey),
+          ),
+          const SizedBox(height: AppTheme.xl),
 
-            // Grouped List
-            Expanded(
-              child: ListView(
-                children: staffByRole.entries.map((entry) {
-                  final role = entry.key;
-                  final count = entry.value;
+          // Grouped List
+          Expanded(
+            child: ListView(
+              children: staffByRole.entries.map((entry) {
+                final role = entry.key;
+                final count = entry.value;
 
-                  return _RoleSection(
-                    role: role,
-                    count: count,
-                  );
-                }).toList(),
-              ),
+                return _RoleSection(
+                  role: role,
+                  count: count,
+                );
+              }).toList(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

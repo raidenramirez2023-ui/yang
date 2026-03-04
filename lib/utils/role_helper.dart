@@ -52,4 +52,56 @@ class RoleHelper {
     final user = _supabase.auth.currentUser;
     return user != null;
   }
+
+  // Check if user has full admin permissions (not view-only)
+  static Future<bool> hasFullAdminPermissions() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+
+    final userEmail = user.email?.toLowerCase() ?? '';
+    final role = await getCurrentUserRole();
+    
+    // pagsanjaninv@gmail.com and inventory staff have full inventory control
+    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
+      return true;
+    }
+
+    // Other admins have view-only access
+    return false;
+  }
+
+  // Check if user can manage inventory (add/edit/delete)
+  static Future<bool> canManageInventory() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+
+    final userEmail = user.email?.toLowerCase() ?? '';
+    final role = await getCurrentUserRole();
+    
+    // pagsanjaninv@gmail.com and inventory staff can manage inventory
+    return userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff';
+  }
+
+  // Get dashboard route for current user
+  static Future<String> getDashboardRoute() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return '/';
+
+    final userEmail = user.email?.toLowerCase() ?? '';
+    final role = await getCurrentUserRole();
+    
+    // pagsanjaninv@gmail.com and inventory staff get special dashboard
+    if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
+      return '/pagsanjaninv-dashboard';
+    }
+    
+    switch (role) {
+      case 'admin':
+        return '/dashboard';
+      case 'staff':
+        return '/staff-dashboard';
+      default:
+        return '/customer-dashboard';
+    }
+  }
 }

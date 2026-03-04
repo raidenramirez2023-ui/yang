@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -96,12 +97,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width >= 900;
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
 
     return FadeTransition(
       opacity: _fadeIn,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.lg),
+        padding: ResponsiveUtils.isMobile(context) 
+            ? const EdgeInsets.all(AppTheme.md)
+            : const EdgeInsets.all(AppTheme.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -111,46 +115,62 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             // ── KPI Cards ──────────────────────────────
             _buildSectionTitle(context, 'Today\'s Overview'),
             const SizedBox(height: AppTheme.md),
-            _buildKpiGrid(isWide),
+            _buildKpiGrid(isDesktop || isTablet),
             const SizedBox(height: AppTheme.xl),
 
             // ── Charts + Table Status ──────────────────
-            isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _buildRevenueChart(context)),
-                      const SizedBox(width: AppTheme.lg),
-                      Expanded(flex: 2, child: _buildTableStatus(context)),
-                    ],
-                  )
-                : Column(
+            ResponsiveUtils.isMobile(context)
+                ? Column(
                     children: [
                       _buildRevenueChart(context),
                       const SizedBox(height: AppTheme.lg),
                       _buildTableStatus(context),
                     ],
-                  ),
+                  )
+                : (isDesktop || isTablet)
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: _buildRevenueChart(context)),
+                          const SizedBox(width: AppTheme.lg),
+                          Expanded(flex: 2, child: _buildTableStatus(context)),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _buildRevenueChart(context),
+                          const SizedBox(height: AppTheme.lg),
+                          _buildTableStatus(context),
+                        ],
+                      ),
 
             const SizedBox(height: AppTheme.xl),
 
             // ── Quick Actions + Recent Activity ────────
-            isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: _buildQuickActions(context)),
-                      const SizedBox(width: AppTheme.lg),
-                      Expanded(flex: 3, child: _buildRecentActivity(context)),
-                    ],
-                  )
-                : Column(
+            ResponsiveUtils.isMobile(context)
+                ? Column(
                     children: [
                       _buildQuickActions(context),
                       const SizedBox(height: AppTheme.lg),
                       _buildRecentActivity(context),
                     ],
-                  ),
+                  )
+                : (isDesktop || isTablet)
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 2, child: _buildQuickActions(context)),
+                          const SizedBox(width: AppTheme.lg),
+                          Expanded(flex: 3, child: _buildRecentActivity(context)),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _buildQuickActions(context),
+                          const SizedBox(height: AppTheme.lg),
+                          _buildRecentActivity(context),
+                        ],
+                      ),
 
             const SizedBox(height: AppTheme.xxl),
           ],
@@ -287,6 +307,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         subPositive: _reservations > 5,
       ),
     ];
+
+    // Mobile: single column, Tablet: 2x2 grid, Desktop: 4 columns
+    if (ResponsiveUtils.isMobile(context)) {
+      return Column(
+        children: cards
+            .map((d) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.md),
+                  child: _KpiCard(data: d),
+                ))
+            .toList(),
+      );
+    }
 
     if (isWide) {
       return Row(
