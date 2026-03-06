@@ -12,6 +12,7 @@ import 'pages/forgot_password_page.dart';
 import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/pagsanjaninv_dashboard.dart';
+import 'pages/landing_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,7 +48,8 @@ class YangChowApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         // Auth routes
-        '/': (context) => const LoginPage(),
+        '/': (context) => const LandingPage(),
+        '/login': (context) => const LoginPage(),
         '/register': (context) => const CustomerRegistrationPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
 

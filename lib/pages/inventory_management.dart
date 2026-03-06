@@ -15,7 +15,7 @@ class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
   String _searchQuery = '';
   String _selectedCategory = 'All';
-  String _debugInfo = 'Loading...';
+
 
   static const List<String> categories = [
     'All',
@@ -49,9 +49,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final role = (res?['role'] ?? '').toString().toLowerCase();
     final userEmail = user.email?.toLowerCase() ?? '';
     
-    setState(() {
-      _debugInfo = 'Email: $userEmail | Role: $role';
-    });
+
 
     // pagsanjaninv@gmail.com and inventory staff have full inventory control
     if (userEmail == 'pagsanjaninv@gmail.com' || role == 'inventory staff') {
@@ -301,10 +299,7 @@ class _InventoryPageState extends State<InventoryPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Text(
-              _debugInfo,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-            ),
+
             // Real-time Inventory Monitoring Board
             Container(
               margin: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
