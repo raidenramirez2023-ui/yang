@@ -16,11 +16,62 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isSessionChecking = true; // New flag to handle initial redirect smoothly
 
   @override
   void initState() {
     super.initState();
-    // No animation initialization needed
+    _checkInitialSession();
+  }
+
+  Future<void> _checkInitialSession() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null && session.user.email != null) {
+      final email = session.user.email!;
+      debugPrint('Login: Existing session found for $email');
+      
+      try {
+        final userResponse = await Supabase.instance.client
+            .from('users')
+            .select('role')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (mounted) {
+          if (userResponse == null) {
+            // New user (likely from Google) is treated as customer
+            Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          } else {
+            String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
+            _redirectByUserRole(email, userRole);
+          }
+        }
+        return; // Success, don't clear loader yet (navigation will happen)
+      } catch (e) {
+        debugPrint('Login: Redirect error: $e');
+      }
+    }
+    
+    // No session or error occurred, show login form
+    if (mounted) {
+      setState(() => _isSessionChecking = false);
+    }
+  }
+
+  void _redirectByUserRole(String email, String userRole) {
+    if (!mounted) return;
+    
+    if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
+      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+    } else if (userRole == 'admin') {
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else if (userRole == 'inventory staff') {
+      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+    } else if (userRole == 'customer') {
+      Navigator.pushReplacementNamed(context, '/customer-dashboard');
+    } else {
+      Navigator.pushReplacementNamed(context, '/staff-dashboard');
+    }
   }
 
   @override
@@ -117,18 +168,7 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         if (mounted) {
-          if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
-            // Direct to pagsanjaninv's dedicated inventory dashboard
-            Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
-          } else if (userRole == 'admin') {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          } else if (userRole == 'inventory staff') {
-            Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
-          } else if (userRole == 'customer') {
-            Navigator.pushReplacementNamed(context, '/customer-dashboard');
-          } else {
-            Navigator.pushReplacementNamed(context, '/staff-dashboard');
-          }
+          _redirectByUserRole(email, userRole);
         }
       }
     } on AuthException catch (e) {
@@ -183,6 +223,21 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (_isSessionChecking) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.primaryRed),
+              SizedBox(height: 16),
+              Text('Checking authentication...', style: TextStyle(color: AppTheme.primaryRed)),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,

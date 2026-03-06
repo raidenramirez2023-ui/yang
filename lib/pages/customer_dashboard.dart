@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/login_page.dart';
@@ -23,6 +25,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
   final TextEditingController _guestsController = TextEditingController();
+
+  // Google Sign-In instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual client ID
+  );
 
   @override
   void initState() {
@@ -356,7 +363,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome to Yang Chow!',
+                      'Welcome to Yang Chow, ${Supabase.instance.client.auth.currentUser?.userMetadata?['full_name'] ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name'] ?? 'Customer'}!',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -727,7 +734,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   Widget _buildProfileSection() {
-    return const Card(
+    return Card(
       child: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
@@ -739,19 +746,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
             SizedBox(height: 20),
             ListTile(
-              leading: Icon(Icons.email),
-              title: Text('Email'),
-              subtitle: Text('customer@example.com'),
+              leading: const Icon(Icons.person),
+              title: const Text('Name'),
+              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['full_name'] ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name'] ?? 'Not provided'),
             ),
             ListTile(
-              leading: Icon(Icons.phone),
-              title: Text('Phone'),
-              subtitle: Text('Not provided'),
+              leading: const Icon(Icons.email),
+              title: const Text('Email'),
+              subtitle: Text(Supabase.instance.client.auth.currentUser?.email ?? 'Not provided'),
             ),
             ListTile(
-              leading: Icon(Icons.calendar_today),
-              title: Text('Member Since'),
-              subtitle: Text('Today'),
+              leading: const Icon(Icons.phone),
+              title: const Text('Phone'),
+              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['phone'] ?? 'Not provided'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Member Since'),
+              subtitle: Text(Supabase.instance.client.auth.currentUser?.createdAt ?? 'Today'),
             ),
           ],
         ),
@@ -1129,7 +1141,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
             onPressed: () async {
               Navigator.pop(context);
+              
+              // Sign out from Supabase
               await Supabase.instance.client.auth.signOut();
+              
+              // Also sign out from Google to allow account switching
+              try {
+                await _googleSignIn.signOut();
+              } catch (e) {
+                print('Error signing out from Google: $e');
+              }
+
               if (mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(

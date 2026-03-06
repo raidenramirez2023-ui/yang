@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/pages/staff_order_history_page.dart';
 
@@ -87,9 +89,18 @@ class StaffDashboardPage extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context);
-                        Navigator.pushReplacementNamed(context, '/');
+                        
+                        // Full logout sequence
+                        await Supabase.instance.client.auth.signOut();
+                        try {
+                          await GoogleSignIn().signOut();
+                        } catch (_) {}
+
+                        if (context.mounted) {
+                          Navigator.pushReplacementNamed(context, '/');
+                        }
                       },
                       child: const Text('Logout'),
                     ),

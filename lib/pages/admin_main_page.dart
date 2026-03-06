@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/role_helper.dart';
@@ -183,9 +185,18 @@ class _AdminMainPageState extends State<AdminMainPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorRed,
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/');
+              
+              // Full logout sequence
+              await Supabase.instance.client.auth.signOut();
+              try {
+                await GoogleSignIn().signOut();
+              } catch (_) {}
+
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/');
+              }
             },
             child: const Text('Logout'),
           ),
