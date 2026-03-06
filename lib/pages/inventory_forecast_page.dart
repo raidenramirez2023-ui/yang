@@ -12,7 +12,8 @@ class InventoryForecastPage extends StatefulWidget {
   State<InventoryForecastPage> createState() => _InventoryForecastPageState();
 }
 
-class _InventoryForecastPageState extends State<InventoryForecastPage> with TickerProviderStateMixin {
+class _InventoryForecastPageState extends State<InventoryForecastPage>
+    with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   String _selectedPeriod = '7days';
@@ -21,11 +22,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
   final List<String> periods = ['7days', '30days', '90days'];
   final List<String> categories = [
     'All',
-    'Perishable Ingredients',
-    'Non-perishable Ingredients',
-    'Beverages',
-    'Condiments',
+    'Fresh',
+    'Roasting',
+    'Davids',
+    'Groceries',
+    'Sauces',
+    'Vegetables',
+    'Pre-mix',
+    'Drinks',
     'Packaging',
+    'Janitorial',
   ];
 
   @override
@@ -87,10 +93,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
   }
 
   List<Map<String, dynamic>> _calculateForecast(
-      List<Map<String, dynamic>> inventory,
-      List<Map<String, dynamic>> transactions,
-      int periodDays,
-      ) {
+    List<Map<String, dynamic>> inventory,
+    List<Map<String, dynamic>> transactions,
+    int periodDays,
+  ) {
     List<Map<String, dynamic>> forecast = [];
 
     for (var item in inventory) {
@@ -110,9 +116,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
 
       // Calculate daily average usage
       double dailyUsage = totalUsage / periodDays;
-      
+
       // Calculate days until out of stock
-      int daysUntilEmpty = dailyUsage > 0 
+      int daysUntilEmpty = dailyUsage > 0
           ? (currentStock / dailyUsage).round()
           : 999; // No usage = won't run out
 
@@ -122,7 +128,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
       IconData riskIcon = _getRiskIcon(daysUntilEmpty, currentStock);
 
       // Calculate recommended reorder quantity
-      int recommendedOrder = _calculateRecommendedOrder(dailyUsage, currentStock, daysUntilEmpty);
+      int recommendedOrder = _calculateRecommendedOrder(
+        dailyUsage,
+        currentStock,
+        daysUntilEmpty,
+      );
 
       forecast.add({
         'name': itemName,
@@ -136,13 +146,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
         'riskColor': riskColor,
         'riskIcon': riskIcon,
         'recommendedOrder': recommendedOrder,
-        'lastUsage': itemTransactions.isNotEmpty ? itemTransactions.first['created_at'] : null,
+        'lastUsage': itemTransactions.isNotEmpty
+            ? itemTransactions.first['created_at']
+            : null,
       });
     }
 
     // Sort by risk (most critical first)
-    forecast.sort((a, b) => (a['daysUntilEmpty'] as int).compareTo(b['daysUntilEmpty'] as int));
-    
+    forecast.sort(
+      (a, b) =>
+          (a['daysUntilEmpty'] as int).compareTo(b['daysUntilEmpty'] as int),
+    );
+
     return forecast;
   }
 
@@ -170,14 +185,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
     return Icons.check_circle_rounded;
   }
 
-  int _calculateRecommendedOrder(double dailyUsage, int currentStock, int daysUntilEmpty) {
+  int _calculateRecommendedOrder(
+    double dailyUsage,
+    int currentStock,
+    int daysUntilEmpty,
+  ) {
     if (dailyUsage == 0) return 0;
-    
+
     // Recommend 30 days supply + safety stock (25%)
     double thirtyDaySupply = dailyUsage * 30;
     double safetyStock = thirtyDaySupply * 0.25;
     double totalNeeded = thirtyDaySupply + safetyStock;
-    
+
     return (totalNeeded - currentStock).round().clamp(0, 999999);
   }
 
@@ -203,8 +222,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
           children: [
             // Controls Section
             Container(
-              margin: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 16),
-              padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
+              margin: EdgeInsets.all(
+                ResponsiveUtils.isMobile(context) ? 8 : 16,
+              ),
+              padding: EdgeInsets.all(
+                ResponsiveUtils.isMobile(context) ? 12 : 16,
+              ),
               decoration: BoxDecoration(
                 color: AppTheme.white,
                 borderRadius: BorderRadius.circular(12),
@@ -244,7 +267,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
                 future: _getForecastData(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryRed,
+                      ),
+                    );
                   }
 
                   if (snapshot.hasError) {
@@ -259,14 +286,22 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
                   final forecast = snapshot.data ?? [];
                   final filteredForecast = _selectedCategory == 'All'
                       ? forecast
-                      : forecast.where((item) => item['category'] == _selectedCategory).toList();
+                      : forecast
+                            .where(
+                              (item) => item['category'] == _selectedCategory,
+                            )
+                            .toList();
 
                   if (filteredForecast.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.trending_up, size: 64, color: AppTheme.mediumGrey),
+                          Icon(
+                            Icons.trending_up,
+                            size: 64,
+                            color: AppTheme.mediumGrey,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'No forecast data available',
@@ -356,7 +391,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   side: BorderSide(
-                    color: isSelected ? AppTheme.primaryRed : AppTheme.lightGrey,
+                    color: isSelected
+                        ? AppTheme.primaryRed
+                        : AppTheme.lightGrey,
                   ),
                 ),
               );
@@ -397,10 +434,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage> with Tick
             fillColor: AppTheme.backgroundColor,
           ),
           items: categories.map((category) {
-            return DropdownMenuItem(
-              value: category,
-              child: Text(category),
-            );
+            return DropdownMenuItem(value: category, child: Text(category));
           }).toList(),
           onChanged: (value) {
             if (value != null) setState(() => _selectedCategory = value);
@@ -444,10 +478,7 @@ class _ForecastCard extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(
-          color: riskColor.withOpacity(0.3),
-          width: 2,
-        ),
+        border: Border.all(color: riskColor.withOpacity(0.3), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,7 +511,10 @@ class _ForecastCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: riskColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -519,14 +553,17 @@ class _ForecastCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _InfoCard(
                       title: 'Daily Usage (Average)',
-                      value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
+                      value:
+                          '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
                       icon: Icons.trending_down,
                       iconColor: AppTheme.warningOrange,
                     ),
                     const SizedBox(height: 8),
                     _InfoCard(
                       title: 'Days Until Empty',
-                      value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
+                      value: daysUntilEmpty == 999
+                          ? 'No usage'
+                          : '$daysUntilEmpty days',
                       icon: Icons.schedule,
                       iconColor: riskColor,
                     ),
@@ -553,7 +590,8 @@ class _ForecastCard extends StatelessWidget {
                     Expanded(
                       child: _InfoCard(
                         title: 'Daily Usage (Average)',
-                        value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
+                        value:
+                            '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
                         icon: Icons.trending_down,
                         iconColor: AppTheme.warningOrange,
                       ),
@@ -567,7 +605,9 @@ class _ForecastCard extends StatelessWidget {
                 Expanded(
                   child: _InfoCard(
                     title: 'Days Until Empty',
-                    value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
+                    value: daysUntilEmpty == 999
+                        ? 'No usage'
+                        : '$daysUntilEmpty days',
                     icon: Icons.schedule,
                     iconColor: riskColor,
                   ),
