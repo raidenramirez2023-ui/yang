@@ -403,10 +403,7 @@ class _InventoryPageState extends State<InventoryPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Text(
-              _debugInfo,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-            ),
+
             // Real-time Inventory Monitoring Board
             Container(
               margin: EdgeInsets.all(
