@@ -10,6 +10,7 @@ import 'package:yang_chow/pages/inventory_management.dart';
 import 'package:yang_chow/pages/settings.dart';
 import 'package:yang_chow/pages/admin_dashboard.dart';
 import 'package:yang_chow/pages/admin_reservations_page.dart';
+import 'package:yang_chow/pages/admin_announcements_page.dart';
 
 class AdminMainPage extends StatefulWidget {
   const AdminMainPage({super.key});
@@ -42,6 +43,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     InventoryPage(),
     AdminReservationsPage(),
     UserManagementPage(),
+    AdminAnnouncementsPage(),
     SettingsPage(),
   ];
 
@@ -51,6 +53,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Inventory',
     'Reservations',
     'User Management',
+    'Announcements',
     'Settings',
   ];
 
@@ -60,6 +63,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.inventory_2,
     Icons.event_available,
     Icons.people,
+    Icons.campaign,
     Icons.settings,
   ];
 
