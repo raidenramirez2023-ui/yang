@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:postgrest/postgrest.dart';
 
 class CustomerRegistrationPage extends StatefulWidget {
@@ -21,6 +24,32 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   bool _agreeToTerms = false;
+  bool _isRedirecting = false; // Flag to prevent multiple redirects
+
+  // Google Sign-In instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual client ID
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // 1. Check if we already have a session (e.g. after a redirect back to this page)
+    final initialSession = Supabase.instance.client.auth.currentSession;
+    if (initialSession != null) {
+      debugPrint('OAuth: Initial session detected, redirecting...');
+      _handleOAuthSuccess(initialSession);
+    }
+
+    // 2. Listen for auth state changes for real-time redirects
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
+        debugPrint('OAuth: Signed in event detected, redirecting...');
+        _handleOAuthSuccess(data.session!);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -160,6 +189,105 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      if (kIsWeb) {
+        // Clear existing session before starting new Google login to force fresh interaction
+        await Supabase.instance.client.auth.signOut();
+        
+        await Supabase.instance.client.auth.signInWithOAuth(
+          Provider.google,
+          redirectTo: Uri.base.origin,
+          queryParams: {'prompt': 'select_account'},
+        );
+      } else {
+        // Sign out first to ensure account picker is shown (fixes auto-selection of previous account)
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+        
+        final googleUser = await _googleSignIn.signIn();
+        final googleAuth = await googleUser?.authentication;
+        final accessToken = googleAuth?.accessToken;
+        final idToken = googleAuth?.idToken;
+
+        if (accessToken == null || idToken == null) {
+          throw 'Google Sign-In failed: Missing tokens';
+        }
+
+        await Supabase.instance.client.auth.signInWithIdToken(
+          provider: Provider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar("Google Sign-In Error: $e", Colors.red.shade700, Icons.error_outline);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleOAuthSuccess(Session session) async {
+    if (_isRedirecting) return;
+    
+    final email = session.user.email;
+    if (email == null) return;
+
+    _isRedirecting = true; // Mark as redirecting to prevent race conditions
+    try {
+      // Check if user exists in the users table
+      final userResponse = await Supabase.instance.client
+          .from('users')
+          .select('role')
+          .eq('email', email)
+          .maybeSingle();
+
+      final metadata = session.user.userMetadata ?? {};
+      final name = metadata['full_name']?.toString() ?? metadata['name']?.toString() ?? 'Customer';
+
+      if (userResponse == null) {
+        // Create new user with 'customer' role
+        await Supabase.instance.client.from('users').insert({
+          'email': email,
+          'role': 'customer',
+          'name': name,
+        });
+      } else {
+        // Update name if user exists (optional, but keeps it in sync)
+        await Supabase.instance.client
+            .from('users')
+            .update({'name': name})
+            .eq('email', email);
+            
+        // Check if existing user is NOT a customer
+        String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
+        if (userRole != 'customer') {
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) {
+            _showSnackBar(
+              "Google Sign-In is only allowed for customer accounts.",
+              Colors.red.shade700,
+              Icons.block,
+            );
+          }
+          return;
+        }
+      }
+      
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/customer-dashboard');
+      }
+    } catch (e) {
+      print('Error in _handleOAuthSuccess: $e');
+    }
+  }
+
   void _showSnackBar(String message, Color color, IconData icon) {
     if (!mounted) return;
     
@@ -182,6 +310,21 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isRedirecting) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.primaryRed),
+              SizedBox(height: 16),
+              Text('Syncing with Google...', style: TextStyle(color: AppTheme.primaryRed)),
+            ],
+          ),
+        ),
+      );
+    }
+
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
@@ -439,6 +582,50 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ),
                 )
               : const Text('Create Account'),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // OR Divider
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'OR',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Google Sign In Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleGoogleSignIn,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
+            icon: SvgPicture.network(
+              'https://www.svgrepo.com/show/355037/google.svg',
+              width: 20,
+              height: 20,
+            ),
+            label: const Text(
+              'Sign up with Google',
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 12),

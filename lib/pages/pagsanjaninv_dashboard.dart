@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/inventory_management.dart';
@@ -133,7 +134,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     // Only logout if user confirmed
     if (shouldLogout == true) {
       try {
-        await _supabase.auth.signOut();
+        await Supabase.instance.client.auth.signOut();
+        try {
+          await GoogleSignIn().signOut();
+        } catch (_) {}
+        
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/');
         }
