@@ -7,7 +7,8 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final Function(String customerName) onPrintReceipt;
+  final VoidCallback onProceedPayment;
+  final VoidCallback onClearCart;
   final bool isMobile;
 
   const OrderListPanel({
@@ -16,7 +17,8 @@ class OrderListPanel extends StatefulWidget {
     required this.onQuantityIncreased,
     required this.onQuantityDecreased,
     required this.onRemoveItem,
-    required this.onPrintReceipt,
+    required this.onProceedPayment,
+    required this.onClearCart,
     this.isMobile = false,
   });
 
@@ -31,12 +33,11 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
-  // ── Constants ──────────────────────────────────────────────────────────────
   static const _indigo = Color(0xFF4F46E5);
   static const _bg = Color(0xFFF5F6FA);
   static const _border = Color(0xFFE5E7EB);
   static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  static const _textDark = Color(0xFF1E293B);
 
   @override
   void dispose() {
@@ -51,13 +52,14 @@ class _OrderListPanelState extends State<OrderListPanel> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: widget.isMobile ? double.infinity : 310,
-      color: Colors.white,
+      width: widget.isMobile ? double.infinity : 360,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: _border)),
+      ),
       child: Column(
         children: [
-          // ── Header ─────────────────────────────────────────────────────────
           _buildHeader(),
-          // ── Scrollable body ────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -65,260 +67,206 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 14),
-                  // Customer name row
                   _buildCustomerRow(),
                   const SizedBox(height: 10),
-                  // Note field
                   _buildNoteField(),
-                  const SizedBox(height: 16),
-                  // Items header
+                  const SizedBox(height: 20),
                   _buildItemsHeader(),
-                  const SizedBox(height: 8),
-                  // Cart items
+                  const SizedBox(height: 12),
                   if (widget.cart.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
-                        child: Text('No items added yet',
-                            style: TextStyle(
-                                color: _grey, fontSize: 13)),
+                        child: Text('No items in order',
+                            style: TextStyle(color: _grey, fontSize: 13)),
                       ),
                     )
                   else
-                    ...widget.cart.reversed.map(_buildCartItem),
-                  const SizedBox(height: 16),
-                  // Divider
+                    ...widget.cart.map(_buildCartItem),
+                  const SizedBox(height: 20),
                   const Divider(color: _border, height: 1),
-                  const SizedBox(height: 12),
-                  // Totals
-                  _buildTotals(),
                   const SizedBox(height: 16),
+                  _buildTotals(),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
-          // ── Footer buttons ─────────────────────────────────────────────────
           _buildFooter(),
         ],
       ),
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
-      height: 52,
+      height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: _border)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Order Details',
-            style: TextStyle(
-              color: _textDark,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
+      alignment: Alignment.centerLeft,
+      child: const Text(
+        'Order Details',
+        style: TextStyle(
+          color: _textDark,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
       ),
     );
   }
 
-  // ── Customer name row ──────────────────────────────────────────────────────
   Widget _buildCustomerRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 40,
-            child: TextField(
-              controller: _customerNameController,
-              style:
-                  const TextStyle(fontSize: 13, color: _textDark),
-              decoration: InputDecoration(
-                hintText: "Customer's name",
-                hintStyle:
-                    const TextStyle(color: _grey, fontSize: 13),
-                filled: true,
-                fillColor: _bg,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: _border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: const BorderSide(color: _border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide:
-                      const BorderSide(color: _indigo, width: 1.5),
-                ),
-              ),
-            ),
-          ),
+    return TextField(
+      controller: _customerNameController,
+      style: const TextStyle(fontSize: 13, color: _textDark),
+      decoration: InputDecoration(
+        hintText: "Customer's name",
+        hintStyle: const TextStyle(color: _grey, fontSize: 13),
+        filled: true,
+        fillColor: _bg,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _border),
         ),
-      ],
-    );
-  }
-
-  // ── Note field ─────────────────────────────────────────────────────────────
-  Widget _buildNoteField() {
-    return SizedBox(
-      height: 36,
-      child: TextField(
-        controller: _noteController,
-        style: const TextStyle(fontSize: 13, color: _textDark),
-        decoration: InputDecoration(
-          hintText: 'Note',
-          hintStyle: const TextStyle(color: _grey, fontSize: 13),
-          filled: true,
-          fillColor: _bg,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: _indigo, width: 1.5),
-          ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _indigo, width: 1.5),
         ),
       ),
     );
   }
 
-  // ── Items header ───────────────────────────────────────────────────────────
+  Widget _buildNoteField() {
+    return TextField(
+      controller: _noteController,
+      style: const TextStyle(fontSize: 13, color: _textDark),
+      decoration: InputDecoration(
+        hintText: 'Add note here...',
+        hintStyle: const TextStyle(color: _grey, fontSize: 13),
+        filled: true,
+        fillColor: _bg,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: _indigo, width: 1.5),
+        ),
+      ),
+    );
+  }
+
   Widget _buildItemsHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text('Items',
             style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: _textDark)),
+                fontWeight: FontWeight.bold, fontSize: 15, color: _textDark)),
         GestureDetector(
-          onTap: widget.cart.isNotEmpty
-              ? () {
-                  for (var item in widget.cart.toList()) {
-                    widget.onRemoveItem(item);
-                  }
-                }
-              : null,
+          onTap: widget.cart.isNotEmpty ? widget.onClearCart : null,
           child: Text(
-            'Clear',
+            'Clear All',
             style: TextStyle(
-                color: widget.cart.isNotEmpty
-                    ? _indigo
-                    : _grey,
+                color: widget.cart.isNotEmpty ? Colors.red : _grey,
                 fontSize: 13,
-                fontWeight: FontWeight.w500),
+                fontWeight: FontWeight.w600),
           ),
         ),
       ],
     );
   }
 
-  // ── Single cart item ───────────────────────────────────────────────────────
   Widget _buildCartItem(CartItem item) {
     final imagePath =
         item.item.customImagePath ?? item.item.fallbackImagePath;
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Thumbnail
           ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
             child: Image.asset(
               imagePath,
-              width: 48,
-              height: 48,
+              width: 50,
+              height: 50,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 48,
-                height: 48,
-                color: const Color(0xFFE5E7EB),
-                child:
-                    const Icon(Icons.fastfood, color: _grey, size: 20),
+              errorBuilder: (context, _, __) => Container(
+                width: 50,
+                height: 50,
+                color: _bg,
+                child: const Icon(Icons.fastfood, color: _grey, size: 20),
               ),
             ),
           ),
-          const SizedBox(width: 10),
-          // Name + price + qty controls
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name row
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
                         item.item.name,
                         style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: _textDark),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => widget.onRemoveItem(item),
-                      child: const Icon(Icons.close,
-                          size: 14, color: _grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      '₱${_fmt.format(item.item.price * item.quantity)}',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: _textDark),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                // Price
-                Text(
-                  '\$ ${_fmt.format(item.item.price)}',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: _textDark),
-                ),
-                const SizedBox(height: 6),
-                // Qty controls + Edit
+                const SizedBox(height: 8),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Decrease
-                    _qtyButton(
-                      icon: Icons.remove,
-                      onTap: () => widget.onQuantityDecreased(item),
-                    ),
-                    SizedBox(
-                      width: 28,
-                      child: Center(
-                        child: Text(
-                          '${item.quantity}',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: _textDark),
+                    Row(
+                      children: [
+                        _qtyBtn(Icons.remove, () => widget.onQuantityDecreased(item)),
+                        SizedBox(
+                          width: 32,
+                          child: Center(
+                            child: Text('${item.quantity}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                          ),
                         ),
-                      ),
+                        _qtyBtn(Icons.add, () => widget.onQuantityIncreased(item)),
+                      ],
                     ),
-                    // Increase
-                    _qtyButton(
-                      icon: Icons.add,
-                      onTap: () => widget.onQuantityIncreased(item),
+                    GestureDetector(
+                      onTap: () => widget.onRemoveItem(item),
+                      child: const Icon(Icons.delete_outline,
+                          size: 20, color: Colors.redAccent),
                     ),
                   ],
                 ),
@@ -330,40 +278,28 @@ class _OrderListPanelState extends State<OrderListPanel> {
     );
   }
 
-  Widget _qtyButton(
-      {required IconData icon, required VoidCallback onTap}) {
+  Widget _qtyBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 24,
-        height: 24,
+        width: 26,
+        height: 26,
         decoration: BoxDecoration(
           border: Border.all(color: _border),
-          borderRadius: BorderRadius.circular(4),
-          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 14, color: _textDark),
+        child: Icon(icon, size: 16, color: _textDark),
       ),
     );
   }
 
-  // ── Totals ─────────────────────────────────────────────────────────────────
   Widget _buildTotals() {
     final subtotal = _subtotal;
-    const discount = 0.0;
-    const vat = 0.0;
-    final total = subtotal - discount + vat;
-
     return Column(
       children: [
-        _totalRow('Sub Total', '\$ ${_fmt.format(subtotal)}',
-            valueColor: _textDark),
-        const SizedBox(height: 6),
-        _totalRow('Discount', '- \$ ${_fmt.format(discount)}',
-            valueColor: const Color(0xFFEF4444)),
-        const SizedBox(height: 6),
-        _totalRow('VAT (0%)', '\$ ${_fmt.format(vat)}',
-            valueColor: _textDark),
+        _totalLine('Subtotal', '₱${_fmt.format(subtotal)}'),
+        const SizedBox(height: 8),
+        _totalLine('Tax (0%)', '₱0.00'),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -371,107 +307,62 @@ class _OrderListPanelState extends State<OrderListPanel> {
             const Text('Total',
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 20,
                     color: _textDark)),
-            Text('\$ ${_fmt.format(total)}',
+            Text('₱${_fmt.format(subtotal)}',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: _textDark)),
+                    fontSize: 20,
+                    color: _indigo)),
           ],
         ),
       ],
     );
   }
 
-  Widget _totalRow(String label, String value,
-      {required Color valueColor}) {
+  Widget _totalLine(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: const TextStyle(fontSize: 13, color: _grey)),
+        Text(label, style: const TextStyle(color: _grey, fontSize: 14)),
         Text(value,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: valueColor)),
+            style: const TextStyle(
+                color: _textDark, fontWeight: FontWeight.w600, fontSize: 14)),
       ],
     );
   }
 
-  // ── Footer ─────────────────────────────────────────────────────────────────
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: _border)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Hold + Discount row
           Row(
             children: [
-              Expanded(
-                child: _outlineBtn(
-                  label: 'Hold',
-                  onTap: () {},
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _outlineBtn(
-                  label: 'Discount',
-                  onTap: () {},
-                ),
-              ),
+              Expanded(child: _secondaryBtn('Hold Order')),
+              const SizedBox(width: 12),
+              Expanded(child: _secondaryBtn('Discount')),
             ],
           ),
-          const SizedBox(height: 10),
-          // Proceed Payment
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 54,
             child: ElevatedButton(
-              onPressed: widget.cart.isNotEmpty
-                  ? () {
-                      widget.onPrintReceipt(
-                          _customerNameController.text.trim());
-                      for (var item in widget.cart.toList()) {
-                        widget.onRemoveItem(item);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(
-                            children: [
-                              Icon(Icons.check_circle,
-                                  color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Order completed!'),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  : null,
+              onPressed: widget.cart.isNotEmpty ? widget.onProceedPayment : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 255, 0, 0),
+                backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFB8B8D0),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Proceed Payment',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 15)),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],
@@ -479,24 +370,17 @@ class _OrderListPanelState extends State<OrderListPanel> {
     );
   }
 
-  Widget _outlineBtn(
-      {required String label, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _border, width: 1.5),
-        ),
-        child: Center(
-          child: Text(label,
-              style: const TextStyle(
-                  color: _textDark,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14)),
-        ),
+  Widget _secondaryBtn(String label) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Text(label,
+            style: const TextStyle(
+                color: _textDark, fontWeight: FontWeight.w600, fontSize: 13)),
       ),
     );
   }

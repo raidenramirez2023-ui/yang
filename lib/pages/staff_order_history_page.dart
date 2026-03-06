@@ -278,8 +278,10 @@ class _OrderCardState extends State<_OrderCard> {
     final o = widget.order;
     final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
     final customer = (o['customer_name'] ?? 'Guest').toString();
-    final orderId = (o['id'] ?? '').toString();
-    final shortId = orderId.length >= 8 ? orderId.substring(0, 8) : orderId;
+    final tid = o['transaction_id']?.toString();
+    final dbid = o['id']?.toString() ?? '';
+    final orderId = tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
+    final shortId = orderId;
     final ts = _formatTs(o['created_at']?.toString());
     final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
 
@@ -516,7 +518,55 @@ class _OrderCardState extends State<_OrderCard> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Total',
+                                  const Text('Subtotal',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: _grey)),
+                                  Text(
+                                      '₱ ${widget.fmt.format(total)}',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: _textDark)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Paid with ${o['payment_method'] ?? 'Cash'}',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: _grey)),
+                                  Text(
+                                      '₱ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: _textDark)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Change Due',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: _grey)),
+                                  Text(
+                                      '₱ ${widget.fmt.format((o['change_due'] as num?)?.toDouble() ?? 0.0)}',
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              const Divider(color: _border, height: 16),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total Amount',
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
