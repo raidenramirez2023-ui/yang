@@ -1,9 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:math';
 import 'dart:core';
 import 'order_list_panel.dart';
+import 'payment_panel.dart';
 
 /// =====================
 /// MODELS
@@ -15,15 +15,12 @@ class MenuItem {
   String? customImagePath;
   final String fallbackImagePath;
   final Color color;
-  bool isPopular;
-
   MenuItem({
     required this.name,
     required this.price,
     required this.category,
     required this.fallbackImagePath,
     required this.color,
-    this.isPopular = false,
     this.customImagePath,
   });
 }
@@ -47,6 +44,8 @@ class ReceiptTemplate extends StatelessWidget {
   final String paymentMethod;
   final String transactionId;
   final DateTime transactionDate;
+  final double paidAmount;
+  final double changeDue;
 
   ReceiptTemplate({
     super.key,
@@ -55,6 +54,8 @@ class ReceiptTemplate extends StatelessWidget {
     this.customerName,
     this.paymentMethod = 'VISA',
     this.transactionId = '97413347',
+    this.paidAmount = 0.0,
+    this.changeDue = 0.0,
     DateTime? transactionDate,
   }) : transactionDate = transactionDate ?? DateTime.now();
 
@@ -120,7 +121,7 @@ class ReceiptTemplate extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('ORDER:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('#${transactionId.substring(0, 3)}'),
+              Text('#$transactionId'),
             ],
           ),
           
@@ -191,11 +192,11 @@ class ReceiptTemplate extends StatelessWidget {
             child: const Text('---', style: TextStyle(letterSpacing: 4)),
           ),
           
-          // Payment Info - VISA SALE
+          // Payment Info
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('VISA', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(paymentMethod.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
               const Text('SALE', style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
@@ -223,6 +224,21 @@ class ReceiptTemplate extends StatelessWidget {
               const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold)),
               Text('P ${NumberFormat('#,##0.00', 'en_US').format(totalAmount)}',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('AMOUNT PAID'),
+              Text('P ${NumberFormat('#,##0.00', 'en_US').format(paidAmount)}'),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('CHANGE DUE'),
+              Text('P ${NumberFormat('#,##0.00', 'en_US').format(changeDue)}'),
             ],
           ),
           
@@ -530,7 +546,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Yangchow Family Bundles ──────────────────────────────────────────────
     menu['Yangchow Family Bundles']!.addAll([
       _item('Family Bundle A', 1880.80, 'Yangchow Family Bundles', Colors.orange,
-          customImagePath: 'assets/images/YC1.png', isPopular: true),
+          customImagePath: 'assets/images/YC1.png'),
       _item('Family Bundle B', 1880.80, 'Yangchow Family Bundles', Colors.deepOrange,
           customImagePath: 'assets/images/YC2.png'),
       _item('Family Bundle C', 3588.80, 'Yangchow Family Bundles', Colors.deepOrange,
@@ -544,7 +560,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Vegetables ───────────────────────────────────────────────────────────
     menu['Vegetables']!.addAll([
       _item('Chopsuey', 160, 'Vegetables', Colors.green,
-          customImagePath: 'assets/images/Lohanchay.png', isPopular: true),
+          customImagePath: 'assets/images/Lohanchay.png'),
       _item('Hot Salad', 140, 'Vegetables', Colors.lightGreen,
           customImagePath: 'assets/images/HSSalad.jpg'),
       _item('Bihon Guisado', 150, 'Vegetables', Colors.green,
@@ -560,7 +576,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Special Noodles ──────────────────────────────────────────────────────
     menu['Special Noodles']!.addAll([
       _item('Yang Chow Fried Noodles', 220, 'Special Noodles', Colors.amber,
-          customImagePath: 'assets/images/YCFriedRice.jpg', isPopular: true),
+          customImagePath: 'assets/images/YCFriedRice.jpg'),
       _item('Pancit Canton', 200, 'Special Noodles', Colors.orange,
           customImagePath: 'assets/images/PancitCLM.jpg'),
       _item('Big Bowl Noodles', 180, 'Special Noodles', Colors.red,
@@ -580,7 +596,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       _item('Corn Soup', 120, 'Soup', Colors.yellow,
           customImagePath: 'assets/images/CNoodleMM.jpg'),
       _item('Wonton Soup', 130, 'Soup', Colors.orange,
-          customImagePath: 'assets/images/WantonNoodles.jpg', isPopular: true),
+          customImagePath: 'assets/images/WantonNoodles.jpg'),
       _item('Hot Sour Soup', 110, 'Soup', Colors.red,
           customImagePath: 'assets/images/HSSoup.jpg'),
       _item('Special Soup', 125, 'Soup', Colors.purple,
@@ -614,7 +630,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Roast and Soy Specialties ────────────────────────────────────────────
     menu['Roast and Soy Specialties']!.addAll([
       _item('Roast Duck', 350, 'Roast and Soy Specialties', Colors.brown,
-          customImagePath: 'assets/images/LechonMacau.jpg', isPopular: true),
+          customImagePath: 'assets/images/LechonMacau.jpg'),
       _item('Soy Chicken', 280, 'Roast and Soy Specialties', Colors.amber,
           customImagePath: 'assets/images/YCFChicken.jpg'),
       _item('Lemon Chicken', 260, 'Roast and Soy Specialties', Colors.yellow,
@@ -630,7 +646,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Pork ─────────────────────────────────────────────────────────────────
     menu['Pork']!.addAll([
       _item('Sweet & Sour Pork', 220, 'Pork', Colors.red,
-          customImagePath: 'assets/images/ButteredChicken.jpg', isPopular: true),
+          customImagePath: 'assets/images/ButteredChicken.jpg'),
       _item('Pork Asado', 200, 'Pork', Colors.brown,
           customImagePath: 'assets/images/PatatimCuapao.jpg'),
       _item('Red Pork Asado', 210, 'Pork', Colors.pink,
@@ -664,7 +680,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Mami or Noodles ──────────────────────────────────────────────────────
     menu['Mami or Noodles']!.addAll([
       _item('Beef Mami', 120, 'Mami or Noodles', Colors.brown,
-          customImagePath: 'assets/images/BeefBLK.jpg', isPopular: true),
+          customImagePath: 'assets/images/BeefBLK.jpg'),
       _item('Chicken Mami', 110, 'Mami or Noodles', Colors.amber,
           customImagePath: 'assets/images/CNoodleMM.jpg'),
       _item('Wanton Noodles', 130, 'Mami or Noodles', Colors.orange,
@@ -678,7 +694,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Hot Pot Specialties ──────────────────────────────────────────────────
     menu['Hot Pot Specialties']!.addAll([
       _item('Seafood Hot Pot', 450, 'Hot Pot Specialties', Colors.deepOrange,
-          customImagePath: 'assets/images/STHotPot.jpg', isPopular: true),
+          customImagePath: 'assets/images/STHotPot.jpg'),
       _item('Vegetable Hot Pot', 350, 'Hot Pot Specialties', Colors.green,
           customImagePath: 'assets/images/FFTHotPot.jpg'),
       _item('Big Bowl Hot Pot', 380, 'Hot Pot Specialties', Colors.red,
@@ -694,7 +710,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Fried Rice or Rice ───────────────────────────────────────────────────
     menu['Fried Rice or Rice']!.addAll([
       _item('Yang Chow Fried Rice', 180, 'Fried Rice or Rice', Colors.orange,
-          customImagePath: 'assets/images/BeefFriedRice.png', isPopular: true),
+          customImagePath: 'assets/images/BeefFriedRice.png'),
       _item('Plain Rice', 30, 'Fried Rice or Rice', Colors.white70,
           customImagePath: 'assets/images/CSFFriedRice.jpg'),
       _item('Chinese Style Fried Rice', 190, 'Fried Rice or Rice', Colors.red,
@@ -706,7 +722,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Dimsum ───────────────────────────────────────────────────────────────
     menu['Dimsum']!.addAll([
       _item('Siomai', 60, 'Dimsum', Colors.orange,
-          customImagePath: 'assets/images/LumpiangShanghai.jpg', isPopular: true),
+          customImagePath: 'assets/images/LumpiangShanghai.jpg'),
       _item('Hakaw', 70, 'Dimsum', Colors.lightBlue,
           customImagePath: 'assets/images/BBSiopao.jpg'),
       _item('Asado Siopao', 65, 'Dimsum', Colors.purple,
@@ -720,7 +736,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Congee ───────────────────────────────────────────────────────────────
     menu['Congee']!.addAll([
       _item('Beef Congee', 100, 'Congee', Colors.brown,
-          customImagePath: 'assets/images/PLCongee.jpg', isPopular: true),
+          customImagePath: 'assets/images/PLCongee.jpg'),
       _item('Plain Lugaw', 60, 'Congee', Colors.grey,
           customImagePath: 'assets/images/CenturyEgg.jpg'),
       _item('Beef Congee', 95, 'Congee', Colors.deepOrange,
@@ -736,7 +752,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Chicken ──────────────────────────────────────────────────────────────
     menu['Chicken']!.addAll([
       _item('Chicken Adobo', 200, 'Chicken', Colors.brown,
-          customImagePath: 'assets/images/LemonChicken.jpg', isPopular: true),
+          customImagePath: 'assets/images/LemonChicken.jpg'),
       _item('Kung Pao Chicken', 230, 'Chicken', Colors.red,
           customImagePath: 'assets/images/CuapaoMantau.jpg'),
       _item('Lemon Chicken', 210, 'Chicken', Colors.yellow,
@@ -752,7 +768,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Beef ─────────────────────────────────────────────────────────────────
     menu['Beef']!.addAll([
       _item('Beef Broccoli', 250, 'Beef', Colors.green,
-          customImagePath: 'assets/images/BeefGP.png', isPopular: true),
+          customImagePath: 'assets/images/BeefGP.png'),
       _item('Beef Steak', 280, 'Beef', Colors.red,
           customImagePath: 'assets/images/BeefBF.jpg'),
       _item('Beef Black Pepper', 260, 'Beef', Colors.brown,
@@ -768,7 +784,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // ── Appetizer ────────────────────────────────────────────────────────────
     menu['Appetizer']!.addAll([
       _item('Lumpia Shanghai', 80, 'Appetizer', Colors.brown,
-          customImagePath: 'assets/images/LumpiangShanghai.jpg', isPopular: true),
+          customImagePath: 'assets/images/LumpiangShanghai.jpg'),
       _item('Calamares', 90, 'Appetizer', Colors.deepOrange,
           customImagePath: 'assets/images/Calamares.jpg'),
       _item('Jelly Fish', 120, 'Appetizer', Colors.pink,
@@ -791,7 +807,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     double price,
     String category,
     Color color, {
-    bool isPopular = false,
     String? customImagePath,
   }) {
     return MenuItem(
@@ -800,7 +815,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       category: category,
       fallbackImagePath: customImagePath ?? _nextImage(category),
       color: color,
-      isPopular: isPopular,
       customImagePath: customImagePath,
     );
   }
@@ -852,7 +866,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _removeItem(CartItem cartItem) => setState(() => cart.remove(cartItem));
 
-  void _generateReceipt([String customerName = '']) {
+  Future<void> _generateReceipt({
+    String customerName = '',
+    String paymentMethod = 'CASH',
+    double paidAmount = 0.0,
+    double changeDue = 0.0,
+  }) async {
     if (cart.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Cart is empty!')));
@@ -865,8 +884,33 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     final snapshotTotal = cartSnapshot.fold(
         0.0, (sum, c) => sum + (c.item.price * c.quantity));
 
-    // Generate a random transaction ID
-    final transactionId = '${DateTime.now().millisecond}${Random().nextInt(1000)}'.padRight(8, '0').substring(0, 8);
+    // Determine the next transaction ID (001, 002, ...)
+    String transactionId = '001';
+    try {
+      final supabase = Supabase.instance.client;
+      final res = await supabase
+          .from('orders')
+          .select('transaction_id')
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (res != null && res['transaction_id'] != null) {
+        final lastIdStr = res['transaction_id'].toString();
+        final lastIdInt = int.tryParse(lastIdStr);
+        // Only increment if it looks like our 3-digit sequence
+        if (lastIdInt != null && lastIdStr.length <= 3) {
+          transactionId = (lastIdInt + 1).toString().padLeft(3, '0');
+        } else {
+          transactionId = '001';
+        }
+      }
+    } catch (e) {
+      // If error or no orders, we start at 001
+      transactionId = '001';
+    }
+
+    if (!mounted) return;
 
     // Persist to Supabase (fire-and-forget, errors shown via snackbar)
     _saveOrderToDatabase(
@@ -874,6 +918,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       total: snapshotTotal,
       customerName: customerName,
       transactionId: transactionId,
+      paymentMethod: paymentMethod,
+      amountPaid: paidAmount,
+      changeDue: changeDue,
     );
 
     // Use the widget's own context (Scaffold context) so the dialog
@@ -888,9 +935,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             cart: cartSnapshot,
             totalAmount: snapshotTotal,
             customerName: customerName.isNotEmpty ? customerName : null,
-            paymentMethod: 'VISA',
+            paymentMethod: paymentMethod,
             transactionId: transactionId,
             transactionDate: DateTime.now(),
+            paidAmount: paidAmount,
+            changeDue: changeDue,
           ),
         ),
       ),
@@ -902,6 +951,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     required double total,
     required String customerName,
     required String transactionId,
+    required String paymentMethod,
+    required double amountPaid,
+    required double changeDue,
   }) async {
     try {
       final supabase = Supabase.instance.client;
@@ -916,6 +968,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             'customer_name':
                 customerName.isNotEmpty ? customerName : 'Guest',
             'total_amount': total,
+            'payment_method': paymentMethod,
+            'amount_paid': amountPaid,
+            'change_due': changeDue,
             'item_count': cartSnapshot.fold(0, (s, c) => s + c.quantity),
             'staff_email': staffEmail,
             'created_at': DateTime.now().toIso8601String(),
@@ -938,11 +993,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       await supabase.from('order_items').insert(itemRows);
     } catch (e) {
+      debugPrint('Supabase Error: $e');
       // Non-blocking: show a warning but don't block the receipt
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Could not save order to database: $e'),
+            content: Text('⚠️ Could not save order: $e'),
             backgroundColor: Colors.orange,
             behavior: SnackBarBehavior.floating,
           ),
@@ -1135,12 +1191,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       height: 36,
                       child: ElevatedButton(
                         onPressed: cart.isNotEmpty
-                            ? () {
+                            ? () async {
                                 // Close the bottom sheet first, then show
                                 // the receipt dialog using the parent context.
                                 Navigator.pop(context);
-                                _generateReceipt(
-                                  _mobileCustomerNameController.text.trim(),
+                                await _generateReceipt(
+                                  customerName: _mobileCustomerNameController.text.trim(),
                                 );
                                 _mobileCustomerNameController.clear();
                               }
@@ -1334,25 +1390,70 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           ),
           // ── Body Row ─────────────────────────────────────────────────────
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                // ── Center: Food Grid ──────────────────────────────────────
-                Expanded(
-                  flex: 13,
-                  child: _buildMenuGrid(
-                      crossAxisCount: 4, childAspectRatio: 0.82),
-                ),
-                // ── Right of grid: Category Sidebar ───────────────────────
-                _buildCategorySidebar(),
-                // ── Far Right: Order Panel ─────────────────────────────────
-                OrderListPanel(
-                  cart: cart,
-                  onQuantityIncreased: _increaseQuantity,
-                  onQuantityDecreased: _decreaseQuantity,
-                  onRemoveItem: _removeItem,
-                  onPrintReceipt: (customerName) =>
-                      _generateReceipt(customerName),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Left: Category Sidebar ──────────────────────────────
+                    _buildCategorySidebar(),
+                    // ── Center: Food Grid ──────────────────────────────────────
+                    Expanded(
+                      flex: 13,
+                      child: _buildMenuGrid(
+                          crossAxisCount: 5, childAspectRatio: 0.82),
+                    ),
+                    // ── Far Right: Order Panel ─────────────────────────────────
+                    OrderListPanel(
+                      cart: cart,
+                      onQuantityIncreased: _increaseQuantity,
+                      onQuantityDecreased: _decreaseQuantity,
+                      onRemoveItem: _removeItem,
+                      onProceedPayment: () {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => Dialog(
+                            backgroundColor: Colors.transparent,
+                            insetPadding: const EdgeInsets.all(20),
+                            child: Container(
+                              width: 700,
+                              height: 700,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 30,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: PaymentPanel(
+                                cart: cart,
+                                onBack: () => Navigator.pop(context),
+                                onComplete: (name, method, paid, change) async {
+                                  Navigator.pop(context); // Close payment dialog
+                                  await _generateReceipt(
+                                    customerName: name,
+                                    paymentMethod: method,
+                                    paidAmount: paid,
+                                    changeDue: change,
+                                  );
+                                  setState(() => cart.clear());
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      onClearCart: () {
+                        setState(() => cart.clear());
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1627,28 +1728,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 ),
               ),
 
-              // ── Popular badge (top-left) ────────────────────────────────
-              if (item.isPopular)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Popular',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ),
-                ),
 
               // ── Quantity badge (top-right) ──────────────────────────────
               if (inCart)
