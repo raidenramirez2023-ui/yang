@@ -29,6 +29,7 @@ class _InventoryPageState extends State<InventoryPage> {
     'Drinks',
     'Packaging',
     'Janitorial',
+    'Miscellaneous',
   ];
 
   static const List<String> unitOptions = [

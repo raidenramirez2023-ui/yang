@@ -32,6 +32,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     'Drinks',
     'Packaging',
     'Janitorial',
+    'Miscellaneous',
   ];
 
   @override
