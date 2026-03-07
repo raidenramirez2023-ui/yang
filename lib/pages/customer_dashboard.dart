@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/login_page.dart';
@@ -58,7 +57,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         customerReservations = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      print('Error loading customer reservations: $e');
+      debugPrint('Error loading customer reservations: $e');
     }
   }
 
@@ -105,7 +104,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         // White Navigation Rail
         Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [Colors.white, Colors.white],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -130,7 +129,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               setState(() => _selectedIndex = index);
             },
 
-            // ⭐ FIX: REMOVE GRAY
             backgroundColor: Colors.white,
             indicatorColor: Colors.white,
 
@@ -736,15 +734,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   Widget _buildProfileSection() {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'My Profile',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Name'),
@@ -787,18 +785,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 ? Center(
                     child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.history_outlined,
                           size: 64,
                           color: Colors.grey,
                         ),
                         const SizedBox(height: 16),
-                        Text(
+                        const Text(
                           'No reservation history',
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           'Make your first reservation to see your history here!',
                           style: TextStyle(fontSize: 14),
                         ),
@@ -913,11 +911,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 12),
-            const Text('Delete Reservation'),
+            Icon(Icons.warning, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Delete Reservation'),
           ],
         ),
         content: Column(
@@ -1118,11 +1116,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.logout, color: AppTheme.primaryRed),
-            const SizedBox(width: 12),
-            const Text('Logout'),
+            Icon(Icons.logout, color: AppTheme.primaryRed),
+            SizedBox(width: 12),
+            Text('Logout'),
           ],
         ),
         content: const Text(
@@ -1149,7 +1147,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               try {
                 await _googleSignIn.signOut();
               } catch (e) {
-                print('Error signing out from Google: $e');
+                debugPrint('Error signing out from Google: $e');
               }
 
               if (mounted) {

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -31,16 +30,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     'Janitorial',
   ];
 
-  static const List<String> unitOptions = [
-    'kilo',
-    'gram',
-    'pcs',
-    'pack',
-    'order',
-    'bot',
-    'can',
-    'box',
-  ];
 
   static const List<String> supplierOptions = [
     'FreshMart',
@@ -70,7 +59,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String? selectedSupplier;
     final qtyCtrl = TextEditingController();
 
-    // Will hold items filtered by category from the DB
     List<Map<String, dynamic>> allItems = [];
     List<String> filteredItemNames = [];
 
@@ -137,7 +125,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── 1. Category Dropdown (unchanged behaviour) ──
+                          // ── 1. Category Dropdown ──
                           DropdownButtonFormField<String>(
                             value: selectedCategory,
                             decoration: _buildDecoration(
@@ -157,7 +145,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               if (value != null) {
                                 setDialogState(() {
                                   selectedCategory = value;
-                                  // Filter items to match the new category
                                   filteredItemNames = allItems
                                       .where(
                                         (item) =>
@@ -170,7 +157,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
-                                  // Reset item selection when category changes
                                   selectedItemName = null;
                                 });
                               }
@@ -185,11 +171,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 .stream(primaryKey: ['id'])
                                 .order('name'),
                             builder: (context, snapshot) {
-                              // Keep allItems in sync whenever stream updates
                               if (snapshot.hasData) {
                                 final fresh = snapshot.data!;
                                 if (fresh.length != allItems.length) {
-                                  // Update list and re-filter without calling setState
                                   WidgetsBinding.instance.addPostFrameCallback((
                                     _,
                                   ) {
@@ -241,7 +225,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     : (value) {
                                         setDialogState(() {
                                           selectedItemName = value;
-                                          // Auto-fill unit from the selected item's DB record
                                           final match = allItems.firstWhere(
                                             (item) =>
                                                 item['name']?.toString() ==
@@ -253,7 +236,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                               .trim();
                                           if (dbUnit != null &&
                                               dbUnit.isNotEmpty) {
-                                            // Use the DB unit directly (may not be in unitOptions list)
                                             selectedUnit = dbUnit;
                                           } else {
                                             selectedUnit = null;
@@ -340,15 +322,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 color: AppTheme.infoBlue.withOpacity(0.3),
                               ),
                             ),
-                            child: Row(
+                            child: const Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.info_outline,
                                   color: AppTheme.infoBlue,
                                   size: 20,
                                 ),
-                                const SizedBox(width: 8),
-                                const Expanded(
+                                SizedBox(width: 8),
+                                Expanded(
                                   child: Text(
                                     'Stock will be added to existing inventory or create new item if not exists',
                                     style: TextStyle(
@@ -592,7 +574,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     : (value) {
                                         setDialogState(() {
                                           selectedItemName = value;
-                                          // Auto-fill unit from the selected item's DB record
                                           final match = allItems.firstWhere(
                                             (item) =>
                                                 item['name']?.toString() ==
@@ -614,7 +595,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── Unit — auto-filled read-only, shown in same row as Quantity ──
+                          // ── Unit — auto-filled read-only ──
                           Row(
                             children: [
                               Expanded(
@@ -658,7 +639,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── 5. Requested By ──
+                          // ── 4. Requested By ──
                           _buildInput(
                             requestedByCtrl,
                             'Requested By (e.g., Cook Name)',
@@ -676,15 +657,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 color: AppTheme.warningOrange.withOpacity(0.3),
                               ),
                             ),
-                            child: Row(
+                            child: const Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.warning_amber,
                                   color: AppTheme.warningOrange,
                                   size: 20,
                                 ),
-                                const SizedBox(width: 8),
-                                const Expanded(
+                                SizedBox(width: 8),
+                                Expanded(
                                   child: Text(
                                     'Stock will be deducted from inventory. Ensure sufficient stock is available.',
                                     style: TextStyle(
@@ -758,11 +739,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       prefixIcon: Icon(icon, color: AppTheme.primaryRed),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: AppTheme.lightGrey),
+        borderSide: const BorderSide(color: AppTheme.lightGrey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: AppTheme.primaryRed),
+        borderSide: const BorderSide(color: AppTheme.primaryRed),
       ),
       filled: true,
       fillColor: AppTheme.backgroundColor,
@@ -792,7 +773,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     try {
       final user = Supabase.instance.client.auth.currentUser;
 
-      // Check if item exists
       final existingItems = await Supabase.instance.client
           .from('inventory')
           .select()
@@ -800,7 +780,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           .limit(1);
 
       if (existingItems.isNotEmpty) {
-        // Update existing item quantity
         final existingItem = existingItems.first;
         final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
         await Supabase.instance.client
@@ -808,7 +787,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             .update({'quantity': currentQty + quantity})
             .eq('id', existingItem['id']);
       } else {
-        // Create new item
         await Supabase.instance.client.from('inventory').insert({
           'name': name,
           'category': category,
@@ -819,7 +797,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         });
       }
 
-      // Log the transaction
       await Supabase.instance.client.from('stock_transactions').insert({
         'item_name': name,
         'transaction_type': 'incoming',
@@ -845,7 +822,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     try {
       final user = Supabase.instance.client.auth.currentUser;
 
-      // Check if item exists and get current quantity
       final existingItems = await Supabase.instance.client
           .from('inventory')
           .select()
@@ -858,7 +834,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       }
 
       final existingItem = existingItems.first;
-
       final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
       if (currentQty < quantity) {
         _showErrorSnackBar(
@@ -867,13 +842,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         return;
       }
 
-      // Update inventory quantity
       await Supabase.instance.client
           .from('inventory')
           .update({'quantity': currentQty - quantity})
           .eq('id', existingItem['id']);
 
-      // Log the transaction
       await Supabase.instance.client.from('stock_transactions').insert({
         'item_name': itemName,
         'transaction_type': 'outgoing',
@@ -998,11 +971,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppTheme.lightGrey),
+                    borderSide: const BorderSide(color: AppTheme.lightGrey),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: AppTheme.primaryRed),
+                    borderSide: const BorderSide(color: AppTheme.primaryRed),
                   ),
                   filled: true,
                   fillColor: AppTheme.backgroundColor,
@@ -1090,13 +1063,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.warehouse_outlined,
                         size: 64,
                         color: AppTheme.mediumGrey,
                       ),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'No items found in storage',
                         style: TextStyle(
                           fontSize: 18,
@@ -1187,7 +1160,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             const SizedBox(height: 8),
                             Text(
                               item['category'] ?? 'Uncategorized',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.mediumGrey,
                                 fontWeight: FontWeight.w500,
@@ -1337,13 +1310,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.inventory_2_outlined,
                         size: 64,
                         color: AppTheme.mediumGrey,
                       ),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'No incoming deliveries yet',
                         style: TextStyle(
                           fontSize: 18,
@@ -1352,7 +1325,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'Click "New Delivery" to add stock',
                         style: TextStyle(
                           fontSize: 14,
@@ -1432,7 +1405,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             ),
                             Text(
                               _formatDate(transaction['created_at']),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.mediumGrey,
                               ),
@@ -1451,7 +1424,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               const SizedBox(width: 4),
                               Text(
                                 'Supplier: ${transaction['supplier']}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
                                 ),
@@ -1471,7 +1444,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               const SizedBox(width: 4),
                               Text(
                                 'Processed by: ${transaction['processed_by']}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
                                 ),
@@ -1585,13 +1558,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.outbox_outlined,
                         size: 64,
                         color: AppTheme.mediumGrey,
                       ),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'No outgoing stock yet',
                         style: TextStyle(
                           fontSize: 18,
@@ -1600,7 +1573,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      const Text(
                         'Click "Release Stock" to distribute items',
                         style: TextStyle(
                           fontSize: 14,
@@ -1680,7 +1653,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             ),
                             Text(
                               _formatDate(transaction['created_at']),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.mediumGrey,
                               ),
@@ -1699,7 +1672,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               const SizedBox(width: 4),
                               Text(
                                 'Purpose: ${transaction['purpose']}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
                                 ),
@@ -1719,7 +1692,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               const SizedBox(width: 4),
                               Text(
                                 'Requested by: ${transaction['requested_by']}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
                                 ),
@@ -1739,7 +1712,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               const SizedBox(width: 4),
                               Text(
                                 'Processed by: ${transaction['processed_by']}',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
                                 ),

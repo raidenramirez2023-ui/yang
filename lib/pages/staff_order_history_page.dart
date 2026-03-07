@@ -32,20 +32,11 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
         .order('created_at', ascending: false);
   }
 
-  Future<List<Map<String, dynamic>>> _fetchItems(String orderId) async {
-    final res = await _supabase
-        .from('order_items')
-        .select()
-        .eq('order_id', orderId)
-        .order('id');
-    return List<Map<String, dynamic>>.from(res);
-  }
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> orders) {
     final now = DateTime.now();
     return orders.where((o) {
-      // Date filter
       final createdAt = DateTime.tryParse(o['created_at']?.toString() ?? '');
       if (createdAt == null) return false;
 
@@ -59,10 +50,8 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
         if (createdAt.isBefore(start)) return false;
       }
 
-      // Search filter
       if (_searchQuery.isNotEmpty) {
-        final customer =
-            (o['customer_name'] ?? '').toString().toLowerCase();
+        final customer = (o['customer_name'] ?? '').toString().toLowerCase();
         final id = (o['id'] ?? '').toString().toLowerCase();
         final q = _searchQuery.toLowerCase();
         if (!customer.contains(q) && !id.contains(q)) return false;
@@ -193,7 +182,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.receipt_long_outlined,
-                    size: 64, color: _grey.withOpacity(0.4)),
+                    size: 64, color: _grey.withValues(alpha: 0.4)),
                 const SizedBox(height: 16),
                 const Text(
                   'No orders found',
@@ -237,7 +226,6 @@ class _OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<_OrderCard> {
   static const _red = Color(0xFFDC2626);
-  static const _bg = Color(0xFFF5F6FA);
   static const _border = Color(0xFFE5E7EB);
   static const _grey = Color(0xFF6B7280);
   static const _textDark = Color(0xFF1A1A2E);
@@ -293,7 +281,7 @@ class _OrderCardState extends State<_OrderCard> {
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -317,11 +305,10 @@ class _OrderCardState extends State<_OrderCard> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: _red.withOpacity(0.08),
+                      color: _red.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.receipt_long,
-                        color: _red, size: 20),
+                    child: const Icon(Icons.receipt_long, color: _red, size: 20),
                   ),
                   const SizedBox(width: 12),
                   // Info
@@ -342,19 +329,16 @@ class _OrderCardState extends State<_OrderCard> {
                             const SizedBox(width: 8),
                             Text(
                               customer,
-                              style: const TextStyle(
-                                  fontSize: 13, color: _grey),
+                              style: const TextStyle(fontSize: 13, color: _grey),
                             ),
                           ],
                         ),
                         const SizedBox(height: 3),
                         Text(ts,
-                            style: const TextStyle(
-                                fontSize: 11, color: _grey)),
+                            style: const TextStyle(fontSize: 11, color: _grey)),
                         if (itemCount > 0)
                           Text('$itemCount item${itemCount != 1 ? 's' : ''}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: _grey)),
+                              style: const TextStyle(fontSize: 11, color: _grey)),
                       ],
                     ),
                   ),
@@ -377,8 +361,7 @@ class _OrderCardState extends State<_OrderCard> {
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: Colors.green.shade200),
+                          border: Border.all(color: Colors.green.shade200),
                         ),
                         child: Text('Paid',
                             style: TextStyle(
@@ -390,9 +373,7 @@ class _OrderCardState extends State<_OrderCard> {
                   ),
                   const SizedBox(width: 4),
                   Icon(
-                    _expanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
+                    _expanded ? Icons.expand_less : Icons.expand_more,
                     color: _grey,
                     size: 20,
                   ),
@@ -411,28 +392,27 @@ class _OrderCardState extends State<_OrderCard> {
                   ? const Padding(
                       padding: EdgeInsets.all(16),
                       child: Center(
-                          child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            color: _red, strokeWidth: 2),
-                      )),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: _red, strokeWidth: 2),
+                        ),
+                      ),
                     )
                   : _items == null || _items!.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(16),
                           child: Text('No item details found.',
-                              style:
-                                  TextStyle(color: _grey, fontSize: 13)),
+                              style: TextStyle(color: _grey, fontSize: 13)),
                         )
                       : Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                           child: Column(
                             children: [
                               // Column headers
-                              Row(
-                                children: const [
+                              const Row(
+                                children: [
                                   Expanded(
                                     flex: 5,
                                     child: Text('Item',
@@ -462,41 +442,33 @@ class _OrderCardState extends State<_OrderCard> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              const Divider(
-                                  color: _border, height: 1),
+                              const Divider(color: _border, height: 1),
                               const SizedBox(height: 8),
                               ..._items!.map((it) {
                                 final name = it['item_name'] ?? '—';
                                 final qty =
-                                    (it['quantity'] as num?)?.toInt() ??
-                                        1;
+                                    (it['quantity'] as num?)?.toInt() ?? 1;
                                 final price =
-                                    (it['unit_price'] as num?)
-                                            ?.toDouble() ??
-                                        0.0;
+                                    (it['unit_price'] as num?)?.toDouble() ?? 0.0;
                                 final sub = price * qty;
                                 return Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 6),
+                                  padding: const EdgeInsets.only(bottom: 6),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         flex: 5,
                                         child: Text(name,
                                             style: const TextStyle(
-                                                fontSize: 13,
-                                                color: _textDark),
+                                                fontSize: 13, color: _textDark),
                                             maxLines: 2,
-                                            overflow:
-                                                TextOverflow.ellipsis),
+                                            overflow: TextOverflow.ellipsis),
                                       ),
                                       SizedBox(
                                         width: 36,
                                         child: Text('×$qty',
                                             textAlign: TextAlign.center,
                                             style: const TextStyle(
-                                                fontSize: 13,
-                                                color: _grey)),
+                                                fontSize: 13, color: _grey)),
                                       ),
                                       Expanded(
                                         flex: 3,
@@ -506,8 +478,7 @@ class _OrderCardState extends State<_OrderCard> {
                                             style: const TextStyle(
                                                 fontSize: 13,
                                                 color: _textDark,
-                                                fontWeight:
-                                                    FontWeight.w500)),
+                                                fontWeight: FontWeight.w500)),
                                       ),
                                     ],
                                   ),
@@ -520,13 +491,11 @@ class _OrderCardState extends State<_OrderCard> {
                                 children: [
                                   const Text('Subtotal',
                                       style: TextStyle(
-                                          fontSize: 13,
-                                          color: _grey)),
+                                          fontSize: 13, color: _grey)),
                                   Text(
                                       '₱ ${widget.fmt.format(total)}',
                                       style: const TextStyle(
-                                          fontSize: 13,
-                                          color: _textDark)),
+                                          fontSize: 13, color: _textDark)),
                                 ],
                               ),
                               const SizedBox(height: 4),
@@ -534,15 +503,14 @@ class _OrderCardState extends State<_OrderCard> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Paid with ${o['payment_method'] ?? 'Cash'}',
+                                  Text(
+                                      'Paid with ${o['payment_method'] ?? 'Cash'}',
                                       style: const TextStyle(
-                                          fontSize: 13,
-                                          color: _grey)),
+                                          fontSize: 13, color: _grey)),
                                   Text(
                                       '₱ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
                                       style: const TextStyle(
-                                          fontSize: 13,
-                                          color: _textDark)),
+                                          fontSize: 13, color: _textDark)),
                                 ],
                               ),
                               Row(
@@ -551,8 +519,7 @@ class _OrderCardState extends State<_OrderCard> {
                                 children: [
                                   const Text('Change Due',
                                       style: TextStyle(
-                                          fontSize: 13,
-                                          color: _grey)),
+                                          fontSize: 13, color: _grey)),
                                   Text(
                                       '₱ ${widget.fmt.format((o['change_due'] as num?)?.toDouble() ?? 0.0)}',
                                       style: const TextStyle(

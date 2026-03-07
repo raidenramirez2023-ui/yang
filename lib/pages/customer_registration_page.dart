@@ -24,12 +24,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   bool _agreeToTerms = false;
-  bool _isRedirecting = false; // Flag to prevent multiple redirects
+  bool _isRedirecting = false;
 
   // Google Sign-In instance
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: 'YOUR_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual client ID
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   @override
   void initState() {
@@ -132,12 +130,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           password: password,
         );
 
-        // Customer record created via auth metadata only
-        print('=== CUSTOMER CREATED VIA AUTH ===');
-        print('User ID: ${authResponse.user!.id}');
-        print('Email: $email');
-        print('Name: $name');
-        print('SUCCESS: Customer account ready');
+        debugPrint('=== CUSTOMER CREATED VIA AUTH ===');
+        debugPrint('User ID: ${authResponse.user!.id}');
+        debugPrint('Email: $email');
+        debugPrint('Name: $name');
+        debugPrint('SUCCESS: Customer account ready');
         
         _showSnackBar(
           "Registration successful! Account is now ready to use.",
@@ -193,33 +190,33 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     setState(() => _isLoading = true);
     try {
       if (kIsWeb) {
-        // Clear existing session before starting new Google login to force fresh interaction
+        // Web: Use OAuth redirect flow
         await Supabase.instance.client.auth.signOut();
-        
         await Supabase.instance.client.auth.signInWithOAuth(
-          Provider.google,
+          OAuthProvider.google,
           redirectTo: Uri.base.origin,
           queryParams: {'prompt': 'select_account'},
         );
       } else {
-        // Sign out first to ensure account picker is shown (fixes auto-selection of previous account)
-        try {
-          await _googleSignIn.signOut();
-        } catch (_) {}
-        
-        final googleUser = await _googleSignIn.signIn();
-        final googleAuth = await googleUser?.authentication;
-        final accessToken = googleAuth?.accessToken;
-        final idToken = googleAuth?.idToken;
-
-        if (accessToken == null || idToken == null) {
-          throw 'Google Sign-In failed: Missing tokens';
+        // Mobile: Use native Google Sign-In SDK
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          // User cancelled the sign-in
+          return;
         }
 
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final String? idToken = googleAuth.idToken;
+
+        if (idToken == null) {
+          throw Exception('Failed to get ID token from Google Sign-In');
+        }
+
+        // Sign in with Supabase using the ID token
         await Supabase.instance.client.auth.signInWithIdToken(
-          provider: Provider.google,
+          provider: OAuthProvider.google,
           idToken: idToken,
-          accessToken: accessToken,
+          accessToken: googleAuth.accessToken,
         );
       }
     } catch (e) {
@@ -239,7 +236,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     final email = session.user.email;
     if (email == null) return;
 
-    _isRedirecting = true; // Mark as redirecting to prevent race conditions
+    _isRedirecting = true;
     try {
       // Check if user exists in the users table
       final userResponse = await Supabase.instance.client
@@ -284,7 +281,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         Navigator.pushReplacementNamed(context, '/customer-dashboard');
       }
     } catch (e) {
-      print('Error in _handleOAuthSuccess: $e');
+      debugPrint('Error in _handleOAuthSuccess: $e');
     }
   }
 
@@ -345,7 +342,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Left side - Full image background (50%)
         Expanded(
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/images/yc.jpg'),
                 fit: BoxFit.cover,
@@ -386,7 +383,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               // Logo
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),

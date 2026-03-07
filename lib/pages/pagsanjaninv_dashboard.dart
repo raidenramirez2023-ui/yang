@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -39,7 +38,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         });
       }
 
-      // Get inventory statistics
       final inventoryResponse = await _supabase
           .from('inventory')
           .select('quantity');
@@ -67,7 +65,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         });
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
+      debugPrint('Error loading dashboard data: $e');
       setState(() {
         _isLoading = false;
       });
@@ -75,14 +73,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Future<void> _signOut() async {
-    // Show confirmation dialog
     final bool? shouldLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.logout, color: AppTheme.primaryRed, size: 24),
+              const Icon(Icons.logout, color: AppTheme.primaryRed, size: 24),
               const SizedBox(width: 12),
               const Text('Confirm Logout'),
             ],
@@ -103,7 +100,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text(
+              child: const Text(
                 'Cancel',
                 style: TextStyle(
                   color: AppTheme.mediumGrey,
@@ -131,7 +128,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       },
     );
 
-    // Only logout if user confirmed
     if (shouldLogout == true) {
       try {
         await Supabase.instance.client.auth.signOut();
@@ -243,9 +239,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -285,10 +281,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         decoration: BoxDecoration(
           color: AppTheme.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.darkGrey.withOpacity(0.05),
+              color: AppTheme.darkGrey.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -313,138 +309,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.1),
-            color.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.mediumGrey,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildMenuCard({
-    required String title,
-    required String description,
-    required IconData icon,
-    required VoidCallback onTap,
-    required Color color,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.white,
-              color.withOpacity(0.05),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.darkGrey.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const Spacer(),
-                Icon(Icons.arrow_forward_ios, color: color, size: 16),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.mediumGrey,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    final isTablet = ResponsiveUtils.isTablet(context);
-    
+
     if (isDesktop) {
       return _buildDesktopLayout();
     } else {
@@ -464,7 +334,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               color: AppTheme.primaryRed,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.darkGrey.withOpacity(0.1),
+                  color: AppTheme.darkGrey.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: const Offset(2, 0),
                 ),
@@ -480,7 +350,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.white.withOpacity(0.2),
+                          color: AppTheme.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -576,7 +446,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     color: AppTheme.white,
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.darkGrey.withOpacity(0.1),
+                        color: AppTheme.darkGrey.withValues(alpha: 0.1),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),
@@ -671,7 +541,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.white.withOpacity(0.2),
+                        color: AppTheme.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
@@ -774,13 +644,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+          color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+            color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             fontSize: 13,
           ),
@@ -789,7 +659,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
+        tileColor: isSelected ? AppTheme.white.withValues(alpha: 0.2) : Colors.transparent,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         dense: true,
       ),
@@ -808,13 +678,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+          color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
           size: 24,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+            color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             fontSize: 15,
           ),
@@ -823,7 +693,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
+        tileColor: isSelected ? AppTheme.white.withValues(alpha: 0.2) : Colors.transparent,
       ),
     );
   }
