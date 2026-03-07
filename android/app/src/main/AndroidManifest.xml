@@ -29,10 +29,10 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <!-- Accepts URIs that begin with io.supabase.yangchow://login-callback -->
+                <!-- Accepts URIs that begin with com.example.yang_chow://auth -->
                 <data
-                    android:scheme="io.supabase.yangchow"
-                    android:host="login-callback" />
+                    android:scheme="com.example.yang_chow"
+                    android:host="auth" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

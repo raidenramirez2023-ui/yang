@@ -16,7 +16,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _isSessionChecking = true; // New flag to handle initial redirect smoothly
+  bool _isSessionChecking = true;
 
   @override
   void initState() {
@@ -39,20 +39,18 @@ class _LoginPageState extends State<LoginPage> {
 
         if (mounted) {
           if (userResponse == null) {
-            // New user (likely from Google) is treated as customer
             Navigator.pushReplacementNamed(context, '/customer-dashboard');
           } else {
             String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
             _redirectByUserRole(email, userRole);
           }
         }
-        return; // Success, don't clear loader yet (navigation will happen)
+        return;
       } catch (e) {
         debugPrint('Login: Redirect error: $e');
       }
     }
     
-    // No session or error occurred, show login form
     if (mounted) {
       setState(() => _isSessionChecking = false);
     }
@@ -106,15 +104,14 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Supabase auth
       await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
-      print('=== LOGIN DEBUG ===');
-      print('Email: $email');
-      print('Auth successful');
+      debugPrint('=== LOGIN DEBUG ===');
+      debugPrint('Email: $email');
+      debugPrint('Auth successful');
 
       final userResponse = await Supabase.instance.client
           .from('users')
@@ -122,10 +119,10 @@ class _LoginPageState extends State<LoginPage> {
           .eq('email', email)
           .maybeSingle();
 
-      print('User response from database: $userResponse');
+      debugPrint('User response from database: $userResponse');
 
       if (userResponse == null) {
-        print('User not found in users table, checking if it\'s a customer');
+        debugPrint('User not found in users table, checking if it\'s a customer');
         
         if (email == 'adm.pagsanjan@gmail.com') {
           await Supabase.instance.client.from('users').insert({
@@ -143,9 +140,7 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.pushReplacementNamed(context, '/dashboard');
           }
         } else {
-          // If not in users table, treat as customer
-          print('Treating as customer account');
-          String userRole = 'customer';
+          debugPrint('Treating as customer account');
 
           _showSnackBar(
             "Welcome back, customer!",
@@ -159,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
-        print('User role found: $userRole');
+        debugPrint('User role found: $userRole');
 
         _showSnackBar(
           "Login successful as $userRole!",
@@ -251,7 +246,7 @@ class _LoginPageState extends State<LoginPage> {
         // Left side - Full image background (50%)
         Expanded(
           child: Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/images/yc.jpg'),
                 fit: BoxFit.cover,
@@ -290,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
               // Logo
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
@@ -377,9 +372,9 @@ class _LoginPageState extends State<LoginPage> {
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _isPasswordVisible 
-                  ? Icons.visibility_outlined 
-                  : Icons.visibility_off_outlined,
+                _isPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
               ),
               onPressed: () {
                 setState(() {
@@ -405,15 +400,15 @@ class _LoginPageState extends State<LoginPage> {
               foregroundColor: Colors.white,
             ),
             child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text('Sign In'),
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Sign In'),
           ),
         ),
         const SizedBox(height: 16),
@@ -427,9 +422,9 @@ class _LoginPageState extends State<LoginPage> {
             },
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: AppTheme.primaryRed),
+              side: const BorderSide(color: AppTheme.primaryRed),
             ),
-            child: Text(
+            child: const Text(
               'Create New Account',
               style: TextStyle(
                 color: AppTheme.primaryRed,

@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -70,8 +68,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           .gte('created_at', cutoffDate.toIso8601String())
           .order('created_at', ascending: false);
 
-      final inventory = inventoryResponse ?? [];
-      final transactions = transactionsResponse ?? [];
+      final inventory = inventoryResponse;
+      final transactions = transactionsResponse;
 
       return _calculateForecast(inventory, transactions, days);
     } catch (e) {
@@ -297,13 +295,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.trending_up,
                             size: 64,
                             color: AppTheme.mediumGrey,
                           ),
                           const SizedBox(height: 16),
-                          Text(
+                          const Text(
                             'No forecast data available',
                             style: TextStyle(
                               fontSize: 18,
@@ -312,7 +310,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          const Text(
                             'Try adding more inventory or transaction data',
                             style: TextStyle(
                               fontSize: 14,
@@ -361,9 +359,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Analysis Period',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppTheme.darkGrey,
@@ -391,9 +389,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   side: BorderSide(
-                    color: isSelected
-                        ? AppTheme.primaryRed
-                        : AppTheme.lightGrey,
+                    color: isSelected ? AppTheme.primaryRed : AppTheme.lightGrey,
                   ),
                 ),
               );
@@ -424,11 +420,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             prefixIcon: const Icon(Icons.category, color: AppTheme.primaryRed),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.lightGrey),
+              borderSide: const BorderSide(color: AppTheme.lightGrey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.primaryRed),
+              borderSide: const BorderSide(color: AppTheme.primaryRed),
             ),
             filled: true,
             fillColor: AppTheme.backgroundColor,
@@ -450,7 +446,6 @@ class _ForecastCard extends StatelessWidget {
   final int periodDays;
 
   const _ForecastCard({
-    super.key,
     required this.item,
     required this.periodDays,
   });
@@ -463,7 +458,6 @@ class _ForecastCard extends StatelessWidget {
     final daysUntilEmpty = item['daysUntilEmpty'] as int;
     final currentStock = item['currentStock'] as int;
     final dailyUsage = double.tryParse(item['dailyUsage'] as String) ?? 0;
-    final recommendedOrder = item['recommendedOrder'] as int;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -501,7 +495,7 @@ class _ForecastCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item['category'] as String,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.mediumGrey,
                         fontWeight: FontWeight.w500,
@@ -553,17 +547,14 @@ class _ForecastCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _InfoCard(
                       title: 'Daily Usage (Average)',
-                      value:
-                          '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
+                      value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
                       icon: Icons.trending_down,
                       iconColor: AppTheme.warningOrange,
                     ),
                     const SizedBox(height: 8),
                     _InfoCard(
                       title: 'Days Until Empty',
-                      value: daysUntilEmpty == 999
-                          ? 'No usage'
-                          : '$daysUntilEmpty days',
+                      value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
                       icon: Icons.schedule,
                       iconColor: riskColor,
                     ),
@@ -590,8 +581,7 @@ class _ForecastCard extends StatelessWidget {
                     Expanded(
                       child: _InfoCard(
                         title: 'Daily Usage (Average)',
-                        value:
-                            '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
+                        value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
                         icon: Icons.trending_down,
                         iconColor: AppTheme.warningOrange,
                       ),
@@ -605,9 +595,7 @@ class _ForecastCard extends StatelessWidget {
                 Expanded(
                   child: _InfoCard(
                     title: 'Days Until Empty',
-                    value: daysUntilEmpty == 999
-                        ? 'No usage'
-                        : '$daysUntilEmpty days',
+                    value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
                     icon: Icons.schedule,
                     iconColor: riskColor,
                   ),
@@ -659,7 +647,7 @@ class _InfoCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
                   color: AppTheme.mediumGrey,
                   fontWeight: FontWeight.w500,

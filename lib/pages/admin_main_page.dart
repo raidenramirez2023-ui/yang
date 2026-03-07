@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/role_helper.dart';
 import 'package:yang_chow/pages/user_management.dart';
 import 'package:yang_chow/pages/sales_report_page.dart';
@@ -97,7 +96,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
             margin: const EdgeInsets.symmetric(vertical: AppTheme.md, horizontal: AppTheme.md),
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
             decoration: BoxDecoration(
-              color: AppTheme.white.withValues(alpha: 0.2),
+              color: AppTheme.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             ),
             child: Row(
@@ -192,7 +191,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
             onPressed: () async {
               Navigator.pop(context);
               
-              // Full logout sequence
               await Supabase.instance.client.auth.signOut();
               try {
                 await GoogleSignIn().signOut();
