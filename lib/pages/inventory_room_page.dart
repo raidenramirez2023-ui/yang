@@ -11,18 +11,44 @@ class InventoryRoomPage extends StatefulWidget {
   State<InventoryRoomPage> createState() => _InventoryRoomPageState();
 }
 
-class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProviderStateMixin {
+class _InventoryRoomPageState extends State<InventoryRoomPage>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
   String _selectedCategory = 'All';
-  
+
   static const List<String> categories = [
     'All',
-    'Perishable Ingredients',
-    'Non-perishable Ingredients', 
-    'Beverages',
-    'Condiments',
+    'Fresh',
+    'Roasting',
+    'Davids',
+    'Groceries',
+    'Sauces',
+    'Vegetables',
+    'Pre-mix',
+    'Drinks',
     'Packaging',
+    'Janitorial',
+  ];
+
+  static const List<String> unitOptions = [
+    'kilo',
+    'gram',
+    'pcs',
+    'pack',
+    'order',
+    'bot',
+    'can',
+    'box',
+  ];
+
+  static const List<String> supplierOptions = [
+    'FreshMart',
+    'Roasting Mart',
+    'Davids Company',
+    'Grocery Mart',
+    'Packaging Mart',
+    'Janitorial Mart',
   ];
 
   @override
@@ -38,334 +64,690 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
   }
 
   void _showReplenishDialog() {
-    final nameCtrl = TextEditingController();
-    final qtyCtrl = TextEditingController();
-    final unitCtrl = TextEditingController();
-    final supplierCtrl = TextEditingController();
     String selectedCategory = categories[1];
+    String? selectedItemName;
+    String? selectedUnit;
+    String? selectedSupplier;
+    final qtyCtrl = TextEditingController();
+
+    // Will hold items filtered by category from the DB
+    List<Map<String, dynamic>> allItems = [];
+    List<String> filteredItemNames = [];
 
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          constraints: BoxConstraints(
-            maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 500,
-            maxHeight: ResponsiveUtils.isMobile(context) ? MediaQuery.of(context).size.height * 0.8 : 700,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.successGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.inventory_2, color: AppTheme.successGreen),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Incoming Stock Delivery',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.darkGrey,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: AppTheme.mediumGrey),
-                  ),
-                ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              constraints: BoxConstraints(
+                maxWidth: ResponsiveUtils.isMobile(context)
+                    ? double.infinity
+                    : 500,
+                maxHeight: ResponsiveUtils.isMobile(context)
+                    ? MediaQuery.of(context).size.height * 0.85
+                    : 700,
               ),
-              const SizedBox(height: 20),
-              
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
                     children: [
-                      _buildInput(nameCtrl, 'Item Name', Icons.inventory_2_outlined),
-                      const SizedBox(height: 16),
-                      
-                      DropdownButtonFormField<String>(
-                        value: selectedCategory,
-                        decoration: _buildDecoration('Category', Icons.category_outlined),
-                        items: categories.where((cat) => cat != 'All').map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) selectedCategory = value;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInput(qtyCtrl, 'Quantity', Icons.numbers, isNumber: true),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildInput(unitCtrl, 'Unit', Icons.straighten),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      _buildInput(supplierCtrl, 'Supplier', Icons.business_outlined),
-                      const SizedBox(height: 20),
-                      
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.infoBlue.withOpacity(0.1),
+                          color: AppTheme.successGreen.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.infoBlue.withOpacity(0.3)),
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, color: AppTheme.infoBlue, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Stock will be added to existing inventory or create new item if not exists',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.infoBlue,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.inventory_2,
+                          color: AppTheme.successGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Incoming Stock Delivery',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppTheme.mediumGrey,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final qty = int.tryParse(qtyCtrl.text);
-                      if (nameCtrl.text.isEmpty || 
-                          selectedCategory.isEmpty || 
-                          unitCtrl.text.isEmpty || 
-                          qty == null || 
-                          qty <= 0) {
-                        _showErrorSnackBar('Please fill all fields with valid values');
-                        return;
-                      }
+                  const SizedBox(height: 20),
 
-                      await _processIncomingStock(
-                        nameCtrl.text.trim(),
-                        selectedCategory,
-                        qty,
-                        unitCtrl.text.trim(),
-                        supplierCtrl.text.trim(),
-                      );
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── 1. Category Dropdown (unchanged behaviour) ──
+                          DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            decoration: _buildDecoration(
+                              'Category',
+                              Icons.category_outlined,
+                            ),
+                            items: categories
+                                .where((cat) => cat != 'All')
+                                .map(
+                                  (category) => DropdownMenuItem(
+                                    value: category,
+                                    child: Text(category),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() {
+                                  selectedCategory = value;
+                                  // Filter items to match the new category
+                                  filteredItemNames = allItems
+                                      .where(
+                                        (item) =>
+                                            item['category']?.toString() ==
+                                            value,
+                                      )
+                                      .map(
+                                        (item) =>
+                                            item['name']?.toString() ?? '',
+                                      )
+                                      .where((name) => name.isNotEmpty)
+                                      .toList();
+                                  // Reset item selection when category changes
+                                  selectedItemName = null;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
 
-                      if (mounted) Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.successGreen,
-                      foregroundColor: AppTheme.white,
+                          // ── 2. Item Name Dropdown (filtered by category) ──
+                          StreamBuilder<List<Map<String, dynamic>>>(
+                            stream: Supabase.instance.client
+                                .from('inventory')
+                                .stream(primaryKey: ['id'])
+                                .order('name'),
+                            builder: (context, snapshot) {
+                              // Keep allItems in sync whenever stream updates
+                              if (snapshot.hasData) {
+                                final fresh = snapshot.data!;
+                                if (fresh.length != allItems.length) {
+                                  // Update list and re-filter without calling setState
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    setDialogState(() {
+                                      allItems = fresh;
+                                      filteredItemNames = allItems
+                                          .where(
+                                            (item) =>
+                                                item['category']?.toString() ==
+                                                selectedCategory,
+                                          )
+                                          .map(
+                                            (item) =>
+                                                item['name']?.toString() ?? '',
+                                          )
+                                          .where((name) => name.isNotEmpty)
+                                          .toList();
+                                    });
+                                  });
+                                }
+                              }
+
+                              final items = filteredItemNames;
+
+                              return DropdownButtonFormField<String>(
+                                value: selectedItemName,
+                                decoration: _buildDecoration(
+                                  'Item Name',
+                                  Icons.inventory_2_outlined,
+                                ),
+                                hint: Text(
+                                  items.isEmpty
+                                      ? 'No items in this category'
+                                      : 'Select item',
+                                  style: const TextStyle(
+                                    color: AppTheme.mediumGrey,
+                                  ),
+                                ),
+                                items: items
+                                    .map(
+                                      (name) => DropdownMenuItem(
+                                        value: name,
+                                        child: Text(name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: items.isEmpty
+                                    ? null
+                                    : (value) {
+                                        setDialogState(() {
+                                          selectedItemName = value;
+                                          // Auto-fill unit from the selected item's DB record
+                                          final match = allItems.firstWhere(
+                                            (item) =>
+                                                item['name']?.toString() ==
+                                                value,
+                                            orElse: () => {},
+                                          );
+                                          final dbUnit = match['unit']
+                                              ?.toString()
+                                              .trim();
+                                          if (dbUnit != null &&
+                                              dbUnit.isNotEmpty) {
+                                            // Use the DB unit directly (may not be in unitOptions list)
+                                            selectedUnit = dbUnit;
+                                          } else {
+                                            selectedUnit = null;
+                                          }
+                                        });
+                                      },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 3. Quantity ──
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildInput(
+                                  qtyCtrl,
+                                  'Quantity',
+                                  Icons.numbers,
+                                  isNumber: true,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // ── 4. Unit — auto-filled from DB, read-only ──
+                              Expanded(
+                                child: InputDecorator(
+                                  decoration: _buildDecoration(
+                                    'Unit',
+                                    Icons.straighten,
+                                  ),
+                                  child: Text(
+                                    selectedUnit ?? '—',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: selectedUnit != null
+                                          ? AppTheme.darkGrey
+                                          : AppTheme.mediumGrey,
+                                      fontWeight: selectedUnit != null
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 5. Supplier Dropdown ──
+                          DropdownButtonFormField<String>(
+                            value: selectedSupplier,
+                            decoration: _buildDecoration(
+                              'Supplier',
+                              Icons.business_outlined,
+                            ),
+                            hint: const Text(
+                              'Select supplier',
+                              style: TextStyle(color: AppTheme.mediumGrey),
+                            ),
+                            items: supplierOptions
+                                .map(
+                                  (supplier) => DropdownMenuItem(
+                                    value: supplier,
+                                    child: Text(supplier),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedSupplier = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Info banner
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.infoBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.infoBlue.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline,
+                                  color: AppTheme.infoBlue,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Stock will be added to existing inventory or create new item if not exists',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.infoBlue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Text('Add Stock'),
+                  ),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final qty = int.tryParse(qtyCtrl.text);
+                          if (selectedItemName == null ||
+                              selectedItemName!.isEmpty ||
+                              selectedUnit == null ||
+                              selectedSupplier == null ||
+                              qty == null ||
+                              qty <= 0) {
+                            _showErrorSnackBar(
+                              'Please fill all fields with valid values',
+                            );
+                            return;
+                          }
+
+                          await _processIncomingStock(
+                            selectedItemName!,
+                            selectedCategory,
+                            qty,
+                            selectedUnit!,
+                            selectedSupplier!,
+                          );
+
+                          if (mounted) Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.successGreen,
+                          foregroundColor: AppTheme.white,
+                        ),
+                        child: const Text('Add Stock'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
   void _showOutgoingDialog() {
-    final itemNameCtrl = TextEditingController();
+    String selectedCategory = categories[1];
+    String? selectedItemName;
+    String? selectedUnit;
     final qtyCtrl = TextEditingController();
     final purposeCtrl = TextEditingController();
     final requestedByCtrl = TextEditingController();
 
+    List<Map<String, dynamic>> allItems = [];
+    List<String> filteredItemNames = [];
+
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          constraints: BoxConstraints(
-            maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 500,
-            maxHeight: ResponsiveUtils.isMobile(context) ? MediaQuery.of(context).size.height * 0.8 : 600,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.warningOrange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.outbox, color: AppTheme.warningOrange),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Outgoing Stock',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.darkGrey,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: AppTheme.mediumGrey),
-                  ),
-                ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              constraints: BoxConstraints(
+                maxWidth: ResponsiveUtils.isMobile(context)
+                    ? double.infinity
+                    : 500,
+                maxHeight: ResponsiveUtils.isMobile(context)
+                    ? MediaQuery.of(context).size.height * 0.85
+                    : 680,
               ),
-              const SizedBox(height: 20),
-              
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
                     children: [
-                      StreamBuilder<List<Map<String, dynamic>>>(
-                        stream: Supabase.instance.client
-                            .from('inventory')
-                            .stream(primaryKey: ['id'])
-                            .order('name'),
-                        builder: (context, snapshot) {
-                          final items = snapshot.data ?? [];
-                          return Autocomplete<String>(
-                            optionsBuilder: (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return const Iterable<String>.empty();
-                              }
-                              return items.where((item) {
-                                final name = (item['name'] ?? '').toString().toLowerCase();
-                                return name.contains(textEditingValue.text.toLowerCase());
-                              }).map((item) => item['name'].toString());
-                            },
-                            onSelected: (String selection) {
-                              itemNameCtrl.text = selection;
-                            },
-                            fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                              itemNameCtrl.text = controller.text;
-                              return TextField(
-                                controller: controller,
-                                focusNode: focusNode,
-                                onEditingComplete: onEditingComplete,
-                                decoration: _buildDecoration('Item Name', Icons.inventory_2_outlined),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      _buildInput(qtyCtrl, 'Quantity', Icons.numbers, isNumber: true),
-                      const SizedBox(height: 16),
-                      
-                      _buildInput(purposeCtrl, 'Purpose (e.g., Cooking, Prep)', Icons.restaurant_outlined),
-                      const SizedBox(height: 16),
-                      
-                      _buildInput(requestedByCtrl, 'Requested By (e.g., Cook Name)', Icons.person_outline),
-                      const SizedBox(height: 20),
-                      
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: AppTheme.warningOrange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber, color: AppTheme.warningOrange, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Stock will be deducted from inventory. Ensure sufficient stock is available.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.warningOrange,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.outbox,
+                          color: AppTheme.warningOrange,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Outgoing Stock',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppTheme.mediumGrey,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final qty = int.tryParse(qtyCtrl.text);
-                      if (itemNameCtrl.text.isEmpty || 
-                          purposeCtrl.text.isEmpty || 
-                          requestedByCtrl.text.isEmpty || 
-                          qty == null || 
-                          qty <= 0) {
-                        _showErrorSnackBar('Please fill all fields with valid values');
-                        return;
-                      }
+                  const SizedBox(height: 20),
 
-                      await _processOutgoingStock(
-                        itemNameCtrl.text.trim(),
-                        qty,
-                        purposeCtrl.text.trim(),
-                        requestedByCtrl.text.trim(),
-                      );
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── 1. Category Dropdown ──
+                          DropdownButtonFormField<String>(
+                            value: selectedCategory,
+                            decoration: _buildDecoration(
+                              'Category',
+                              Icons.category_outlined,
+                            ),
+                            items: categories
+                                .where((cat) => cat != 'All')
+                                .map(
+                                  (category) => DropdownMenuItem(
+                                    value: category,
+                                    child: Text(category),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(() {
+                                  selectedCategory = value;
+                                  filteredItemNames = allItems
+                                      .where(
+                                        (item) =>
+                                            item['category']?.toString() ==
+                                            value,
+                                      )
+                                      .map(
+                                        (item) =>
+                                            item['name']?.toString() ?? '',
+                                      )
+                                      .where((name) => name.isNotEmpty)
+                                      .toList();
+                                  selectedItemName = null;
+                                  selectedUnit = null;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
 
-                      if (mounted) Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.warningOrange,
-                      foregroundColor: AppTheme.white,
+                          // ── 2. Item Name Dropdown (filtered by category) ──
+                          StreamBuilder<List<Map<String, dynamic>>>(
+                            stream: Supabase.instance.client
+                                .from('inventory')
+                                .stream(primaryKey: ['id'])
+                                .order('name'),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                final fresh = snapshot.data!;
+                                if (fresh.length != allItems.length) {
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    setDialogState(() {
+                                      allItems = fresh;
+                                      filteredItemNames = allItems
+                                          .where(
+                                            (item) =>
+                                                item['category']?.toString() ==
+                                                selectedCategory,
+                                          )
+                                          .map(
+                                            (item) =>
+                                                item['name']?.toString() ?? '',
+                                          )
+                                          .where((name) => name.isNotEmpty)
+                                          .toList();
+                                    });
+                                  });
+                                }
+                              }
+
+                              final items = filteredItemNames;
+
+                              return DropdownButtonFormField<String>(
+                                value: selectedItemName,
+                                decoration: _buildDecoration(
+                                  'Item Name',
+                                  Icons.inventory_2_outlined,
+                                ),
+                                hint: Text(
+                                  items.isEmpty
+                                      ? 'No items in this category'
+                                      : 'Select item',
+                                  style: const TextStyle(
+                                    color: AppTheme.mediumGrey,
+                                  ),
+                                ),
+                                items: items
+                                    .map(
+                                      (name) => DropdownMenuItem(
+                                        value: name,
+                                        child: Text(name),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: items.isEmpty
+                                    ? null
+                                    : (value) {
+                                        setDialogState(() {
+                                          selectedItemName = value;
+                                          // Auto-fill unit from the selected item's DB record
+                                          final match = allItems.firstWhere(
+                                            (item) =>
+                                                item['name']?.toString() ==
+                                                value,
+                                            orElse: () => {},
+                                          );
+                                          final dbUnit = match['unit']
+                                              ?.toString()
+                                              .trim();
+                                          selectedUnit =
+                                              (dbUnit != null &&
+                                                  dbUnit.isNotEmpty)
+                                              ? dbUnit
+                                              : null;
+                                        });
+                                      },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Unit — auto-filled read-only, shown in same row as Quantity ──
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildInput(
+                                  qtyCtrl,
+                                  'Quantity',
+                                  Icons.numbers,
+                                  isNumber: true,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InputDecorator(
+                                  decoration: _buildDecoration(
+                                    'Unit',
+                                    Icons.straighten,
+                                  ),
+                                  child: Text(
+                                    selectedUnit ?? '—',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: selectedUnit != null
+                                          ? AppTheme.darkGrey
+                                          : AppTheme.mediumGrey,
+                                      fontWeight: selectedUnit != null
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 3. Purpose ──
+                          _buildInput(
+                            purposeCtrl,
+                            'Purpose (e.g., Cooking, Prep)',
+                            Icons.restaurant_outlined,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 5. Requested By ──
+                          _buildInput(
+                            requestedByCtrl,
+                            'Requested By (e.g., Cook Name)',
+                            Icons.person_outline,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Warning banner
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warningOrange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.warningOrange.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber,
+                                  color: AppTheme.warningOrange,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Stock will be deducted from inventory. Ensure sufficient stock is available.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.warningOrange,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Text('Release Stock'),
+                  ),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final qty = int.tryParse(qtyCtrl.text);
+                          if (selectedItemName == null ||
+                              selectedItemName!.isEmpty ||
+                              purposeCtrl.text.isEmpty ||
+                              requestedByCtrl.text.isEmpty ||
+                              qty == null ||
+                              qty <= 0) {
+                            _showErrorSnackBar(
+                              'Please fill all fields with valid values',
+                            );
+                            return;
+                          }
+
+                          await _processOutgoingStock(
+                            selectedItemName!,
+                            qty,
+                            purposeCtrl.text.trim(),
+                            requestedByCtrl.text.trim(),
+                          );
+
+                          if (mounted) Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.warningOrange,
+                          foregroundColor: AppTheme.white,
+                        ),
+                        child: const Text('Release Stock'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -387,7 +769,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
     );
   }
 
-  Widget _buildInput(TextEditingController ctrl, String label, IconData icon, {bool isNumber = false}) {
+  Widget _buildInput(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    bool isNumber = false,
+  }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -395,10 +782,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
     );
   }
 
-  Future<void> _processIncomingStock(String name, String category, int quantity, String unit, String supplier) async {
+  Future<void> _processIncomingStock(
+    String name,
+    String category,
+    int quantity,
+    String unit,
+    String supplier,
+  ) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      
+
       // Check if item exists
       final existingItems = await Supabase.instance.client
           .from('inventory')
@@ -443,10 +836,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
     }
   }
 
-  Future<void> _processOutgoingStock(String itemName, int quantity, String purpose, String requestedBy) async {
+  Future<void> _processOutgoingStock(
+    String itemName,
+    int quantity,
+    String purpose,
+    String requestedBy,
+  ) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      
+
       // Check if item exists and get current quantity
       final existingItems = await Supabase.instance.client
           .from('inventory')
@@ -463,7 +861,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
 
       final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
       if (currentQty < quantity) {
-        _showErrorSnackBar('Insufficient stock. Available: $currentQty, Requested: $quantity');
+        _showErrorSnackBar(
+          'Insufficient stock. Available: $currentQty, Requested: $quantity',
+        );
         return;
       }
 
@@ -493,19 +893,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
 
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.successGreen,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppTheme.successGreen),
     );
   }
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorRed,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppTheme.errorRed),
     );
   }
 
@@ -516,7 +910,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
       appBar: AppBar(
         backgroundColor: AppTheme.primaryRed,
         foregroundColor: AppTheme.white,
-        title: ResponsiveUtils.isMobile(context) 
+        title: ResponsiveUtils.isMobile(context)
             ? const Text('Inventory Room')
             : const Text('Inventory Room Management'),
         bottom: TabBar(
@@ -524,20 +918,31 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
           indicatorColor: AppTheme.white,
           labelColor: AppTheme.white,
           unselectedLabelColor: AppTheme.white.withOpacity(0.7),
-          labelStyle: ResponsiveUtils.isMobile(context) 
+          labelStyle: ResponsiveUtils.isMobile(context)
               ? const TextStyle(fontSize: 12)
               : const TextStyle(fontSize: 14),
           tabs: [
             Tab(
-              icon: Icon(Icons.warehouse, size: ResponsiveUtils.isMobile(context) ? 20 : 24),
-              text: ResponsiveUtils.isMobile(context) ? 'Storage' : 'Storage Room',
+              icon: Icon(
+                Icons.warehouse,
+                size: ResponsiveUtils.isMobile(context) ? 20 : 24,
+              ),
+              text: ResponsiveUtils.isMobile(context)
+                  ? 'Storage'
+                  : 'Storage Room',
             ),
             Tab(
-              icon: Icon(Icons.inventory, size: ResponsiveUtils.isMobile(context) ? 20 : 24),
+              icon: Icon(
+                Icons.inventory,
+                size: ResponsiveUtils.isMobile(context) ? 20 : 24,
+              ),
               text: 'Incoming',
             ),
             Tab(
-              icon: Icon(Icons.outbox, size: ResponsiveUtils.isMobile(context) ? 20 : 24),
+              icon: Icon(
+                Icons.outbox,
+                size: ResponsiveUtils.isMobile(context) ? 20 : 24,
+              ),
               text: 'Outgoing',
             ),
           ],
@@ -578,10 +983,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 onChanged: (value) => setState(() => _searchQuery = value),
                 decoration: InputDecoration(
                   hintText: 'Search items in storage...',
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.primaryRed),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppTheme.primaryRed,
+                  ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: AppTheme.mediumGrey),
+                          icon: const Icon(
+                            Icons.clear,
+                            color: AppTheme.mediumGrey,
+                          ),
                           onPressed: () => setState(() => _searchQuery = ''),
                         )
                       : null,
@@ -615,11 +1026,17 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                         selectedColor: AppTheme.primaryRed.withOpacity(0.2),
                         checkmarkColor: AppTheme.primaryRed,
                         labelStyle: TextStyle(
-                          color: isSelected ? AppTheme.primaryRed : AppTheme.darkGrey,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? AppTheme.primaryRed
+                              : AppTheme.darkGrey,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                         ),
                         side: BorderSide(
-                          color: isSelected ? AppTheme.primaryRed : AppTheme.lightGrey,
+                          color: isSelected
+                              ? AppTheme.primaryRed
+                              : AppTheme.lightGrey,
                         ),
                       ),
                     );
@@ -629,7 +1046,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
             ],
           ),
         ),
-        
+
         // Storage Room Grid
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -639,7 +1056,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 .order('created_at', ascending: false),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+                return const Center(
+                  child: CircularProgressIndicator(color: AppTheme.primaryRed),
+                );
               }
 
               if (snapshot.hasError) {
@@ -654,11 +1073,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
               final items = snapshot.data ?? [];
               final filteredItems = items.where((item) {
                 final name = (item['name'] ?? '').toString().toLowerCase();
-                final category = (item['category'] ?? '').toString().toLowerCase();
+                final category = (item['category'] ?? '')
+                    .toString()
+                    .toLowerCase();
                 final query = _searchQuery.toLowerCase();
-                final matchesSearch = name.contains(query) || category.contains(query);
-                final matchesCategory = _selectedCategory == 'All' || 
-                                     item['category']?.toString() == _selectedCategory;
+                final matchesSearch =
+                    name.contains(query) || category.contains(query);
+                final matchesCategory =
+                    _selectedCategory == 'All' ||
+                    item['category']?.toString() == _selectedCategory;
                 return matchesSearch && matchesCategory;
               }).toList();
 
@@ -667,7 +1090,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.warehouse_outlined, size: 64, color: AppTheme.mediumGrey),
+                      Icon(
+                        Icons.warehouse_outlined,
+                        size: 64,
+                        color: AppTheme.mediumGrey,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No items found in storage',
@@ -686,10 +1113,18 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 padding: const EdgeInsets.all(12),
                 child: GridView.builder(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: ResponsiveUtils.isMobile(context) ? 2 : ResponsiveUtils.isTablet(context) ? 3 : 4,
-                    crossAxisSpacing: ResponsiveUtils.isMobile(context) ? 8 : 12,
+                    crossAxisCount: ResponsiveUtils.isMobile(context)
+                        ? 2
+                        : ResponsiveUtils.isTablet(context)
+                        ? 3
+                        : 4,
+                    crossAxisSpacing: ResponsiveUtils.isMobile(context)
+                        ? 8
+                        : 12,
                     mainAxisSpacing: ResponsiveUtils.isMobile(context) ? 8 : 12,
-                    childAspectRatio: ResponsiveUtils.isMobile(context) ? 1.0 : 1.2,
+                    childAspectRatio: ResponsiveUtils.isMobile(context)
+                        ? 1.0
+                        : 1.2,
                   ),
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {
@@ -741,7 +1176,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                     color: stockColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: Icon(stockIcon, color: stockColor, size: 16),
+                                  child: Icon(
+                                    stockIcon,
+                                    color: stockColor,
+                                    size: 16,
+                                  ),
                                 ),
                               ],
                             ),
@@ -762,10 +1201,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                               decoration: BoxDecoration(
                                 color: stockColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: stockColor.withOpacity(0.3)),
+                                border: Border.all(
+                                  color: stockColor.withOpacity(0.3),
+                                ),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     stockStatus,
@@ -776,7 +1218,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                     ),
                                   ),
                                   Text(
-                                    '$quantity ${item['unit']?.toString().trim() ?? 'pcs'}'.trim(),
+                                    '$quantity ${item['unit']?.toString().trim() ?? 'pcs'}'
+                                        .trim(),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
@@ -811,7 +1254,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.successGreen, AppTheme.successGreen.withOpacity(0.8)],
+              colors: [
+                AppTheme.successGreen,
+                AppTheme.successGreen.withOpacity(0.8),
+              ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
@@ -838,7 +1284,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                         color: AppTheme.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       'Manage incoming stock deliveries',
                       style: TextStyle(
@@ -857,13 +1303,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.white,
                   foregroundColor: AppTheme.successGreen,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        
+
         // Recent Incoming Transactions
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -874,7 +1323,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 .order('created_at', ascending: false),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppTheme.successGreen));
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.successGreen,
+                  ),
+                );
               }
 
               final transactions = snapshot.data ?? [];
@@ -884,7 +1337,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inventory_2_outlined, size: 64, color: AppTheme.mediumGrey),
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 64,
+                        color: AppTheme.mediumGrey,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No incoming deliveries yet',
@@ -908,7 +1365,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
               }
 
               return ListView.builder(
-                padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 16),
+                padding: EdgeInsets.all(
+                  ResponsiveUtils.isMobile(context) ? 8 : 16,
+                ),
                 itemCount: transactions.length,
                 itemBuilder: (context, index) {
                   final transaction = transactions[index];
@@ -925,7 +1384,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: Border.all(color: AppTheme.successGreen.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppTheme.successGreen.withOpacity(0.3),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -938,7 +1399,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                 color: AppTheme.successGreen.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.add_shopping_cart, color: AppTheme.successGreen, size: 20),
+                              child: const Icon(
+                                Icons.add_shopping_cart,
+                                color: AppTheme.successGreen,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -954,7 +1419,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                     ),
                                   ),
                                   Text(
-                                    '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'.trim(),
+                                    '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'
+                                        .trim(),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -977,7 +1443,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.business, size: 16, color: AppTheme.mediumGrey),
+                              const Icon(
+                                Icons.business,
+                                size: 16,
+                                color: AppTheme.mediumGrey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Supplier: ${transaction['supplier']}',
@@ -993,7 +1463,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.person, size: 16, color: AppTheme.mediumGrey),
+                              const Icon(
+                                Icons.person,
+                                size: 16,
+                                color: AppTheme.mediumGrey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Processed by: ${transaction['processed_by']}',
@@ -1028,7 +1502,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppTheme.warningOrange, AppTheme.warningOrange.withOpacity(0.8)],
+              colors: [
+                AppTheme.warningOrange,
+                AppTheme.warningOrange.withOpacity(0.8),
+              ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
@@ -1074,13 +1551,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.white,
                   foregroundColor: AppTheme.warningOrange,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        
+
         // Recent Outgoing Transactions
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -1091,7 +1571,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                 .order('created_at', ascending: false),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: AppTheme.warningOrange));
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.warningOrange,
+                  ),
+                );
               }
 
               final transactions = snapshot.data ?? [];
@@ -1101,7 +1585,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.outbox_outlined, size: 64, color: AppTheme.mediumGrey),
+                      Icon(
+                        Icons.outbox_outlined,
+                        size: 64,
+                        color: AppTheme.mediumGrey,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No outgoing stock yet',
@@ -1125,7 +1613,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
               }
 
               return ListView.builder(
-                padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 16),
+                padding: EdgeInsets.all(
+                  ResponsiveUtils.isMobile(context) ? 8 : 16,
+                ),
                 itemCount: transactions.length,
                 itemBuilder: (context, index) {
                   final transaction = transactions[index];
@@ -1142,7 +1632,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppTheme.warningOrange.withOpacity(0.3),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1155,7 +1647,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                 color: AppTheme.warningOrange.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.restaurant, color: AppTheme.warningOrange, size: 20),
+                              child: const Icon(
+                                Icons.restaurant,
+                                color: AppTheme.warningOrange,
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -1171,7 +1667,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                                     ),
                                   ),
                                   Text(
-                                    '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'.trim(),
+                                    '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'
+                                        .trim(),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -1194,7 +1691,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.info, size: 16, color: AppTheme.mediumGrey),
+                              const Icon(
+                                Icons.info,
+                                size: 16,
+                                color: AppTheme.mediumGrey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Purpose: ${transaction['purpose']}',
@@ -1210,7 +1711,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.person, size: 16, color: AppTheme.mediumGrey),
+                              const Icon(
+                                Icons.person,
+                                size: 16,
+                                color: AppTheme.mediumGrey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Requested by: ${transaction['requested_by']}',
@@ -1226,7 +1731,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.admin_panel_settings, size: 16, color: AppTheme.mediumGrey),
+                              const Icon(
+                                Icons.admin_panel_settings,
+                                size: 16,
+                                color: AppTheme.mediumGrey,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Processed by: ${transaction['processed_by']}',
@@ -1277,7 +1786,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage> with TickerProvid
       final date = DateTime.parse(dateString);
       final now = DateTime.now();
       final difference = now.difference(date);
-      
+
       if (difference.inMinutes < 1) {
         return 'Just now';
       } else if (difference.inHours < 1) {
