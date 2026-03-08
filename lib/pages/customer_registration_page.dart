@@ -27,7 +27,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isRedirecting = false;
 
   // Google Sign-In instance
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb 
+      ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
+      : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
+  );
 
   @override
   void initState() {

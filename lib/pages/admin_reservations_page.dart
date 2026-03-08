@@ -106,32 +106,47 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header with refresh button
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Reservations Management',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+    return Padding(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with refresh button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Reservations Management',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 20,
+                      tablet: 24,
+                      desktop: 28,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
-            IconButton(
-              onPressed: _loadReservations,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTheme.lg),
-        Expanded(
-          child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
-        ),
-      ],
+              IconButton(
+                onPressed: _loadReservations,
+                icon: Icon(
+                  Icons.refresh,
+                  size: ResponsiveUtils.getResponsiveIconSize(context),
+                ),
+                tooltip: 'Refresh',
+              ),
+            ],
+          ),
+          ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+          Expanded(
+            child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -139,7 +154,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Column(
       children: [
         _buildFilterSection(),
-        const SizedBox(height: 20),
+        ResponsiveUtils.verticalSpace(context, mobile: 20, tablet: 24, desktop: 28),
         Expanded(child: _buildReservationsTable()),
       ],
     );
@@ -149,7 +164,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Column(
       children: [
         _buildFilterSection(),
-        const SizedBox(height: 16),
+        ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
         Expanded(
           child: _buildReservationsList(),
         ),
@@ -158,31 +173,54 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildFilterSection() {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Card(
+      elevation: isMobile ? 1 : 2,
       child: Padding(
-        padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12.0 : 16.0),
+        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Filter by Status',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 16,
+                  tablet: 18,
+                  desktop: 20,
+                ),
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+            ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
+            if (isMobile)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('all', 'All'),
+                    ResponsiveUtils.horizontalSpace(context, mobile: 8, tablet: 8, desktop: 8),
+                    _buildFilterChip('pending', 'Pending'),
+                    ResponsiveUtils.horizontalSpace(context, mobile: 8, tablet: 8, desktop: 8),
+                    _buildFilterChip('confirmed', 'Confirmed'),
+                    ResponsiveUtils.horizontalSpace(context, mobile: 8, tablet: 8, desktop: 8),
+                    _buildFilterChip('cancelled', 'Cancelled'),
+                  ],
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _buildFilterChip('all', 'All'),
-                  const SizedBox(width: 8),
                   _buildFilterChip('pending', 'Pending'),
-                  const SizedBox(width: 8),
                   _buildFilterChip('confirmed', 'Confirmed'),
-                  const SizedBox(width: 8),
                   _buildFilterChip('cancelled', 'Cancelled'),
                 ],
               ),
-            ),
           ],
         ),
       ),
@@ -191,8 +229,20 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   Widget _buildFilterChip(String value, String label) {
     final isSelected = _selectedFilter == value;
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            mobile: 12,
+            tablet: 13,
+            desktop: 14,
+          ),
+        ),
+      ),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -204,6 +254,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       labelStyle: TextStyle(
         color: isSelected ? AppTheme.primaryRed : Colors.black87,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: ResponsiveUtils.getResponsiveFontSize(
+          context,
+          mobile: 12,
+          tablet: 13,
+          desktop: 14,
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 8 : 12,
+        vertical: isMobile ? 4 : 6,
       ),
     );
   }
@@ -214,60 +274,201 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     }
 
     if (_filteredReservations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_available, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No reservations found',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No reservations match the selected filter',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState();
     }
 
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Card(
+      elevation: isMobile ? 1 : 2,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: ResponsiveUtils.isMobile(context) ? 12 : 24,
-          horizontalMargin: ResponsiveUtils.isMobile(context) ? 8 : 16,
-          columns: [
-            const DataColumn(label: Text('Customer')),
-            if (!ResponsiveUtils.isMobile(context)) const DataColumn(label: Text('Event')),
-            const DataColumn(label: Text('Date')),
-            const DataColumn(label: Text('Time')),
-            if (!ResponsiveUtils.isMobile(context)) const DataColumn(label: Text('Guests')),
-            const DataColumn(label: Text('Status')),
-            const DataColumn(label: Text('Actions')),
-          ],
-          rows: _filteredReservations.map((reservation) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  ResponsiveUtils.isMobile(context)
-                      ? Text(reservation['customer_name']?.toString().split(' ')[0] ?? '')
-                      : Text('${reservation['customer_name']}\n${reservation['customer_email']}')
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - (isMobile ? 32 : 64),
+          ),
+          child: DataTable(
+            columnSpacing: isMobile ? 8 : 24,
+            horizontalMargin: isMobile ? 8 : 16,
+            headingRowHeight: isMobile ? 48 : 56,
+            dataRowMinHeight: isMobile ? 40 : 48,
+            dataRowMaxHeight: isMobile ? 60 : 72,
+            columns: [
+              DataColumn(
+                label: Text(
+                  'Customer',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                if (!ResponsiveUtils.isMobile(context)) DataCell(Text(reservation['event_type'])),
-                DataCell(Text(reservation['event_date'])),
-                DataCell(Text(reservation['start_time'])),
-                if (!ResponsiveUtils.isMobile(context)) DataCell(Text('${reservation['number_of_guests']}')),
-                DataCell(_buildStatusChip(reservation['status'])),
-                DataCell(_buildActionButtons(reservation)),
-              ],
-            );
-          }).toList(),
+              ),
+              if (!isMobile) DataColumn(
+                label: Text(
+                  'Event',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Text(
+                  'Date',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Text(
+                  'Time',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (!isMobile) DataColumn(
+                label: Text(
+                  'Guests',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Text(
+                  'Status',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              DataColumn(
+                label: Text(
+                  'Actions',
+                  style: TextStyle(
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+            rows: _filteredReservations.map((reservation) {
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      isMobile
+                          ? (reservation['customer_name']?.toString().split(' ')[0] ?? '')
+                          : '${reservation['customer_name']}\n${reservation['customer_email']}',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isMobile) DataCell(
+                    Text(
+                      reservation['event_type'],
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      reservation['event_date'],
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      reservation['start_time'],
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (!isMobile) DataCell(
+                    Text(
+                      '${reservation['number_of_guests']}',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataCell(_buildStatusChip(reservation['status'])),
+                  DataCell(_buildActionButtons(reservation)),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -279,70 +480,58 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     }
 
     if (_filteredReservations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_available, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No reservations found',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState();
     }
 
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return ListView.builder(
-      padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       itemCount: _filteredReservations.length,
       itemBuilder: (context, index) {
         final reservation = _filteredReservations[index];
         return Card(
-          margin: EdgeInsets.only(bottom: ResponsiveUtils.isMobile(context) ? 8 : 12),
-          child: Padding(
-            padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12.0 : 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        reservation['event_type'],
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+          elevation: isMobile ? 1 : 2,
+          margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
+          child: InkWell(
+            onTap: () {
+              // Optional: Add tap handler for mobile to show details
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12.0 : 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          reservation['event_type'],
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 16,
+                              tablet: 18,
+                              desktop: 20,
+                            ),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    _buildStatusChip(reservation['status']),
-                  ],
-                ),
-                SizedBox(height: ResponsiveUtils.isMobile(context) ? 6 : 8),
-                Text('Customer: ${reservation['customer_name']}'),
-                if (!ResponsiveUtils.isMobile(context)) 
-                  Text('Email: ${reservation['customer_email']}'),
-                SizedBox(height: ResponsiveUtils.isMobile(context) ? 6 : 8),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: ResponsiveUtils.isMobile(context) ? 14 : 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text('${reservation['event_date']} at ${reservation['start_time']}'),
-                    if (!ResponsiveUtils.isMobile(context)) const SizedBox(width: 16),
-                    if (!ResponsiveUtils.isMobile(context)) ...[
-                      Icon(Icons.people, size: 16, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text('${reservation['number_of_guests']} guests'),
+                      _buildStatusChip(reservation['status']),
                     ],
-                  ],
-                ),
-                SizedBox(height: ResponsiveUtils.isMobile(context) ? 8 : 12),
-                _buildActionButtons(reservation),
-              ],
+                  ),
+                  ResponsiveUtils.verticalSpace(context, mobile: 6, tablet: 8, desktop: 10),
+                  _buildCustomerInfo(reservation),
+                  if (!isMobile) 
+                    ResponsiveUtils.verticalSpace(context, mobile: 4, tablet: 6, desktop: 8),
+                  _buildDateTimeGuestsInfo(reservation),
+                  ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
+                  _buildActionButtons(reservation),
+                ],
+              ),
             ),
           ),
         );
@@ -350,7 +539,135 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
+  Widget _buildCustomerInfo(Map<String, dynamic> reservation) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Customer: ${reservation['customer_name']}',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 14,
+              tablet: 15,
+              desktop: 16,
+            ),
+          ),
+        ),
+        if (!isMobile) 
+          ResponsiveUtils.verticalSpace(context, mobile: 2, tablet: 3, desktop: 4),
+        if (!isMobile) 
+          Text(
+            'Email: ${reservation['customer_email']}',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 12,
+                tablet: 13,
+                desktop: 14,
+              ),
+              color: Colors.grey.shade600,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeGuestsInfo(Map<String, dynamic> reservation) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
+    return Row(
+      children: [
+        Icon(
+          Icons.calendar_today, 
+          size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 14, tablet: 16, desktop: 18), 
+          color: Colors.grey,
+        ),
+        ResponsiveUtils.horizontalSpace(context, mobile: 4, tablet: 6, desktop: 8),
+        Expanded(
+          child: Text(
+            '${reservation['event_date']} at ${reservation['start_time']}',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 12,
+                tablet: 13,
+                desktop: 14,
+              ),
+            ),
+          ),
+        ),
+        if (!isMobile) ...[
+          ResponsiveUtils.horizontalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+          Icon(
+            Icons.people, 
+            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 14, tablet: 16, desktop: 18), 
+            color: Colors.grey,
+          ),
+          ResponsiveUtils.horizontalSpace(context, mobile: 4, tablet: 6, desktop: 8),
+          Text(
+            '${reservation['number_of_guests']} guests',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 12,
+                tablet: 13,
+                desktop: 14,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.event_available, 
+            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 48, tablet: 56, desktop: 64), 
+            color: Colors.grey.shade400,
+          ),
+          ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+          Text(
+            'No reservations found',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 18,
+                tablet: 20,
+                desktop: 22,
+              ),
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+          ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
+          Text(
+            'No reservations match the selected filter',
+            style: TextStyle(
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 14,
+                tablet: 15,
+                desktop: 16,
+              ),
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showConfirmReservationDialog(String reservationId, String eventType) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -358,11 +675,28 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        contentPadding: EdgeInsets.all(isMobile ? 16 : 24),
         title: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 12),
-            const Text('Confirm Reservation'),
+            Icon(
+              Icons.check_circle, 
+              color: Colors.green,
+              size: ResponsiveUtils.getResponsiveIconSize(context),
+            ),
+            SizedBox(width: isMobile ? 8 : 12),
+            Expanded(
+              child: Text(
+                'Confirm Reservation',
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -370,15 +704,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to confirm the "$eventType" reservation?',
-              style: const TextStyle(fontSize: 16),
+              'Are you sure you want to confirm "$eventType" reservation?',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 16,
+                  desktop: 16,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            const Text(
+            ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
+            Text(
               'This will notify the customer that their reservation has been confirmed.',
               style: TextStyle(
                 color: Colors.green,
-                fontSize: 14,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 12,
+                  tablet: 13,
+                  desktop: 14,
+                ),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -387,18 +733,42 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: isMobile ? 8 : 12,
+              ),
             ),
             onPressed: () {
               Navigator.pop(context);
               _updateReservationStatus(reservationId, 'confirmed');
             },
-            child: const Text('Confirm'),
+            child: Text(
+              'Confirm',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -406,6 +776,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   void _showDeleteConfirmationDialog(String reservationId, String eventType) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -413,11 +785,28 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        contentPadding: EdgeInsets.all(isMobile ? 16 : 24),
         title: Row(
           children: [
-            const Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 12),
-            const Text('Delete Reservation'),
+            Icon(
+              Icons.warning, 
+              color: Colors.orange,
+              size: ResponsiveUtils.getResponsiveIconSize(context),
+            ),
+            SizedBox(width: isMobile ? 8 : 12),
+            Expanded(
+              child: Text(
+                'Delete Reservation',
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -425,15 +814,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to delete the "$eventType" reservation?',
-              style: const TextStyle(fontSize: 16),
+              'Are you sure you want to delete "$eventType" reservation?',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 16,
+                  desktop: 16,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
-            const Text(
+            ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
+            Text(
               'This action cannot be undone and will permanently remove the reservation.',
               style: TextStyle(
                 color: Colors.red,
-                fontSize: 14,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 12,
+                  tablet: 13,
+                  desktop: 14,
+                ),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -442,18 +843,42 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: isMobile ? 8 : 12,
+              ),
             ),
             onPressed: () {
               Navigator.pop(context);
               _deleteReservation(reservationId);
             },
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -482,21 +907,39 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         icon = Icons.help;
     }
 
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Chip(
-      label: Text(status.toUpperCase()),
-      backgroundColor: color.withOpacity(0.1),
-      labelStyle: TextStyle(
-        color: color,
-        fontWeight: FontWeight.bold,
-        fontSize: 12,
+      label: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            mobile: 10,
+            tablet: 11,
+            desktop: 12,
+          ),
+        ),
       ),
-      avatar: Icon(icon, size: 16, color: color),
+      backgroundColor: color.withOpacity(0.1),
+      avatar: Icon(
+        icon, 
+        size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 12, tablet: 14, desktop: 16), 
+        color: color,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 6 : 8,
+        vertical: isMobile ? 2 : 4,
+      ),
     );
   }
 
   Widget _buildActionButtons(Map<String, dynamic> reservation) {
     String status = reservation['status'];
     String reservationId = reservation['id'];
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -504,26 +947,46 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         if (status == 'pending') ...[
           IconButton(
             onPressed: () => _showConfirmReservationDialog(reservationId, reservation['event_type']),
-            icon: const Icon(Icons.check, color: Colors.green),
+            icon: Icon(
+              Icons.check, 
+              color: Colors.green,
+              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
             tooltip: 'Confirm',
+            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
           IconButton(
             onPressed: () => _updateReservationStatus(reservationId, 'cancelled'),
-            icon: const Icon(Icons.close, color: Colors.red),
+            icon: Icon(
+              Icons.close, 
+              color: Colors.red,
+              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
             tooltip: 'Cancel',
+            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
         ],
         if (status == 'confirmed') ...[
           IconButton(
             onPressed: () => _updateReservationStatus(reservationId, 'cancelled'),
-            icon: const Icon(Icons.cancel, color: Colors.red),
+            icon: Icon(
+              Icons.cancel, 
+              color: Colors.red,
+              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
             tooltip: 'Cancel',
+            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
         ],
         IconButton(
           onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type']),
-          icon: const Icon(Icons.delete, color: Colors.red),
+          icon: Icon(
+            Icons.delete, 
+            color: Colors.red,
+            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+          ),
           tooltip: 'Delete',
+          iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
         ),
       ],
     );
