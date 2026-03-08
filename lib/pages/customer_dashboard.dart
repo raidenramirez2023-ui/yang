@@ -94,6 +94,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
           ),
         ],
       ),
+      drawer: _buildDrawer(),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -1170,6 +1171,89 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             child: const Text('Logout'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    return Drawer(
+      child: Container(
+        color: Colors.white,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.person,
+                      size: 40,
+                      color: AppTheme.primaryRed,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    currentUser?.email ?? 'Customer',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('Home'),
+              onTap: () {
+                setState(() => _selectedIndex = 0);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.event_available_outlined),
+              title: const Text('My Reservations'),
+              onTap: () {
+                setState(() => _selectedIndex = 1);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Profile'),
+              onTap: () {
+                setState(() => _selectedIndex = 2);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('History'),
+              onTap: () {
+                setState(() => _selectedIndex = 3);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _showLogoutDialog();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
