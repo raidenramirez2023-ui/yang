@@ -39,13 +39,14 @@ class _LandingPageState extends State<LandingPage> {
           .maybeSingle();
 
       if (mounted) {
+        final navigator = Navigator.of(context);
         if (userResponse == null) {
           // It's a brand new Google user, insert them and go to customer dashboard
           await Supabase.instance.client.from('users').insert({
             'email': email,
             'role': 'customer',
           });
-          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          navigator.pushReplacementNamed('/customer-dashboard');
           return;
         } else {
           String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
@@ -150,10 +151,10 @@ class _LandingPageState extends State<LandingPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.5),
+          color: Colors.black.withValues(alpha: 0.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
             ),
           ],
@@ -223,7 +224,7 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Widget _buildHeroSection(BuildContext context) {
-    return Container(
+    return SizedBox(
       key: _heroKey,
       height: MediaQuery.of(context).size.height,
       width: double.infinity,
@@ -243,8 +244,8 @@ class _LandingPageState extends State<LandingPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.4),
-                  Colors.black.withOpacity(0.8),
+                  Colors.black.withValues(alpha: 0.4),
+                  Colors.black.withValues(alpha: 0.8),
                 ],
               ),
             ),
@@ -293,7 +294,7 @@ class _LandingPageState extends State<LandingPage> {
                       'Experience the true essence of traditional Chinese flavors combined with modern culinary excellence. Every dish is a masterpiece crafted for your satisfaction.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppTheme.white.withOpacity(0.9),
+                        color: AppTheme.white.withValues(alpha: 0.9),
                         fontSize: 18,
                         height: 1.6,
                       ),
@@ -334,7 +335,7 @@ class _LandingPageState extends State<LandingPage> {
             bottom: 30,
             left: 0,
             right: 0,
-            child: Icon(Icons.keyboard_arrow_down, color: AppTheme.white.withOpacity(0.5), size: 40),
+            child: Icon(Icons.keyboard_arrow_down, color: AppTheme.white.withValues(alpha: 0.5), size: 40),
           ),
         ],
       ),
@@ -434,7 +435,7 @@ class _LandingPageState extends State<LandingPage> {
                   decoration: BoxDecoration(
                     color: AppTheme.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.primaryRed.withOpacity(0.2)),
+                    border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     children: [
@@ -515,7 +516,7 @@ class _LandingPageState extends State<LandingPage> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -685,7 +686,7 @@ class _LandingPageState extends State<LandingPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withOpacity(0.1),
+                color: AppTheme.primaryRed.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: AppTheme.primaryRed, size: 32),
@@ -728,12 +729,12 @@ class _LandingPageState extends State<LandingPage> {
           const SizedBox(height: 24),
           Text(
             '© 2024 Yang Chow Restaurant Management System. All rights reserved.',
-            style: TextStyle(color: AppTheme.white.withOpacity(0.5), fontSize: 12),
+            style: TextStyle(color: AppTheme.white.withValues(alpha: 0.5), fontSize: 12),
           ),
           const SizedBox(height: 12),
           Text(
             'Designed with love in Pagsanjan, Laguna.',
-            style: TextStyle(color: AppTheme.white.withOpacity(0.3), fontSize: 10),
+            style: TextStyle(color: AppTheme.white.withValues(alpha: 0.3), fontSize: 10),
           ),
         ],
       ),

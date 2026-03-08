@@ -271,7 +271,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
             horizontal: ResponsiveUtils.isMobile(context) ? 8 : 12,
           ),
           decoration: BoxDecoration(
-            color: AppTheme.white.withOpacity(0.2),
+            color: AppTheme.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -350,7 +350,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
             horizontal: ResponsiveUtils.isMobile(context) ? 8 : 12,
           ),
           decoration: BoxDecoration(
-            color: AppTheme.white.withOpacity(0.2),
+            color: AppTheme.white.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -428,7 +428,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 Navigator.pop(context);
               },
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -526,14 +526,14 @@ class _AdminMainPageState extends State<AdminMainPage> {
             ),
             onPressed: () async {
               Navigator.pop(context);
-              
+              final navigator = Navigator.of(context);
               await Supabase.instance.client.auth.signOut();
               try {
                 await GoogleSignIn().signOut();
               } catch (_) {}
               
               if (mounted) {
-                Navigator.pushReplacementNamed(context, '/');
+                navigator.pushReplacementNamed('/');
               }
             },
             child: Text(

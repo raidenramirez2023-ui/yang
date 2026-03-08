@@ -43,7 +43,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       if (_selectedFilter == 'Today') {
         if (createdAt.year != now.year ||
             createdAt.month != now.month ||
-            createdAt.day != now.day) return false;
+            createdAt.day != now.day) { return false; }
       } else if (_selectedFilter == 'This Week') {
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
         final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);

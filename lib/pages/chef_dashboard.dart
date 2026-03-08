@@ -90,11 +90,6 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     } catch (_) {}
   }
 
-  void _onTabTapped(int index) {
-    setState(() => _currentTab = index);
-    _pageController.jumpToPage(index);
-    if (index == 0) _lastSeenPendingCount = _pendingOrderCount;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -365,7 +360,6 @@ class _KitchenOrdersTab extends StatefulWidget {
 class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
   // Kitchen status for each order (order_id → status)
   final Map<String, String> _kitchenStatus = {};
-  bool _loadingStatus = false; // no longer needed for a separate fetch
 
   static const _statusOrder = ['Pending', 'Preparing', 'Ready', 'Done'];
   static const _statusColors = {
@@ -577,9 +571,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
   Widget build(BuildContext context) {
     final status = widget.kitchenStatus;
     final color = widget.statusColors[status] ?? AppTheme.mediumGrey;
-    final orderId = widget.order['id'].toString();
     final customer = widget.order['customer_name']?.toString() ?? 'Guest';
-    final transactionId = widget.order['transaction_id']?.toString() ?? '—';
     final createdAt = widget.order['created_at'] != null
         ? DateTime.tryParse(widget.order['created_at'].toString())
         : null;
@@ -1394,7 +1386,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     required ValueChanged<T?> onChanged,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       dropdownColor: Colors.white,
       style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13),
       decoration: InputDecoration(
@@ -1615,10 +1607,10 @@ class _StockViewTabState extends State<_StockViewTab> {
             int out = 0, low = 0, ok = 0, high = 0;
             for (final i in items) {
               final qty = (i['quantity'] as num?)?.toInt() ?? 0;
-              if (qty == 0) out++;
-              else if (qty < 10) low++;
-              else if (qty < 50) ok++;
-              else high++;
+              if (qty == 0) { out++; }
+              else if (qty < 10) { low++; }
+              else if (qty < 50) { ok++; }
+              else { high++; }
             }
 
             if (out > 0 && snap.hasData) {
