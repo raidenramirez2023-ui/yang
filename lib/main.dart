@@ -13,6 +13,7 @@ import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/pagsanjaninv_dashboard.dart';
 import 'pages/landing_page.dart';
+import 'pages/chef_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +64,9 @@ class YangChowApp extends StatelessWidget {
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),
+
+        // Chef routes
+        '/chef-dashboard': (context) => const ChefDashboardPage(),
       },
     );
   }
