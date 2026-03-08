@@ -8,6 +8,10 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 android {
     namespace = "com.example.yang_chow"
     compileSdk = flutter.compileSdkVersion

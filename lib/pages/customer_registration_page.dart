@@ -5,7 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:postgrest/postgrest.dart';
 
 class CustomerRegistrationPage extends StatefulWidget {
   const CustomerRegistrationPage({super.key});

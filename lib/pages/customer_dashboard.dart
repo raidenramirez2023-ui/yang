@@ -120,7 +120,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -238,13 +238,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withOpacity(0.8)],
+              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withValues(alpha: 0.8)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryRed.withOpacity(0.3),
+                color: AppTheme.primaryRed.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
@@ -276,7 +276,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
             border: Border(
               top: BorderSide(
                 color: isSelected ? Colors.white : Colors.transparent,
@@ -332,14 +332,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withOpacity(0.8)],
+              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withValues(alpha: 0.8)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryRed.withOpacity(0.2),
+                color: AppTheme.primaryRed.withValues(alpha: 0.2),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -350,7 +350,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -377,7 +377,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     Text(
                       'Your premium dining experience awaits',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                       ),
@@ -422,7 +422,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -479,10 +479,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -523,14 +523,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.8)],
+          colors: [color, color.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -903,7 +903,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     return Chip(
       label: Text(status.toUpperCase()),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       labelStyle: TextStyle(
         color: color,
         fontWeight: FontWeight.bold,
@@ -1071,6 +1071,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         'status': 'pending',
       });
 
+      if (!mounted) return;
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1100,6 +1102,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       _loadCustomerReservations();
 
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1122,7 +1125,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -1139,7 +1142,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -1148,7 +1151,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               
               // Sign out from Supabase
               await Supabase.instance.client.auth.signOut();
