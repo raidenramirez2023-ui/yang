@@ -790,88 +790,89 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            customerReservations.isEmpty
-                ? Center(
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.history_outlined,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No reservation history',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Make your first reservation to see your history here!',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: customerReservations.length,
-                    itemBuilder: (context, index) {
-                      final reservation = customerReservations[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      reservation['event_type'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+            Expanded(
+              child: customerReservations.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.history_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No reservation history',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Make your first reservation to see your history here!',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: customerReservations.length,
+                      itemBuilder: (context, index) {
+                        final reservation = customerReservations[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        reservation['event_type'],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      _buildStatusChip(reservation['status']),
-                                      const SizedBox(width: 8),
-                                      if (reservation['status'] == 'pending')
-                                        IconButton(
-                                          onPressed: () {
-                                            _showDeleteConfirmationDialog(reservation['id'], reservation['event_type']);
-                                          },
-                                          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                          tooltip: 'Delete Reservation',
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text('Date: ${reservation['event_date']}'),
-                              Text('Time: ${reservation['start_time']}'),
-                              Text('Duration: ${reservation['duration_hours']} hours'),
-                              Text('Guests: ${reservation['number_of_guests']}'),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Booked on: ${DateTime.parse(reservation['created_at']).toString().substring(0, 19)}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
+                                    Row(
+                                      children: [
+                                        _buildStatusChip(reservation['status']),
+                                        const SizedBox(width: 8),
+                                        if (reservation['status'] == 'pending')
+                                          IconButton(
+                                            onPressed: () {
+                                              _showDeleteConfirmationDialog(reservation['id'], reservation['event_type']);
+                                            },
+                                            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                            tooltip: 'Delete Reservation',
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 8),
+                                Text('Date: ${reservation['event_date']}'),
+                                Text('Time: ${reservation['start_time']}'),
+                                Text('Duration: ${reservation['duration_hours']} hours'),
+                                Text('Guests: ${reservation['number_of_guests']}'),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Booked on: ${DateTime.parse(reservation['created_at']).toString().substring(0, 19)}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),
