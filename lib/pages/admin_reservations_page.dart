@@ -27,23 +27,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     try {
       // Debug: Check current user
       final currentUser = Supabase.instance.client.auth.currentUser;
-      print('Current user: ${currentUser?.email}');
-      print('Current user metadata: ${currentUser?.userMetadata}');
+      debugPrint('Current user: ${currentUser?.email}');
+      debugPrint('Current user metadata: ${currentUser?.userMetadata}');
       
       final response = await Supabase.instance.client
           .from('reservations')
           .select('*')
           .order('created_at', ascending: false);
 
-      print('Reservations loaded: ${response.length}');
-      print('Response: $response');
+      debugPrint('Reservations loaded: ${response.length}');
+      debugPrint('Response: $response');
 
       setState(() {
         reservations = List<Map<String, dynamic>>.from(response);
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading reservations: $e');
+      debugPrint('Error loading reservations: $e');
       setState(() => _isLoading = false);
       _showSnackBar('Error loading reservations: $e', Colors.red);
     }
@@ -106,7 +106,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
-    final isTablet = ResponsiveUtils.isTablet(context);
 
     return Padding(
       padding: ResponsiveUtils.getResponsivePadding(context),
@@ -250,7 +249,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         });
       },
       backgroundColor: Colors.grey.shade200,
-      selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+      selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
       labelStyle: TextStyle(
         color: isSelected ? AppTheme.primaryRed : Colors.black87,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -926,7 +925,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ),
         ),
       ),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       avatar: Icon(
         icon, 
         size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 12, tablet: 14, desktop: 16), 
@@ -942,7 +941,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget _buildActionButtons(Map<String, dynamic> reservation) {
     String status = reservation['status'];
     String reservationId = reservation['id'];
-    final isMobile = ResponsiveUtils.isMobile(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,

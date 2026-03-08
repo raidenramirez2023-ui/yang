@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RoleHelper {
@@ -18,7 +19,7 @@ class RoleHelper {
       final role = response?['role']?.toString().toLowerCase() ?? 'staff';
       return role == 'admin';
     } catch (e) {
-      print('Error checking admin role: $e');
+      debugPrint('Error checking admin role: $e');
       return false;
     }
   }
@@ -37,7 +38,7 @@ class RoleHelper {
 
       return response?['role']?.toString().toLowerCase() ?? 'staff';
     } catch (e) {
-      print('Error getting user role: $e');
+      debugPrint('Error getting user role: $e');
       return 'staff';
     }
   }

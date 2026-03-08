@@ -43,7 +43,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       if (_selectedFilter == 'Today') {
         if (createdAt.year != now.year ||
             createdAt.month != now.month ||
-            createdAt.day != now.day) return false;
+            createdAt.day != now.day) { return false; }
       } else if (_selectedFilter == 'This Week') {
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
         final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
@@ -484,6 +484,26 @@ class _OrderCardState extends State<_OrderCard> {
                                   ),
                                 );
                               }),
+                              if (o['note'] != null && o['note'].toString().isNotEmpty) ...[
+                                const Divider(color: _border, height: 24),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Note: ',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _grey)),
+                                    Expanded(
+                                      child: Text(o['note'].toString(),
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: _textDark,
+                                              fontStyle: FontStyle.italic)),
+                                    ),
+                                  ],
+                                ),
+                              ],
                               const Divider(color: _border, height: 16),
                               Row(
                                 mainAxisAlignment:

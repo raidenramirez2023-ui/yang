@@ -128,6 +128,10 @@ class _LoginPageState extends State<LoginPage> {
 
       Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
 
+    } else if (email.toLowerCase() == 'chefycp@gmail.com' || email.toLowerCase() == 'chefycp.gmail.com') {
+
+      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+
     } else if (userRole == 'admin') {
 
       Navigator.pushReplacementNamed(context, '/dashboard');
@@ -135,6 +139,10 @@ class _LoginPageState extends State<LoginPage> {
     } else if (userRole == 'inventory staff') {
 
       Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+
+    } else if (userRole == 'chef') {
+
+      Navigator.pushReplacementNamed(context, '/chef-dashboard');
 
     } else if (userRole == 'customer') {
 
@@ -226,11 +234,11 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-      print('=== LOGIN DEBUG ===');
+      debugPrint('=== LOGIN DEBUG ===');
 
-      print('Email: $email');
+      debugPrint('Email: $email');
 
-      print('Auth successful');
+      debugPrint('Auth successful');
 
 
 
@@ -246,13 +254,13 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-      print('User response from database: $userResponse');
+      debugPrint('User response from database: $userResponse');
 
 
 
       if (userResponse == null) {
 
-        print('User not found in users table, checking if it\'s a customer');
+        debugPrint('User not found in users table, checking if it\'s a customer');
 
         
 
@@ -286,13 +294,37 @@ class _LoginPageState extends State<LoginPage> {
 
           }
 
+        } else if (email == 'chefycp@gmail.com' || email == 'chefycp.gmail.com') {
+
+          await Supabase.instance.client.from('users').insert({
+
+            'email': email,
+
+            'role': 'chef',
+
+          });
+
+          _showSnackBar(
+
+            "Chef account created successfully!",
+
+            Colors.green.shade700,
+
+            Icons.check_circle_outline,
+
+          );
+
+          if (mounted) {
+
+            Navigator.pushReplacementNamed(context, '/chef-dashboard');
+
+          }
+
         } else {
 
           // If not in users table, treat as customer
 
-          print('Treating as customer account');
-
-          String userRole = 'customer';
+          debugPrint('Treating as customer account');
 
 
 
@@ -320,7 +352,7 @@ class _LoginPageState extends State<LoginPage> {
 
         String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
 
-        print('User role found: $userRole');
+        debugPrint('User role found: $userRole');
 
 
 

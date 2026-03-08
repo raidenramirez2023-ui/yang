@@ -6,8 +6,9 @@ import 'shared_pos_widget.dart';
 class PaymentPanel extends StatefulWidget {
   final List<CartItem> cart;
   final VoidCallback onBack;
-  final void Function(String customerName, String paymentMethod, double paidAmount, double changeDue) onComplete;
+  final void Function(String customerName, String note, String paymentMethod, double paidAmount, double changeDue) onComplete;
   final String customerName;
+  final String note;
 
   const PaymentPanel({
     super.key,
@@ -15,6 +16,7 @@ class PaymentPanel extends StatefulWidget {
     required this.onBack,
     required this.onComplete,
     this.customerName = '',
+    this.note = '',
   });
 
   @override
@@ -102,7 +104,7 @@ class _PaymentPanelState extends State<PaymentPanel>
         } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
           if (_canComplete) {
             _ctrl.reverse().then((_) {
-              widget.onComplete(widget.customerName, _method, _paid, _change);
+              widget.onComplete(widget.customerName, widget.note, _method, _paid, _change);
             });
           }
           return KeyEventResult.handled;
@@ -418,7 +420,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               onPressed: _canComplete
                   ? () {
                       _ctrl.reverse().then((_) {
-                        widget.onComplete(widget.customerName, _method, _paid, _change);
+                        widget.onComplete(widget.customerName, widget.note, _method, _paid, _change);
                       });
                     }
                   : null,

@@ -13,6 +13,7 @@ import 'pages/admin_main_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/pagsanjaninv_dashboard.dart';
 import 'pages/landing_page.dart';
+import 'pages/chef_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,13 +25,13 @@ Future<void> main() async {
       anonKey: SupabaseOptions.supabaseAnonKey,
       debug: true, // Enable debug mode for better error messages
     );
-    print('✅ Supabase initialized successfully');
+    debugPrint('✅ Supabase initialized successfully');
   } catch (e) {
-    print('❌ Supabase initialization failed: $e');
-    print('Please check your Supabase configuration in lib/supabase_options.dart');
+    debugPrint('❌ Supabase initialization failed: $e');
+    debugPrint('Please check your Supabase configuration in lib/supabase_options.dart');
     
     // Continue with app even if Supabase fails (for testing)
-    print('⚠️ Continuing with app in offline mode...');
+    debugPrint('⚠️ Continuing with app in offline mode...');
   }
 
   runApp(const YangChowApp());
@@ -63,6 +64,9 @@ class YangChowApp extends StatelessWidget {
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),
+
+        // Chef routes
+        '/chef-dashboard': (context) => const ChefDashboardPage(),
       },
     );
   }

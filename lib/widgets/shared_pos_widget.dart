@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:core';
+
 import 'order_list_panel.dart';
 import 'payment_panel.dart';
 
@@ -41,6 +41,7 @@ class ReceiptTemplate extends StatelessWidget {
   final List<CartItem> cart;
   final double totalAmount;
   final String? customerName;
+  final String? note;
   final String paymentMethod;
   final String transactionId;
   final DateTime transactionDate;
@@ -52,6 +53,7 @@ class ReceiptTemplate extends StatelessWidget {
     required this.cart,
     required this.totalAmount,
     this.customerName,
+    this.note,
     this.paymentMethod = 'VISA',
     this.transactionId = '97413347',
     this.paidAmount = 0.0,
@@ -133,6 +135,11 @@ class ReceiptTemplate extends StatelessWidget {
               Text('$_formattedDate    $_formattedTime'),
             ],
           ),
+          
+          if (note != null && note!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('NOTE: $note', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12, fontStyle: FontStyle.italic)),
+          ],
           
           const Divider(thickness: 1, height: 24),
           
@@ -868,6 +875,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   Future<void> _generateReceipt({
     String customerName = '',
+    String note = '',
     String paymentMethod = 'CASH',
     double paidAmount = 0.0,
     double changeDue = 0.0,
@@ -885,6 +893,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         0.0, (sum, c) => sum + (c.item.price * c.quantity));
 
     // Determine the next transaction ID (001, 002, ...)
+    // Only count clean sequential IDs (<= 9999). Legacy large IDs are ignored.
     String transactionId = '001';
     try {
       final supabase = Supabase.instance.client;
@@ -892,21 +901,17 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           .from('orders')
           .select('transaction_id')
           .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
+          .limit(200);
 
-      if (res != null && res['transaction_id'] != null) {
-        final lastIdStr = res['transaction_id'].toString();
-        final lastIdInt = int.tryParse(lastIdStr);
-        // Only increment if it looks like our 3-digit sequence
-        if (lastIdInt != null && lastIdStr.length <= 3) {
-          transactionId = (lastIdInt + 1).toString().padLeft(3, '0');
-        } else {
-          transactionId = '001';
-        }
+      int maxId = 0;
+      for (final row in res) {
+        final raw = row['transaction_id']?.toString() ?? '';
+        final parsed = int.tryParse(raw);
+        // Only accept clean sequential IDs (4 digits or fewer)
+        if (parsed != null && parsed <= 9999 && parsed > maxId) maxId = parsed;
       }
+      transactionId = (maxId + 1).toString().padLeft(3, '0');
     } catch (e) {
-      // If error or no orders, we start at 001
       transactionId = '001';
     }
 
@@ -917,6 +922,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       cartSnapshot: cartSnapshot,
       total: snapshotTotal,
       customerName: customerName,
+      note: note,
       transactionId: transactionId,
       paymentMethod: paymentMethod,
       amountPaid: paidAmount,
@@ -935,6 +941,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             cart: cartSnapshot,
             totalAmount: snapshotTotal,
             customerName: customerName.isNotEmpty ? customerName : null,
+            note: note.isNotEmpty ? note : null,
             paymentMethod: paymentMethod,
             transactionId: transactionId,
             transactionDate: DateTime.now(),
@@ -950,6 +957,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     required List<CartItem> cartSnapshot,
     required double total,
     required String customerName,
+    required String note,
     required String transactionId,
     required String paymentMethod,
     required double amountPaid,
@@ -967,6 +975,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             'transaction_id': transactionId,
             'customer_name':
                 customerName.isNotEmpty ? customerName : 'Guest',
+            'note': note,
+            'kitchen_status': 'Pending',
             'total_amount': total,
             'payment_method': paymentMethod,
             'amount_paid': amountPaid,
@@ -1409,46 +1419,49 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       onQuantityIncreased: _increaseQuantity,
                       onQuantityDecreased: _decreaseQuantity,
                       onRemoveItem: _removeItem,
-                      onProceedPayment: () {
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => Dialog(
-                            backgroundColor: Colors.transparent,
-                            insetPadding: const EdgeInsets.all(20),
-                            child: Container(
-                              width: 700,
-                              height: 700,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: PaymentPanel(
-                                cart: cart,
-                                onBack: () => Navigator.pop(context),
-                                onComplete: (name, method, paid, change) async {
-                                  Navigator.pop(context); // Close payment dialog
-                                  await _generateReceipt(
-                                    customerName: name,
-                                    paymentMethod: method,
-                                    paidAmount: paid,
-                                    changeDue: change,
-                                  );
-                                  setState(() => cart.clear());
-                                },
+                        onProceedPayment: (name, note) {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: const EdgeInsets.all(20),
+                              child: Container(
+                                width: 700,
+                                height: 700,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 30,
+                                      spreadRadius: 5,
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: PaymentPanel(
+                                  cart: cart,
+                                  customerName: name,
+                                  note: note,
+                                  onBack: () => Navigator.pop(context),
+                                  onComplete: (name, note, method, paid, change) async {
+                                    Navigator.pop(context); // Close payment dialog
+                                    await _generateReceipt(
+                                      customerName: name,
+                                      note: note,
+                                      paymentMethod: method,
+                                      paidAmount: paid,
+                                      changeDue: change,
+                                    );
+                                    setState(() => cart.clear());
+                                  },
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
                       onClearCart: () {
                         setState(() => cart.clear());
                       },
