@@ -208,7 +208,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
               width: 50,
               height: 50,
               fit: BoxFit.cover,
-              errorBuilder: (context, _, __) => Container(
+              errorBuilder: (context, _, _) => Container(
                 width: 50,
                 height: 50,
                 color: _bg,

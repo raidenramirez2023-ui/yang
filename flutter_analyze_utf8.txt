@@ -1,0 +1,25 @@
+﻿Analyzing yang...                                               
+
+   info - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\main.dart:1:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\admin_reservations_page.dart:925:30 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\chef_dashboard.dart:1389:7 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\pages\chef_dashboard.dart:1610:29 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\chef_dashboard.dart:1611:34 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\chef_dashboard.dart:1612:34 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\chef_dashboard.dart:1613:20 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\pages\customer_dashboard.dart:1073:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\pages\customer_dashboard.dart:1101:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\pages\customer_dashboard.dart:1162:30 - use_build_context_synchronously
+   info - The import of 'package:postgrest/postgrest.dart' is unnecessary because all of the used elements are also provided by the import of 'package:supabase_flutter/supabase_flutter.dart' - lib\pages\customer_registration_page.dart:8:8 - unnecessary_import
+   info - The imported package 'postgrest' isn't a dependency of the importing package - lib\pages\customer_registration_page.dart:8:8 - depend_on_referenced_packages
+   info - The private field _emailSent could be 'final' - lib\pages\forgot_password_page.dart:18:8 - prefer_final_fields
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_forecast_page.dart:417:11 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_management.dart:144:29 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_management.dart:188:29 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\pages\inventory_management.dart:229:29 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\pages\inventory_management.dart:254:54 - use_build_context_synchronously
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_room_page.dart:130:29 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_room_page.dart:202:33 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\inventory_room_page.dart:290:29 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\pages\inventory_room_page.dart:383:54 - use_build_context_synchronously
+

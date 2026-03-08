@@ -236,7 +236,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         BorderRadius.circular(AppTheme.radiusXl),
                   ),
                   child: Text(
-                    '${_occupiedTables} / $_totalTables tables occupied',
+                    '$_occupiedTables / $_totalTables tables occupied',
                     style: const TextStyle(
                       color: AppTheme.white,
                       fontSize: 13,
@@ -303,7 +303,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         value: '$_reservations',
         icon: Icons.event_seat_rounded,
         color: AppTheme.primaryRed,
-        sub: '${_reservations > 5 ? "High demand today" : "Moderate bookings"}',
+        sub: _reservations > 5 ? 'High demand today' : 'Moderate bookings',
         subPositive: _reservations > 5,
       ),
     ];
@@ -376,7 +376,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) =>
                         AppTheme.darkGrey.withValues(alpha: 0.9),
-                    getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+                    getTooltipItem: (group, _, rod, _) => BarTooltipItem(
                       '₱${_formatNumber(rod.toY.toInt())}',
                       const TextStyle(color: AppTheme.white, fontSize: 12),
                     ),

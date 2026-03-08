@@ -201,7 +201,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -472,7 +472,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   )
@@ -490,7 +490,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
+                          color: color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(icon, color: color, size: 20),
@@ -502,7 +502,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
+                          color: color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -558,7 +558,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           )
@@ -576,7 +576,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -707,7 +707,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF3B82F6).withOpacity(0.2),
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           )
@@ -744,10 +744,10 @@ class _SalesReportPageState extends State<SalesReportPage>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -755,7 +755,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 const Icon(Icons.trending_up, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Top performing period: ${selectedPeriod}',
+                  'Top performing period: $selectedPeriod',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
