@@ -287,187 +287,190 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           constraints: BoxConstraints(
             minWidth: MediaQuery.of(context).size.width - (isMobile ? 32 : 64),
           ),
-          child: DataTable(
-            columnSpacing: isMobile ? 8 : 24,
-            horizontalMargin: isMobile ? 8 : 16,
-            headingRowHeight: isMobile ? 48 : 56,
-            dataRowMinHeight: isMobile ? 40 : 48,
-            dataRowMaxHeight: isMobile ? 60 : 72,
-            columns: [
-              DataColumn(
-                label: Text(
-                  'Customer',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: DataTable(
+              columnSpacing: isMobile ? 8 : 24,
+              horizontalMargin: isMobile ? 8 : 16,
+              headingRowHeight: isMobile ? 48 : 56,
+              dataRowMinHeight: isMobile ? 40 : 48,
+              dataRowMaxHeight: isMobile ? 60 : 72,
+              columns: [
+                DataColumn(
+                  label: Text(
+                    'Customer',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              if (!isMobile) DataColumn(
-                label: Text(
-                  'Event',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                if (!isMobile) DataColumn(
+                  label: Text(
+                    'Event',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                DataColumn(
+                  label: Text(
+                    'Date',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Time',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                DataColumn(
+                  label: Text(
+                    'Time',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              if (!isMobile) DataColumn(
-                label: Text(
-                  'Guests',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                if (!isMobile) DataColumn(
+                  label: Text(
+                    'Guests',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Status',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                DataColumn(
+                  label: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Actions',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 12,
-                      tablet: 13,
-                      desktop: 14,
+                DataColumn(
+                  label: Text(
+                    'Actions',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
+                      fontWeight: FontWeight.bold,
                     ),
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-            rows: _filteredReservations.map((reservation) {
-              return DataRow(
-                cells: [
-                  DataCell(
-                    Text(
-                      isMobile
-                          ? (reservation['customer_name']?.toString().split(' ')[0] ?? '')
-                          : '${reservation['customer_name']}\n${reservation['customer_email']}',
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 11,
-                          tablet: 12,
-                          desktop: 13,
+              ],
+              rows: _filteredReservations.map((reservation) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Text(
+                        isMobile
+                            ? (reservation['customer_name']?.toString().split(' ')[0] ?? '')
+                            : '${reservation['customer_name']}\n${reservation['customer_email']}',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 11,
+                            tablet: 12,
+                            desktop: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (!isMobile) DataCell(
-                    Text(
-                      reservation['event_type'],
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 11,
-                          tablet: 12,
-                          desktop: 13,
+                    if (!isMobile) DataCell(
+                      Text(
+                        reservation['event_type'],
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 11,
+                            tablet: 12,
+                            desktop: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(
-                    Text(
-                      reservation['event_date'],
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 11,
-                          tablet: 12,
-                          desktop: 13,
+                    DataCell(
+                      Text(
+                        reservation['event_date'],
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 11,
+                            tablet: 12,
+                            desktop: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(
-                    Text(
-                      reservation['start_time'],
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 11,
-                          tablet: 12,
-                          desktop: 13,
+                    DataCell(
+                      Text(
+                        reservation['start_time'],
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 11,
+                            tablet: 12,
+                            desktop: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (!isMobile) DataCell(
-                    Text(
-                      '${reservation['number_of_guests']}',
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 11,
-                          tablet: 12,
-                          desktop: 13,
+                    if (!isMobile) DataCell(
+                      Text(
+                        '${reservation['number_of_guests']}',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 11,
+                            tablet: 12,
+                            desktop: 13,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  DataCell(_buildStatusChip(reservation['status'])),
-                  DataCell(_buildActionButtons(reservation)),
-                ],
-              );
-            }).toList(),
+                    DataCell(_buildStatusChip(reservation['status'])),
+                    DataCell(_buildActionButtons(reservation)),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),
