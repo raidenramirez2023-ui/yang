@@ -484,6 +484,26 @@ class _OrderCardState extends State<_OrderCard> {
                                   ),
                                 );
                               }),
+                              if (o['note'] != null && o['note'].toString().isNotEmpty) ...[
+                                const Divider(color: _border, height: 24),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Note: ',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: _grey)),
+                                    Expanded(
+                                      child: Text(o['note'].toString(),
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: _textDark,
+                                              fontStyle: FontStyle.italic)),
+                                    ),
+                                  ],
+                                ),
+                              ],
                               const Divider(color: _border, height: 16),
                               Row(
                                 mainAxisAlignment:

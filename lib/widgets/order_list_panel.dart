@@ -7,7 +7,7 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final VoidCallback onProceedPayment;
+  final void Function(String name, String note) onProceedPayment;
   final VoidCallback onClearCart;
   final bool isMobile;
 
@@ -353,7 +353,12 @@ class _OrderListPanelState extends State<OrderListPanel> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: widget.cart.isNotEmpty ? widget.onProceedPayment : null,
+              onPressed: widget.cart.isNotEmpty
+                  ? () => widget.onProceedPayment(
+                        _customerNameController.text.trim(),
+                        _noteController.text.trim(),
+                      )
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,

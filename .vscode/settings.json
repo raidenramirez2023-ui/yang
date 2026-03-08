@@ -1,3 +1,4 @@
 {
-    "timeline.pageOnScroll": false
+    "timeline.pageOnScroll": false,
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

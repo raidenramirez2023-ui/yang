@@ -128,6 +128,10 @@ class _LoginPageState extends State<LoginPage> {
 
       Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
 
+    } else if (email.toLowerCase() == 'chefycp@gmail.com' || email.toLowerCase() == 'chefycp.gmail.com') {
+
+      Navigator.pushReplacementNamed(context, '/chef-dashboard');
+
     } else if (userRole == 'admin') {
 
       Navigator.pushReplacementNamed(context, '/dashboard');
@@ -135,6 +139,10 @@ class _LoginPageState extends State<LoginPage> {
     } else if (userRole == 'inventory staff') {
 
       Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
+
+    } else if (userRole == 'chef') {
+
+      Navigator.pushReplacementNamed(context, '/chef-dashboard');
 
     } else if (userRole == 'customer') {
 
@@ -283,6 +291,32 @@ class _LoginPageState extends State<LoginPage> {
           if (mounted) {
 
             Navigator.pushReplacementNamed(context, '/dashboard');
+
+          }
+
+        } else if (email == 'chefycp@gmail.com' || email == 'chefycp.gmail.com') {
+
+          await Supabase.instance.client.from('users').insert({
+
+            'email': email,
+
+            'role': 'chef',
+
+          });
+
+          _showSnackBar(
+
+            "Chef account created successfully!",
+
+            Colors.green.shade700,
+
+            Icons.check_circle_outline,
+
+          );
+
+          if (mounted) {
+
+            Navigator.pushReplacementNamed(context, '/chef-dashboard');
 
           }
 
