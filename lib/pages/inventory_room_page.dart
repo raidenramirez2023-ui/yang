@@ -147,13 +147,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   selectedCategory = value;
                                   filteredItemNames = allItems
                                       .where(
-                                        (item) =>
+                                            (item) =>
                                             item['category']?.toString() ==
                                             value,
                                       )
                                       .map(
-                                        (item) =>
-                                            item['name']?.toString() ?? '',
+                                            (item) =>
+                                                item['name']?.toString() ?? '',
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
@@ -495,13 +495,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   selectedCategory = value;
                                   filteredItemNames = allItems
                                       .where(
-                                        (item) =>
-                                            item['category']?.toString() ==
-                                            value,
+                                            (item) =>
+                                                item['category']?.toString() ==
+                                                value,
                                       )
                                       .map(
-                                        (item) =>
-                                            item['name']?.toString() ?? '',
+                                            (item) =>
+                                                item['name']?.toString() ?? '',
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
@@ -1143,19 +1143,19 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: stockColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Icon(
-                                    stockIcon,
-                                    color: stockColor,
-                                    size: 16,
-                                  ),
-                                ),
                               ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: stockColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                stockIcon,
+                                color: stockColor,
+                                size: 16,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(

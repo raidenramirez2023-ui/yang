@@ -207,29 +207,41 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Announcements',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _showFormDialog(),
-                icon: const Icon(Icons.add, color: AppTheme.white),
-                label: const Text('New Announcement', style: TextStyle(color: AppTheme.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Announcements',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showFormDialog(),
+                    icon: const Icon(Icons.add, color: AppTheme.white),
+                    label: const Text('New Announcement', style: TextStyle(color: AppTheme.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryRed,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Expanded(
             child: _announcements.isEmpty
                 ? const Center(child: Text('No announcements found', style: TextStyle(color: AppTheme.mediumGrey)))
                 : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _announcements.length,
                     itemBuilder: (context, index) {
                       final item = _announcements[index];
@@ -238,59 +250,88 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item['title'],
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(
-                                    color: isActive ? Colors.green : Colors.red,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Column(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 8),
-                              Text(dateStr, style: const TextStyle(color: AppTheme.primaryRed, fontSize: 12)),
-                              const SizedBox(height: 8),
-                              Text(item['content']),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(isActive ? Icons.visibility_off : Icons.visibility),
-                                tooltip: isActive ? 'Deactivate' : 'Activate',
-                                onPressed: () => _toggleStatus(item['id'], isActive),
+                              // Title row with status
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      item['title'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold, 
+                                        fontSize: 16,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      isActive ? 'Active' : 'Inactive',
+                                      style: TextStyle(
+                                        color: isActive ? Colors.green : Colors.red,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.blue),
-                                tooltip: 'Edit',
-                                onPressed: () => _showFormDialog(announcement: item),
+                              const SizedBox(height: 8),
+                              // Date
+                              Text(
+                                dateStr, 
+                                style: const TextStyle(
+                                  color: AppTheme.primaryRed, 
+                                  fontSize: 12,
+                                ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                tooltip: 'Delete',
-                                onPressed: () => _showDeleteConfirmDialog(item['id']),
+                              const SizedBox(height: 8),
+                              // Content
+                              Text(
+                                item['content'],
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 12),
+                              // Action buttons
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(isActive ? Icons.visibility_off : Icons.visibility),
+                                    tooltip: isActive ? 'Deactivate' : 'Activate',
+                                    onPressed: () => _toggleStatus(item['id'], isActive),
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(8),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blue),
+                                    tooltip: 'Edit',
+                                    onPressed: () => _showFormDialog(announcement: item),
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(8),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    tooltip: 'Delete',
+                                    onPressed: () => _showDeleteConfirmDialog(item['id']),
+                                    iconSize: 20,
+                                    padding: const EdgeInsets.all(8),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

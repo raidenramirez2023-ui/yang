@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Responsive breakpoints and utilities
@@ -19,6 +20,16 @@ class ResponsiveUtils {
   /// Check if device is desktop
   static bool isDesktop(BuildContext context) {
     return MediaQuery.of(context).size.width >= tabletBreakpoint;
+  }
+
+  /// Check if running on web
+  static bool isWeb() {
+    return kIsWeb;
+  }
+
+  /// Check if should use drawer (web mobile)
+  static bool shouldUseDrawer(BuildContext context) {
+    return isWeb() && isMobile(context);
   }
 
   /// Get responsive font size
@@ -67,6 +78,30 @@ class ResponsiveUtils {
     }
   }
 
+  /// Get responsive margin
+  static EdgeInsets getResponsiveMargin(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return const EdgeInsets.all(12);
+    } else if (width < tabletBreakpoint) {
+      return const EdgeInsets.all(16);
+    } else {
+      return const EdgeInsets.all(20);
+    }
+  }
+
+  /// Get responsive card padding
+  static EdgeInsets getResponsiveCardPadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return const EdgeInsets.all(12);
+    } else if (width < tabletBreakpoint) {
+      return const EdgeInsets.all(16);
+    } else {
+      return const EdgeInsets.all(20);
+    }
+  }
+
   /// Get responsive vertical space
   static SizedBox verticalSpace(
     BuildContext context, {
@@ -101,14 +136,51 @@ class ResponsiveUtils {
     );
   }
 
-  /// Get device type for enum usage
-  static String getDeviceType(BuildContext context) {
-    if (isMobile(context)) {
-      return 'mobile';
-    } else if (isTablet(context)) {
-      return 'tablet';
+  /// Get responsive border radius
+  static double getResponsiveBorderRadius(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return 8;
+    } else if (width < tabletBreakpoint) {
+      return 12;
     } else {
-      return 'desktop';
+      return 16;
+    }
+  }
+
+  /// Get responsive card elevation
+  static double getResponsiveCardElevation(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return 1;
+    } else if (width < tabletBreakpoint) {
+      return 2;
+    } else {
+      return 4;
+    }
+  }
+
+  /// Get responsive button height
+  static double getResponsiveButtonHeight(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return 36;
+    } else if (width < tabletBreakpoint) {
+      return 40;
+    } else {
+      return 48;
+    }
+  }
+
+  /// Get responsive dialog max width
+  static double getResponsiveDialogMaxWidth(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < mobileBreakpoint) {
+      return width * 0.9;
+    } else if (width < tabletBreakpoint) {
+      return 400;
+    } else {
+      return 500;
     }
   }
 }
