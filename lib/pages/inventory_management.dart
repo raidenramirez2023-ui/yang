@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -78,6 +79,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final qtyCtrl = TextEditingController(
       text: item?['quantity']?.toString() ?? '',
     );
+    final supplierCtrl = TextEditingController(text: item?['supplier'] ?? '');
 
     // Pre-select existing values if editing
     String? selectedCategory = (item?['category'] ?? '').toString().isEmpty
@@ -105,7 +107,7 @@ class _InventoryPageState extends State<InventoryPage> {
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) {
+        builder: (context, setDialogState) {
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -124,13 +126,25 @@ class _InventoryPageState extends State<InventoryPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item == null ? 'Add Item' : 'Edit Item',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.darkGrey,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        item == null
+                            ? Icons.add_circle_outline
+                            : Icons.edit_outlined,
+                        color: AppTheme.darkGrey,
+                        size: 26,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        item == null ? 'Add Item' : 'Edit Item',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.darkGrey,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
 
@@ -141,7 +155,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         children: [
                           // Category Dropdown
                           DropdownButtonFormField<String>(
-                            initialValue: selectedCategory,
+                            value: selectedCategory,
                             decoration: _decoration(
                               'Category',
                               Icons.category_outlined,
@@ -171,6 +185,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             nameCtrl,
                             'Item Name',
                             Icons.inventory_2_outlined,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
                           ),
                           const SizedBox(height: 16),
 
@@ -180,12 +197,35 @@ class _InventoryPageState extends State<InventoryPage> {
                             'Quantity',
                             Icons.numbers,
                             isNumber: true,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(3),
+                              TextInputFormatter.withFunction((
+                                oldValue,
+                                newValue,
+                              ) {
+                                if (newValue.text.isEmpty) return newValue;
+                                if (newValue.text.startsWith('0')) {
+                                  final stripped = newValue.text.replaceFirst(
+                                    RegExp(r'^0+'),
+                                    '',
+                                  );
+                                  return TextEditingValue(
+                                    text: stripped,
+                                    selection: TextSelection.collapsed(
+                                      offset: stripped.length,
+                                    ),
+                                  );
+                                }
+                                return newValue;
+                              }),
+                            ],
                           ),
                           const SizedBox(height: 16),
 
                           // Unit Dropdown
                           DropdownButtonFormField<String>(
-                            initialValue: selectedUnit,
+                            value: selectedUnit,
                             decoration: _decoration('Unit', Icons.straighten),
                             hint: const Text(
                               'Select unit',
@@ -205,6 +245,17 @@ class _InventoryPageState extends State<InventoryPage> {
                               }
                             },
                           ),
+                          const SizedBox(height: 16),
+
+                          // Supplier Input
+                          _input(
+                            supplierCtrl,
+                            'Supplier',
+                            Icons.business_outlined,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
+                          ),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -215,7 +266,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Navigator.pop(dialogContext),
+                        onPressed: () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
                       const SizedBox(width: 8),
@@ -225,9 +276,10 @@ class _InventoryPageState extends State<InventoryPage> {
                           if (nameCtrl.text.isEmpty ||
                               selectedCategory == null ||
                               selectedUnit == null ||
-                              qty == null) {
+                              (item == null && supplierCtrl.text.isEmpty) ||
+                              qty == null ||
+                              qty < 1)
                             return;
-                          }
 
                           final user =
                               Supabase.instance.client.auth.currentUser;
@@ -237,23 +289,56 @@ class _InventoryPageState extends State<InventoryPage> {
                             'category': selectedCategory,
                             'quantity': qty,
                             'unit': selectedUnit,
+                            if (supplierCtrl.text.trim().isNotEmpty)
+                              'supplier': supplierCtrl.text.trim(),
                             'created_by': user?.email,
                             'created_at': DateTime.now().toIso8601String(),
                           };
 
                           if (item == null) {
+                            final itemExists = await _checkItemExists(
+                              nameCtrl.text.trim(),
+                            );
+
+                            if (itemExists) {
+                              final existingCategory =
+                                  await _getItemExistingCategory(
+                                    nameCtrl.text.trim(),
+                                  );
+                              _showDuplicateItemDialog(
+                                existingCategory ?? 'Inventory',
+                              );
+                              return;
+                            }
+
                             await Supabase.instance.client
                                 .from('inventory')
                                 .insert(payload);
                           } else {
+                            final itemExists = await _checkItemExists(
+                              nameCtrl.text.trim(),
+                              excludeId: item['id'].toString(),
+                            );
+
+                            if (itemExists) {
+                              final existingCategory =
+                                  await _getItemExistingCategory(
+                                    nameCtrl.text.trim(),
+                                    excludeId: item['id'].toString(),
+                                  );
+                              _showDuplicateItemDialog(
+                                existingCategory ?? 'Inventory',
+                              );
+                              return;
+                            }
+
                             await Supabase.instance.client
                                 .from('inventory')
                                 .update(payload)
                                 .eq('id', item['id']);
                           }
 
-                          if (!dialogContext.mounted) return;
-                          Navigator.pop(dialogContext);
+                          if (mounted) Navigator.pop(context);
                         },
                         child: const Text('Save'),
                       ),
@@ -290,10 +375,12 @@ class _InventoryPageState extends State<InventoryPage> {
     String label,
     IconData icon, {
     bool isNumber = false,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      inputFormatters: inputFormatters,
       decoration: _decoration(label, icon),
     );
   }
@@ -321,8 +408,107 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
+  Future<bool> _checkItemExists(String itemName, {String? excludeId}) async {
+    try {
+      final result = await Supabase.instance.client
+          .from('inventory')
+          .select('id, name, category');
+
+      if (result.isEmpty) return false;
+
+      final normalizedNewItem = _normalizeItemName(itemName.trim());
+
+      for (var item in result) {
+        if (excludeId != null && item['id'].toString() == excludeId) {
+          continue;
+        }
+
+        final existingName = item['name']?.toString().trim() ?? '';
+        final normalizedExistingName = _normalizeItemName(existingName);
+
+        if (normalizedExistingName == normalizedNewItem) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<String?> _getItemExistingCategory(
+    String itemName, {
+    String? excludeId,
+  }) async {
+    try {
+      final result = await Supabase.instance.client
+          .from('inventory')
+          .select('id, name, category');
+
+      if (result.isEmpty) return null;
+
+      final normalizedNewItem = _normalizeItemName(itemName.trim());
+
+      for (var item in result) {
+        if (excludeId != null && item['id'].toString() == excludeId) {
+          continue;
+        }
+
+        final existingName = item['name']?.toString().trim() ?? '';
+        final normalizedExistingName = _normalizeItemName(existingName);
+
+        if (normalizedExistingName == normalizedNewItem) {
+          return item['category']?.toString().trim() ?? '';
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _normalizeItemName(String itemName) {
+    return itemName
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '') // Remove all spaces
+        .replaceAll(RegExp(r'[^\w]'), ''); // Remove special characters
+  }
+
+  void _showDuplicateItemDialog(String existingCategory) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: AppTheme.white,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.warningOrange),
+            SizedBox(width: 8),
+            Text('Duplicate Item', style: TextStyle(color: AppTheme.darkGrey)),
+          ],
+        ),
+        content: Text(
+          'This item is already in $existingCategory',
+          style: const TextStyle(color: AppTheme.darkGrey),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: AppTheme.white,
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getStockStatus(int quantity) {
-    if (quantity == 0) return '0';
+    if (quantity == 0) return 'OUT OF STOCK';
     if (quantity < 10) return 'LOW STOCK';
     if (quantity < 50) return 'NORMAL';
     return 'HIGH STOCK';
@@ -346,7 +532,7 @@ class _InventoryPageState extends State<InventoryPage> {
     String label;
     switch (range) {
       case '0':
-        label = '0';
+        label = 'OUT OF STOCK';
         break;
       case '1-9':
         label = 'LOW STOCK';
@@ -364,9 +550,9 @@ class _InventoryPageState extends State<InventoryPage> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: AppTheme.white.withValues(alpha: 0.15),
+        color: AppTheme.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.white.withValues(alpha: 0.3)),
+        border: Border.all(color: AppTheme.white.withOpacity(0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -417,7 +603,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.2),
+                    color: AppTheme.primaryRed.withOpacity(0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -445,7 +631,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       const Spacer(),
                       Icon(
                         Icons.refresh_rounded,
-                        color: AppTheme.white.withValues(alpha: 0.8),
+                        color: AppTheme.white.withOpacity(0.8),
                         size: 14,
                       ),
                     ],
@@ -549,7 +735,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                    color: AppTheme.darkGrey.withOpacity(0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -603,7 +789,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               setState(() => _selectedCategory = category);
                             },
                             backgroundColor: AppTheme.white,
-                            selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
+                            selectedColor: AppTheme.primaryRed.withOpacity(0.2),
                             checkmarkColor: AppTheme.primaryRed,
                             labelStyle: TextStyle(
                               color: isSelected
@@ -698,17 +884,19 @@ class _InventoryPageState extends State<InventoryPage> {
                         crossAxisCount: ResponsiveUtils.isMobile(context)
                             ? 2
                             : ResponsiveUtils.isTablet(context)
-                            ? 4
+                            ? 5
                             : 6,
                         crossAxisSpacing: ResponsiveUtils.isMobile(context)
-                            ? 8
-                            : 6,
+                            ? 10
+                            : 8,
                         mainAxisSpacing: ResponsiveUtils.isMobile(context)
-                            ? 8
-                            : 6,
+                            ? 10
+                            : 8,
                         childAspectRatio: ResponsiveUtils.isMobile(context)
-                            ? 0.7
-                            : 0.8,
+                            ? 1.4
+                            : ResponsiveUtils.isTablet(context)
+                            ? 1.4
+                            : 1.4,
                       ),
                       itemCount: filteredItems.length,
                       itemBuilder: (context, index) {
@@ -726,24 +914,24 @@ class _InventoryPageState extends State<InventoryPage> {
                               end: Alignment.bottomRight,
                               colors: [
                                 AppTheme.white,
-                                AppTheme.lightGrey.withValues(alpha: 0.3),
+                                AppTheme.lightGrey.withOpacity(0.3),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                                color: AppTheme.darkGrey.withOpacity(0.1),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                             border: Border.all(
-                              color: stockColor.withValues(alpha: 0.3),
+                              color: stockColor.withOpacity(0.3),
                               width: 1.5,
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(6),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -769,7 +957,69 @@ class _InventoryPageState extends State<InventoryPage> {
                                           if (value == 'edit') {
                                             _addOrEditItem(item: item);
                                           } else if (value == 'delete') {
-                                            _deleteItem(item['id'].toString());
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                backgroundColor: AppTheme.white,
+                                                title: const Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons
+                                                          .warning_amber_rounded,
+                                                      color: AppTheme
+                                                          .warningOrange,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Delete Item',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppTheme.darkGrey,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                content: const Text(
+                                                  'Are you sure you want to delete this item?',
+                                                  style: TextStyle(
+                                                    color: AppTheme.darkGrey,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx),
+                                                    child: const Text(
+                                                      'No',
+                                                      style: TextStyle(
+                                                        color:
+                                                            AppTheme.mediumGrey,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  ElevatedButton(
+                                                    style:
+                                                        ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              AppTheme.errorRed,
+                                                          foregroundColor:
+                                                              AppTheme.white,
+                                                        ),
+                                                    onPressed: () {
+                                                      Navigator.pop(ctx);
+                                                      _deleteItem(
+                                                        item['id'].toString(),
+                                                      );
+                                                    },
+                                                    child: const Text('Yes'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
                                           }
                                         },
                                         itemBuilder: (context) => [
@@ -814,7 +1064,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                 Text(
                                   item['category'] ?? 'Uncategorized',
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 8,
                                     color: AppTheme.mediumGrey,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -828,13 +1078,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 4,
-                                        vertical: 2,
+                                        vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: stockColor.withValues(alpha: 0.1),
+                                        color: stockColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: stockColor.withValues(alpha: 0.3),
+                                          color: stockColor.withOpacity(0.3),
                                         ),
                                       ),
                                       child: Row(
