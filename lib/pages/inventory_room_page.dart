@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -31,15 +32,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   ];
 
 
-  static const List<String> supplierOptions = [
-    'FreshMart',
-    'Roasting Mart',
-    'Davids Company',
-    'Grocery Mart',
-    'Packaging Mart',
-    'Janitorial Mart',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -61,6 +53,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
     List<Map<String, dynamic>> allItems = [];
     List<String> filteredItemNames = [];
+    List<String> supplierOptions = [];
 
     showDialog(
       context: context,
@@ -147,13 +140,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   selectedCategory = value;
                                   filteredItemNames = allItems
                                       .where(
-                                            (item) =>
+                                        (item) =>
                                             item['category']?.toString() ==
                                             value,
                                       )
                                       .map(
-                                            (item) =>
-                                                item['name']?.toString() ?? '',
+                                        (item) =>
+                                            item['name']?.toString() ?? '',
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
@@ -191,6 +184,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           )
                                           .where((name) => name.isNotEmpty)
                                           .toList();
+                                                                          
+                                      // Extract unique suppliers from inventory items
+                                      final Set<String> uniqueSuppliers = {};
+                                      for (var item in allItems) {
+                                        final supplier = item['supplier']?.toString().trim();
+                                        if (supplier != null && supplier.isNotEmpty) {
+                                          uniqueSuppliers.add(supplier);
+                                        }
+                                      }
+                                      supplierOptions = uniqueSuppliers.toList()..sort();
                                     });
                                   });
                                 }
@@ -256,6 +259,23 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   'Quantity',
                                   Icons.numbers,
                                   isNumber: true,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(3),
+                                    TextInputFormatter.withFunction(
+                                      (oldValue, newValue) {
+                                        if (newValue.text.isEmpty) return newValue;
+                                        if (newValue.text.startsWith('0')) {
+                                          final stripped = newValue.text.replaceFirst(RegExp(r'^0+'), '');
+                                          return TextEditingValue(
+                                            text: stripped,
+                                            selection: TextSelection.collapsed(offset: stripped.length),
+                                          );
+                                        }
+                                        return newValue;
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -403,6 +423,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String selectedCategory = categories[1];
     String? selectedItemName;
     String? selectedUnit;
+    int? selectedQuantity;
+    int maxAvailableQuantity = 0;
     final qtyCtrl = TextEditingController();
     final purposeCtrl = TextEditingController();
     final requestedByCtrl = TextEditingController();
@@ -495,18 +517,21 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   selectedCategory = value;
                                   filteredItemNames = allItems
                                       .where(
-                                            (item) =>
-                                                item['category']?.toString() ==
-                                                value,
+                                        (item) =>
+                                            item['category']?.toString() ==
+                                            value,
                                       )
                                       .map(
-                                            (item) =>
-                                                item['name']?.toString() ?? '',
+                                        (item) =>
+                                            item['name']?.toString() ?? '',
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
                                   selectedItemName = null;
                                   selectedUnit = null;
+                                  selectedQuantity = null;
+                                  maxAvailableQuantity = 0;
+                                  qtyCtrl.clear();
                                 });
                               }
                             },
@@ -588,6 +613,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                                   dbUnit.isNotEmpty)
                                               ? dbUnit
                                               : null;
+                                              
+                                          maxAvailableQuantity = 
+                                              (match['quantity'] as num?)?.toInt() ?? 0;
+                                          selectedQuantity = null;
+                                          qtyCtrl.clear();
                                         });
                                       },
                               );
@@ -599,11 +629,49 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           Row(
                             children: [
                               Expanded(
-                                child: _buildInput(
-                                  qtyCtrl,
-                                  'Quantity',
-                                  Icons.numbers,
-                                  isNumber: true,
+                                child: TextFormField(
+                                  controller: qtyCtrl,
+                                  keyboardType: TextInputType.number,
+                                  enabled: selectedItemName != null && maxAvailableQuantity > 0,
+                                  decoration: _buildDecoration(
+                                    'Quantity (Max: $maxAvailableQuantity)',
+                                    Icons.numbers,
+                                  ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    TextInputFormatter.withFunction((oldValue, newValue) {
+                                      if (newValue.text.isEmpty) return newValue;
+                                      
+                                      String newText = newValue.text;
+                                      if (newText.startsWith('0') && newText.length > 1) {
+                                        newText = newText.replaceFirst(RegExp(r'^0+'), '');
+                                        if (newText.isEmpty) newText = '0';
+                                      }
+
+                                      final intValue = int.tryParse(newText);
+                                      if (intValue == null) return oldValue;
+                                      
+                                      if (intValue > maxAvailableQuantity) {
+                                        return TextEditingValue(
+                                          text: maxAvailableQuantity.toString(),
+                                          selection: TextSelection.collapsed(offset: maxAvailableQuantity.toString().length),
+                                        );
+                                      }
+
+                                      if (newText != newValue.text) {
+                                        return TextEditingValue(
+                                          text: newText,
+                                          selection: TextSelection.collapsed(offset: newText.length),
+                                        );
+                                      }
+                                      return newValue;
+                                    }),
+                                  ],
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      selectedQuantity = int.tryParse(value);
+                                    });
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -694,13 +762,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
-                          final qty = int.tryParse(qtyCtrl.text);
                           if (selectedItemName == null ||
                               selectedItemName!.isEmpty ||
                               purposeCtrl.text.isEmpty ||
                               requestedByCtrl.text.isEmpty ||
-                              qty == null ||
-                              qty <= 0) {
+                              selectedQuantity == null ||
+                              selectedQuantity! <= 0) {
                             _showErrorSnackBar(
                               'Please fill all fields with valid values',
                             );
@@ -709,7 +776,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                           await _processOutgoingStock(
                             selectedItemName!,
-                            qty,
+                            selectedQuantity!,
                             purposeCtrl.text.trim(),
                             requestedByCtrl.text.trim(),
                           );
@@ -755,10 +822,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String label,
     IconData icon, {
     bool isNumber = false,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      inputFormatters: inputFormatters,
       decoration: _buildDecoration(label, icon),
     );
   }
@@ -792,6 +861,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           'category': category,
           'quantity': quantity,
           'unit': unit,
+          'supplier': supplier,
           'created_by': user?.email,
           'created_at': DateTime.now().toIso8601String(),
         });
@@ -1089,15 +1159,17 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     crossAxisCount: ResponsiveUtils.isMobile(context)
                         ? 2
                         : ResponsiveUtils.isTablet(context)
-                        ? 3
-                        : 4,
+                        ? 5
+                        : 6,
                     crossAxisSpacing: ResponsiveUtils.isMobile(context)
-                        ? 8
-                        : 12,
-                    mainAxisSpacing: ResponsiveUtils.isMobile(context) ? 8 : 12,
+                        ? 10
+                        : 8,
+                    mainAxisSpacing: ResponsiveUtils.isMobile(context) ? 10 : 8,
                     childAspectRatio: ResponsiveUtils.isMobile(context)
-                        ? 1.0
-                        : 1.2,
+                        ? 1.4
+                        : ResponsiveUtils.isTablet(context)
+                        ? 1.4
+                        : 1.4,
                   ),
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {
@@ -1124,7 +1196,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1135,7 +1207,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   child: Text(
                                     item['name'] ?? 'Unknown',
                                     style: const TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.darkGrey,
                                     ),
@@ -1143,25 +1215,25 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: stockColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    stockIcon,
+                                    color: stockColor,
+                                    size: 16,
+                                  ),
+                                ),
                               ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: stockColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Icon(
-                                stockIcon,
-                                color: stockColor,
-                                size: 16,
-                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               item['category'] ?? 'Uncategorized',
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 10,
                                 color: AppTheme.mediumGrey,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1170,7 +1242,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                               decoration: BoxDecoration(
                                 color: stockColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -1776,3 +1848,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     }
   }
 }
+
+
+
+
