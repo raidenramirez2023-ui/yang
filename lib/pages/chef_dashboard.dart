@@ -14,8 +14,7 @@ class ChefDashboardPage extends StatefulWidget {
   State<ChefDashboardPage> createState() => _ChefDashboardPageState();
 }
 
-class _ChefDashboardPageState extends State<ChefDashboardPage>
-    with TickerProviderStateMixin {
+class _ChefDashboardPageState extends State<ChefDashboardPage> {
   int _currentTab = 0;
   late final PageController _pageController;
 
@@ -1264,9 +1263,6 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     }
   }
 
-  void _navigateToPagsanjaninvDashboard() {
-    Navigator.of(context).pushNamed('/pagsanjaninv');
-  }
 
   @override
   Widget build(BuildContext context) {
