@@ -100,104 +100,132 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   // =========================
-  // DESKTOP LAYOUT (WHITE NAV)
+  // DESKTOP LAYOUT (DARK SIDEBAR)
   // =========================
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // White Navigation Rail
+        // Dark Sidebar
         Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Colors.white, Colors.white],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white,
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          margin: const EdgeInsets.all(16),
-          child: NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-            },
-
-            backgroundColor: Colors.white,
-            indicatorColor: Colors.white,
-
-            labelType: NavigationRailLabelType.all,
-
-            selectedLabelTextStyle: const TextStyle(
-              color: AppTheme.primaryRed,
-              fontWeight: FontWeight.bold,
-            ),
-            unselectedLabelTextStyle: const TextStyle(
-              color: Colors.black54,
-              fontWeight: FontWeight.normal,
-            ),
-
-            destinations: [
-              NavigationRailDestination(
-                icon: Icon(
-                  Icons.home_outlined,
-                  color: _selectedIndex == 0 ? AppTheme.primaryRed : Colors.black54,
-                ),
-                selectedIcon: const Icon(Icons.home_rounded, color: AppTheme.primaryRed),
-                label: Text(
-                  'Home',
-                  style: TextStyle(
-                    color: _selectedIndex == 0 ? AppTheme.primaryRed : Colors.black54,
-                  ),
+          width: 280,
+          color: const Color(0xFF1E1E1E),
+          child: Column(
+            children: [
+              // Logo Section
+              Container(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.restaurant,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Yang Chow',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              NavigationRailDestination(
-                icon: Icon(
-                  Icons.event_available_outlined,
-                  color: _selectedIndex == 1 ? AppTheme.primaryRed : Colors.black54,
-                ),
-                selectedIcon: const Icon(Icons.event_available_rounded, color: AppTheme.primaryRed),
-                label: Text(
-                  'Reservations',
-                  style: TextStyle(
-                    color: _selectedIndex == 1 ? AppTheme.primaryRed : Colors.black54,
+              
+              // Navigation Items
+              ...List.generate(4, (index) {
+                final icons = [
+                  Icons.home_rounded,
+                  Icons.event_available_rounded,
+                  Icons.person_rounded,
+                  Icons.history_rounded,
+                ];
+                final labels = ['Home', 'Reservations', 'Profile', 'History'];
+                
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == index ? AppTheme.primaryRed : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-              ),
-              NavigationRailDestination(
-                icon: Icon(
-                  Icons.person_outline,
-                  color: _selectedIndex == 2 ? AppTheme.primaryRed : Colors.black54,
-                ),
-                selectedIcon: const Icon(Icons.person_rounded, color: AppTheme.primaryRed),
-                label: Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: _selectedIndex == 2 ? AppTheme.primaryRed : Colors.black54,
+                  child: ListTile(
+                    leading: Icon(
+                      icons[index],
+                      color: _selectedIndex == index ? Colors.white : Colors.grey.shade400,
+                    ),
+                    title: Text(
+                      labels[index],
+                      style: TextStyle(
+                        color: _selectedIndex == index ? Colors.white : Colors.grey.shade400,
+                        fontWeight: _selectedIndex == index ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() => _selectedIndex = index);
+                    },
                   ),
-                ),
-              ),
-              NavigationRailDestination(
-                icon: Icon(
-                  Icons.history_outlined,
-                  color: _selectedIndex == 3 ? AppTheme.primaryRed : Colors.black54,
-                ),
-                selectedIcon: const Icon(Icons.history_rounded, color: AppTheme.primaryRed),
-                label: Text(
-                  'History',
-                  style: TextStyle(
-                    color: _selectedIndex == 3 ? AppTheme.primaryRed : Colors.black54,
-                  ),
+                );
+              }),
+              
+              const Spacer(),
+              
+              // User Info Section
+              Container(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'L',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
+                          Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 
+                          'User',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Text(
+                          'Customer',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -207,10 +235,50 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         // Main Content
         Expanded(
           child: Container(
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: _buildContent(),
+            color: const Color(0xFFF5F5F5),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  color: Colors.white,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Customer Dashboard',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _loadCustomerReservations,
+                            icon: const Icon(Icons.sync, color: Color(0xFF1E1E1E)),
+                            tooltip: 'Sync',
+                          ),
+                          IconButton(
+                            onPressed: _showLogoutDialog,
+                            icon: const Icon(Icons.logout, color: Color(0xFF1E1E1E)),
+                            tooltip: 'Logout',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Content Area
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildContent(),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -218,7 +286,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  // =========================
   // MOBILE LAYOUT (BOTTOM NAV)
   // =========================
   Widget _buildMobileLayout() {
@@ -227,7 +294,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         // Main Content
         Expanded(
           child: Container(
-            color: Colors.white,
+            color: const Color(0xFFF5F5F5),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: _buildContent(),
@@ -324,249 +391,497 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   Widget _buildHomeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Welcome Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withValues(alpha: 0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryRed.withValues(alpha: 0.2),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.waving_hand,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome to Yang Chow, ${Supabase.instance.client.auth.currentUser?.userMetadata?['full_name'] ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name'] ?? 'Customer'}!',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your premium dining experience awaits',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        
-        // Quick Stats
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                Icons.event_available_rounded,
-                'Active Reservations',
-                '${customerReservations.where((r) => r['status'] == 'pending' || r['status'] == 'confirmed').length}',
-                AppTheme.primaryRed,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                Icons.history_rounded,
-                'Total Events',
-                '${customerReservations.length}',
-                AppTheme.primaryRed,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        
-        // Quick Actions
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryRed,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionButton(
-                      Icons.event_rounded,
-                      'Make Reservation',
-                      AppTheme.primaryRed,
-                      () {
-                        setState(() {
-                          _selectedIndex = 1;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildActionButton(
-                      Icons.person_rounded,
-                      'My Profile',
-                      AppTheme.primaryRed,
-                      () {
-                        setState(() {
-                          _selectedIndex = 2;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(IconData icon, String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
+    return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+          // Welcome Banner
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.waving_hand,
+                    color: Colors.white,
+                    size: 40,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontSize: 24,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String label, Color color, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withValues(alpha: 0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome to Yang Chow, ' + 
+                        (Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
+                        Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 
+                        'User') + '!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your premium dining experience awaits. Ready for your next reservation?',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 32),
+          
+          // Info Cards
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.trending_up_rounded,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'ACTIVE RESERVATIONS',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${customerReservations.where((r) => r['status'] == 'pending' || r['status'] == 'confirmed').length}',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.insert_chart_rounded,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'TOTAL EVENTS',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${customerReservations.length}',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E1E1E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          // Quick Actions
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E1E1E),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedIndex = 1;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add, color: Colors.white, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Make a New Reservation',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedIndex = 2;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.person_outline,
+                                    color: Colors.grey.shade600,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'My Profile',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Recent Activity
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Recent Activity',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1E1E),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedIndex = 3;
+                        });
+                      },
+                      child: const Text(
+                        'View All Activity',
+                        style: TextStyle(
+                          color: AppTheme.primaryRed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                customerReservations.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.folder_outlined,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No recent activity found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Book your first table to start seeing history here.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: customerReservations.take(3).length,
+                        itemBuilder: (context, index) {
+                          final reservation = customerReservations[index];
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(reservation['status']).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    _getStatusIcon(reservation['status']),
+                                    color: _getStatusColor(reservation['status']),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        reservation['event_type'] ?? 'Reservation',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${reservation['event_date']} at ${reservation['start_time']}',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(reservation['status']).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    reservation['status']?.toUpperCase() ?? 'PENDING',
+                                    style: TextStyle(
+                                      color: _getStatusColor(reservation['status']),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'confirmed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String? status) {
+    switch (status) {
+      case 'pending':
+        return Icons.pending;
+      case 'confirmed':
+        return Icons.check_circle;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
+
+  String _formatLocalDateTime(String? dateTimeString) {
+    if (dateTimeString == null || dateTimeString.isEmpty) {
+      return 'Unknown time';
+    }
+    
+    try {
+      DateTime utcTime = DateTime.parse(dateTimeString);
+      DateTime localTime = utcTime.toLocal();
+      
+      return '${localTime.year.toString().padLeft(4, '0')}-${localTime.month.toString().padLeft(2, '0')}-${localTime.day.toString().padLeft(2, '0')} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}:${localTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'Invalid time';
+    }
+  }
+
+  String _formatMemberSince(String? createdAt) {
+    if (createdAt == null || createdAt.isEmpty) {
+      return 'Today';
+    }
+    
+    try {
+      DateTime utcTime = DateTime.parse(createdAt);
+      DateTime localTime = utcTime.toLocal();
+      
+      // Format in a more readable way for "Member Since"
+      const List<String> months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      
+      return '${months[localTime.month - 1]} ${localTime.day}, ${localTime.year} at ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'Today';
+    }
   }
 
   Widget _buildReservationsSection() {
@@ -755,7 +1070,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Name'),
-              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['full_name'] ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name'] ?? 'Not provided'),
+              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'Not provided'),
             ),
             ListTile(
               leading: const Icon(Icons.email),
@@ -763,14 +1078,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               subtitle: Text(Supabase.instance.client.auth.currentUser?.email ?? 'Not provided'),
             ),
             ListTile(
-              leading: const Icon(Icons.phone),
-              title: const Text('Phone'),
-              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['phone'] ?? 'Not provided'),
-            ),
-            ListTile(
               leading: const Icon(Icons.calendar_today),
               title: const Text('Member Since'),
-              subtitle: Text(Supabase.instance.client.auth.currentUser?.createdAt ?? 'Today'),
+              subtitle: Text(_formatMemberSince(Supabase.instance.client.auth.currentUser?.createdAt)),
             ),
           ],
         ),
@@ -860,7 +1170,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                 Text('Guests: ${reservation['number_of_guests']}'),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Booked on: ${DateTime.parse(reservation['created_at']).toString().substring(0, 19)}',
+                                  'Booked on: ${_formatLocalDateTime(reservation['created_at'])}',
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                     fontSize: 12,
@@ -997,8 +1307,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -1023,8 +1331,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
         ),
       );
       return;
