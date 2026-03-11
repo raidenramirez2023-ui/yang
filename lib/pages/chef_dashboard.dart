@@ -1069,6 +1069,82 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     'Rejected': Color(0xFFE53935),
   };
 
+  List<String> _availableItems = [];
+  Map<String, String> _itemUnits = {}; // Map to store item -> unit mapping
+  Map<String, int> _itemStocks = {}; // Map to store item -> available quantity
+  List<String> _suggestions = []; // Auto-complete suggestions
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableItems();
+    _itemCtrl.addListener(_onItemChanged);
+  }
+
+  void _onItemChanged() {
+    final itemName = _itemCtrl.text.trim();
+    
+    // Auto-update unit if exact match found
+    if (_itemUnits.containsKey(itemName)) {
+      setState(() {
+        _selectedUnit = _itemUnits[itemName]!;
+      });
+    }
+    
+    // Update suggestions for auto-complete
+    if (itemName.isEmpty) {
+      setState(() {
+        _suggestions = [];
+        _showSuggestions = false;
+      });
+    } else {
+      final matches = _availableItems
+          .where((item) => item.toLowerCase().contains(itemName.toLowerCase()))
+          .take(5) // Limit to 5 suggestions
+          .toList();
+      
+      setState(() {
+        _suggestions = matches;
+        _showSuggestions = matches.isNotEmpty && !matches.contains(itemName);
+      });
+    }
+  }
+
+  void _selectSuggestion(String suggestion) {
+    _itemCtrl.text = suggestion;
+    setState(() {
+      _selectedUnit = _itemUnits[suggestion] ?? 'pcs';
+      _showSuggestions = false;
+      _suggestions = [];
+    });
+  }
+
+  Future<void> _loadAvailableItems() async {
+    try {
+      final items = await Supabase.instance.client
+          .from('inventory')
+          .select('name, unit, quantity')
+          .order('name');
+      
+      if (mounted) {
+        setState(() {
+          _availableItems = items.map((i) => i['name'].toString()).toList();
+          _itemUnits = {
+            for (var item in items)
+              item['name'].toString(): item['unit']?.toString() ?? 'pcs'
+          };
+          _itemStocks = {
+            for (var item in items)
+              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading items: $e');
+    }
+  }
+
   @override
   void dispose() {
     _itemCtrl.dispose();
@@ -1080,11 +1156,45 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   Future<void> _submitRequest() async {
     final itemName = _itemCtrl.text.trim();
     final qty = int.tryParse(_qtyCtrl.text.trim());
-    if (itemName.isEmpty || qty == null || qty <= 0) {
+
+    // Validation: Check if item exists in Pagsanjaninv inventory
+    if (itemName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in item name and a valid quantity.'),
+          content: Text('Please enter an item name'),
           backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (!_availableItems.contains(itemName)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"$itemName" is not available in inventory. Please select from available items.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (qty == null || qty <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid quantity'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validate quantity against available stock
+    final availableStock = _itemStocks[itemName] ?? 0;
+    if (qty > availableStock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot request $qty $itemName. Only $availableStock ${_itemUnits[itemName] ?? 'pcs'} available in inventory.'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -1114,19 +1224,41 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           _selectedPriority = 'Normal';
           _submitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
+        
+        // Show success dialog with redirect option
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: Colors.white,
+            title: const Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text('Request submitted to inventory staff!'),
+                Icon(Icons.check_circle, color: AppTheme.successGreen, size: 24),
+                SizedBox(width: 12),
+                Text('Request Submitted!', style: TextStyle(color: AppTheme.darkGrey)),
               ],
             ),
-            backgroundColor: AppTheme.successGreen,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            content: const Text(
+              'Your stock request has been sent to the inventory team. You can track its status in the Pagsanjaninv dashboard.',
+              style: TextStyle(color: AppTheme.darkGrey),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Stay Here', style: TextStyle(color: AppTheme.mediumGrey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _navigateToPagsanjaninvDashboard();
+                },
+                child: const Text('Go to Inventory Dashboard'),
+              ),
+            ],
           ),
         );
       }
@@ -1141,6 +1273,10 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         );
       }
     }
+  }
+
+  void _navigateToPagsanjaninvDashboard() {
+    Navigator.of(context).pushNamed('/pagsanjaninv');
   }
 
   @override
@@ -1185,8 +1321,93 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 ),
                 const SizedBox(height: 16),
 
-                // Item name
-                _lightField(_itemCtrl, 'Item Name', Icons.inventory_2_outlined),
+                // Item name with suggestions
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _lightField(_itemCtrl, 'Item Name', Icons.inventory_2_outlined),
+                    if (_showSuggestions && _suggestions.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _suggestions.map((suggestion) {
+                            final unit = _itemUnits[suggestion] ?? 'pcs';
+                            final stock = _itemStocks[suggestion] ?? 0;
+                            return InkWell(
+                              onTap: () => _selectSuggestion(suggestion),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: const Color(0xFFE5E7EB).withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            suggestion,
+                                            style: const TextStyle(
+                                              color: Color(0xFF1E293B),
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Available: $stock $unit',
+                                            style: TextStyle(
+                                              color: stock == 0 ? AppTheme.errorRed : 
+                                                     stock < 10 ? AppTheme.warningOrange : AppTheme.successGreen,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        unit,
+                                        style: TextStyle(
+                                          color: AppTheme.primaryRed,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 12),
 
                 // Qty + Unit row
@@ -1568,6 +1789,25 @@ class _StockViewTabState extends State<_StockViewTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Quick Action Button for Inventory Dashboard
+        Container(
+          margin: const EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.of(context).pushNamed('/pagsanjaninv'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.dashboard_rounded, size: 20),
+            label: const Text(
+              'Go to Inventory Dashboard',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+          ),
+        ),
+        
         // Search
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1655,16 +1895,23 @@ class _StockViewTabState extends State<_StockViewTab> {
                         color: AppTheme.primaryRed));
               }
               var items = snap.data!;
-              if (_search.isNotEmpty) {
-                items = items.where((i) {
-                  final name =
-                      (i['name'] ?? '').toString().toLowerCase();
-                  return name.contains(_search);
-                }).toList();
-              }
-              if (items.isEmpty) {
+              final hasItems = items.isNotEmpty;
+              final filteredItems = _search.isNotEmpty
+                  ? items.where((i) {
+                      final name =
+                          (i['name'] ?? '').toString().toLowerCase();
+                      return name.contains(_search);
+                    }).toList()
+                  : items;
+              
+              if (!hasItems) {
                 return _buildEmptyState(Icons.inventory_2_outlined,
-                    'No items found', '');
+                    'No items in inventory', 'Add items in Pagsanjaninv dashboard first');
+              }
+              
+              if (filteredItems.isEmpty) {
+                return _buildEmptyState(Icons.inventory_2_outlined,
+                    'No items found', 'Try adjusting your search');
               }
               return LayoutBuilder(
                 builder: (ctx, constraints) {
@@ -1678,9 +1925,9 @@ class _StockViewTabState extends State<_StockViewTab> {
                   mainAxisSpacing: 10,
                   childAspectRatio: 1.05,
                 ),
-                itemCount: items.length,
+                itemCount: filteredItems.length,
                 itemBuilder: (_, i) {
-                  final item = items[i];
+                  final item = filteredItems[i];
                   final qty =
                       (item['quantity'] as num?)?.toInt() ?? 0;
                   final color = _getStatusColor(qty);
