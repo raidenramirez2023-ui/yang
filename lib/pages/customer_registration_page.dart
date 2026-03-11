@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class CustomerRegistrationPage extends StatefulWidget {
   const CustomerRegistrationPage({super.key});
 
   @override
-  State<CustomerRegistrationPage> createState() => _CustomerRegistrationPageState();
+  State<CustomerRegistrationPage> createState() =>
+      _CustomerRegistrationPageState();
 }
 
 class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
@@ -25,31 +24,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _agreeToTerms = false;
   bool _isRedirecting = false;
 
-  // Google Sign-In instance
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb 
-      ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
-      : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
-  );
-
   @override
   void initState() {
     super.initState();
-    
-    // 1. Check if we already have a session (e.g. after a redirect back to this page)
-    final initialSession = Supabase.instance.client.auth.currentSession;
-    if (initialSession != null) {
-      debugPrint('OAuth: Initial session detected, redirecting...');
-      _handleOAuthSuccess(initialSession);
-    }
-
-    // 2. Listen for auth state changes for real-time redirects
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
-        debugPrint('OAuth: Signed in event detected, redirecting...');
-        _handleOAuthSuccess(data.session!);
-      }
-    });
   }
 
   @override
@@ -68,7 +45,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     String confirmPassword = confirmPasswordController.text.trim();
 
     // Validation
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       _showSnackBar(
         "Please fill in all fields",
         Colors.red.shade700,
@@ -120,10 +100,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'name': name,
-          'role': 'customer',
-        },
+        data: {'name': name, 'role': 'customer'},
       );
 
       if (authResponse.user != null) {
@@ -138,7 +115,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         debugPrint('Email: $email');
         debugPrint('Name: $name');
         debugPrint('SUCCESS: Customer account ready');
-        
+
         _showSnackBar(
           "Registration successful! Account is now ready to use.",
           Colors.green.shade700,
@@ -169,9 +146,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     } on PostgrestException catch (e) {
       String errorMessage;
       if (e.code == '23505') {
-        errorMessage = 'An account with this email already exists in our system';
+        errorMessage =
+            'An account with this email already exists in our system';
       } else if (e.message.contains('duplicate')) {
-        errorMessage = 'This email is already registered. Please use a different email.';
+        errorMessage =
+            'This email is already registered. Please use a different email.';
       } else {
         errorMessage = 'Database error: ${e.message}';
       }
@@ -189,108 +168,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      if (kIsWeb) {
-        // Web: Use OAuth redirect flow
-        await Supabase.instance.client.auth.signOut();
-        await Supabase.instance.client.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: Uri.base.origin,
-          queryParams: {'prompt': 'select_account'},
-        );
-      } else {
-        // Mobile: Use native Google Sign-In SDK
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) {
-          // User cancelled the sign-in
-          return;
-        }
-
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        final String? idToken = googleAuth.idToken;
-
-        if (idToken == null) {
-          throw Exception('Failed to get ID token from Google Sign-In');
-        }
-
-        // Sign in with Supabase using the ID token
-        await Supabase.instance.client.auth.signInWithIdToken(
-          provider: OAuthProvider.google,
-          idToken: idToken,
-          accessToken: googleAuth.accessToken,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar("Google Sign-In Error: $e", Colors.red.shade700, Icons.error_outline);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _handleOAuthSuccess(Session session) async {
-    if (_isRedirecting) return;
-    
-    final email = session.user.email;
-    if (email == null) return;
-
-    _isRedirecting = true;
-    try {
-      // Check if user exists in the users table
-      final userResponse = await Supabase.instance.client
-          .from('users')
-          .select('role')
-          .eq('email', email)
-          .maybeSingle();
-
-      final metadata = session.user.userMetadata ?? {};
-      final name = metadata['full_name']?.toString() ?? metadata['name']?.toString() ?? 'Customer';
-
-      if (userResponse == null) {
-        // Create new user with 'customer' role
-        await Supabase.instance.client.from('users').insert({
-          'email': email,
-          'role': 'customer',
-          'name': name,
-        });
-      } else {
-        // Update name if user exists (optional, but keeps it in sync)
-        await Supabase.instance.client
-            .from('users')
-            .update({'name': name})
-            .eq('email', email);
-            
-        // Check if existing user is NOT a customer
-        String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
-        if (userRole != 'customer') {
-          await Supabase.instance.client.auth.signOut();
-          if (mounted) {
-            _showSnackBar(
-              "Google Sign-In is only allowed for customer accounts.",
-              Colors.red.shade700,
-              Icons.block,
-            );
-          }
-          return;
-        }
-      }
-      
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/customer-dashboard');
-      }
-    } catch (e) {
-      debugPrint('Error in _handleOAuthSuccess: $e');
-    }
-  }
-
   void _showSnackBar(String message, Color color, IconData icon) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -318,7 +198,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             children: [
               CircularProgressIndicator(color: AppTheme.primaryRed),
               SizedBox(height: 16),
-              Text('Syncing with Google...', style: TextStyle(color: AppTheme.primaryRed)),
+              Text(
+                'Syncing with Google...',
+                style: TextStyle(color: AppTheme.primaryRed),
+              ),
             ],
           ),
         ),
@@ -329,12 +212,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Customer Registration'),
-        backgroundColor: AppTheme.primaryRed,
-        foregroundColor: Colors.white,
-        elevation: 2,
-      ),
+      appBar: isDesktop
+          ? AppBar(
+              title: const Text('Customer Registration'),
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+              elevation: 2,
+            )
+          : null,
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -376,59 +261,380 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
   Widget _buildMobileLayout() {
     return Container(
-      color: Colors.white,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              // Logo
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/bg.png'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.lg,
+              vertical: 40,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo outside the container
+                Image.asset(
+                  'assets/images/new-ycplogo.png', // Assuming new-ycplogo.png is the logo shown in the latest image which has transparenc
+                  height: 120,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/images/mobile-logo.png',
+                      height: 120,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox(height: 120),
+                    );
+                  },
                 ),
-                child: ClipOval(
-                  child: Image.asset(
-                    'assets/images/mobile-logo.png',
-                    width: 150,
-                    height: 150,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 150,
-                        height: 150,
-                        color: Colors.grey.shade200,
-                        child: Icon(
-                          Icons.restaurant,
-                          size: 80,
-                          color: Colors.grey.shade400,
-                        ),
-                      );
-                    },
+                const SizedBox(height: 32),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    children: [
+                      // Title
+                      Text(
+                        'Create Account',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 30),
+                      // Mobile Registration Form
+                      _buildMobileRegistrationForm(),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Title
-              Text(
-                'Create Customer Account',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: const Color.fromARGB(255, 119, 36, 36),
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 30),
-              // Registration Form
-              _buildRegistrationForm(),
-              const SizedBox(height: 40),
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMobileRegistrationForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Full Name Field
+        const Text(
+          'Full Name',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: nameController,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your full name',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Email Field
+        const Text(
+          'Email Address',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your email',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Password Field
+        const Text(
+          'Password',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: passwordController,
+          obscureText: !_isPasswordVisible,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Create a password',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              ),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Confirm Password Field
+        const Text(
+          'Confirm Password',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: confirmPasswordController,
+          obscureText: !_isConfirmPasswordVisible,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Confirm your password',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: Icon(
+                  _isConfirmPasswordVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                  });
+                },
+              ),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Terms and Conditions Checkbox
+        Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                value: _agreeToTerms,
+                onChanged: _isLoading
+                    ? null
+                    : (bool? value) {
+                        setState(() {
+                          _agreeToTerms = value ?? false;
+                        });
+                      },
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                activeColor: const Color(0xFFE81E0D),
+                checkColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFE81E0D)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'I agree to the Terms and Conditions and Privacy Policy',
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+
+        // Register Button
+        Container(
+          width: double.infinity,
+          height: 54,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFE81E0D).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : handleRegistration,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(
+                0xFFEE2A12,
+              ), // Vibrant red matching screenshot
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text(
+                    'Create Account',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Back to Login Link
+        Center(
+          child: GestureDetector(
+            onTap: _isLoading
+                ? null
+                : () {
+                    Navigator.of(context).pop();
+                  },
+            child: RichText(
+              text: const TextSpan(
+                text: 'Already have an account? ',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Sign In',
+                    style: TextStyle(
+                      color: Color(0xFFE81E0D),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -438,10 +644,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Full Name Field
-        Text(
-          'Full Name',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('Full Name', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         TextField(
           controller: nameController,
@@ -457,10 +660,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         const SizedBox(height: 12),
 
         // Email Field
-        Text(
-          'Email Address',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('Email Address', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         TextField(
           controller: emailController,
@@ -477,10 +677,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         const SizedBox(height: 12),
 
         // Password Field
-        Text(
-          'Password',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('Password', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         TextField(
           controller: passwordController,
@@ -491,9 +688,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _isPasswordVisible 
-                  ? Icons.visibility_outlined 
-                  : Icons.visibility_off_outlined,
+                _isPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
               ),
               onPressed: () {
                 setState(() {
@@ -509,10 +706,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         const SizedBox(height: 12),
 
         // Confirm Password Field
-        Text(
-          'Confirm Password',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('Confirm Password', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         TextField(
           controller: confirmPasswordController,
@@ -523,9 +717,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
-                _isConfirmPasswordVisible 
-                  ? Icons.visibility_outlined 
-                  : Icons.visibility_off_outlined,
+                _isConfirmPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
               ),
               onPressed: () {
                 setState(() {
@@ -545,11 +739,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           children: [
             Checkbox(
               value: _agreeToTerms,
-              onChanged: _isLoading ? null : (bool? value) {
-                setState(() {
-                  _agreeToTerms = value ?? false;
-                });
-              },
+              onChanged: _isLoading
+                  ? null
+                  : (bool? value) {
+                      setState(() {
+                        _agreeToTerms = value ?? false;
+                      });
+                    },
               activeColor: AppTheme.primaryRed,
             ),
             Expanded(
@@ -573,70 +769,28 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               foregroundColor: Colors.white,
             ),
             child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text('Create Account'),
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Create Account'),
           ),
         ),
         const SizedBox(height: 24),
-
-        // OR Divider
-        Row(
-          children: [
-            Expanded(child: Divider(color: Colors.grey.shade300)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'OR',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-              ),
-            ),
-            Expanded(child: Divider(color: Colors.grey.shade300)),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Google Sign In Button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isLoading ? null : _handleGoogleSignIn,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: Colors.grey.shade300),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-            ),
-            icon: SvgPicture.network(
-              'https://www.svgrepo.com/show/355037/google.svg',
-              width: 20,
-              height: 20,
-            ),
-            label: const Text(
-              'Sign up with Google',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
 
         // Back to Login Link
         Align(
           alignment: Alignment.center,
           child: TextButton(
-            onPressed: _isLoading ? null : () {
-              Navigator.of(context).pop();
-            },
+            onPressed: _isLoading
+                ? null
+                : () {
+                    Navigator.of(context).pop();
+                  },
             child: Text(
               'Already have an account? Sign In',
               style: TextStyle(

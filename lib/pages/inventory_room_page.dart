@@ -82,7 +82,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.successGreen.withOpacity(0.1),
+                          color: AppTheme.successGreen.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -119,7 +119,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         children: [
                           // ── 1. Category Dropdown ──
                           DropdownButtonFormField<String>(
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: _buildDecoration(
                               'Category',
                               Icons.category_outlined,
@@ -205,7 +205,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               final items = filteredItemNames;
 
                               return DropdownButtonFormField<String>(
-                                value: selectedItemName,
+                                initialValue: selectedItemName,
                                 decoration: _buildDecoration(
                                   'Item Name',
                                   Icons.inventory_2_outlined,
@@ -269,8 +269,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       oldValue,
                                       newValue,
                                     ) {
-                                      if (newValue.text.isEmpty)
-                                        return newValue;
+                                      if (newValue.text.isEmpty) { return newValue; }
                                       if (newValue.text.startsWith('0')) {
                                         final stripped = newValue.text
                                             .replaceFirst(RegExp(r'^0+'), '');
@@ -315,7 +314,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                           // ── 5. Supplier Dropdown ──
                           DropdownButtonFormField<String>(
-                            value: selectedSupplier,
+                            initialValue: selectedSupplier,
                             decoration: _buildDecoration(
                               'Supplier',
                               Icons.business_outlined,
@@ -344,10 +343,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.infoBlue.withOpacity(0.1),
+                              color: AppTheme.infoBlue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.infoBlue.withOpacity(0.3),
+                                color: AppTheme.infoBlue.withValues(alpha: 0.3),
                               ),
                             ),
                             child: const Row(
@@ -408,7 +407,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             selectedSupplier!,
                           );
 
-                          if (mounted) Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.successGreen,
@@ -468,7 +467,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.warningOrange.withOpacity(0.1),
+                          color: AppTheme.warningOrange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -505,7 +504,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         children: [
                           // ── 1. Category Dropdown ──
                           DropdownButtonFormField<String>(
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: _buildDecoration(
                               'Category',
                               Icons.category_outlined,
@@ -581,7 +580,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               final items = filteredItemNames;
 
                               return DropdownButtonFormField<String>(
-                                value: selectedItemName,
+                                initialValue: selectedItemName,
                                 decoration: _buildDecoration(
                                   'Item Name',
                                   Icons.inventory_2_outlined,
@@ -655,8 +654,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       oldValue,
                                       newValue,
                                     ) {
-                                      if (newValue.text.isEmpty)
-                                        return newValue;
+                                      if (newValue.text.isEmpty) { return newValue; }
 
                                       String newText = newValue.text;
                                       if (newText.startsWith('0') &&
@@ -745,10 +743,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.warningOrange.withOpacity(0.1),
+                              color: AppTheme.warningOrange.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.warningOrange.withOpacity(0.3),
+                                color: AppTheme.warningOrange.withValues(alpha: 0.3),
                               ),
                             ),
                             child: const Row(
@@ -807,7 +805,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             requestedByCtrl.text.trim(),
                           );
 
-                          if (mounted) Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.warningOrange,
@@ -986,7 +984,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           controller: _tabController,
           indicatorColor: AppTheme.white,
           labelColor: AppTheme.white,
-          unselectedLabelColor: AppTheme.white.withOpacity(0.7),
+          unselectedLabelColor: AppTheme.white.withValues(alpha: 0.7),
           labelStyle: ResponsiveUtils.isMobile(context)
               ? const TextStyle(fontSize: 12)
               : const TextStyle(fontSize: 14),
@@ -1040,7 +1038,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withOpacity(0.1),
+                color: AppTheme.darkGrey.withValues(alpha: 0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1092,7 +1090,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           setState(() => _selectedCategory = category);
                         },
                         backgroundColor: AppTheme.white,
-                        selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                        selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
                         checkmarkColor: AppTheme.primaryRed,
                         labelStyle: TextStyle(
                           color: isSelected
@@ -1211,13 +1209,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.darkGrey.withOpacity(0.1),
+                            color: AppTheme.darkGrey.withValues(alpha: 0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
                         ],
                         border: Border.all(
-                          color: stockColor.withOpacity(0.3),
+                          color: stockColor.withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -1244,7 +1242,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: stockColor.withOpacity(0.1),
+                                    color: stockColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
@@ -1273,10 +1271,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: stockColor.withOpacity(0.1),
+                                color: stockColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: stockColor.withOpacity(0.3),
+                                  color: stockColor.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Row(
@@ -1330,13 +1328,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.successGreen,
-                AppTheme.successGreen.withOpacity(0.8),
+                AppTheme.successGreen.withValues(alpha: 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.successGreen.withOpacity(0.3),
+                color: AppTheme.successGreen.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1453,13 +1451,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.darkGrey.withOpacity(0.1),
+                          color: AppTheme.darkGrey.withValues(alpha: 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
                       ],
                       border: Border.all(
-                        color: AppTheme.successGreen.withOpacity(0.3),
+                        color: AppTheme.successGreen.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -1470,7 +1468,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.successGreen.withOpacity(0.1),
+                                color: AppTheme.successGreen.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -1578,13 +1576,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.warningOrange,
-                AppTheme.warningOrange.withOpacity(0.8),
+                AppTheme.warningOrange.withValues(alpha: 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.warningOrange.withOpacity(0.3),
+                color: AppTheme.warningOrange.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1701,13 +1699,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.darkGrey.withOpacity(0.1),
+                          color: AppTheme.darkGrey.withValues(alpha: 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
                       ],
                       border: Border.all(
-                        color: AppTheme.warningOrange.withOpacity(0.3),
+                        color: AppTheme.warningOrange.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Column(
@@ -1718,7 +1716,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.warningOrange.withOpacity(0.1),
+                                color: AppTheme.warningOrange.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
