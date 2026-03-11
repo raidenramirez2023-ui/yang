@@ -16,6 +16,7 @@ class _InventoryPageState extends State<InventoryPage> {
   bool _isAdmin = false;
   String _searchQuery = '';
   String _selectedCategory = 'All';
+  String? _selectedStockStatus;
 
   static const List<String> categories = [
     'All',
@@ -530,51 +531,91 @@ class _InventoryPageState extends State<InventoryPage> {
 
   Widget _buildCompactMonitorCard(String range, String count, Color color) {
     String label;
+    String stockStatus;
     switch (range) {
       case '0':
         label = 'OUT OF STOCK';
+        stockStatus = 'OUT OF STOCK';
         break;
       case '1-9':
         label = 'LOW STOCK';
+        stockStatus = 'LOW STOCK';
         break;
       case '10-49':
         label = 'NORMAL';
+        stockStatus = 'NORMAL';
         break;
       case '50+':
         label = 'HIGH STOCK';
+        stockStatus = 'HIGH STOCK';
         break;
       default:
         label = 'UNKNOWN';
+        stockStatus = 'UNKNOWN';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.white.withOpacity(0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            count,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.white,
-            ),
+    final isSelected = _selectedStockStatus == stockStatus;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedStockStatus = null;
+          } else {
+            _selectedStockStatus = stockStatus;
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppTheme.white.withOpacity(0.4)
+              : AppTheme.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected 
+                ? AppTheme.white.withOpacity(0.8)
+                : AppTheme.white.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 8,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.white,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  count,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.white,
+                    decoration: isSelected ? TextDecoration.underline : null,
+                    decorationColor: AppTheme.white,
+                    decorationThickness: 2,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 1),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -850,7 +891,14 @@ class _InventoryPageState extends State<InventoryPage> {
                     final matchesCategory =
                         _selectedCategory == 'All' ||
                         item['category']?.toString() == _selectedCategory;
-                    return matchesSearch && matchesCategory;
+                    
+                    // Stock status filtering
+                    final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+                    final itemStockStatus = _getStockStatus(quantity);
+                    final matchesStockStatus = _selectedStockStatus == null ||
+                        itemStockStatus == _selectedStockStatus;
+                    
+                    return matchesSearch && matchesCategory && matchesStockStatus;
                   }).toList();
 
                   if (filteredItems.isEmpty) {

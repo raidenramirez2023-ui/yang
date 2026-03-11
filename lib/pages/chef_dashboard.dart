@@ -1245,18 +1245,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Stay Here', style: TextStyle(color: AppTheme.mediumGrey)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _navigateToPagsanjaninvDashboard();
-                },
-                child: const Text('Go to Inventory Dashboard'),
+                child: const Text('Close', style: TextStyle(color: AppTheme.mediumGrey)),
               ),
             ],
           ),
@@ -1763,12 +1752,13 @@ class _StockViewTab extends StatefulWidget {
 
 class _StockViewTabState extends State<_StockViewTab> {
   String _search = '';
+  String? _selectedFilter;
 
   String _getStockStatus(int quantity) {
-    if (quantity == 0) return 'OUT';
-    if (quantity < 10) return 'LOW';
+    if (quantity == 0) return 'OUT OF STOCK';
+    if (quantity < 10) return 'LOW STOCK';
     if (quantity < 50) return 'NORMAL';
-    return 'HIGH';
+    return 'HIGH STOCK';
   }
 
   Color _getStatusColor(int quantity) {
@@ -1789,25 +1779,6 @@ class _StockViewTabState extends State<_StockViewTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Quick Action Button for Inventory Dashboard
-        Container(
-          margin: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: () => Navigator.of(context).pushNamed('/pagsanjaninv'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            icon: const Icon(Icons.dashboard_rounded, size: 20),
-            label: const Text(
-              'Go to Inventory Dashboard',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-            ),
-          ),
-        ),
-        
         // Search
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1864,17 +1835,33 @@ class _StockViewTabState extends State<_StockViewTab> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  _summaryChip('OUT', out.toString(),
-                      AppTheme.errorRed),
+                  _summaryChip('OUT OF STOCK', out.toString(),
+                      AppTheme.errorRed,
+                      isSelected: _selectedFilter == 'OUT OF STOCK',
+                      onTap: () => setState(() {
+                        _selectedFilter = _selectedFilter == 'OUT OF STOCK' ? null : 'OUT OF STOCK';
+                      })),
                   const SizedBox(width: 8),
-                  _summaryChip('LOW', low.toString(),
-                      AppTheme.warningOrange),
+                  _summaryChip('LOW STOCK', low.toString(),
+                      AppTheme.warningOrange,
+                      isSelected: _selectedFilter == 'LOW STOCK',
+                      onTap: () => setState(() {
+                        _selectedFilter = _selectedFilter == 'LOW STOCK' ? null : 'LOW STOCK';
+                      })),
                   const SizedBox(width: 8),
                   _summaryChip('NORMAL', ok.toString(),
-                      AppTheme.infoBlue),
+                      AppTheme.infoBlue,
+                      isSelected: _selectedFilter == 'NORMAL',
+                      onTap: () => setState(() {
+                        _selectedFilter = _selectedFilter == 'NORMAL' ? null : 'NORMAL';
+                      })),
                   const SizedBox(width: 8),
-                  _summaryChip('HIGH', high.toString(),
-                      AppTheme.successGreen),
+                  _summaryChip('HIGH STOCK', high.toString(),
+                      AppTheme.successGreen,
+                      isSelected: _selectedFilter == 'HIGH STOCK',
+                      onTap: () => setState(() {
+                        _selectedFilter = _selectedFilter == 'HIGH STOCK' ? null : 'HIGH STOCK';
+                      })),
                 ],
               ),
             );
@@ -1896,13 +1883,18 @@ class _StockViewTabState extends State<_StockViewTab> {
               }
               var items = snap.data!;
               final hasItems = items.isNotEmpty;
-              final filteredItems = _search.isNotEmpty
-                  ? items.where((i) {
-                      final name =
-                          (i['name'] ?? '').toString().toLowerCase();
-                      return name.contains(_search);
-                    }).toList()
-                  : items;
+              final filteredItems = items.where((i) {
+                // Apply search filter
+                final name = (i['name'] ?? '').toString().toLowerCase();
+                final matchesSearch = _search.isEmpty || name.contains(_search);
+                
+                // Apply status filter
+                final qty = (i['quantity'] as num?)?.toInt() ?? 0;
+                final status = _getStockStatus(qty);
+                final matchesStatus = _selectedFilter == null || status == _selectedFilter;
+                
+                return matchesSearch && matchesStatus;
+              }).toList();
               
               if (!hasItems) {
                 return _buildEmptyState(Icons.inventory_2_outlined,
@@ -1910,12 +1902,20 @@ class _StockViewTabState extends State<_StockViewTab> {
               }
               
               if (filteredItems.isEmpty) {
-                return _buildEmptyState(Icons.inventory_2_outlined,
-                    'No items found', 'Try adjusting your search');
+                String message = 'No items found';
+                String subtitle = 'Try adjusting your search';
+                if (_selectedFilter != null && _search.isEmpty) {
+                  subtitle = 'No items with $_selectedFilter status';
+                } else if (_selectedFilter != null && _search.isNotEmpty) {
+                  subtitle = 'No $_selectedFilter items matching "$_search"';
+                } else if (_selectedFilter == null && _search.isNotEmpty) {
+                  subtitle = 'No items matching "$_search"';
+                }
+                return _buildEmptyState(Icons.inventory_2_outlined, message, subtitle);
               }
               return LayoutBuilder(
                 builder: (ctx, constraints) {
-                  final cols = constraints.maxWidth > 600 ? 4 : constraints.maxWidth > 400 ? 3 : 2;
+                  final cols = constraints.maxWidth > 600 ? 6 : constraints.maxWidth > 400 ? 3 : 2;
                   return GridView.builder(
                 padding: const EdgeInsets.all(16),
                 gridDelegate:
@@ -1964,7 +1964,19 @@ class _StockViewTabState extends State<_StockViewTab> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
+                        Text(
+                          item['category']?.toString() ?? '—',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
                         Text(
                           '$qty ${item['unit'] ?? ''}',
                           style: TextStyle(
@@ -2001,28 +2013,34 @@ class _StockViewTabState extends State<_StockViewTab> {
     );
   }
 
-  Widget _summaryChip(String label, String count, Color color) {
+  Widget _summaryChip(String label, String count, Color color, {bool isSelected = false, VoidCallback? onTap}) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Column(
-          children: [
-            Text(count,
-                style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18)),
-            Text(label,
-                style: TextStyle(
-                    color: color.withValues(alpha: 0.8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700)),
-          ],
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? color : color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : color.withValues(alpha: 0.4),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(count,
+                  style: TextStyle(
+                      color: isSelected ? Colors.white : color,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18)),
+              Text(label,
+                  style: TextStyle(
+                      color: isSelected ? Colors.white.withValues(alpha: 0.9) : color.withValues(alpha: 0.8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
         ),
       ),
     );
