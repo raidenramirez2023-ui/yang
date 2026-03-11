@@ -155,7 +155,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         children: [
                           // Category Dropdown
                           DropdownButtonFormField<String>(
-                            value: selectedCategory,
+                            initialValue: selectedCategory,
                             decoration: _decoration(
                               'Category',
                               Icons.category_outlined,
@@ -225,7 +225,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
                           // Unit Dropdown
                           DropdownButtonFormField<String>(
-                            value: selectedUnit,
+                            initialValue: selectedUnit,
                             decoration: _decoration('Unit', Icons.straighten),
                             hint: const Text(
                               'Select unit',
@@ -278,8 +278,9 @@ class _InventoryPageState extends State<InventoryPage> {
                               selectedUnit == null ||
                               (item == null && supplierCtrl.text.isEmpty) ||
                               qty == null ||
-                              qty < 1)
+                              qty < 1) {
                             return;
+                          }
 
                           final user =
                               Supabase.instance.client.auth.currentUser;
@@ -338,7 +339,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                 .eq('id', item['id']);
                           }
 
-                          if (mounted) Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                         },
                         child: const Text('Save'),
                       ),
@@ -550,9 +551,9 @@ class _InventoryPageState extends State<InventoryPage> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.15),
+        color: AppTheme.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.white.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.white.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -603,7 +604,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryRed.withOpacity(0.2),
+                    color: AppTheme.primaryRed.withValues(alpha: 0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -631,7 +632,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       const Spacer(),
                       Icon(
                         Icons.refresh_rounded,
-                        color: AppTheme.white.withOpacity(0.8),
+                        color: AppTheme.white.withValues(alpha: 0.8),
                         size: 14,
                       ),
                     ],
@@ -735,7 +736,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.darkGrey.withOpacity(0.1),
+                    color: AppTheme.darkGrey.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -789,7 +790,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               setState(() => _selectedCategory = category);
                             },
                             backgroundColor: AppTheme.white,
-                            selectedColor: AppTheme.primaryRed.withOpacity(0.2),
+                            selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
                             checkmarkColor: AppTheme.primaryRed,
                             labelStyle: TextStyle(
                               color: isSelected
@@ -914,19 +915,19 @@ class _InventoryPageState extends State<InventoryPage> {
                               end: Alignment.bottomRight,
                               colors: [
                                 AppTheme.white,
-                                AppTheme.lightGrey.withOpacity(0.3),
+                                AppTheme.lightGrey.withValues(alpha: 0.3),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.darkGrey.withOpacity(0.1),
+                                color: AppTheme.darkGrey.withValues(alpha: 0.1),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                             border: Border.all(
-                              color: stockColor.withOpacity(0.3),
+                              color: stockColor.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                           ),
@@ -1081,10 +1082,10 @@ class _InventoryPageState extends State<InventoryPage> {
                                         vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: stockColor.withOpacity(0.1),
+                                        color: stockColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: stockColor.withOpacity(0.3),
+                                          color: stockColor.withValues(alpha: 0.3),
                                         ),
                                       ),
                                       child: Row(
