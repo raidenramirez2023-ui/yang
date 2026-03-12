@@ -151,29 +151,29 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           const SizedBox(width: 14),
           Expanded(
             child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'KITCHEN',
-                  style: TextStyle(
-                    color: Color(0xFF1E293B),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'KITCHEN',
+                style: TextStyle(
+                  color: Color(0xFF1E293B),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
                 ),
-                Text(
-                  'Yang Chow System',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+              ),
+              Text(
+                'Yang Chow System',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
           ),
           const SizedBox(width: 8),
           // clock
@@ -735,7 +735,6 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
             ),
           ),
 
-          // ── Items List ────────────────────────────────
           // ── Items List (Scrollable & Expanded) ────────
           Expanded(
             child: SingleChildScrollView(
@@ -1051,17 +1050,17 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   final _itemCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  String _selectedUnit = 'pcs';
+  final _unitCtrl = TextEditingController();
+  String _selectedUnit = '';
   String _selectedPriority = 'Normal';
   bool _submitting = false;
 
-  static const _units = ['pcs', 'kilo', 'gram', 'pack', 'bot', 'can', 'box', 'order'];
   static const _priorities = ['Low', 'Normal', 'High', 'Urgent'];
 
   static const _priorityColors = {
-    'Low': Color(0xFF4CAF50),
+    'Low': Color(0xFFFFA726),
     'Normal': Color(0xFF2196F3),
-    'High': Color(0xFFFFA726),
+    'High': Color(0xFF4CAF50),
     'Urgent': Color(0xFFE53935),
   };
 
@@ -1084,6 +1083,13 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     _itemCtrl.addListener(_onItemChanged);
   }
 
+  void _resetUnit() {
+    setState(() {
+      _selectedUnit = '';
+      _unitCtrl.text = '';
+    });
+  }
+
   void _onItemChanged() {
     final itemName = _itemCtrl.text.trim();
     
@@ -1091,7 +1097,10 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     if (_itemUnits.containsKey(itemName)) {
       setState(() {
         _selectedUnit = _itemUnits[itemName]!;
+        _unitCtrl.text = _selectedUnit;
       });
+    } else {
+      _resetUnit();
     }
     
     // Update suggestions for auto-complete
@@ -1117,6 +1126,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     _itemCtrl.text = suggestion;
     setState(() {
       _selectedUnit = _itemUnits[suggestion] ?? 'pcs';
+      _unitCtrl.text = _selectedUnit;
       _showSuggestions = false;
       _suggestions = [];
     });
@@ -1152,6 +1162,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     _itemCtrl.dispose();
     _qtyCtrl.dispose();
     _noteCtrl.dispose();
+    _unitCtrl.dispose();
     super.dispose();
   }
 
@@ -1222,7 +1233,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         _qtyCtrl.clear();
         _noteCtrl.clear();
         setState(() {
-          _selectedUnit = 'pcs';
+          _resetUnit();
           _selectedPriority = 'Normal';
           _submitting = false;
         });
@@ -1331,7 +1342,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: _suggestions.map((suggestion) {
-                            final unit = _itemUnits[suggestion] ?? 'pcs';
+                            final unit = _itemUnits[suggestion] ?? '';
                             final stock = _itemStocks[suggestion] ?? 0;
                             return InkWell(
                               onTap: () => _selectSuggestion(suggestion),
@@ -1399,20 +1410,61 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
                 // Qty + Unit row
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: _lightField(_qtyCtrl, 'Quantity', Icons.numbers,
-                          isNumber: true),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _lightField(
+                            _qtyCtrl, 
+                            'Quantity', 
+                            Icons.numbers,
+                            isNumber: true,
+                            suffixText: _itemStocks.containsKey(_itemCtrl.text.trim()) 
+                                ? 'Max: ${_itemStocks[_itemCtrl.text.trim()]}' 
+                                : null,
+                            onChanged: (val) {
+                              final currentItem = _itemCtrl.text.trim();
+                              if (_itemStocks.containsKey(currentItem)) {
+                                final maxStock = _itemStocks[currentItem]!;
+                                final parsed = int.tryParse(val);
+                                if (parsed != null && parsed > maxStock) {
+                                  _qtyCtrl.text = maxStock.toString();
+                                  _qtyCtrl.selection = TextSelection.fromPosition(
+                                    TextPosition(offset: _qtyCtrl.text.length),
+                                  );
+                                } else if (parsed != null && parsed < 1) {
+                                  _qtyCtrl.text = '1';
+                                  _qtyCtrl.selection = TextSelection.fromPosition(
+                                    TextPosition(offset: _qtyCtrl.text.length),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          if (_itemStocks.containsKey(_itemCtrl.text.trim()))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4, left: 4),
+                              child: Text(
+                                'Available in Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
+                                style: const TextStyle(
+                                  color: AppTheme.successGreen,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _lightDropdown<String>(
-                        value: _selectedUnit,
-                        items: _units,
-                        label: 'Unit',
-                        icon: Icons.straighten,
-                        onChanged: (v) =>
-                            setState(() => _selectedUnit = v!),
+                      child: _lightField(
+                        _unitCtrl,
+                        'Unit',
+                        Icons.straighten,
+                        readOnly: true,
                       ),
                     ),
                   ],
@@ -1560,16 +1612,36 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     IconData icon, {
     bool isNumber = false,
     int maxLines = 1,
+    String? suffixText,
+    bool readOnly = false,
+    ValueChanged<String>? onChanged,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
-      style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13),
+      readOnly: readOnly,
+      onChanged: isNumber ? (value) {
+        // Filter out non-numeric characters
+        final filteredValue = value.replaceAll(RegExp(r'[^0-9]'), '');
+        if (filteredValue != value) {
+          ctrl.value = TextEditingValue(
+            text: filteredValue,
+            selection: TextSelection.collapsed(offset: filteredValue.length),
+          );
+        }
+        if (onChanged != null) onChanged(filteredValue);
+      } : onChanged,
+      style: const TextStyle(
+          color: Color(0xFF1E293B), 
+          fontSize: 13,
+      ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
         prefixIcon: Icon(icon, color: AppTheme.primaryRed, size: 18),
+        suffixText: suffixText,
+        suffixStyle: const TextStyle(color: AppTheme.primaryRed, fontSize: 12, fontWeight: FontWeight.w800),
         filled: true,
         fillColor: const Color(0xFFF1F5F9),
         isDense: true,
@@ -1583,44 +1655,6 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
         ),
       ),
-    );
-  }
-
-  Widget _lightDropdown<T>({
-    required T value,
-    required List<T> items,
-    required String label,
-    required IconData icon,
-    required ValueChanged<T?> onChanged,
-  }) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      dropdownColor: Colors.white,
-      style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-        prefixIcon: Icon(icon, color: AppTheme.primaryRed, size: 18),
-        filled: true,
-        fillColor: const Color(0xFFF1F5F9),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
-        ),
-      ),
-      items: items
-          .map((i) => DropdownMenuItem<T>(
-              value: i,
-              child: Text(i.toString(),
-                  style: const TextStyle(color: Color(0xFF1E293B)))))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 }
@@ -1823,10 +1857,7 @@ class _StockViewTabState extends State<_StockViewTab> {
             }
 
             if (out > 0 && snap.hasData) {
-              // Show alert banner for out-of-stock
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                // Notification is handled inline below
-              });
+              // Alert is shown through the red OUT OF STOCK chip above
             }
 
             return Padding(
