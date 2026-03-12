@@ -476,12 +476,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'ACTIVE RESERVATIONS',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            child: Text(
+                              'ACTIVE RESERVATIONS',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -525,12 +528,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'TOTAL EVENTS',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            child: Text(
+                              'TOTAL EVENTS',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -602,12 +608,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                 children: [
                                   Icon(Icons.add, color: Colors.white, size: 20),
                                   SizedBox(width: 8),
-                                  Text(
-                                    'Make a New Reservation',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
+                                  Flexible(
+                                    child: Text(
+                                      'Make a New Reservation',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],

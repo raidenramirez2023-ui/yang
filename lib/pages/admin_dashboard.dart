@@ -3,6 +3,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -16,70 +18,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
 
-  final _rand = Random(42);
+  final _supabase = Supabase.instance.client;
+  late Stream<List<Map<String, dynamic>>> _ordersStream;
+  late Stream<List<Map<String, dynamic>>> _inventoryStream;
+  late Stream<List<Map<String, dynamic>>> _reservationsStream;
 
-  // ── KPI data ─────────────────────────────────────────────────────────────
-  late final int _dailyRevenue;
-  late final int _totalOrders;
-  late final int _totalCustomers;
-  late final int _reservations;
-  late final int _occupiedTables;
+  // ── KPI data (now derived from streams) ──────────────────────────────────
+  int _dailyRevenue = 0;
+  int _totalOrders = 0;
+  int _totalCustomers = 0;
+  int _reservations = 0;
+  int _occupiedTables = 0;
   static const int _totalTables = 20;
 
-  // ── Weekly revenue bars ──────────────────────────────────────────────────
-  late final List<double> _weeklyRevenue;
+  // ── Weekly revenue bars (now derived from streams) ───────────────────────
+  List<double> _weeklyRevenue = List.filled(7, 0.0);
 
-  // ── Recent activity ──────────────────────────────────────────────────────
-  final List<_ActivityItem> _recentActivity = const [
-    _ActivityItem(
-      icon: Icons.receipt_long,
-      color: AppTheme.successGreen,
-      title: 'Order #1042 Completed',
-      subtitle: 'Table 5 · ₱480',
-      time: '2 min ago',
-    ),
-    _ActivityItem(
-      icon: Icons.event_seat,
-      color: AppTheme.infoBlue,
-      title: 'Reservation Confirmed',
-      subtitle: 'Juan dela Cruz · 7:00 PM',
-      time: '15 min ago',
-    ),
-    _ActivityItem(
-      icon: Icons.inventory_2,
-      color: AppTheme.warningOrange,
-      title: 'Low Stock Alert',
-      subtitle: 'Soy Sauce · 2 bottles left',
-      time: '1 hr ago',
-    ),
-    _ActivityItem(
-      icon: Icons.person_add,
-      color: AppTheme.primaryRed,
-      title: 'New Staff Added',
-      subtitle: 'Maria Santos · Cashier',
-      time: '3 hr ago',
-    ),
-    _ActivityItem(
-      icon: Icons.attach_money,
-      color: AppTheme.successGreen,
-      title: 'Daily Report Ready',
-      subtitle: 'Yesterday\'s summary available',
-      time: '8 hr ago',
-    ),
-  ];
+  // ── Recent activity (now derived from streams) ───────────────────────────
+  List<_ActivityItem> _recentActivity = [];
 
   @override
   void initState() {
     super.initState();
-    _dailyRevenue = 30000 + _rand.nextInt(10000);
-    _totalOrders = 150 + _rand.nextInt(80);
-    _totalCustomers = 100 + _rand.nextInt(60);
-    _reservations = 8 + _rand.nextInt(12);
-    _occupiedTables = 8 + _rand.nextInt(_totalTables - 8);
-    _weeklyRevenue = List.generate(
-      7,
-      (_) => 20000.0 + _rand.nextInt(20000),
-    );
+    _ordersStream = _supabase.from('orders').stream(primaryKey: ['id']).order('created_at', ascending: false);
+    _inventoryStream = _supabase.from('inventory').stream(primaryKey: ['id']);
+    _reservationsStream = _supabase.from('reservations').stream(primaryKey: ['id']).order('created_at', ascending: false);
 
     _controller = AnimationController(
       vsync: this,
@@ -95,20 +58,135 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     super.dispose();
   }
 
+  void _processData(
+    List<Map<String, dynamic>> allOrders, 
+    List<Map<String, dynamic>> allInventory,
+    List<Map<String, dynamic>> allReservations,
+  ) {
+    // KPI Data
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    
+    final todayOrders = allOrders.where((o) => (o['created_at']?.toString() ?? '').startsWith(todayStr)).toList();
+    
+    _dailyRevenue = todayOrders.fold(0, (sum, o) => sum + ((o['total_amount'] as num?)?.toInt() ?? 0));
+    _totalOrders = todayOrders.length;
+    
+    Set<String> uniqueCustomers = {};
+    for (var o in todayOrders) {
+      uniqueCustomers.add(o['customer_name'] ?? 'Guest');
+    }
+    _totalCustomers = uniqueCustomers.length;
+    
+    // Reservations (Events)
+    final todayReservations = allReservations.where((r) => (r['created_at']?.toString() ?? '').startsWith(todayStr)).toList();
+    _reservations = todayReservations.length;
+
+    // Weekly Revenue
+    _weeklyRevenue = _processChartData(allOrders);
+
+    // Occupied Tables / Capacity
+    _occupiedTables = todayOrders.length % _totalTables;
+
+    // Recent Activity
+    _updateActivity(todayOrders, allInventory, allReservations);
+  }
+
+  List<double> _processChartData(List<Map<String, dynamic>> orders) {
+    Map<int, double> dailyRevenue = {for (int i = 0; i < 7; i++) i: 0.0};
+    final now = DateTime.now();
+
+    for (var order in orders) {
+      final date = DateTime.tryParse(order['created_at'] ?? '');
+      if (date != null) {
+        final diff = now.difference(date).inDays;
+        if (diff >= 0 && diff < 7) {
+          dailyRevenue[6 - diff] = (dailyRevenue[6 - diff] ?? 0) + 
+              ((order['total_amount'] as num?)?.toDouble() ?? 0.0);
+        }
+      }
+    }
+    return dailyRevenue.values.toList();
+  }
+
+  void _updateActivity(
+    List<Map<String, dynamic>> recentOrders, 
+    List<Map<String, dynamic>> inventory,
+    List<Map<String, dynamic>> reservations,
+  ) {
+    List<_ActivityItem> activities = [];
+
+    // Latest 2 Orders
+    for (var i = 0; i < min(2, recentOrders.length); i++) {
+      final o = recentOrders[i];
+      final time = DateTime.tryParse(o['created_at'] ?? '');
+      final timeStr = time != null ? DateFormat('HH:mm').format(time) : 'Just now';
+      
+      activities.add(_ActivityItem(
+        icon: Icons.receipt_long,
+        color: AppTheme.successGreen,
+        title: 'Order #${o['transaction_id'] ?? o['id']} Completed',
+        subtitle: '${o['customer_name'] ?? 'Guest'} · ₱${o['total_amount']}',
+        time: timeStr,
+      ));
+    }
+
+    // Latest Reservation
+    if (reservations.isNotEmpty) {
+      final r = reservations.first;
+      activities.add(_ActivityItem(
+        icon: Icons.event_available,
+        color: AppTheme.infoBlue,
+        title: 'New Reservation',
+        subtitle: '${r['customer_name']} · ${r['event_type']}',
+        time: 'Just now',
+      ));
+    }
+
+    // Low Stock Alerts
+    final lowStockItems = inventory.where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) < 10).take(2).toList();
+    for (var item in lowStockItems) {
+      activities.add(_ActivityItem(
+        icon: Icons.inventory_2,
+        color: AppTheme.warningOrange,
+        title: 'Low Stock Alert',
+        subtitle: '${item['item_name']} · ${item['quantity']} left',
+        time: 'Now',
+      ));
+    }
+
+    _recentActivity = activities;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
 
-    return FadeTransition(
-      opacity: _fadeIn,
-      child: SingleChildScrollView(
-        padding: ResponsiveUtils.isMobile(context) 
-            ? const EdgeInsets.all(AppTheme.md)
-            : const EdgeInsets.all(AppTheme.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _ordersStream,
+      builder: (context, orderSnapshot) {
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _inventoryStream,
+          builder: (context, invSnapshot) {
+            return StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _reservationsStream,
+              builder: (context, resSnapshot) {
+                final allOrders = orderSnapshot.data ?? [];
+                final allInventory = invSnapshot.data ?? [];
+                final allReservations = resSnapshot.data ?? [];
+                
+                _processData(allOrders, allInventory, allReservations);
+
+                return FadeTransition(
+              opacity: _fadeIn,
+              child: SingleChildScrollView(
+                padding: ResponsiveUtils.isMobile(context) 
+                    ? const EdgeInsets.all(AppTheme.md)
+                    : const EdgeInsets.all(AppTheme.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             _buildGreeting(context),
             const SizedBox(height: AppTheme.xl),
 
@@ -118,13 +196,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             _buildKpiGrid(isDesktop || isTablet),
             const SizedBox(height: AppTheme.xl),
 
-            // ── Charts + Table Status ──────────────────
+            // ── Charts + Venue Status ──────────────────
             ResponsiveUtils.isMobile(context)
                 ? Column(
                     children: [
                       _buildRevenueChart(context),
                       const SizedBox(height: AppTheme.lg),
-                      _buildTableStatus(context),
+                      _buildVenueStatus(context),
                     ],
                   )
                 : (isDesktop || isTablet)
@@ -133,14 +211,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         children: [
                           Expanded(flex: 3, child: _buildRevenueChart(context)),
                           const SizedBox(width: AppTheme.lg),
-                          Expanded(flex: 2, child: _buildTableStatus(context)),
+                          Expanded(flex: 2, child: _buildVenueStatus(context)),
                         ],
                       )
                     : Column(
                         children: [
                           _buildRevenueChart(context),
                           const SizedBox(height: AppTheme.lg),
-                          _buildTableStatus(context),
+                          _buildVenueStatus(context),
                         ],
                       ),
 
@@ -172,12 +250,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         ],
                       ),
 
-            const SizedBox(height: AppTheme.xxl),
-          ],
-        ),
-      ),
-    );
-  }
+                  const SizedBox(height: AppTheme.xxl),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+},
+);
+}
 
   // ── Greeting ─────────────────────────────────────────────────────────────
   Widget _buildGreeting(BuildContext context) {
@@ -236,7 +320,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         BorderRadius.circular(AppTheme.radiusXl),
                   ),
                   child: Text(
-                    '$_occupiedTables / $_totalTables tables occupied',
+                  '$_occupiedTables / $_totalTables capacity',
                     style: const TextStyle(
                       color: AppTheme.white,
                       fontSize: 13,
@@ -299,9 +383,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         subPositive: null,
       ),
       _KpiData(
-        label: 'Reservations',
+        label: 'Event Reservations',
         value: '$_reservations',
-        icon: Icons.event_seat_rounded,
+        icon: Icons.confirmation_number_rounded,
         color: AppTheme.primaryRed,
         sub: _reservations > 5 ? 'High demand today' : 'Moderate bookings',
         subPositive: _reservations > 5,
@@ -448,8 +532,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  // ── Table Status ──────────────────────────────────────────────────────────
-  Widget _buildTableStatus(BuildContext context) {
+  // ── Venue Status ──────────────────────────────────────────────────────────
+  Widget _buildVenueStatus(BuildContext context) {
     final available = _totalTables - _occupiedTables;
     final pct = (_occupiedTables / _totalTables * 100).round();
 
@@ -459,7 +543,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle(context, 'Table Occupancy'),
+          _buildSectionTitle(context, 'Venue Occupancy'),
           const SizedBox(height: AppTheme.lg),
           // Donut chart using fl_chart
           SizedBox(
@@ -496,11 +580,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ),
           ),
           const SizedBox(height: AppTheme.md),
-          _tableStatusRow(
-              Icons.circle, AppTheme.primaryRed, 'Occupied', '$_occupiedTables tables'),
+          _venueStatusRow(
+              Icons.circle, AppTheme.primaryRed, 'Booked', '$_occupiedTables slots'),
           const SizedBox(height: AppTheme.xs),
-          _tableStatusRow(
-              Icons.circle, AppTheme.lightGrey, 'Available', '$available tables'),
+          _venueStatusRow(
+              Icons.circle, AppTheme.lightGrey, 'Available', '$available slots'),
           const SizedBox(height: AppTheme.md),
           Container(
             width: double.infinity,
@@ -527,7 +611,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _tableStatusRow(
+  Widget _venueStatusRow(
       IconData icon, Color color, String label, String value) {
     return Row(
       children: [
@@ -552,8 +636,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           label: 'New Order',
           color: AppTheme.primaryRed),
       _QuickAction(
-          icon: Icons.event_seat_rounded,
-          label: 'Reserve Table',
+          icon: Icons.event_available_rounded,
+          label: 'Event Reservation',
           color: AppTheme.infoBlue),
       _QuickAction(
           icon: Icons.inventory_2_rounded,

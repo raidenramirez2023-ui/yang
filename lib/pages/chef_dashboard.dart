@@ -149,31 +149,33 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             ),
           ),
           const SizedBox(width: 14),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'KITCHEN',
-                style: TextStyle(
-                  color: Color(0xFF1E293B),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
+          Expanded(
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'KITCHEN',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-              Text(
-                'Yang Chow System',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+                Text(
+                  'Yang Chow System',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           // clock
           StreamBuilder<DateTime>(
             stream: Stream.periodic(
@@ -181,7 +183,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             builder: (context, snap) {
               final now = snap.data ?? DateTime.now();
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(12),
@@ -213,7 +215,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
               );
             },
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           // logout
           InkWell(
             borderRadius: BorderRadius.circular(8),
