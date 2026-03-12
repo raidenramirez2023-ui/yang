@@ -78,8 +78,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
     _totalCustomers = uniqueCustomers.length;
     
-    // Reservations (Events)
-    final todayReservations = allReservations.where((r) => (r['created_at']?.toString() ?? '').startsWith(todayStr)).toList();
+    // Reservations (Events) - Count events scheduled for today
+    final todayReservations = allReservations.where((r) => (r['event_date']?.toString() ?? '') == todayStr).toList();
     _reservations = todayReservations.length;
 
     // Weekly Revenue
@@ -131,13 +131,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ));
     }
 
-    // Latest Reservation
+    // Latest Reservation (show confirmed or recent)
     if (reservations.isNotEmpty) {
       final r = reservations.first;
+      final status = r['status']?.toString() ?? 'pending';
+      final isConfirmed = status == 'confirmed';
+      
       activities.add(_ActivityItem(
-        icon: Icons.event_available,
-        color: AppTheme.infoBlue,
-        title: 'New Reservation',
+        icon: isConfirmed ? Icons.check_circle : Icons.event_available,
+        color: isConfirmed ? AppTheme.successGreen : AppTheme.infoBlue,
+        title: isConfirmed ? 'Reservation Confirmed' : 'New Reservation',
         subtitle: '${r['customer_name']} · ${r['event_type']}',
         time: 'Just now',
       ));
