@@ -57,18 +57,28 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       return;
     }
 
-    if (!email.contains('@') || !email.contains('.')) {
+    final lowercaseEmail = email.toLowerCase();
+    if (email != lowercaseEmail || 
+        !(email.endsWith('@gmail.com') ||
+          email.endsWith('@hotmail.com') ||
+          email.endsWith('@outlook.com'))) {
       _showSnackBar(
-        "Please enter a valid email address",
+        "Please enter a valid Email Address",
         Colors.orange.shade700,
         Icons.warning_amber,
       );
       return;
     }
 
-    if (password.length < 6) {
+    // Password validation
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = password.contains(RegExp(r'[a-z]'));
+    final hasDigits = password.contains(RegExp(r'[0-9]'));
+    final hasSpecialCharacters = password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+
+    if (password.length < 8 || !hasUppercase || !hasLowercase || !hasDigits || !hasSpecialCharacters) {
       _showSnackBar(
-        "Password must be at least 6 characters",
+        "Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character",
         Colors.orange.shade700,
         Icons.warning_amber,
       );
@@ -96,6 +106,45 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Name duplication validation
+      final normalizedInputName = name.replaceAll(' ', '').toLowerCase();
+      
+      final existingUsers = await Supabase.instance.client
+          .from('users')
+          .select('name, email');
+          
+      for (var user in existingUsers) {
+        final existingName = user['name']?.toString() ?? '';
+        final existingEmail = user['email']?.toString() ?? '';
+        final normalizedExistingName = existingName.replaceAll(' ', '').toLowerCase();
+        
+        // Check for name duplication
+        if (normalizedInputName == normalizedExistingName && normalizedExistingName.isNotEmpty) {
+          _showSnackBar(
+            "This Full Name is already registered. Please use a different name.",
+            Colors.red.shade700,
+            Icons.error_outline,
+          );
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+        
+        // Check for email duplication
+        if (existingEmail.toLowerCase() == email.toLowerCase()) {
+          _showSnackBar(
+            "This Email Address is already registered. Please use a different email.",
+            Colors.red.shade700,
+            Icons.error_outline,
+          );
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+      }
+
       // Create user in Supabase Auth
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
@@ -104,6 +153,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       );
 
       if (authResponse.user != null) {
+        // Insert user into users table
+        await Supabase.instance.client.from('users').insert({
+          'email': email,
+          'name': name,
+          'role': 'customer',
+        });
+
         // Immediately sign in to activate the account
         await Supabase.instance.client.auth.signInWithPassword(
           email: email,
@@ -131,7 +187,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       String errorMessage;
       switch (e.message.toLowerCase()) {
         case 'user already registered':
-          errorMessage = 'An account with this email already exists';
+          errorMessage = 'The Full Name or Email Address is already registered.';
           break;
         case 'invalid email':
           errorMessage = 'Please enter a valid email address';
@@ -147,7 +203,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       String errorMessage;
       if (e.code == '23505') {
         errorMessage =
-            'An account with this email already exists in our system';
+            'The Full Name or Email Address is already registered.';
       } else if (e.message.contains('duplicate')) {
         errorMessage =
             'This email is already registered. Please use a different email.';
