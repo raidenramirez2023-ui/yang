@@ -419,34 +419,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBarWithoutDrawer() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      title: Text(
-        _pageTitles[_selectedIndex],
-        style: const TextStyle(
-          color: Color(0xFF1E293B),
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
-          tooltip: 'Logout',
-          onPressed: () => _showLogoutDialog(context),
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(
-          color: const Color(0xFFE2E8F0),
-          height: 1,
-        ),
-      ),
-    );
-  }
 
   Widget _buildDrawer() {
     return Drawer(

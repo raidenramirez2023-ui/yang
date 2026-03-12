@@ -1,0 +1,12 @@
+﻿Analyzing yang...                                               
+
+warning - The declaration '_buildAppBarWithoutDrawer' isn't referenced - lib\pages\admin_main_page.dart:422:23 - unused_element
+   info - The private field _isRedirecting could be 'final' - lib\pages\customer_registration_page.dart:25:8 - prefer_final_fields
+   info - Don't use 'BuildContext's across async gaps - lib\pages\pagsanjaninv_dashboard.dart:524:34 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\pages\pagsanjaninv_dashboard.dart:531:34 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\pages\pagsanjaninv_dashboard.dart:539:32 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\pages\pagsanjaninv_dashboard.dart:547:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\pages\pagsanjaninv_dashboard.dart:558:28 - use_build_context_synchronously
+   info - Unnecessary use of 'toList' in a spread - lib\pages\pagsanjaninv_dashboard.dart:1252:26 - unnecessary_to_list_in_spreads
+   info - Unnecessary use of 'toList' in a spread - lib\pages\pagsanjaninv_dashboard.dart:1270:95 - unnecessary_to_list_in_spreads
+
