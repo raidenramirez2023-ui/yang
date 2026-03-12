@@ -521,46 +521,56 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   'created_at': DateTime.now().toIso8601String(),
                 });
             
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Request approved! $quantityNeeded $itemName removed from inventory.'),
-                backgroundColor: AppTheme.successGreen,
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Request approved! $quantityNeeded $itemName removed from inventory.'),
+                  backgroundColor: AppTheme.successGreen,
+                ),
+              );
+            }
           } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Request approved but item not found in inventory.'),
+                  backgroundColor: AppTheme.warningOrange,
+                ),
+              );
+            }
+          }
+        } else {
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Request approved but item not found in inventory.'),
+                content: Text('Request approved but invalid item data.'),
                 backgroundColor: AppTheme.warningOrange,
               ),
             );
           }
-        } else {
+        }
+      } else {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Request approved but invalid item data.'),
-              backgroundColor: AppTheme.warningOrange,
+              content: Text('Request rejected.'),
+              backgroundColor: AppTheme.errorRed,
             ),
           );
         }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Request rejected.'),
-            backgroundColor: AppTheme.errorRed,
-          ),
-        );
       }
       
       // Refresh dashboard data
       _loadDashboardData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppTheme.errorRed,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
     }
   }
 
@@ -1249,7 +1259,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
 
                       // Detailed Request List
                       const SizedBox(height: 16),
@@ -1267,7 +1277,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            ...approvedRequests.map((request) => _buildOutgoingCard(request)).toList(),
+                            ...approvedRequests.map((request) => _buildOutgoingCard(request)),
                           ],
                         ),
                       ),

@@ -70,31 +70,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Customer Dashboard'),
-        backgroundColor: AppTheme.primaryRed,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: _loadCustomerReservations,
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            onPressed: () {
-              // Show account menu
-            },
-            icon: const Icon(Icons.account_circle_rounded),
-            tooltip: 'Account',
-          ),
-          IconButton(
-            onPressed: _showLogoutDialog,
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      drawer: _buildDrawer(),
+      appBar: isDesktop 
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              title: const Text('Customer Dashboard'),
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            )
+          : null,
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -147,10 +130,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 final icons = [
                   Icons.home_rounded,
                   Icons.event_available_rounded,
-                  Icons.person_rounded,
                   Icons.history_rounded,
+                  Icons.person_rounded,
                 ];
-                final labels = ['Home', 'Reservations', 'Profile', 'History'];
+                final labels = ['Home', 'Reservations', 'History', 'Account'];
                 
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -178,56 +161,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               }),
               
               const Spacer(),
-              
-              // User Info Section
-              Container(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryRed,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'L',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
-                          Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 
-                          'User',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Text(
-                          'Customer',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -255,11 +188,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                       ),
                       Row(
                         children: [
-                          IconButton(
-                            onPressed: _loadCustomerReservations,
-                            icon: const Icon(Icons.sync, color: Color(0xFF1E1E1E)),
-                            tooltip: 'Sync',
-                          ),
                           IconButton(
                             onPressed: _showLogoutDialog,
                             icon: const Icon(Icons.logout, color: Color(0xFF1E1E1E)),
@@ -295,36 +223,51 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         Expanded(
           child: Container(
             color: const Color(0xFFF5F5F5),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildContent(),
+            child: RefreshIndicator(
+              onRefresh: _loadCustomerReservations,
+              color: AppTheme.primaryRed,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildContent(),
+              ),
             ),
           ),
         ),
-        // Enhanced Mobile Navigation at Bottom
+        // Modern Animated Mobile Navigation at Bottom
         Container(
+          padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16, top: 8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppTheme.primaryRed, AppTheme.primaryRed.withValues(alpha: 0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryRed.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
+            color: const Color(0xFFF5F5F5), // Match background to blend seamlessly
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-              _buildMobileNavItem(1, Icons.event_available_rounded, 'Reservations'),
-              _buildMobileNavItem(2, Icons.person_rounded, 'Profile'),
-              _buildMobileNavItem(3, Icons.history_rounded, 'History'),
-            ],
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
+                  _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
+                  _buildMobileNavItem(2, Icons.history_rounded, 'History'),
+                  _buildMobileNavItem(3, Icons.person_rounded, 'Account'),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -333,43 +276,78 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   Widget _buildMobileNavItem(int index, IconData icon, String label) {
     final isSelected = _selectedIndex == index;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
-            border: Border(
-              top: BorderSide(
-                color: isSelected ? Colors.white : Colors.transparent,
-                width: 2,
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryRed.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: isSelected ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutBack,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                   if (isSelected) 
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  Icon(
+                    icon,
+                    color: isSelected ? AppTheme.primaryRed : Colors.grey.shade700,
+                    size: 24,
+                  ),
+                ],
               ),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 12,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: isSelected ? 4 : 0,
+            ),
+            if (isSelected)
+               Text(
+                  label,
+                  style: TextStyle(
+                    color: AppTheme.primaryRed,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    letterSpacing: 0.2,
+                  ),
+                )
+             else 
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
                 ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -382,9 +360,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       case 1:
         return _buildReservationsSection();
       case 2:
-        return _buildProfileSection();
-      case 3:
         return _buildHistorySection();
+      case 3:
+        return _buildProfileSection();
       default:
         return _buildHomeSection();
     }
@@ -392,6 +370,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   Widget _buildHomeSection() {
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -422,10 +401,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Welcome to Yang Chow, ' + 
-                        (Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
-                        Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 
-                        'User') + '!',
+                        'Welcome to Yang Chow, ${Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'User'}!',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,
@@ -640,7 +616,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                           child: InkWell(
                             onTap: () {
                               setState(() {
-                                _selectedIndex = 2;
+                                _selectedIndex = 3;
                               });
                             },
                             borderRadius: BorderRadius.circular(8),
@@ -655,7 +631,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'My Profile',
+                                    'My Account',
                                     style: TextStyle(
                                       color: Colors.grey.shade600,
                                       fontWeight: FontWeight.w600,
@@ -707,7 +683,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     TextButton(
                       onPressed: () {
                         setState(() {
-                          _selectedIndex = 3;
+                          _selectedIndex = 2;
                         });
                       },
                       child: const Text(
@@ -872,32 +848,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     }
   }
 
-  String _formatMemberSince(String? createdAt) {
-    if (createdAt == null || createdAt.isEmpty) {
-      return 'Today';
-    }
-    
-    try {
-      DateTime utcTime = DateTime.parse(createdAt);
-      DateTime localTime = utcTime.toLocal();
-      
-      // Format in a more readable way for "Member Since"
-      const List<String> months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      
-      return '${months[localTime.month - 1]} ${localTime.day}, ${localTime.year} at ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return 'Today';
-    }
-  }
 
   Widget _buildReservationsSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1065,31 +1022,196 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   Widget _buildProfileSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final name = currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
+                 currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'Customer';
+    final email = currentUser?.email ?? 'Not provided';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          // Profile Avatar
+          Stack(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0B38B), // Peach color from image
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryRed,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Name and Email
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E1E1E),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            email,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 32),
+          
+          // Menu Cards
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                _buildAccountMenuCard(
+                  icon: Icons.person_outline,
+                  title: 'Personal Information',
+                  subtitle: 'Name, email, phone',
+                  onTap: () {},
+                ),
+                const SizedBox(height: 12),
+                _buildAccountMenuCard(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  subtitle: 'Notifications, privacy',
+                  onTap: () {},
+                ),
+                const SizedBox(height: 12),
+                _buildAccountMenuCard(
+                  icon: Icons.help_outline,
+                  title: 'Help & Support',
+                  subtitle: 'FAQs, contact us',
+                  onTap: () {},
+                ),
+                const SizedBox(height: 12),
+                _buildAccountMenuCard(
+                  icon: Icons.logout,
+                  title: 'Logout',
+                  subtitle: null,
+                  isDestructive: true,
+                  onTap: _showLogoutDialog,
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountMenuCard({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final color = isDestructive ? AppTheme.primaryRed : const Color(0xFF1E1E1E);
+    final iconBgColor = AppTheme.primaryRed.withValues(alpha: 0.1);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
           children: [
-            const Text(
-              'My Profile',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive ? AppTheme.primaryRed : const Color(0xFFC04F4F),
+                size: 24,
+              ),
             ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Name'),
-              subtitle: Text(Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'Not provided'),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.email),
-              title: const Text('Email'),
-              subtitle: Text(Supabase.instance.client.auth.currentUser?.email ?? 'Not provided'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Member Since'),
-              subtitle: Text(_formatMemberSince(Supabase.instance.client.auth.currentUser?.createdAt)),
+            Icon(
+              Icons.chevron_right,
+              color: isDestructive ? AppTheme.primaryRed : Colors.grey.shade400,
+              size: 20,
             ),
           ],
         ),
@@ -1098,44 +1220,51 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   Widget _buildHistorySection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Reservation History',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: customerReservations.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.history_outlined,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No reservation history',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Make your first reservation to see your history here!',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: customerReservations.length,
-                      itemBuilder: (context, index) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Reservation History',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              if (customerReservations.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.history_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No reservation history',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Make your first reservation to see your history here!',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: customerReservations.length,
+                  itemBuilder: (context, index) {
                         final reservation = customerReservations[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -1191,8 +1320,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                         );
                       },
                     ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1490,89 +1619,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             child: const Text('Logout'),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDrawer() {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    return Drawer(
-      child: Container(
-        color: Colors.white,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: AppTheme.primaryRed,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    currentUser?.email ?? 'Customer',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home_outlined),
-              title: const Text('Home'),
-              onTap: () {
-                setState(() => _selectedIndex = 0);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.event_available_outlined),
-              title: const Text('My Reservations'),
-              onTap: () {
-                setState(() => _selectedIndex = 1);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Profile'),
-              onTap: () {
-                setState(() => _selectedIndex = 2);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history_outlined),
-              title: const Text('History'),
-              onTap: () {
-                setState(() => _selectedIndex = 3);
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _showLogoutDialog();
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
