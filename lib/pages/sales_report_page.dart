@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io' show File;
 import 'dart:convert';
-import 'dart:typed_data';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -525,7 +524,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -582,7 +581,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         border: Border.all(color: const Color(0xFFF1F5F9)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.05),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -739,7 +738,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               color: isSelected ? Colors.white : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               boxShadow: isSelected
-                  ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
                   : null,
             ),
             child: Text(
@@ -1016,13 +1015,13 @@ class _SalesReportPageState extends State<SalesReportPage>
             ),
           )
         else if (ResponsiveUtils.isMobile(context))
-          ...filteredTransactions.map((t) => _transactionCard(t)).toList()
+          ...filteredTransactions.map((t) => _transactionCard(t))
         else
           Column(
             children: [
               _transactionTableHeader(),
               const Divider(height: 32, color: Color(0xFFF1F5F9)),
-              ...filteredTransactions.map((t) => _transactionRow(t)).toList(),
+              ...filteredTransactions.map((t) => _transactionRow(t)),
             ],
           ),
       ],
@@ -1058,7 +1057,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundColor: (t['color'] as Color).withOpacity(0.1),
+                  backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
                   child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
@@ -1126,7 +1125,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: (t['color'] as Color).withOpacity(0.1),
+                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
                     child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 12),
@@ -1217,31 +1216,6 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _summaryItem(String label, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
 
   /// ================= INSIGHTS CARD =================
   Widget _insightsCard(Map<String, dynamic> data) {
@@ -1263,7 +1237,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 28),
@@ -1280,7 +1254,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     const SizedBox(height: 8),
                     Text(
                       'Your revenue has grown by 12.5% compared to the previous period. The increase is primarily driven by a surge in "Total Customers" which grew by 15.7%. Consider focusing on customer retention strategies to maintain this upward momentum throughout the quarter.',
-                      style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.9), height: 1.5),
+                      style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.9), height: 1.5),
                     ),
                   ],
                 ),

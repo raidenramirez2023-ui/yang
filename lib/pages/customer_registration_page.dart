@@ -22,7 +22,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   bool _agreeToTerms = false;
-  bool _isRedirecting = false;
+  final bool _isRedirecting = false;
 
   @override
   void initState() {
@@ -570,7 +570,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFE81E0D).withOpacity(0.3),
+                color: const Color(0xFFE81E0D).withValues(alpha: 0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
