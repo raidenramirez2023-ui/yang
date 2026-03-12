@@ -1334,19 +1334,25 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Text(
-                'Quantity: $quantity $unit',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.darkGrey,
+              Expanded(
+                child: Text(
+                  'Quantity: $quantity $unit',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.darkGrey,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 16),
-              Text(
-                'Given to: $requestedBy',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.mediumGrey,
+              Expanded(
+                child: Text(
+                  'Given to: $requestedBy',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.mediumGrey,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

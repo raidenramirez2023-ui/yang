@@ -153,52 +153,192 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildDesktopLayout() {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: _buildAppBarWithoutDrawer(),
+      backgroundColor: const Color(0xFFF1F5F9), // Light blue-grey background
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-            },
-            labelType: ResponsiveUtils.isDesktop(context) 
-                ? NavigationRailLabelType.all 
-                : NavigationRailLabelType.selected,
-            leading: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.restaurant,
-                    size: ResponsiveUtils.getResponsiveIconSize(context, desktop: 40, tablet: 32, mobile: 28),
-                    color: AppTheme.primaryRed,
+          _buildSidebar(),
+          Expanded(
+            child: Column(
+              children: [
+                _buildModernAppBar(),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    child: _pages[_selectedIndex],
                   ),
-                  const SizedBox(height: 8),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 260,
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Sidebar Header
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.restaurant,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AdminPanel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Navigation Items
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _pageTitles.length,
+              itemBuilder: (context, index) {
+                final isSelected = _selectedIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Material(
+                    color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => setState(() => _selectedIndex = index),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _pageIcons[index],
+                              size: 20,
+                              color: isSelected ? Colors.white : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _pageTitles[index],
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          ListTile(
+            onTap: () => _showLogoutDialog(context),
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernAppBar() {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            _pageTitles[_selectedIndex],
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const Spacer(),
+          const SizedBox(width: 8),
+          // Profile Section
+          Row(
+            children: [
+              Container(
+                height: 32,
+                width: 1,
+                color: const Color(0xFFE2E8F0),
+              ),
+              const SizedBox(width: 24),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    'Yang Chow',
+                    currentUser?.email?.split('@')[0] ?? 'Admin',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Text(
+                    'Admin',
                     style: TextStyle(
-                      color: AppTheme.primaryRed,
-                      fontWeight: FontWeight.bold,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
-            ),
-            destinations: _pageTitles.asMap().entries.map((entry) {
-              final index = entry.key;
-              final title = entry.value;
-              return NavigationRailDestination(
-                icon: Icon(_pageIcons[index]),
-                selectedIcon: Icon(_pageIcons[index]),
-                label: Text(title),
-              );
-            }).toList(),
-          ),
-          const VerticalDivider(thickness: 1, width: 1),
-          Expanded(
-            child: _pages[_selectedIndex],
+              const SizedBox(width: 12),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFFF1F5F9),
+                child: const Icon(Icons.person, color: AppTheme.primaryRed),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B), size: 20),
+            ],
           ),
         ],
       ),
@@ -207,7 +347,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildWebMobileLayout() {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF1F5F9),
       appBar: _buildAppBarWithDrawer(),
       drawer: _buildDrawer(),
       body: _pages[_selectedIndex],
@@ -216,7 +356,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFF1F5F9),
       appBar: _buildAppBarWithDrawer(),
       drawer: _buildDrawer(),
       body: _pages[_selectedIndex],
@@ -226,209 +366,185 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   PreferredSizeWidget _buildAppBarWithDrawer() {
     return AppBar(
-      backgroundColor: AppTheme.primaryRed,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            _pageIcons[_selectedIndex],
-            size: ResponsiveUtils.getResponsiveIconSize(context),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.restaurant,
+              size: 16,
+              color: Colors.white,
+            ),
           ),
-          SizedBox(width: ResponsiveUtils.isMobile(context) ? 8 : 12),
-          Flexible(
-            child: Text(
-              _pageTitles[_selectedIndex],
-              style: TextStyle(
-                color: AppTheme.white,
-                fontSize: ResponsiveUtils.getResponsiveFontSize(
-                  context,
-                  mobile: 16,
-                  tablet: 18,
-                  desktop: 20,
-                ),
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+          const SizedBox(width: 8),
+          const Text(
+            'AdminPanel',
+            style: TextStyle(
+              color: Color(0xFF1E293B),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
       ),
       leading: Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.menu, color: Color(0xFF64748B)),
           onPressed: () => Scaffold.of(context).openDrawer(),
           tooltip: 'Menu',
         ),
       ),
       actions: [
-        Container(
-          margin: EdgeInsets.symmetric(
-            vertical: ResponsiveUtils.isMobile(context) ? 6 : 8,
-            horizontal: ResponsiveUtils.isMobile(context) ? 6 : 8,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: ResponsiveUtils.isMobile(context) ? 8 : 12,
-          ),
-          decoration: BoxDecoration(
-            color: AppTheme.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.admin_panel_settings, 
-                color: AppTheme.white, 
-                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 14, tablet: 16, desktop: 18),
-              ),
-              if (!ResponsiveUtils.isMobile(context)) const SizedBox(width: 6),
-              if (!ResponsiveUtils.isMobile(context))
-                Flexible(
-                  child: Text(
-                    'Administrator',
-                    style: TextStyle(
-                      color: AppTheme.white,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 13, desktop: 14),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-            ],
-          ),
-        ),
         IconButton(
-          icon: Icon(
-            Icons.logout,
-            size: ResponsiveUtils.getResponsiveIconSize(context),
-          ),
+          icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
           tooltip: 'Logout',
           onPressed: () => _showLogoutDialog(context),
         ),
       ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          color: const Color(0xFFE2E8F0),
+          height: 1,
+        ),
+      ),
     );
   }
 
   PreferredSizeWidget _buildAppBarWithoutDrawer() {
     return AppBar(
-      backgroundColor: AppTheme.primaryRed,
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            _pageIcons[_selectedIndex],
-            size: ResponsiveUtils.getResponsiveIconSize(context),
-          ),
-          SizedBox(width: ResponsiveUtils.isMobile(context) ? 8 : 12),
-          Flexible(
-            child: Text(
-              _pageTitles[_selectedIndex],
-              style: TextStyle(
-                color: AppTheme.white,
-                fontSize: ResponsiveUtils.getResponsiveFontSize(
-                  context,
-                  mobile: 16,
-                  tablet: 18,
-                  desktop: 20,
-                ),
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        ],
+      backgroundColor: Colors.white,
+      elevation: 0,
+      title: Text(
+        _pageTitles[_selectedIndex],
+        style: const TextStyle(
+          color: Color(0xFF1E293B),
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       actions: [
-        Container(
-          margin: EdgeInsets.symmetric(
-            vertical: ResponsiveUtils.isMobile(context) ? 6 : 8,
-            horizontal: ResponsiveUtils.isMobile(context) ? 6 : 8,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: ResponsiveUtils.isMobile(context) ? 8 : 12,
-          ),
-          decoration: BoxDecoration(
-            color: AppTheme.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.admin_panel_settings, 
-                color: AppTheme.white, 
-                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 14, tablet: 16, desktop: 18),
-              ),
-              if (!ResponsiveUtils.isMobile(context)) const SizedBox(width: 6),
-              if (!ResponsiveUtils.isMobile(context))
-                Flexible(
-                  child: Text(
-                    'Administrator',
-                    style: TextStyle(
-                      color: AppTheme.white,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 13, desktop: 14),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-            ],
-          ),
-        ),
         IconButton(
-          icon: Icon(
-            Icons.logout,
-            size: ResponsiveUtils.getResponsiveIconSize(context),
-          ),
+          icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
           tooltip: 'Logout',
           onPressed: () => _showLogoutDialog(context),
         ),
       ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          color: const Color(0xFFE2E8F0),
+          height: 1,
+        ),
+      ),
     );
   }
 
   Widget _buildDrawer() {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      backgroundColor: Colors.white,
+      child: Column(
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+            margin: EdgeInsets.zero,
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Icon(
-                  Icons.restaurant,
-                  size: ResponsiveUtils.getResponsiveIconSize(context, desktop: 40, tablet: 32, mobile: 28),
-                  color: AppTheme.white,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Yang Chow',
-                  style: TextStyle(
-                    color: AppTheme.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(
+                    Icons.restaurant,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AdminPanel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          ..._pageTitles.asMap().entries.map((entry) {
-            final index = entry.key;
-            final title = entry.value;
-            return ListTile(
-              leading: Icon(_pageIcons[index]),
-              title: Text(title),
-              onTap: () {
-                setState(() => _selectedIndex = index);
-                Navigator.pop(context);
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _pageTitles.length,
+              itemBuilder: (context, index) {
+                final isSelected = _selectedIndex == index;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Material(
+                    color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        setState(() => _selectedIndex = index);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _pageIcons[index],
+                              size: 20,
+                              color: isSelected ? Colors.white : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _pageTitles[index],
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
               },
-            );
-          }),
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+            onTap: () {
+              Navigator.pop(context);
+              _showLogoutDialog(context);
+            },
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
