@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'supabase_options.dart';  // Supabase configuration
 import 'utils/app_theme.dart';
 
@@ -17,6 +19,14 @@ import 'pages/chef_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    // Load environment variables
+    await dotenv.load(fileName: '.env');
+    debugPrint('✅ Environment variables loaded');
+  } catch (e) {
+    debugPrint('⚠️ Could not load .env file: $e');
+  }
 
   try {
     // Initialize Supabase with platform-specific configuration

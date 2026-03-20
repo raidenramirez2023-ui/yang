@@ -15,11 +15,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _taxRateController = TextEditingController();
-
-  String _currency = 'PHP';
-  bool _darkMode = false;
-  bool _notifications = true;
   bool _isLoading = false;
 
   @override
@@ -31,14 +26,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _restaurantNameController.text = prefs.getString('restaurant_name') ?? 'Yang Chow Restaurant';
-      _addressController.text = prefs.getString('address') ?? 'Pagsanjan, Laguna';
-      _phoneController.text = prefs.getString('phone') ?? '+63 2 123-4567';
+      _restaurantNameController.text = prefs.getString('restaurant_name') ?? 'YANG CHOW RESTAURANT';
+      _addressController.text = prefs.getString('address') ?? 'CLA Town Center Mall, Ground floor near mall entrance, Pagsanjan, Laguna';
+      _phoneController.text = prefs.getString('phone') ?? '501-9179 / +63 975-041-9671';
       _emailController.text = prefs.getString('email') ?? 'info@yangchow.com';
-      _taxRateController.text = prefs.getString('tax_rate') ?? '12.0';
-      _currency = prefs.getString('currency') ?? 'PHP';
-      _darkMode = prefs.getBool('dark_mode') ?? false;
-      _notifications = prefs.getBool('notifications') ?? true;
     });
   }
 
@@ -51,18 +42,22 @@ class _SettingsPageState extends State<SettingsPage> {
       await prefs.setString('address', _addressController.text);
       await prefs.setString('phone', _phoneController.text);
       await prefs.setString('email', _emailController.text);
-      await prefs.setString('tax_rate', _taxRateController.text);
-      await prefs.setString('currency', _currency);
-      await prefs.setBool('dark_mode', _darkMode);
-      await prefs.setBool('notifications', _notifications);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Settings saved successfully!'),
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Settings saved successfully!', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
             backgroundColor: AppTheme.successGreen,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+            margin: const EdgeInsets.all(AppTheme.lg),
+            elevation: 4,
           ),
         );
       }
@@ -70,10 +65,18 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving settings: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Error saving settings: $e')),
+              ],
+            ),
             backgroundColor: AppTheme.errorRed,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+            margin: const EdgeInsets.all(AppTheme.lg),
+            elevation: 4,
           ),
         );
       }
@@ -90,65 +93,78 @@ class _SettingsPageState extends State<SettingsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Text(
-            'Restaurant Settings',
-            style: Theme.of(context).textTheme.headlineSmall,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                ),
+                child: const Icon(Icons.settings_rounded, color: AppTheme.primaryRed, size: 32),
+              ),
+              const SizedBox(width: AppTheme.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Restaurant Settings',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    'Manage your restaurant information',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: AppTheme.md),
-          Text(
-            'Manage your restaurant information and preferences',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.mediumGrey,
-            ),
-          ),
-          const SizedBox(height: AppTheme.xl),
+          const SizedBox(height: AppTheme.xxl),
 
           // Restaurant Information Section
           _buildSectionCard(
             context,
-            title: 'Restaurant Information',
-            icon: Icons.restaurant,
+            title: 'General Information',
+            subtitle: 'This information will be displayed publicly',
             child: _buildRestaurantForm(),
-          ),
-          const SizedBox(height: AppTheme.xl),
-
-          // Business Settings Section
-          _buildSectionCard(
-            context,
-            title: 'Business Settings',
-            icon: Icons.business,
-            child: _buildBusinessSettings(),
-          ),
-          const SizedBox(height: AppTheme.xl),
-
-          // App Settings Section
-          _buildSectionCard(
-            context,
-            title: 'Application Settings',
-            icon: Icons.settings,
-            child: _buildAppSettings(),
           ),
           const SizedBox(height: AppTheme.xxl),
 
           // Save Button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            height: 56, // Taller, modern button
+            child: FilledButton.icon(
               onPressed: _isLoading ? null : _saveSettings,
-              icon: _isLoading ? null : const Icon(Icons.save),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryRed,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                ),
+                elevation: 0,
+              ),
+              icon: _isLoading ? null : const Icon(Icons.save_rounded),
               label: _isLoading
                   ? const SizedBox(
-                      height: 20,
-                      width: 20,
+                      height: 24,
+                      width: 24,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 2.5,
                         valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
                       ),
                     )
-                  : const Text('Save All Settings'),
+                  : const Text(
+                      'Save Changes',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
             ),
           ),
-          const SizedBox(height: AppTheme.lg),
+          const SizedBox(height: AppTheme.xl),
         ],
       ),
     );
@@ -157,40 +173,52 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSectionCard(
     BuildContext context, {
     required String title,
-    required IconData icon,
+    required String subtitle,
     required Widget child,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Section Header
-          Container(
-            padding: const EdgeInsets.all(AppTheme.lg),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppTheme.radiusLg),
-                topRight: Radius.circular(AppTheme.radiusLg),
-              ),
-            ),
-            child: Row(
+          Padding(
+            padding: const EdgeInsets.all(AppTheme.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: AppTheme.primaryRed, size: 28),
-                const SizedBox(width: AppTheme.lg),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.mediumGrey,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.md),
+                const Divider(),
               ],
             ),
           ),
           // Section Content
           Padding(
-            padding: const EdgeInsets.all(AppTheme.lg),
+            padding: const EdgeInsets.only(left: AppTheme.xl, right: AppTheme.xl, bottom: AppTheme.xl),
             child: child,
           ),
         ],
@@ -205,103 +233,37 @@ class _SettingsPageState extends State<SettingsPage> {
         _buildFormField(
           label: 'Restaurant Name',
           controller: _restaurantNameController,
-          icon: Icons.restaurant,
+          icon: Icons.storefront_rounded,
         ),
-        const SizedBox(height: AppTheme.lg),
+        const SizedBox(height: AppTheme.xl),
         _buildFormField(
-          label: 'Address',
+          label: 'Address & Location',
           controller: _addressController,
-          icon: Icons.location_on,
+          icon: Icons.location_on_rounded,
+          maxLines: 2,
         ),
-        const SizedBox(height: AppTheme.lg),
-        _buildFormField(
-          label: 'Phone Number',
-          controller: _phoneController,
-          icon: Icons.phone,
-          keyboardType: TextInputType.phone,
-        ),
-        const SizedBox(height: AppTheme.lg),
-        _buildFormField(
-          label: 'Email Address',
-          controller: _emailController,
-          icon: Icons.email,
-          keyboardType: TextInputType.emailAddress,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBusinessSettings() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFormField(
-          label: 'Tax Rate (%)',
-          controller: _taxRateController,
-          icon: Icons.percent,
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: AppTheme.lg),
-        Text(
-          'Currency',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-        const SizedBox(height: AppTheme.md),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.lightGrey),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _currency,
-              isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.lg,
-                vertical: AppTheme.md,
+        const SizedBox(height: AppTheme.xl),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildFormField(
+                label: 'Phone Number',
+                controller: _phoneController,
+                icon: Icons.phone_rounded,
+                keyboardType: TextInputType.phone,
               ),
-              items: const ['PHP', 'USD', 'EUR'].map((currency) {
-                return DropdownMenuItem(
-                  value: currency,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_money, size: 20),
-                      const SizedBox(width: AppTheme.md),
-                      Text(currency, style: const TextStyle(fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _currency = value);
-                }
-              },
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAppSettings() {
-    return Column(
-      children: [
-        _buildSettingsTile(
-          icon: Icons.dark_mode,
-          title: 'Dark Mode',
-          subtitle: 'Enable dark theme',
-          value: _darkMode,
-          onChanged: (value) => setState(() => _darkMode = value),
-        ),
-        Divider(color: AppTheme.lightGrey, height: AppTheme.xl),
-        _buildSettingsTile(
-          icon: Icons.notifications,
-          title: 'Push Notifications',
-          subtitle: 'Receive app notifications',
-          value: _notifications,
-          onChanged: (value) => setState(() => _notifications = value),
+            const SizedBox(width: AppTheme.xl),
+            Expanded(
+              child: _buildFormField(
+                label: 'Email Address',
+                controller: _emailController,
+                icon: Icons.email_rounded,
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -312,58 +274,55 @@ class _SettingsPageState extends State<SettingsPage> {
     required TextEditingController controller,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.titleSmall,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: AppTheme.darkGrey,
+          ),
         ),
-        const SizedBox(height: AppTheme.md),
-        TextField(
+        const SizedBox(height: 8),
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLines: maxLines,
+          style: const TextStyle(fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter $label',
-            prefixIcon: Icon(icon),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            hintStyle: TextStyle(color: AppTheme.mediumGrey.withValues(alpha: 0.5)),
+            prefixIcon: maxLines > 1 
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0),
+                    child: Icon(icon, color: AppTheme.mediumGrey),
+                  )
+                : Icon(icon, color: AppTheme.mediumGrey),
+            filled: true,
+            fillColor: Colors.grey.withValues(alpha: 0.05),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: AppTheme.lg,
+              vertical: maxLines > 1 ? AppTheme.lg : AppTheme.md, // More padding for modern feel
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              borderSide: BorderSide.none, // Removes the harsh outline for a softer look
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              borderSide: BorderSide(color: Colors.transparent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+            ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSettingsTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        padding: const EdgeInsets.all(AppTheme.md),
-        decoration: BoxDecoration(
-          color: value ? AppTheme.primaryRed.withValues(alpha: 0.1) : AppTheme.lightGrey,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
-        child: Icon(icon, color: value ? AppTheme.primaryRed : AppTheme.mediumGrey),
-      ),
-      title: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-      subtitle: Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: AppTheme.primaryRed,
-      ),
     );
   }
 
@@ -373,7 +332,6 @@ class _SettingsPageState extends State<SettingsPage> {
     _addressController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _taxRateController.dispose();
     super.dispose();
   }
 }

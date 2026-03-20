@@ -27,6 +27,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   late AnimationController _cardAnimationController;
   final TextEditingController _searchController = TextEditingController();
   String _statusFilter = 'All Status';
+  String _transactionPeriod = 'All Time';
   late Stream<List<Map<String, dynamic>>> _ordersStreamVar;
   late Stream<List<Map<String, dynamic>>> _inventoryStreamVar;
 
@@ -44,42 +45,113 @@ class _SalesReportPageState extends State<SalesReportPage>
   }
 
   Map<String, dynamic> _processMetrics(List<Map<String, dynamic>> allOrders) {
-    if (allOrders.isEmpty) {
+    final now = DateTime.now();
+    final filteredOrders = allOrders.where((order) {
+      final date = DateTime.tryParse(order['created_at'] ?? '');
+      if (date == null) return false;
+      
+      // Filter by selected year first (except for yearly view)
+      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
+        return false;
+      }
+      
+      // Apply period-specific filtering
+      switch (selectedPeriod) {
+        case 'Daily':
+          // Last 7 days of selected year
+          final diff = now.difference(date).inDays;
+          return diff >= 0 && diff < 7 && date.year.toString() == selectedYear;
+        case 'Weekly':
+          // Last 7 weeks of selected year
+          final diff = now.difference(date).inDays;
+          return diff >= 0 && diff < 49 && date.year.toString() == selectedYear;
+        case 'Monthly':
+          // All months of selected year
+          return date.year.toString() == selectedYear;
+        case 'Annually':
+          // All years from 2016 to current year
+          return date.year >= 2016 && date.year <= now.year;
+        default:
+          return false;
+      }
+    }).toList();
+    
+    if (filteredOrders.isEmpty) {
       return {'revenue': 0.0, 'orders': 0, 'customers': 0, 'avgOrder': 0.0};
     }
 
     double totalRevenue = 0;
     Set<String> uniqueCustomers = {};
 
-    for (var order in allOrders) {
+    for (var order in filteredOrders) {
       totalRevenue += (order['total_amount'] as num?)?.toDouble() ?? 0.0;
       uniqueCustomers.add(order['customer_name'] ?? 'Guest');
     }
 
     return {
       'revenue': totalRevenue,
-      'orders': allOrders.length,
+      'orders': filteredOrders.length,
       'customers': uniqueCustomers.length,
-      'avgOrder': totalRevenue / allOrders.length,
+      'avgOrder': totalRevenue / filteredOrders.length,
     };
   }
 
   List<double> _processChartData(List<Map<String, dynamic>> orders) {
-    // Basic daily distribution for the last 7 days as a starting point
-    Map<int, double> dailyRevenue = {for (int i = 0; i < 7; i++) i: 0.0};
     final now = DateTime.now();
-
+    Map<int, double> periodData = {};
+    
     for (var order in orders) {
       final date = DateTime.tryParse(order['created_at'] ?? '');
-      if (date != null) {
-        final diff = now.difference(date).inDays;
-        if (diff >= 0 && diff < 7) {
-          dailyRevenue[6 - diff] = (dailyRevenue[6 - diff] ?? 0) + 
-              ((order['total_amount'] as num?)?.toDouble() ?? 0.0);
-        }
+      if (date == null) continue;
+      
+      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+      
+      // Apply period-specific filtering
+      switch (selectedPeriod) {
+        case 'Daily':
+          // Last 7 days of selected year
+          final diff = now.difference(date).inDays;
+          if (diff >= 0 && diff < 7 && date.year.toString() == selectedYear) {
+            final key = 6 - diff; // 0 = 6 days ago, 6 = today
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Weekly':
+          // Last 7 weeks of selected year
+          final weeklyDiff = now.difference(date).inDays;
+          if (weeklyDiff >= 0 && weeklyDiff < 49 && date.year.toString() == selectedYear) { // 7 weeks * 7 days
+            final key = 6 - (weeklyDiff ~/ 7); // 0 = 6 weeks ago, 6 = this week
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Monthly':
+          // All months of selected year
+          if (date.year.toString() == selectedYear) {
+            final key = date.month - 1; // 0 = Jan, 11 = Dec
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Annually':
+          // Years 2016 to current year
+          if (date.year >= 2016 && date.year <= now.year) {
+            final key = date.year - 2016; // 0 = 2016, 10 = 2026
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
       }
     }
-    return dailyRevenue.values.toList();
+    
+    // Convert to list based on selected period
+    if (selectedPeriod == 'Daily' || selectedPeriod == 'Weekly') {
+      return List.generate(7, (i) => periodData[i] ?? 0.0);
+    } else if (selectedPeriod == 'Monthly') {
+      return List.generate(12, (i) => periodData[i] ?? 0.0);
+    } else {
+      // For yearly, generate from 2016 to current year
+      final currentYear = now.year;
+      final yearRange = currentYear - 2016 + 1;
+      return List.generate(yearRange, (i) => periodData[i] ?? 0.0);
+    }
   }
 
   @override
@@ -292,8 +364,26 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                 metrics['lowStock'] = lowStockCount;
 
-                // Process all orders for the table (unfiltered by status here)
-                final tableTransactions = allOrders.map((o) {
+                // Process all orders for the table (filtered by transaction period)
+                final tableTransactions = allOrders.where((o) {
+                  final date = DateTime.tryParse(o['created_at'] ?? '');
+                  if (date == null) return false;
+                  
+                  final now = DateTime.now();
+                  
+                  if (_transactionPeriod == 'Daily') {
+                    if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                  } else if (_transactionPeriod == 'Weekly') {
+                    // last 7 days
+                    if (now.difference(date).inDays > 7) return false;
+                  } else if (_transactionPeriod == 'Monthly') {
+                    if (date.year != now.year || date.month != now.month) return false;
+                  } else if (_transactionPeriod == 'Yearly') {
+                    if (date.year != now.year) return false;
+                  }
+                  
+                  return true;
+                }).map((o) {
                   final name = o['customer_name'] ?? 'Guest';
                   final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
                   
@@ -316,21 +406,30 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                 return FadeTransition(
                   opacity: _fadeAnimation,
-                  child: SingleChildScrollView(
+                  child: Padding(
                     padding: EdgeInsets.all(isDesktop ? 32 : 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _header(tableTransactions, metrics),
                         const SizedBox(height: 32),
-                        _summaryCards(isDesktop, metrics),
-                        const SizedBox(height: 32),
-                        _chartCard(chartValues),
-                        const SizedBox(height: 32),
-                        _transactionsSection(tableTransactions),
-                        const SizedBox(height: 32),
-                        _insightsCard(metrics),
-                        const SizedBox(height: 32),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _summaryCards(isDesktop, metrics),
+                                const SizedBox(height: 32),
+                                _chartCard(chartValues),
+                                const SizedBox(height: 32),
+                                _transactionsSection(tableTransactions),
+                                const SizedBox(height: 32),
+                                _insightsCard(metrics),
+                                const SizedBox(height: 32),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -345,6 +444,43 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   /// ================= HEADER =================
   Widget _header(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Sales Report',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Track your business performance and metrics',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _periodSelector()),
+              const SizedBox(width: 12),
+              Expanded(child: _yearSelector()),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _exportButton(transactions, metrics),
+        ],
+      );
+    }
+    
     return Row(
       children: [
         Expanded(
@@ -371,13 +507,11 @@ class _SalesReportPageState extends State<SalesReportPage>
             ],
           ),
         ),
-        if (!ResponsiveUtils.isMobile(context)) ...[
-          _periodSelector(),
-          const SizedBox(width: 12),
-          _yearSelector(),
-          const SizedBox(width: 12),
-          _exportButton(transactions, metrics),
-        ],
+        _periodSelector(),
+        const SizedBox(width: 12),
+        _yearSelector(),
+        const SizedBox(width: 12),
+        _exportButton(transactions, metrics),
       ],
     );
   }
@@ -401,6 +535,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       ),
     );
   }
+
 
   Widget _yearSelector() {
     return Container(
@@ -450,58 +585,56 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   /// ================= SUMMARY =================
   Widget _summaryCards(bool isDesktop, Map<String, dynamic> data) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double spacing = 16.0;
-        final double width = (constraints.maxWidth - (isDesktop ? 3 * spacing : spacing)) / (isDesktop ? 4 : 2);
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            _summaryCard(
-              'Total Revenue',
-              _currencyFormat.format(data['revenue']),
-              Icons.payments_rounded,
-              const Color(0xFF4F46E5),
-              '+12.5%',
-              width,
-            ),
-            _summaryCard(
-              'Total Orders',
-              data['orders'].toString(),
-              Icons.shopping_bag_rounded,
-              const Color(0xFF10B981),
-              '+8.2%',
-              width,
-            ),
-            _summaryCard(
-              'Avg. Order',
-              _currencyFormat.format(data['avgOrder']),
-              Icons.analytics_rounded,
-              const Color(0xFFF59E0B),
-              '+3.1%',
-              width,
-            ),
-            _summaryCard(
-              'Active Customers',
-              data['customers'].toString(),
-              Icons.people_alt_rounded,
-              const Color(0xFFEC4899),
-              '+5.4%',
-              width,
-            ),
-            _summaryCard(
-              'Low Stock Items',
-              data['lowStock'].toString(),
-              Icons.warning_amber_rounded,
-              data['lowStock'] > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-              'Alert',
-              width,
-            ),
-          ],
-        );
-      },
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _summaryCard(
+            'Total Revenue',
+            _currencyFormat.format(data['revenue']),
+            Icons.payments_rounded,
+            const Color(0xFF4F46E5),
+            '+12.5%',
+            200,
+          ),
+          const SizedBox(width: 16),
+          _summaryCard(
+            'Total Orders',
+            data['orders'].toString(),
+            Icons.shopping_bag_rounded,
+            const Color(0xFF10B981),
+            '+8.2%',
+            200,
+          ),
+          const SizedBox(width: 16),
+          _summaryCard(
+            'Avg. Order',
+            _currencyFormat.format(data['avgOrder']),
+            Icons.analytics_rounded,
+            const Color(0xFFF59E0B),
+            '+3.1%',
+            200,
+          ),
+          const SizedBox(width: 16),
+          _summaryCard(
+            'Active Customers',
+            data['customers'].toString(),
+            Icons.people_alt_rounded,
+            const Color(0xFFEC4899),
+            '+5.4%',
+            200,
+          ),
+          const SizedBox(width: 16),
+          _summaryCard(
+            'Low Stock Items',
+            data['lowStock'].toString(),
+            Icons.warning_amber_rounded,
+            data['lowStock'] > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+            'Alert',
+            200,
+          ),
+        ],
+      ),
     );
   }
 
@@ -509,7 +642,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       String growth, double width) {
     return Container(
       width: width,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -517,20 +650,21 @@ class _SalesReportPageState extends State<SalesReportPage>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: color.withAlpha(50),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: 20),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0FDF4),
                   borderRadius: BorderRadius.circular(6),
@@ -539,28 +673,28 @@ class _SalesReportPageState extends State<SalesReportPage>
                   growth,
                   style: const TextStyle(
                     color: Color(0xFF16A34A),
-                    fontSize: 12,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
             title.toUpperCase(),
             style: TextStyle(
               color: const Color(0xFF64748B),
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: Color(0xFF0F172A),
               letterSpacing: -1,
@@ -729,24 +863,36 @@ class _SalesReportPageState extends State<SalesReportPage>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
-        children: ['7D', '1M', '3M', '1Y'].map((t) {
-          final isSelected = (t == '7D' && selectedPeriod == 'Daily') ||
-              (t == '1M' && selectedPeriod == 'Monthly');
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: isSelected
-                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                  : null,
-            ),
-            child: Text(
-              t,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+        children: ['Daily', 'Weekly', 'Monthly', 'Yearly'].map((t) {
+          final isSelected = (t == 'Daily' && selectedPeriod == 'Daily') ||
+              (t == 'Weekly' && selectedPeriod == 'Weekly') ||
+              (t == 'Monthly' && selectedPeriod == 'Monthly') ||
+              (t == 'Yearly' && selectedPeriod == 'Annually');
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (t == 'Daily') selectedPeriod = 'Daily';
+                else if (t == 'Weekly') selectedPeriod = 'Weekly';
+                else if (t == 'Monthly') selectedPeriod = 'Monthly';
+                else if (t == 'Yearly') selectedPeriod = 'Annually';
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: isSelected
+                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                    : null,
+              ),
+              child: Text(
+                t,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                ),
               ),
             ),
           );
@@ -811,62 +957,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     final isMobile = ResponsiveUtils.isMobile(context);
     
     if (isVertical || isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () {
-                final filteredTransactions = transactions.where((t) {
-                  if (_statusFilter == 'All Status') return true;
-                  return t['status'] == _statusFilter;
-                }).toList();
-                _exportToCSV(filteredTransactions, 'Transactions_${_statusFilter.replaceAll(' ', '_')}');
-              },
-              icon: const Icon(Icons.file_download_outlined, size: 18),
-              label: const Text('Download CSV'),
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Filter by:', style: TextStyle(color: Color(0xFF64748B))),
-              TextButton(
-                onPressed: () {},
-                child: const Text('View All', style: TextStyle(color: Color(0xFF3B82F6))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: DropdownButton<String>(
-              value: _statusFilter,
-              underline: const SizedBox(),
-              isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              items: ['All Status', 'Ready', 'Pending', 'Cancelled']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                  .toList(),
-              onChanged: (v) => setState(() => _statusFilter = v!),
-            ),
-          ),
-        ],
-      );
-    }
-    
-    return Row(
-      children: [
-        TextButton.icon(
+      return SizedBox(
+        width: double.infinity,
+        child: TextButton.icon(
           onPressed: () {
             final filteredTransactions = transactions.where((t) {
               if (_statusFilter == 'All Status') return true;
@@ -878,12 +971,20 @@ class _SalesReportPageState extends State<SalesReportPage>
           label: const Text('Download CSV'),
           style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
         ),
-        const SizedBox(width: 16),
-        TextButton(
-          onPressed: () {},
-          child: const Text('View All', style: TextStyle(color: Color(0xFF3B82F6))),
-        ),
-      ],
+      );
+    }
+    
+    return TextButton.icon(
+      onPressed: () {
+        final filteredTransactions = transactions.where((t) {
+          if (_statusFilter == 'All Status') return true;
+          return t['status'] == _statusFilter;
+        }).toList();
+        _exportToCSV(filteredTransactions, 'Transactions_${_statusFilter.replaceAll(' ', '_')}');
+      },
+      icon: const Icon(Icons.file_download_outlined, size: 18),
+      label: const Text('Download CSV'),
+      style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
     );
   }
 
@@ -954,6 +1055,27 @@ class _SalesReportPageState extends State<SalesReportPage>
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _transactionPeriod,
+                        underline: const SizedBox(),
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                        items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+                            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
+                            .toList(),
+                        onChanged: (v) => setState(() => _transactionPeriod = v!),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -999,6 +1121,24 @@ class _SalesReportPageState extends State<SalesReportPage>
                       .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                       .toList(),
                   onChanged: (v) => setState(() => _statusFilter = v!),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: DropdownButton<String>(
+                  value: _transactionPeriod,
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                  items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
+                      .toList(),
+                  onChanged: (v) => setState(() => _transactionPeriod = v!),
                 ),
               ),
             ],
