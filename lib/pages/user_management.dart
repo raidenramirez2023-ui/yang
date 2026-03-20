@@ -85,6 +85,25 @@ class _RoleSection extends StatelessWidget {
     }
   }
 
+  String _getMockName(String role, int index) {
+    final Map<String, List<String>> mockNames = {
+      'Cook': ['Gordon Ramsay', 'Jamie Oliver'],
+      'Dishwasher': ['John Doe'],
+      'Cutter': ['Edward Scissorhands', 'Wolverine'],
+      'Cashier & Food Server': ['Spongebob Squarepants', 'Squidward Tentacles'],
+      'Dine-in Food Server': ['Sanji', 'Peter Parker', 'Clark Kent'],
+      'Supervisor': ['Tony Stark', 'Steve Rogers'],
+    };
+
+    if (mockNames.containsKey(role) && index < mockNames[role]!.length) {
+      return mockNames[role]![index];
+    }
+    
+    // Fallback names
+    final fallbacks = ['Alice', 'Bob', 'Charlie', 'David', 'Eve'];
+    return '${fallbacks[index % fallbacks.length]} (Staff ${index + 1})';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -105,26 +124,149 @@ class _RoleSection extends StatelessWidget {
         // STAFF ROWS
         ...List.generate(
           count,
-          (index) => Card(
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            ),
-            margin: const EdgeInsets.only(bottom: AppTheme.sm),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.15),
-                child: Icon(_icon, color: AppTheme.primaryRed),
+          (index) {
+            final mockName = _getMockName(role, index);
+            final initials = mockName.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
+
+            return Card(
+              elevation: 0,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
               ),
-              title: Text(
-                role,
-                style: Theme.of(context).textTheme.bodyLarge,
+              margin: const EdgeInsets.only(bottom: AppTheme.sm),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.md, vertical: 4),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Dialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppTheme.lg),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.15),
+                              child: Icon(_icon, size: 36, color: AppTheme.primaryRed),
+                            ),
+                            const SizedBox(height: AppTheme.md),
+                            Text(
+                              mockName,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: AppTheme.xs),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.sm,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              ),
+                              child: Text(
+                                role,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.primaryRed,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppTheme.lg),
+                            const Divider(),
+                            const SizedBox(height: AppTheme.sm),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildStatColumn(context, 'Shift', 'Morning'),
+                                _buildStatColumn(context, 'Status', 'Active'),
+                              ],
+                            ),
+                            const SizedBox(height: AppTheme.xl),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryRed,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                  ),
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Close Profile'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                leading: CircleAvatar(
+                  backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.1),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      color: AppTheme.primaryRed,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  mockName,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  '$role • ID: ${1000 + index * 7 + role.hashCode.abs() % 100}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.mediumGrey,
+                      ),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chevron_right, size: 20, color: AppTheme.mediumGrey),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
 
         const SizedBox(height: AppTheme.lg),
+      ],
+    );
+  }
+
+  Widget _buildStatColumn(BuildContext context, String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.mediumGrey,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

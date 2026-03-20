@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:intl/intl.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   const AdminReservationsPage({super.key});
@@ -13,7 +14,7 @@ class AdminReservationsPage extends StatefulWidget {
 class _AdminReservationsPageState extends State<AdminReservationsPage> {
   List<Map<String, dynamic>> reservations = [];
   bool _isLoading = true;
-  String _selectedFilter = 'all'; // all, pending, confirmed, cancelled
+  String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
 
   @override
   void initState() {
@@ -38,6 +39,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       debugPrint('Reservations loaded: ${response.length}');
       debugPrint('Response: $response');
 
+      // Check for expired reservations and update them
+      await _updateExpiredReservations(response);
+
       setState(() {
         reservations = List<Map<String, dynamic>>.from(response);
         _isLoading = false;
@@ -46,6 +50,84 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       debugPrint('Error loading reservations: $e');
       setState(() => _isLoading = false);
       _showSnackBar('Error loading reservations: $e', Colors.red);
+    }
+  }
+
+  Future<void> _updateExpiredReservations(List<Map<String, dynamic>> reservations) async {
+    final now = DateTime.now();
+    
+    for (final reservation in reservations) {
+      // Only check confirmed reservations
+      if (reservation['status'] != 'confirmed') continue;
+      
+      try {
+        final eventDate = reservation['event_date'];
+        final startTime = reservation['start_time'];
+        
+        DateTime eventDateTime;
+        try {
+          // Parse start time (same logic as announcement creation)
+          if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
+            DateTime parsedTime;
+            try {
+              parsedTime = DateFormat.jm().parse(startTime.trim());
+            } catch (e) {
+              String fixedTime = startTime.toUpperCase().replaceAll('AM', ' AM').replaceAll('PM', ' PM').trim().replaceAll('  ', ' ');
+              parsedTime = DateFormat.jm().parse(fixedTime);
+            }
+            final parsedDate = DateTime.parse(eventDate);
+            eventDateTime = DateTime(
+              parsedDate.year,
+              parsedDate.month,
+              parsedDate.day,
+              parsedTime.hour,
+              parsedTime.minute,
+            );
+          } else {
+            // Handle 24-hour format with seconds (HH:mm:ss)
+            String timeStr = startTime;
+            if (timeStr.length == 8 && timeStr.contains(':')) {
+              // Format: "18:35:00" -> take only "18:35"
+              timeStr = timeStr.substring(0, 5);
+            } else if (timeStr.length == 5) {
+              // Already in correct format: "18:35"
+              timeStr = '$timeStr:00';
+            }
+            eventDateTime = DateTime.parse('${eventDate}T$timeStr');
+          }
+        } catch (e) {
+          debugPrint('Error parsing reservation date/time: $e');
+          continue;
+        }
+        
+        // Get duration
+        final durationValue = reservation['duration_hours'];
+        int durationHours = 4; // Default
+        if (durationValue != null) {
+          if (durationValue is int) {
+            durationHours = durationValue;
+          } else if (durationValue is String) {
+            durationHours = int.tryParse(durationValue) ?? 4;
+          }
+        }
+        
+        final expiresAt = eventDateTime.add(Duration(hours: durationHours));
+        
+        // If reservation has expired, update status to 'completed'
+        if (now.isAfter(expiresAt)) {
+          await Supabase.instance.client
+              .from('reservations')
+              .update({
+                'status': 'completed',
+                'updated_at': now.toIso8601String()
+              })
+              .eq('id', reservation['id']);
+          
+          debugPrint('Reservation ${reservation['id']} marked as completed (expired)');
+        }
+      } catch (e) {
+        debugPrint('Error checking reservation expiration: $e');
+      }
     }
   }
 
@@ -63,12 +145,93 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 }
 
-  Future<void> _updateReservationStatus(String reservationId, String newStatus) async {
+  Future<void> _updateReservationStatus(String reservationId, String newStatus, [Map<String, dynamic>? reservation]) async {
     try {
       await Supabase.instance.client
           .from('reservations')
           .update({'status': newStatus, 'updated_at': DateTime.now().toIso8601String()})
           .eq('id', reservationId);
+
+      // Generate Auto Announcement on Confirm
+      if (newStatus == 'confirmed' && reservation != null) {
+        final eventDate = reservation['event_date'];
+        final startTime = reservation['start_time'];
+        
+        DateTime eventDateTime;
+        try {
+          // Attempt to parse date and time combined
+          // Handles cases like "HH:mm" or "h:mm a"
+          if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
+            // Localized format from TimePicker (e.g. "11:43 AM" or "11:43AM")
+            DateTime parsedTime;
+            try {
+              parsedTime = DateFormat.jm().parse(startTime.trim());
+            } catch (e) {
+              // Try adding a space if missing
+              String fixedTime = startTime.toUpperCase().replaceAll('AM', ' AM').replaceAll('PM', ' PM').trim().replaceAll('  ', ' ');
+              parsedTime = DateFormat.jm().parse(fixedTime);
+            }
+            final parsedDate = DateTime.parse(eventDate);
+            eventDateTime = DateTime(
+              parsedDate.year,
+              parsedDate.month,
+              parsedDate.day,
+              parsedTime.hour,
+              parsedTime.minute,
+            );
+          } else {
+            // ISO-ish format (e.g. "11:43" or "11:43:00")
+            String timeStr = startTime;
+            if (timeStr.length == 5) timeStr = '$timeStr:00';
+            eventDateTime = DateTime.parse('${eventDate}T$timeStr');
+          }
+        } catch (e) {
+          debugPrint('Parsing error: $e');
+          try {
+            eventDateTime = DateTime.parse(eventDate);
+          } catch(e) {
+            eventDateTime = DateTime.now();
+          }
+        }
+        
+        // Get duration (it might be String or int depending on how it's stored)
+        final durationValue = reservation['duration_hours'];
+        int durationHours = 4; // Default to 4 hours
+        if (durationValue != null) {
+          if (durationValue is int) {
+            durationHours = durationValue;
+          } else if (durationValue is String) {
+            durationHours = int.tryParse(durationValue) ?? 4;
+          }
+        }
+        
+        final expiresAt = eventDateTime.add(Duration(hours: durationHours));
+
+        // Format the time for display
+        String displayTime;
+        if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
+          displayTime = startTime; // Already in 12-hour format
+        } else {
+          // Convert 24-hour format to 12-hour format
+          if (startTime.length == 8 && startTime.contains(':')) {
+            // Format: "18:35:00" -> convert to "6:35 PM"
+            final hour = int.parse(startTime.substring(0, 2));
+            final minute = startTime.substring(3, 5);
+            final period = hour >= 12 ? 'PM' : 'AM';
+            final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+            displayTime = '$displayHour:$minute $period';
+          } else {
+            displayTime = startTime; // Fallback to original
+          }
+        }
+
+        await Supabase.instance.client.from('announcements').insert({
+          'title': 'Confirmed Reservation: ${reservation['event_type']}',
+          'content': 'We are excited to host ${reservation['customer_name']} and ${reservation['number_of_guests']} guests for a ${reservation['event_type']} on $eventDate at $displayTime.',
+          'is_active': true,
+          'expires_at': expiresAt.toUtc().toIso8601String(),
+        });
+      }
 
       _showSnackBar('Reservation status updated to $newStatus', Colors.green);
       _loadReservations(); // Refresh the list
@@ -182,11 +345,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final total = reservations.length;
     final pending = reservations.where((r) => r['status'] == 'pending').length;
     final confirmed = reservations.where((r) => r['status'] == 'confirmed').length;
+    final completed = reservations.where((r) => r['status'] == 'completed').length;
 
     final cards = [
       _buildKpiCard('Total Events', total.toString(), Icons.event, AppTheme.infoBlue),
       _buildKpiCard('Pending', pending.toString(), Icons.pending_actions, Colors.orange),
       _buildKpiCard('Confirmed', confirmed.toString(), Icons.check_circle_outline, AppTheme.successGreen),
+      _buildKpiCard('Completed', completed.toString(), Icons.done_all, Colors.grey),
     ];
 
     if (isMobile) {
@@ -280,6 +445,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       {'value': 'all', 'label': 'All Events'},
       {'value': 'pending', 'label': 'Pending'},
       {'value': 'confirmed', 'label': 'Confirmed'},
+      {'value': 'completed', 'label': 'Completed'},
+      {'value': 'cancelled', 'label': 'Cancelled'},
     ];
 
     return Container(
@@ -799,7 +966,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
-  void _showConfirmReservationDialog(String reservationId, String eventType) {
+  void _showConfirmReservationDialog(Map<String, dynamic> reservation) {
+    String reservationId = reservation['id'];
+    String eventType = reservation['event_type'];
     final isMobile = ResponsiveUtils.isMobile(context);
     
     showDialog(
@@ -890,7 +1059,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
             onPressed: () {
               Navigator.pop(context);
-              _updateReservationStatus(reservationId, 'confirmed');
+              _updateReservationStatus(reservationId, 'confirmed', reservation);
             },
             child: Text(
               'Confirm',
@@ -1032,13 +1201,17 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         color = Colors.green;
         icon = Icons.check_circle;
         break;
+      case 'completed':
+        color = Colors.grey;
+        icon = Icons.done_all;
+        break;
       case 'cancelled':
         color = Colors.red;
         icon = Icons.cancel;
         break;
       default:
         color = Colors.grey;
-        icon = Icons.help;
+        icon = Icons.help_outline;
     }
 
     final isMobile = ResponsiveUtils.isMobile(context);
@@ -1079,7 +1252,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       children: [
         if (status == 'pending') ...[
           IconButton(
-            onPressed: () => _showConfirmReservationDialog(reservationId, reservation['event_type']),
+            onPressed: () => _showConfirmReservationDialog(reservation),
             icon: Icon(
               Icons.check, 
               color: Colors.green,
@@ -1109,6 +1282,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
             tooltip: 'Cancel',
             iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+          ),
+        ],
+        if (status == 'completed') ...[
+          // No actions for completed reservations
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: ResponsiveUtils.getResponsiveFontSize(context, mobile: 8, tablet: 10, desktop: 12),
+              vertical: ResponsiveUtils.getResponsiveFontSize(context, mobile: 4, tablet: 6, desktop: 8),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'COMPLETED',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 8, tablet: 9, desktop: 10),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
         IconButton(

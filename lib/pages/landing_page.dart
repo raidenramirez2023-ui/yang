@@ -1,4 +1,5 @@
-  import 'package:flutter/material.dart';
+  import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -22,6 +23,7 @@ class _LandingPageState extends State<LandingPage> {
   final GlobalKey _contactKey = GlobalKey();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingSession = true;
+  int? _selectedMonth; // null means "Show All" or "Latest"
 
   @override
   void initState() {
@@ -111,7 +113,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget build(BuildContext context) {
     if (_isCheckingSession) {
       return Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
+        backgroundColor: const Color(0xFF0A0A0A),
         body: const Center(
           child: CircularProgressIndicator(color: AppTheme.primaryRed),
         ),
@@ -120,7 +122,7 @@ class _LandingPageState extends State<LandingPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFF0A0A0A),
       drawer: _buildMobileDrawer(),
       body: Stack(
         children: [
@@ -151,74 +153,96 @@ class _LandingPageState extends State<LandingPage> {
       top: 0,
       left: 0,
       right: 0,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          color: Colors.transparent, // Transparent as requested
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Row(
-            children: [
-              // Show menu icon on mobile
-              if (isMobile)
-                IconButton(
-                  icon: const Icon(Icons.menu, color: AppTheme.white),
-                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                ),
-              if (isMobile) const SizedBox(width: 8),
-
-              // Left: Logo and Brand Name
-              Image.asset(
-                'assets/images/logo.jpg',
-                height: 40,
-                errorBuilder: (context, error, stackTrace) => 
-                    const Icon(Icons.restaurant, color: AppTheme.white, size: 24),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.7),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
               ),
-              if (!isMobile) ...[
-                const SizedBox(width: 16),
-                const Text(
-                  'YANG CHOW',
-                  style: TextStyle(
-                    color: AppTheme.white,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                    fontSize: 20,
-                  ),
-                ),
-              ],
-              
-              const Spacer(), // First Spacer
-              
-              // Center: Navigation Buttons (only on desktop)
-              if (!isMobile) ...[
-                _navButton('HOME', () => _scrollToSection(_heroKey)),
-                _navButton('ABOUT', () => _scrollToSection(_aboutKey)),
-                _navButton('UPDATES', () => _scrollToSection(_updatesKey)),
-                _navButton('SERVICES', () => _scrollToSection(_servicesKey)),
-                _navButton('HOURS', () => _scrollToSection(_hoursKey)),
-                _navButton('CONTACT', () => _scrollToSection(_contactKey)),
-              ],
-              
-              const Spacer(), // Second Spacer to push everything to edges
-              
-              // Right: Login Button
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/login'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryRed,
-                  foregroundColor: AppTheme.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  minimumSize: Size.zero,
-                  shape: const StadiumBorder(),
-                  elevation: 0,
-                ),
-                child: Text(
-                  isMobile ? 'LOGIN' : 'SIGN IN',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: MaxWidthContainer(
+                child: Row(
+                  children: [
+                    // Brand Identity
+                    InkWell(
+                      key: const Key('brand_identity'),
+                      onTap: () => _scrollToSection(_heroKey),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.white.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Image.asset(
+                              'assets/images/logo.jpg',
+                              height: 32,
+                              errorBuilder: (context, error, stackTrace) => 
+                                  const Icon(Icons.restaurant_rounded, color: AppTheme.white, size: 20),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Text(
+                            'YANG CHOW',
+                            style: TextStyle(
+                              color: AppTheme.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 4,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const Spacer(),
+                    
+                    if (!isMobile) ...[
+                      _navButton('HOME', const Key('nav_home'), () => _scrollToSection(_heroKey)),
+                      _navButton('ABOUT', const Key('nav_about'), () => _scrollToSection(_aboutKey)),
+                      _navButton('UPDATES', const Key('nav_updates'), () => _scrollToSection(_updatesKey)),
+                      _navButton('SERVICES', const Key('nav_services'), () => _scrollToSection(_servicesKey)),
+                      _navButton('CONTACT', const Key('nav_contact'), () => _scrollToSection(_contactKey)),
+                      const SizedBox(width: 40),
+                    ],
+                    
+                    // Action Button
+                    ElevatedButton(
+                      key: const Key('nav_login_btn'),
+                      onPressed: () => Navigator.pushNamed(context, '/login'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryRed,
+                        foregroundColor: AppTheme.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        isMobile ? 'LOGIN' : 'SIGN IN',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1),
+                      ),
+                    ),
+                    
+                    if (isMobile) ...[
+                      const SizedBox(width: 12),
+                      IconButton(
+                        key: const Key('nav_menu_btn'),
+                        icon: const Icon(Icons.menu_rounded, color: AppTheme.white),
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -278,19 +302,19 @@ class _LandingPageState extends State<LandingPage> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 20),
               children: [
-                _drawerItem('HOME', Icons.home_rounded, () => _scrollToSection(_heroKey)),
-                _drawerItem('ABOUT', Icons.info_outline_rounded, () => _scrollToSection(_aboutKey)),
-                _drawerItem('UPDATES', Icons.notifications_none_rounded, () => _scrollToSection(_updatesKey)),
-                _drawerItem('SERVICES', Icons.restaurant_menu_rounded, () => _scrollToSection(_servicesKey)),
-                _drawerItem('HOURS', Icons.schedule_rounded, () => _scrollToSection(_hoursKey)),
-                _drawerItem('CONTACT', Icons.alternate_email_rounded, () => _scrollToSection(_contactKey)),
+                _drawerItem('HOME', Icons.home_rounded, const Key('drawer_home'), () => _scrollToSection(_heroKey)),
+                _drawerItem('ABOUT', Icons.info_outline_rounded, const Key('drawer_about'), () => _scrollToSection(_aboutKey)),
+                _drawerItem('UPDATES', Icons.notifications_none_rounded, const Key('drawer_updates'), () => _scrollToSection(_updatesKey)),
+                _drawerItem('SERVICES', Icons.restaurant_menu_rounded, const Key('drawer_services'), () => _scrollToSection(_servicesKey)),
+                _drawerItem('HOURS', Icons.schedule_rounded, const Key('drawer_hours'), () => _scrollToSection(_hoursKey)),
+                _drawerItem('CONTACT', Icons.alternate_email_rounded, const Key('drawer_contact'), () => _scrollToSection(_contactKey)),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              '© 2024 YANG CHOW RESTAURANT',
+              '© 2024 YANG CHOW',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.3),
                 fontSize: 10,
@@ -304,8 +328,9 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Widget _drawerItem(String title, IconData icon, VoidCallback onTap) {
+  Widget _drawerItem(String title, IconData icon, Key key, VoidCallback onTap) {
     return ListTile(
+      key: key,
       contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
       leading: Icon(icon, color: AppTheme.primaryRed, size: 24),
       title: Text(
@@ -324,163 +349,239 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Widget _navButton(String label, VoidCallback onPressed) {
+  Widget _navButton(String label, Key key, VoidCallback onPressed) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          foregroundColor: AppTheme.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: InkWell(
+        key: key,
+        onTap: onPressed,
         child: Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
+            color: AppTheme.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
           ),
         ),
       ),
     );
   }
-
   Widget _buildHeroSection(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
+    
     return SizedBox(
       key: _heroKey,
       height: MediaQuery.of(context).size.height,
       width: double.infinity,
       child: Stack(
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YC1.png'),
-                fit: BoxFit.cover,
+          // Background with subtle scaling effect
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/YC1.png'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.4),
-                  Colors.black.withValues(alpha: 0.8),
-                ],
+          // Layered Gradients for Depth
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.3),
+                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.9),
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
               ),
             ),
           ),
+          // Content
           Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 80),
-                  Text(
-                    'YANG CHOW',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 40, // Slightly smaller on mobile for better fit
-                        tablet: 72,
-                        desktop: 96,
-                      ),
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.white,
-                      letterSpacing: isMobile ? 6 : 12, // Reduced spacing on mobile
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.white.withValues(alpha: 0.8), width: 1.5),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: Text(
-                      'THE BEST CUISINE FOR YOU',
-                      style: TextStyle(
-                        color: AppTheme.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: isMobile ? 2 : 4,
-                        fontSize: isMobile ? 12 : 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 700),
-                    child: Text(
-                      'Experience the true essence of traditional Chinese flavors combined with modern culinary excellence. Every dish is a masterpiece crafted for your satisfaction.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppTheme.white.withValues(alpha: 0.95),
-                        fontSize: isMobile ? 16 : 18,
-                        height: 1.6,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  SizedBox(
-                    width: isMobile ? double.infinity : null,
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
+            child: MaxWidthContainer(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 60),
+                    // Elegant Subtitle with line decoration
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(
-                          width: isMobile ? double.infinity : null,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pushNamed(context, '/login'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryRed,
-                              foregroundColor: AppTheme.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 22),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              elevation: 4,
-                              shadowColor: Colors.black.withValues(alpha: 0.5),
-                            ),
-                            child: const Text(
-                              'GET STARTED', 
-                              style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2)
+                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryRed),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'SINCE 2024',
+                            style: TextStyle(
+                              color: AppTheme.primaryRed,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 4,
+                              fontSize: isMobile ? 10 : 12,
                             ),
                           ),
                         ),
-                        SizedBox(
-                          width: isMobile ? double.infinity : null,
-                          child: OutlinedButton(
-                            onPressed: () => _scrollToSection(_aboutKey),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.white,
-                              side: const BorderSide(color: AppTheme.white, width: 2),
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 22),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: const Text(
-                              'DISCOVER MORE', 
-                              style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2)
-                            ),
+                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryRed),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Main Title with shadow for depth
+                    Text(
+                      'YANG CHOW',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 48,
+                          tablet: 84,
+                          desktop: 110,
+                        ),
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.white,
+                        letterSpacing: isMobile ? 8 : 20,
+                        height: 0.9,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            offset: const Offset(0, 10),
+                            blurRadius: 30,
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'AUTHENTIC CHINESE CUISINE',
+                      style: TextStyle(
+                        color: AppTheme.white.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w300,
+                        letterSpacing: isMobile ? 4 : 8,
+                        fontSize: isMobile ? 14 : 18,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    // Description
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: Text(
+                        'Where tradition meets modern perfection. Discover a menu crafted with passion, featuring the finest ingredients and time-honored recipes that define the heart of Pagsanjan dining.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppTheme.white.withValues(alpha: 0.7),
+                          fontSize: isMobile ? 16 : 20,
+                          height: 1.6,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 64),
+                    // Dynamic CTA Buttons
+                    Wrap(
+                      spacing: 24,
+                      runSpacing: 20,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _heroCTA(
+                          'GET STARTED', 
+                          () => Navigator.pushNamed(context, '/login'),
+                          isPrimary: true,
+                          isMobile: isMobile,
+                        ),
+                        _heroCTA(
+                          'DISCOVER STORY', 
+                          () => _scrollToSection(_aboutKey),
+                          isPrimary: false,
+                          isMobile: isMobile,
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+          // Scroll Indicator
           Positioned(
-            bottom: 30,
+            bottom: 40,
             left: 0,
             right: 0,
-            child: Icon(Icons.keyboard_arrow_down, color: AppTheme.white.withValues(alpha: 0.5), size: 40),
+            child: Column(
+              children: [
+                Text(
+                  'SCROLL TO EXPLORE',
+                  style: TextStyle(
+                    color: AppTheme.white.withValues(alpha: 0.3),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: 1,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppTheme.primaryRed,
+                        AppTheme.primaryRed.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _heroCTA(String label, VoidCallback onTap, {required bool isPrimary, required bool isMobile}) {
+    return Container(
+      width: isMobile ? double.infinity : 220,
+      height: 64,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: AppTheme.primaryRed.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ] : null,
+      ),
+      child: ElevatedButton(
+        key: Key('hero_cta_${label.replaceAll(' ', '_').toLowerCase()}'),
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isPrimary ? AppTheme.primaryRed : Colors.white.withValues(alpha: 0.05),
+          foregroundColor: AppTheme.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: isPrimary ? BorderSide.none : BorderSide(color: AppTheme.white.withValues(alpha: 0.2), width: 1.5),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }
@@ -491,85 +592,125 @@ class _LandingPageState extends State<LandingPage> {
     
     return Container(
       key: _aboutKey,
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 100, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 24,
+      ),
+      color: const Color(0xFF0A0A0A), // Deep dark heritage background
       child: MaxWidthContainer(
         child: Column(
           children: [
-            _sectionHeader('ABOUT YANG CHOW', 'Our Culinary Journey'),
-            const SizedBox(height: 64),
+            _sectionHeader(
+              'OUR HERITAGE',
+              'A Legacy of Taste in the Heart of Pagsanjan',
+              isDark: true,
+            ),
+            const SizedBox(height: 80),
             Flex(
               direction: isMobile ? Axis.vertical : Axis.horizontal,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Image with decorative elements
                 Expanded(
-                  flex: isMobile ? 0 : 1,
-                  child: Container(
-                    padding: isMobile ? const EdgeInsets.only(bottom: 40) : EdgeInsets.zero,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        'assets/images/YC2.png',
-                        fit: BoxFit.cover,
-                        height: isMobile ? 300 : 450,
-                        width: double.infinity,
+                  flex: isMobile ? 0 : 5,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: isMobile ? 300 : 500,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          image: const DecorationImage(
+                            image: AssetImage('assets/images/YC2.png'),
+                            fit: BoxFit.cover,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      if (!isMobile)
+                        Positioned(
+                          top: -20,
+                          left: -20,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3), width: 2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                if (!isMobile) const SizedBox(width: 80),
+                SizedBox(width: isMobile ? 0 : 80, height: isMobile ? 48 : 0),
+                // Narrative Content
                 Expanded(
-                  flex: isMobile ? 0 : 1,
+                  flex: isMobile ? 0 : 6,
                   child: Column(
-                    crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'A Heritage of Freshness and Flavor',
-                        textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                      const Text(
+                        'THE STORY OF YANG CHOW',
                         style: TextStyle(
-                          fontSize: isMobile ? 24 : 32, 
-                          fontWeight: FontWeight.w800, 
-                          color: AppTheme.darkGrey,
-                          height: 1.3,
+                          color: AppTheme.primaryRed,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        'Founded in the heart of Pagsanjan, Yang Chow has been serving authentic Chinese-Filipino cuisine for over a decade. Our mission is simple: to provide high-quality, delicious meals that bring families and friends together.',
-                        textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                        'Crafting Culinary Excellence Since Day One',
                         style: TextStyle(
-                          fontSize: 16, 
-                          color: Colors.black87, 
-                          height: 1.8,
-                          fontWeight: FontWeight.w400,
+                          color: AppTheme.white,
+                          fontSize: isMobile ? 28 : 42,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 32),
                       Text(
-                        'We pride ourselves on using only the freshest ingredients sourced daily from local markets. Our signature Yang Chow Fried Rice and Dimsum are prepared by master chefs following traditional recipes.',
-                        textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                        'Yang Chow Pagsanjan was born from a simple vision: to bring authentic, high-quality Chinese cuisine to our local community. What started as a passion for traditional flavors has grown into a beloved dining destination, where every detail—from the selection of our secret spices to the warmth of our service—is handled with utmost care.',
                         style: TextStyle(
-                          fontSize: 16, 
-                          color: Colors.black87, 
+                          color: AppTheme.white.withValues(alpha: 0.7),
+                          fontSize: 18,
                           height: 1.8,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w300,
                         ),
                       ),
-                      const SizedBox(height: 40),
-                      SizedBox(
-                        width: isMobile ? double.infinity : null,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryRed,
-                            foregroundColor: AppTheme.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 2,
+                      const SizedBox(height: 48),
+                      // Heritage Stats
+                      Row(
+                        children: [
+                          _aboutStat('100%', 'FRESHNESS'),
+                          const SizedBox(width: 40),
+                          _aboutStat('24/7', 'DEDICATION'),
+                          const SizedBox(width: 40),
+                          _aboutStat('ELITE', 'SERVICE'),
+                        ],
+                      ),
+                      const SizedBox(height: 56),
+                      TextButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryRed),
+                        label: const Text(
+                          'READ OUR FULL JOURNEY',
+                          style: TextStyle(
+                            color: AppTheme.white,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                            fontSize: 13,
                           ),
-                          child: const Text(
-                            'OUR FULL STORY',
-                            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
-                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 0),
                         ),
                       ),
                     ],
@@ -583,72 +724,147 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
+  Widget _aboutStat(String value, String label) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppTheme.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppTheme.primaryRed,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+          ),
+        ),
+      ],
+    );
+  }
+
 
 
   Widget _buildServicesSection(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    final List<Map<String, dynamic>> services = [
-      {'icon': Icons.restaurant_rounded, 'title': 'Dine-In', 'desc': 'Experience our cozy and authentic restaurant ambiance with premium service.'},
-      {'icon': Icons.event_available_rounded, 'title': 'Catering & Events', 'desc': 'Let us cater your special occasions and gatherings with our signature dishes.'},
-    ];
-
+    
     return Container(
       key: _servicesKey,
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 100, horizontal: 24),
-      color: AppTheme.backgroundColor,
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 24,
+      ),
+      color: const Color(0xFF0F0F0F), // Ultra dark background for high contrast
       child: MaxWidthContainer(
         child: Column(
           children: [
-            _sectionHeader('OUR SERVICES', 'What We Offer'),
-            const SizedBox(height: 64),
+            _sectionHeader(
+              'ELITE SERVICES',
+              'Tailored Dining Experiences for Every Occasion',
+              isDark: true,
+            ),
+            const SizedBox(height: 80),
             Wrap(
               spacing: 32,
               runSpacing: 32,
               alignment: WrapAlignment.center,
-              children: services.map((service) {
-                return Container(
-                  width: isMobile ? double.infinity : 350,
-                  padding: const EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                    border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.08)),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(service['icon'] as IconData, size: 40, color: AppTheme.primaryRed),
-                      ),
-                      const SizedBox(height: 32),
-                      Text(
-                        service['title'] as String,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 24, color: AppTheme.darkGrey),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        service['desc'] as String,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16, height: 1.6, fontWeight: FontWeight.w400),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+              children: [
+                _serviceCard(
+                  Icons.restaurant_menu_rounded,
+                  'PREMIUM DINE-IN',
+                  'Experience authentic Chinese ambiance with our signature hospitality and freshly prepared delicacies.',
+                  isMobile: isMobile,
+                ),
+                _serviceCard(
+                  Icons.auto_awesome_rounded,
+                  'EXQUISITE CATERING',
+                  'Elevate your special events with a curated menu that brings the heart of Yang Chow to your venue.',
+                  isMobile: isMobile,
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _serviceCard(IconData icon, String title, String desc, {required bool isMobile}) {
+    return Container(
+      width: isMobile ? double.infinity : 450,
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 32),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            desc,
+            style: TextStyle(
+              color: AppTheme.white.withValues(alpha: 0.6),
+              fontSize: 16,
+              height: 1.6,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'AVAILABLE NOW',
+                style: TextStyle(
+                  color: AppTheme.primaryRed,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -658,21 +874,24 @@ class _LandingPageState extends State<LandingPage> {
     
     return Container(
       key: _updatesKey,
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 100, horizontal: 24),
-      color: AppTheme.backgroundColor,
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 24,
+      ),
+      color: const Color(0xFF0F0F0F), // Consistent dark background
       child: MaxWidthContainer(
         child: Column(
           children: [
-            _sectionHeader('LATEST UPDATES', 'News & Announcements'),
+            _sectionHeader(
+              'LATEST UPDATES',
+              'News, Events, and Announcements',
+              isDark: true,
+            ),
+            const SizedBox(height: 48),
+            _buildMonthFilterBar(context),
             const SizedBox(height: 64),
             FutureBuilder<List<Map<String, dynamic>>>(
-              future: Supabase.instance.client
-                  .from('announcements')
-                  .select()
-                  .eq('is_active', true)
-                  .order('created_at', ascending: false)
-                  .limit(4)
-                  .then((value) => List<Map<String, dynamic>>.from(value)),
+              future: _fetchFilteredAnnouncements(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
@@ -688,117 +907,222 @@ class _LandingPageState extends State<LandingPage> {
 
                 if (updates.isEmpty) {
                   return const Center(
-                    child: Text('No announcements yet. Check back soon!', style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16)),
+                    child: Text('No announcements yet. Check back soon!', 
+                        style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16)),
                   );
                 }
 
                 return Wrap(
-                  spacing: 32,
-                  runSpacing: 32,
+                  spacing: 40,
+                  runSpacing: 40,
                   alignment: WrapAlignment.center,
-                  children: updates.map((update) {
-                    final createdAt = DateTime.parse(update['created_at'].toString());
-                    final formattedDate = DateFormat('MMMM d, yyyy').format(createdAt);
-                    
-                    return Container(
-                      width: isMobile ? double.infinity : 500,
-                      decoration: BoxDecoration(
-                        color: AppTheme.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 30,
-                            offset: const Offset(0, 15),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [AppTheme.primaryRed, Color(0xFFC62828)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.campaign_rounded, color: AppTheme.white, size: 22),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    formattedDate.toUpperCase(),
-                                    style: const TextStyle(
-                                      color: AppTheme.white, 
-                                      fontWeight: FontWeight.w900, 
-                                      fontSize: 12,
-                                      letterSpacing: 2.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    update['title'].toString(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800, 
-                                      fontSize: 24, 
-                                      color: AppTheme.darkGrey,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Text(
-                                    update['content'].toString(),
-                                    style: TextStyle(
-                                      color: Colors.black87.withValues(alpha: 0.7), 
-                                      fontSize: 16, 
-                                      height: 1.7,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 32),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () {},
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: AppTheme.primaryRed,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'READ MORE',
-                                            style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Icon(Icons.arrow_forward_rounded, size: 18),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: updates.map((update) => _announcementCard(update, isMobile)).toList(),
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchFilteredAnnouncements() async {
+    // Basic query
+    dynamic finalQuery = Supabase.instance.client.from('announcements').select();
+    
+    // Always filter by is_active for landing page
+    finalQuery = finalQuery.eq('is_active', true);
+
+    if (_selectedMonth == null) {
+      // Show latest 12 active (with expiration check)
+      finalQuery = finalQuery
+          .or('expires_at.is.null,expires_at.gte.${DateTime.now().toUtc().toIso8601String()}')
+          .order('created_at', ascending: false)
+          .limit(12);
+    } else {
+      // Filter by specific month of the current year
+      final now = DateTime.now();
+      final year = now.year;
+      final startOfMonth = DateTime(year, _selectedMonth!, 1);
+      final endOfMonth = _selectedMonth == 12 
+          ? DateTime(year + 1, 1, 1) 
+          : DateTime(year, _selectedMonth! + 1, 1);
+
+      finalQuery = finalQuery
+          .gte('created_at', startOfMonth.toUtc().toIso8601String())
+          .lt('created_at', endOfMonth.toUtc().toIso8601String())
+          .or('expires_at.is.null,expires_at.gte.${DateTime.now().toUtc().toIso8601String()}')
+          .order('created_at', ascending: false);
+    }
+
+    final response = await finalQuery;
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Widget _buildMonthFilterBar(BuildContext context) {
+    final months = [
+      'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+      'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int?>(
+          value: _selectedMonth,
+          dropdownColor: const Color(0xFF0F0F0F),
+          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryRed),
+          items: [
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text(
+                'LATEST / ALL',
+                style: TextStyle(
+                  color: AppTheme.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+            ...List.generate(months.length, (index) {
+              return DropdownMenuItem<int?>(
+                value: index + 1,
+                child: Text(
+                  months[index],
+                  style: const TextStyle(
+                    color: AppTheme.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              );
+            }),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedMonth = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _announcementCard(Map<String, dynamic> update, bool isMobile) {
+    final createdAt = DateTime.parse(update['created_at'].toString());
+    final formattedDate = DateFormat('MMM dd, yyyy').format(createdAt);
+    
+    return Container(
+      width: isMobile ? double.infinity : 550,
+      decoration: BoxDecoration(
+        color: const Color(0xFF161616), // Dark card for dark mode
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Card Header with Date & Status
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 32),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF1A1A1A), Color(0xFF0F0F0F)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'ACTIVE',
+                      style: TextStyle(color: AppTheme.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    formattedDate.toUpperCase(),
+                    style: TextStyle(
+                      color: AppTheme.white.withValues(alpha: 0.5),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    update['title'].toString(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 28,
+                      color: AppTheme.white, // White text for dark mode
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    update['content'].toString(),
+                    style: TextStyle(
+                      color: AppTheme.white.withValues(alpha: 0.6), // Dimmed white for content
+                      fontSize: 17,
+                      height: 1.7,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 12,
+                        backgroundColor: AppTheme.primaryRed,
+                        child: Icon(Icons.person_rounded, size: 14, color: AppTheme.white),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'MANAGEMENT TEAM',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900, 
+                          fontSize: 11, 
+                          letterSpacing: 1.5, 
+                          color: AppTheme.primaryRed, // Red for better accent
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryRed.withValues(alpha: 0.5)),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -811,36 +1135,98 @@ class _LandingPageState extends State<LandingPage> {
     
     return Container(
       key: _hoursKey,
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 100, horizontal: 24),
-      color: const Color(0xFF1A1A1A), // Darker grey for better contrast
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 24,
+      ),
+      color: const Color(0xFF0F0F0F),
       child: MaxWidthContainer(
         child: Column(
           children: [
-            _sectionHeader('OPENING HOURS', 'Visit us during these times', isDark: true),
-            const SizedBox(height: 64),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3), width: 2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: _hourTile('MONDAY - SUNDAY', '10:00 AM - 8:00 PM'),
+            _sectionHeader(
+              'OPERATIONS',
+              'Join Us at Our Premier Location',
+              isDark: true,
             ),
-            const SizedBox(height: 64),
-            const Icon(Icons.location_on_rounded, color: AppTheme.primaryRed, size: 48),
-            const SizedBox(height: 20),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Text(
-                '@ CLA TOWN CENTER MALL\nGround floor near at mall entrance',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.white, 
-                  fontSize: isMobile ? 18 : 22, 
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
+            const SizedBox(height: 80),
+            Flex(
+              direction: isMobile ? Axis.vertical : Axis.horizontal,
+              children: [
+                // Hours Card
+                Expanded(
+                  flex: isMobile ? 0 : 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(60),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161616),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.access_time_filled_rounded, color: AppTheme.primaryRed, size: 40),
+                        const SizedBox(height: 32),
+                        const Text(
+                          'OPENING HOURS',
+                          style: TextStyle(
+                            color: AppTheme.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _hourTile('DAILY SERVICE', '10:00 AM - 8:00 PM'),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                SizedBox(width: isMobile ? 0 : 32, height: isMobile ? 32 : 0),
+                // Location Card
+                Expanded(
+                  flex: isMobile ? 0 : 1,
+                  child: Container(
+                    padding: const EdgeInsets.all(60),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF161616),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.location_on_rounded, color: AppTheme.primaryRed, size: 40),
+                        const SizedBox(height: 32),
+                        const Text(
+                          'RESTAURANT LOCATION',
+                          style: TextStyle(
+                            color: AppTheme.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          '@ CLA TOWN CENTER MALL',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppTheme.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Ground floor near mall entrance',
+                          style: TextStyle(
+                            color: AppTheme.white.withValues(alpha: 0.5),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -851,9 +1237,24 @@ class _LandingPageState extends State<LandingPage> {
   Widget _hourTile(String day, String time) {
     return Column(
       children: [
-        Text(day, style: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 2)),
-        const SizedBox(height: 12),
-        Text(time, style: const TextStyle(color: AppTheme.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(
+          time,
+          style: const TextStyle(
+            color: AppTheme.white,
+            fontSize: 48,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          day,
+          style: const TextStyle(
+            color: AppTheme.mediumGrey,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 2,
+          ),
+        ),
       ],
     );
   }
@@ -863,72 +1264,106 @@ class _LandingPageState extends State<LandingPage> {
     
     return Container(
       key: _contactKey,
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 100, horizontal: 24),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 24,
+      ),
+      color: const Color(0xFF0A0A0A), // Unified deep dark background
       child: MaxWidthContainer(
         child: Column(
           children: [
-            _sectionHeader('CONTACT US', 'Get in touch with us'),
-            const SizedBox(height: 64),
+            _sectionHeader(
+              'GET IN TOUCH',
+              'We are Here to Attend to Your Every Need',
+              isDark: true,
+            ),
+            const SizedBox(height: 80),
             Wrap(
-              spacing: 48,
-              runSpacing: 48,
+              spacing: 32,
+              runSpacing: 32,
               alignment: WrapAlignment.center,
               children: [
-                _contactInfo(Icons.phone_rounded, 'CONTACT', 'TEL# 501-9179'),
-                _contactInfo(Icons.phone_android_rounded, 'MOBILE', '+63 975-041-9671'),
+                _contactInfo(
+                  Icons.phone_rounded, 
+                  'RESERVATIONS', 
+                  'TEL# 501-9179',
+                  desc: 'Call us to book your table in advance.',
+                ),
+                _contactInfo(
+                  Icons.phone_android_rounded, 
+                  'MOBILE INQUIRY', 
+                  '+63 975-041-9671',
+                  desc: 'Direct line for quick coordination.',
+                ),
                 _contactInfo(
                   Icons.language_rounded, 
-                  'SOCIAL', 
+                  'FOLLOW US', 
                   '@yangchowpagsanjan',
+                  desc: 'Stay updated with our latest offers.',
                   onTap: () => _launchURL('https://www.facebook.com/share/1CMrFYRReb'),
                 ),
               ],
             ),
-            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _contactInfo(IconData icon, String label, String value, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: AppTheme.primaryRed, size: 32),
+  Widget _contactInfo(IconData icon, String label, String value, {required String desc, VoidCallback? onTap}) {
+    return Container(
+      width: 350,
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryRed.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 16),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-                fontSize: 12,
-                color: AppTheme.mediumGrey,
-              ),
+            child: Icon(icon, color: AppTheme.primaryRed, size: 32),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+              fontSize: 12,
+              color: AppTheme.primaryRed,
             ),
-            const SizedBox(height: 8),
-            Text(
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: onTap,
+            child: Text(
               value,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: onTap != null ? AppTheme.primaryRed : AppTheme.darkGrey,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: AppTheme.white,
                 decoration: onTap != null ? TextDecoration.underline : null,
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            desc,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.white.withValues(alpha: 0.5),
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -937,46 +1372,117 @@ class _LandingPageState extends State<LandingPage> {
     final isMobile = ResponsiveUtils.isMobile(context);
     
     return Container(
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 60 : 80, horizontal: 40),
-      color: Colors.black,
-      child: Column(
-        children: [
-          Text(
-            'YANG CHOW RESTAURANT', 
-            style: TextStyle(
-              color: AppTheme.white, 
-              fontWeight: FontWeight.w900, 
-              fontSize: 20, 
-              letterSpacing: isMobile ? 4 : 8
-            )
-          ),
-          const SizedBox(height: 32),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: const Divider(color: Colors.white12, thickness: 1),
-          ),
-          const SizedBox(height: 32),
-          Text(
-            '© 2024 Yang Chow Restaurant Management System. All rights reserved.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.white.withValues(alpha: 0.5), 
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Designed with excellence for the heart of Pagsanjan, Laguna.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.white.withValues(alpha: 0.3), 
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 80 : 120,
+        horizontal: 40,
       ),
+      color: const Color(0xFF0A0A0A), // Deep black footer
+      child: MaxWidthContainer(
+        child: Column(
+          children: [
+            Flex(
+              direction: isMobile ? Axis.vertical : Axis.horizontal,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Column 1: Brand
+                Expanded(
+                  flex: isMobile ? 0 : 4,
+                  child: Column(
+                    crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(color: AppTheme.white, shape: BoxShape.circle),
+                            child: Image.asset('assets/images/logo.jpg', height: 40),
+                          ),
+                          const SizedBox(width: 20),
+                          const Text(
+                            'YANG CHOW',
+                            style: TextStyle(color: AppTheme.white, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: 4),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'Elevating the culinary landscape of Pagsanjan with authentic flavors and executive-tier hospitality. Join us for a journey of taste that defines excellence.',
+                        style: TextStyle(color: AppTheme.white.withValues(alpha: 0.4), height: 1.8, fontSize: 15),
+                        textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isMobile) const Spacer(flex: 1),
+                // Column 2: Quick Links
+                if (!isMobile)
+                  Expanded(
+                    flex: 2,
+                    child: _footerColumn('NAVIGATION', [
+                      'Home',
+                      'About Heritage',
+                      'Latest Updates',
+                      'Elite Services',
+                      'Contact Us',
+                    ]),
+                  ),
+                // Column 3: Contact Details
+                Expanded(
+                  flex: isMobile ? 0 : 3,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: isMobile ? 64 : 0),
+                    child: _footerColumn('INQUIRIES', [
+                      'TEL# 501-9179',
+                      '+63 975-041-9671',
+                      'yangchowpags@gmail.com',
+                      'CLA Town Center, Pagsanjan',
+                    ], isMobile: isMobile),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 80),
+            Divider(color: Colors.white.withValues(alpha: 0.05)),
+            const SizedBox(height: 48),
+            Flex(
+              direction: isMobile ? Axis.vertical : Axis.horizontal,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '© 2024 YANG CHOW RESTAURANT. ALL RIGHTS RESERVED.',
+                  style: TextStyle(color: AppTheme.white.withValues(alpha: 0.2), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                ),
+                if (isMobile) const SizedBox(height: 16),
+                Text(
+                  'DESIGNED FOR PARAMOUNT EXCELLENCE',
+                  style: TextStyle(color: AppTheme.white.withValues(alpha: 0.1), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _footerColumn(String title, List<String> items, {bool isMobile = false}) {
+    return Column(
+      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(color: AppTheme.white, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
+        ),
+        const SizedBox(height: 32),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Text(
+            item,
+            style: TextStyle(color: AppTheme.white.withValues(alpha: 0.4), fontSize: 14, fontWeight: FontWeight.w300),
+          ),
+        )),
+      ],
     );
   }
 
@@ -985,27 +1491,30 @@ class _LandingPageState extends State<LandingPage> {
       children: [
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppTheme.primaryRed,
             fontWeight: FontWeight.w900,
             letterSpacing: 4,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: isDark ? AppTheme.white : AppTheme.darkGrey,
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
         const SizedBox(height: 16),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isDark ? AppTheme.white : AppTheme.darkGrey,
+            fontSize: 42,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
+            letterSpacing: -1,
+          ),
+        ),
+        const SizedBox(height: 32),
         Container(
-          width: 80,
-          height: 4,
-          color: AppTheme.primaryRed,
+          width: 40,
+          height: 1,
+          color: AppTheme.primaryRed.withValues(alpha: 0.5),
         ),
       ],
     );
