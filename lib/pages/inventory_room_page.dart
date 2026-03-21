@@ -15,7 +15,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
-  String _selectedCategory = 'All';
+  String _selectedStorageRoom = 'All';
+
+  static const List<String> storageRooms = [
+    'All',
+    'Freezer',
+    'Chiller',
+    'Dry Storage',
+    'Cleaning Storage',
+  ];
 
   static const List<String> categories = [
     'All',
@@ -49,10 +57,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String? selectedUnit;
     String? selectedSupplier;
     final qtyCtrl = TextEditingController();
+    final receiverCtrl = TextEditingController();
 
     List<Map<String, dynamic>> allItems = [];
     List<String> filteredItemNames = [];
-    List<String> supplierOptions = [];
 
     showDialog(
       context: context,
@@ -150,6 +158,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       .where((name) => name.isNotEmpty)
                                       .toList();
                                   selectedItemName = null;
+                                  selectedUnit = null;
+                                  selectedSupplier = null;
                                 });
                               }
                             },
@@ -183,20 +193,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           )
                                           .where((name) => name.isNotEmpty)
                                           .toList();
-
-                                      // Extract unique suppliers from inventory items
-                                      final Set<String> uniqueSuppliers = {};
-                                      for (var item in allItems) {
-                                        final supplier = item['supplier']
-                                            ?.toString()
-                                            .trim();
-                                        if (supplier != null &&
-                                            supplier.isNotEmpty) {
-                                          uniqueSuppliers.add(supplier);
-                                        }
-                                      }
-                                      supplierOptions = uniqueSuppliers.toList()
-                                        ..sort();
                                     });
                                   });
                                 }
@@ -246,6 +242,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                           } else {
                                             selectedUnit = null;
                                           }
+
+                                          final dbSupplier = match['supplier']
+                                              ?.toString()
+                                              .trim();
+                                          if (dbSupplier != null &&
+                                              dbSupplier.isNotEmpty) {
+                                            selectedSupplier = dbSupplier;
+                                          } else {
+                                            selectedSupplier = null;
+                                          }
                                         });
                                       },
                               );
@@ -269,7 +275,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       oldValue,
                                       newValue,
                                     ) {
-                                      if (newValue.text.isEmpty) { return newValue; }
+                                      if (newValue.text.isEmpty) {
+                                        return newValue;
+                                      }
                                       if (newValue.text.startsWith('0')) {
                                         final stripped = newValue.text
                                             .replaceFirst(RegExp(r'^0+'), '');
@@ -312,29 +320,54 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── 5. Supplier Dropdown ──
-                          DropdownButtonFormField<String>(
-                            initialValue: selectedSupplier,
+                          // ── 5. Supplier — auto-filled from DB, read-only ──
+                          InputDecorator(
                             decoration: _buildDecoration(
                               'Supplier',
                               Icons.business_outlined,
                             ),
-                            hint: const Text(
-                              'Select supplier',
-                              style: TextStyle(color: AppTheme.mediumGrey),
+                            child: Text(
+                              selectedSupplier ?? '—',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: selectedSupplier != null
+                                    ? AppTheme.darkGrey
+                                    : AppTheme.mediumGrey,
+                                fontWeight: selectedSupplier != null
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
                             ),
-                            items: supplierOptions
-                                .map(
-                                  (supplier) => DropdownMenuItem(
-                                    value: supplier,
-                                    child: Text(supplier),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 6. Receiver ──
+                          _buildInput(
+                            receiverCtrl,
+                            'Receiver',
+                            Icons.person_outline,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── 7. Date and Time (Real-Time) ──
+                          StreamBuilder(
+                            stream: Stream.periodic(const Duration(seconds: 1)),
+                            builder: (context, snapshot) {
+                              final now = DateTime.now();
+                              return InputDecorator(
+                                decoration: _buildDecoration(
+                                  'Date and Time',
+                                  Icons.access_time,
+                                ),
+                                child: Text(
+                                  _formatExactDate(now.toIso8601String()),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: AppTheme.darkGrey,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setDialogState(() {
-                                selectedSupplier = value;
-                              });
+                                ),
+                              );
                             },
                           ),
                           const SizedBox(height: 20),
@@ -391,6 +424,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               selectedItemName!.isEmpty ||
                               selectedUnit == null ||
                               selectedSupplier == null ||
+                              receiverCtrl.text.trim().isEmpty ||
                               qty == null ||
                               qty <= 0) {
                             _showErrorSnackBar(
@@ -405,6 +439,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             qty,
                             selectedUnit!,
                             selectedSupplier!,
+                            receiverCtrl.text.trim(),
                           );
 
                           if (context.mounted) Navigator.pop(context);
@@ -654,7 +689,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       oldValue,
                                       newValue,
                                     ) {
-                                      if (newValue.text.isEmpty) { return newValue; }
+                                      if (newValue.text.isEmpty) {
+                                        return newValue;
+                                      }
 
                                       String newText = newValue.text;
                                       if (newText.startsWith('0') &&
@@ -743,10 +780,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.warningOrange.withValues(alpha: 0.1),
+                              color: AppTheme.warningOrange.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.warningOrange.withValues(alpha: 0.3),
+                                color: AppTheme.warningOrange.withValues(
+                                  alpha: 0.3,
+                                ),
                               ),
                             ),
                             child: const Row(
@@ -862,6 +903,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     int quantity,
     String unit,
     String supplier,
+    String receiver,
   ) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -897,7 +939,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         'quantity': quantity,
         'unit': unit,
         'supplier': supplier,
-        'processed_by': user?.email,
+        'processed_by': receiver,
         'created_at': DateTime.now().toIso8601String(),
       });
 
@@ -1045,6 +1087,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             ],
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 onChanged: (value) => setState(() => _searchQuery = value),
@@ -1079,18 +1122,20 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: categories.map((category) {
-                    final isSelected = _selectedCategory == category;
+                  children: storageRooms.map((room) {
+                    final isSelected = _selectedStorageRoom == room;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(category),
+                        label: Text(room),
                         selected: isSelected,
                         onSelected: (selected) {
-                          setState(() => _selectedCategory = category);
+                          setState(() => _selectedStorageRoom = room);
                         },
                         backgroundColor: AppTheme.white,
-                        selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
+                        selectedColor: AppTheme.primaryRed.withValues(
+                          alpha: 0.2,
+                        ),
                         checkmarkColor: AppTheme.primaryRed,
                         labelStyle: TextStyle(
                           color: isSelected
@@ -1140,16 +1185,16 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               final items = snapshot.data ?? [];
               final filteredItems = items.where((item) {
                 final name = (item['name'] ?? '').toString().toLowerCase();
-                final category = (item['category'] ?? '')
+                final storageRoom = (item['storage_room'] ?? '')
                     .toString()
                     .toLowerCase();
                 final query = _searchQuery.toLowerCase();
                 final matchesSearch =
-                    name.contains(query) || category.contains(query);
-                final matchesCategory =
-                    _selectedCategory == 'All' ||
-                    item['category']?.toString() == _selectedCategory;
-                return matchesSearch && matchesCategory;
+                    name.contains(query) || storageRoom.contains(query);
+                final matchesStorageRoom =
+                    _selectedStorageRoom == 'All' ||
+                    item['storage_room']?.toString() == _selectedStorageRoom;
+                return matchesSearch && matchesStorageRoom;
               }).toList();
 
               if (filteredItems.isEmpty) {
@@ -1255,7 +1300,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              item['category'] ?? 'Uncategorized',
+                              item['storage_room'] ?? 'Unassigned Room',
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: AppTheme.mediumGrey,
@@ -1468,7 +1513,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.successGreen.withValues(alpha: 0.1),
+                                color: AppTheme.successGreen.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -1503,7 +1550,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               ),
                             ),
                             Text(
-                              _formatDate(transaction['created_at']),
+                              _formatExactDate(transaction['created_at']),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.mediumGrey,
@@ -1542,7 +1589,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Processed by: ${transaction['processed_by']}',
+                                'Receiver: ${transaction['processed_by']}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.mediumGrey,
@@ -1716,7 +1763,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.warningOrange.withValues(alpha: 0.1),
+                                color: AppTheme.warningOrange.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
@@ -1850,6 +1899,21 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     if (quantity < 10) return Icons.warning_amber_rounded;
     if (quantity < 50) return Icons.inventory_2_rounded;
     return Icons.check_circle_rounded;
+  }
+
+  String _formatExactDate(String? dateString) {
+    if (dateString == null) return 'Unknown';
+    try {
+      final date = DateTime.parse(dateString).toLocal();
+      final hour = date.hour == 0
+          ? 12
+          : (date.hour > 12 ? date.hour - 12 : date.hour);
+      final minute = date.minute.toString().padLeft(2, '0');
+      final amPm = date.hour >= 12 ? 'PM' : 'AM';
+      return '${date.month}/${date.day}/${date.year} $hour:$minute $amPm';
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 
   String _formatDate(String? dateString) {

@@ -90,6 +90,11 @@ class _InventoryPageState extends State<InventoryPage> {
         ? null
         : item?['unit']?.toString();
 
+    String? selectedStorageRoom =
+        (item?['storage_room'] ?? '').toString().isEmpty
+        ? null
+        : item?['storage_room']?.toString();
+
     // Filter categories (exclude 'All')
     final filteredCategories = categories.where((cat) => cat != 'All').toList();
 
@@ -104,6 +109,19 @@ class _InventoryPageState extends State<InventoryPage> {
     final unitList = selectedUnit != null && !unitOptions.contains(selectedUnit)
         ? [selectedUnit, ...unitOptions]
         : unitOptions;
+
+    final storageRoomOptions = [
+      'Freezer',
+      'Chiller',
+      'Dry Storage',
+      'Cleaning Storage',
+    ];
+
+    final storageRoomList =
+        selectedStorageRoom != null &&
+            !storageRoomOptions.contains(selectedStorageRoom)
+        ? [selectedStorageRoom, ...storageRoomOptions]
+        : storageRoomOptions;
 
     showDialog(
       context: context,
@@ -248,6 +266,35 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                           const SizedBox(height: 16),
 
+                          // Storage Room Dropdown
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedStorageRoom,
+                            decoration: _decoration(
+                              'Storage Room',
+                              Icons.kitchen_outlined,
+                            ),
+                            hint: const Text(
+                              'Select storage room',
+                              style: TextStyle(color: AppTheme.mediumGrey),
+                            ),
+                            items: storageRoomList
+                                .map(
+                                  (room) => DropdownMenuItem(
+                                    value: room,
+                                    child: Text(room),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setDialogState(
+                                  () => selectedStorageRoom = value,
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
                           // Supplier Input
                           _input(
                             supplierCtrl,
@@ -277,6 +324,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           if (nameCtrl.text.isEmpty ||
                               selectedCategory == null ||
                               selectedUnit == null ||
+                              selectedStorageRoom == null ||
                               (item == null && supplierCtrl.text.isEmpty) ||
                               qty == null ||
                               qty < 1) {
@@ -291,6 +339,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             'category': selectedCategory,
                             'quantity': qty,
                             'unit': selectedUnit,
+                            'storage_room': selectedStorageRoom,
                             if (supplierCtrl.text.trim().isNotEmpty)
                               'supplier': supplierCtrl.text.trim(),
                             'created_by': user?.email,
@@ -571,12 +620,12 @@ class _InventoryPageState extends State<InventoryPage> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: isSelected 
+          color: isSelected
               ? AppTheme.white.withValues(alpha: 0.4)
               : AppTheme.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: isSelected 
+            color: isSelected
                 ? AppTheme.white.withValues(alpha: 0.8)
                 : AppTheme.white.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
@@ -832,7 +881,9 @@ class _InventoryPageState extends State<InventoryPage> {
                               setState(() => _selectedCategory = category);
                             },
                             backgroundColor: AppTheme.white,
-                            selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
+                            selectedColor: AppTheme.primaryRed.withValues(
+                              alpha: 0.2,
+                            ),
                             checkmarkColor: AppTheme.primaryRed,
                             labelStyle: TextStyle(
                               color: isSelected
@@ -893,14 +944,17 @@ class _InventoryPageState extends State<InventoryPage> {
                     final matchesCategory =
                         _selectedCategory == 'All' ||
                         item['category']?.toString() == _selectedCategory;
-                    
+
                     // Stock status filtering
                     final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
                     final itemStockStatus = _getStockStatus(quantity);
-                    final matchesStockStatus = _selectedStockStatus == null ||
+                    final matchesStockStatus =
+                        _selectedStockStatus == null ||
                         itemStockStatus == _selectedStockStatus;
-                    
-                    return matchesSearch && matchesCategory && matchesStockStatus;
+
+                    return matchesSearch &&
+                        matchesCategory &&
+                        matchesStockStatus;
                   }).toList();
 
                   if (filteredItems.isEmpty) {
@@ -1131,10 +1185,14 @@ class _InventoryPageState extends State<InventoryPage> {
                                         vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: stockColor.withValues(alpha: 0.1),
+                                        color: stockColor.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: stockColor.withValues(alpha: 0.3),
+                                          color: stockColor.withValues(
+                                            alpha: 0.3,
+                                          ),
                                         ),
                                       ),
                                       child: Row(
