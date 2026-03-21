@@ -21,8 +21,15 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
   final _fmt = NumberFormat('#,##0.00', 'en_US');
 
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'Today', 'This Week'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   // ── Fetch orders with items joined ─────────────────────────────────────────
   Stream<List<Map<String, dynamic>>> _ordersStream() {
@@ -51,10 +58,13 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       }
 
       if (_searchQuery.isNotEmpty) {
-        final customer = (o['customer_name'] ?? '').toString().toLowerCase();
-        final id = (o['id'] ?? '').toString().toLowerCase();
-        final q = _searchQuery.toLowerCase();
-        if (!customer.contains(q) && !id.contains(q)) return false;
+        // Exact match on the order number (transaction_id or padded db id)
+        final tid = (o['transaction_id'] ?? '').toString();
+        final dbid = (o['id'] ?? '').toString();
+        final orderId = tid.isNotEmpty
+            ? tid
+            : (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
+        if (!orderId.contains(_searchQuery.trim())) return false;
       }
       return true;
     }).toList();
@@ -97,16 +107,21 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
-        onChanged: (v) => setState(() => _searchQuery = v),
+        controller: _searchController,
+        keyboardType: TextInputType.number,
+        onChanged: (v) => setState(() => _searchQuery = v.trim()),
         style: const TextStyle(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
-          hintText: 'Search by customer or order ID…',
+          hintText: 'Search by order number…',
           hintStyle: const TextStyle(color: _grey, fontSize: 13),
           prefixIcon: const Icon(Icons.search, color: _grey, size: 18),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, color: _grey, size: 18),
-                  onPressed: () => setState(() => _searchQuery = ''),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
                 )
               : null,
           filled: true,
@@ -265,7 +280,6 @@ class _OrderCardState extends State<_OrderCard> {
   Widget build(BuildContext context) {
     final o = widget.order;
     final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
-    final customer = (o['customer_name'] ?? 'Guest').toString();
     final tid = o['transaction_id']?.toString();
     final dbid = o['id']?.toString() ?? '';
     final orderId = tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
@@ -325,11 +339,6 @@ class _OrderCardState extends State<_OrderCard> {
                                 fontWeight: FontWeight.bold,
                                 color: _textDark,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              customer,
-                              style: const TextStyle(fontSize: 13, color: _grey),
                             ),
                           ],
                         ),

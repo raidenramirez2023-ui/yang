@@ -27,13 +27,11 @@ class OrderListPanel extends StatefulWidget {
 }
 
 class _OrderListPanelState extends State<OrderListPanel> {
-  final TextEditingController _customerNameController =
-      TextEditingController();
   final TextEditingController _noteController = TextEditingController();
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
-  static const _indigo = Color(0xFF4F46E5);
+  static const _indigo = Colors.red;
   static const _bg = Color(0xFFF5F6FA);
   static const _border = Color(0xFFE5E7EB);
   static const _grey = Color(0xFF6B7280);
@@ -41,7 +39,6 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   @override
   void dispose() {
-    _customerNameController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -67,8 +64,6 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 14),
-                  _buildCustomerRow(),
-                  const SizedBox(height: 10),
                   _buildNoteField(),
                   const SizedBox(height: 20),
                   _buildItemsHeader(),
@@ -83,15 +78,12 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     )
                   else
                     ...widget.cart.map(_buildCartItem),
-                  const SizedBox(height: 20),
-                  const Divider(color: _border, height: 1),
-                  const SizedBox(height: 16),
-                  _buildTotals(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
+          _buildTotalsSection(),
           _buildFooter(),
         ],
       ),
@@ -100,7 +92,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   Widget _buildHeader() {
     return Container(
-      height: 56,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -113,33 +105,6 @@ class _OrderListPanelState extends State<OrderListPanel> {
           color: _textDark,
           fontWeight: FontWeight.bold,
           fontSize: 18,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCustomerRow() {
-    return TextField(
-      controller: _customerNameController,
-      style: const TextStyle(fontSize: 13, color: _textDark),
-      decoration: InputDecoration(
-        hintText: "Customer's name",
-        hintStyle: const TextStyle(color: _grey, fontSize: 13),
-        filled: true,
-        fillColor: _bg,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _indigo, width: 1.5),
         ),
       ),
     );
@@ -293,30 +258,38 @@ class _OrderListPanelState extends State<OrderListPanel> {
     );
   }
 
-  Widget _buildTotals() {
+  Widget _buildTotalsSection() {
     final subtotal = _subtotal;
-    return Column(
-      children: [
-        _totalLine('Subtotal', '₱${_fmt.format(subtotal)}'),
-        const SizedBox(height: 8),
-        _totalLine('Tax (0%)', '₱0.00'),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Total',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: _textDark)),
-            Text('₱${_fmt.format(subtotal)}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: _indigo)),
-          ],
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _totalLine('Subtotal', '₱${_fmt.format(subtotal)}'),
+          const SizedBox(height: 8),
+          _totalLine('Tax (0%)', '₱0.00'),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: _textDark)),
+              Text('₱${_fmt.format(subtotal)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: _indigo)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -334,10 +307,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: _border)),
       ),
       child: Column(
         children: [
@@ -355,12 +327,12 @@ class _OrderListPanelState extends State<OrderListPanel> {
             child: ElevatedButton(
               onPressed: widget.cart.isNotEmpty
                   ? () => widget.onProceedPayment(
-                        _customerNameController.text.trim(),
+                        '',
                         _noteController.text.trim(),
                       )
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
+                backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
