@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -55,6 +56,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   final TextEditingController _durationController = TextEditingController();
 
   final TextEditingController _guestsController = TextEditingController();
+  
+  // New state variables for form improvements
+  String? _selectedEventType;
+  String? _selectedBaseDuration;
+  bool _addExtraTime = false;
+  String? _selectedExtraTime;
+
+  final List<String> _eventTypes = ['Birthday Party', 'Wedding', 'Meeting'];
+  final List<String> _baseDurations = ['2 hours', '3 hours'];
+  final List<String> _extraTimeOptions = [
+    '30 minutes',
+    '1 hour',
+    '1 hour 30 minutes',
+    '2 hours'
+  ];
 
 
 
@@ -147,21 +163,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       backgroundColor: Colors.white,
 
       appBar: isDesktop 
-
           ? AppBar(
-
               automaticallyImplyLeading: false,
-
               title: const Text('Customer Dashboard'),
-
               backgroundColor: AppTheme.primaryRed,
-
               foregroundColor: Colors.white,
-
             )
-
           : null,
-
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
 
     );
@@ -1760,24 +1768,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
-                      controller: _eventController,
-
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedEventType,
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., Birthday Party, Wedding, Meeting',
-
+                        hintText: 'Select event type',
                         prefixIcon: const Icon(Icons.event),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
+                      items: _eventTypes.map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedEventType = value;
+                          _eventController.text = value ?? '';
+                        });
+                      },
                     ),
 
                     const SizedBox(height: 16),
@@ -1797,51 +1806,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     const SizedBox(height: 8),
 
                     TextField(
-
                       controller: _dateController,
-
                       readOnly: true,
-
                       decoration: InputDecoration(
-
-                        hintText: 'Select date',
-
+                        hintText: 'Select date (at least 4 days advance)',
                         prefixIcon: const Icon(Icons.calendar_today),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                       onTap: () async {
-
+                        final minDate = DateTime.now().add(const Duration(days: 4));
                         DateTime? pickedDate = await showDatePicker(
-
                           context: context,
-
-                          initialDate: DateTime.now(),
-
-                          firstDate: DateTime.now(),
-
+                          initialDate: minDate,
+                          firstDate: minDate,
                           lastDate: DateTime.now().add(const Duration(days: 365)),
-
                         );
-
                         if (pickedDate != null) {
-
                           setState(() {
-
                             _dateController.text = "${pickedDate.month}/${pickedDate.day}/${pickedDate.year}";
-
                           });
-
                         }
-
                       },
-
                     ),
 
                     const SizedBox(height: 16),
@@ -1860,48 +1847,39 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
+                    TextField( // Reverted to TextField to match other fields
                       controller: _startTimeController,
-
                       readOnly: true,
-
                       decoration: InputDecoration(
-
-                        hintText: 'Select time',
-
+                        hintText: 'Select time (10 AM - 4 PM)',
                         prefixIcon: const Icon(Icons.access_time),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                       onTap: () async {
-
                         TimeOfDay? pickedTime = await showTimePicker(
-
                           context: context,
-
-                          initialTime: TimeOfDay.now(),
-
+                          initialTime: const TimeOfDay(hour: 10, minute: 0),
                         );
-
                         if (pickedTime != null) {
-
+                          // Validation: 10:00 AM to 4:00 PM (16:00)
+                          if (pickedTime.hour < 10 || pickedTime.hour > 16 || (pickedTime.hour == 16 && pickedTime.minute > 0)) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please select a time between 10:00 AM and 4:00 PM'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           setState(() {
-
                             _startTimeController.text = pickedTime.format(context);
-
                           });
-
                         }
-
                       },
-
                     ),
 
                     const SizedBox(height: 16),
@@ -1920,27 +1898,64 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
-                      controller: _durationController,
-
-                      keyboardType: TextInputType.number,
-
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedBaseDuration,
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., 2, 3, 4',
-
+                        hintText: 'Select base duration',
                         prefixIcon: const Icon(Icons.hourglass_empty),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
+                      items: _baseDurations.map((duration) => DropdownMenuItem(
+                        value: duration,
+                        child: Text(duration),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedBaseDuration = value;
+                          _updateDurationText();
+                        });
+                      },
                     ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      title: const Text('Add extra time?', style: TextStyle(fontSize: 14)),
+                      value: _addExtraTime,
+                      activeColor: AppTheme.primaryRed,
+                      onChanged: (value) {
+                        setState(() {
+                          _addExtraTime = value ?? false;
+                          if (!_addExtraTime) _selectedExtraTime = null;
+                          _updateDurationText();
+                        });
+                      },
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    if (_addExtraTime) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedExtraTime,
+                        decoration: InputDecoration(
+                          hintText: 'Select extra time',
+                          prefixIcon: const Icon(Icons.add_alarm),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
+                        ),
+                        items: _extraTimeOptions.map((extra) => DropdownMenuItem(
+                          value: extra,
+                          child: Text(extra),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedExtraTime = value;
+                            _updateDurationText();
+                          });
+                        },
+                      ),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -1959,25 +1974,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     const SizedBox(height: 8),
 
                     TextField(
-
                       controller: _guestsController,
-
                       keyboardType: TextInputType.number,
-
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., 10, 25, 50',
-
+                        hintText: 'Enter number of guests (10-500)',
                         prefixIcon: const Icon(Icons.people),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                     ),
 
                     const SizedBox(height: 24),
@@ -2223,20 +2229,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                   title: 'Personal Information',
 
                   subtitle: 'Name, email, phone',
-
-                  onTap: () {},
-
-                ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.settings_outlined,
-
-                  title: 'Settings',
-
-                  subtitle: 'Notifications, privacy',
 
                   onTap: () {},
 
@@ -2956,50 +2948,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   void _submitReservation() async {
 
-    String event = _eventController.text.trim();
-
     String date = _dateController.text.trim();
-
     String startTime = _startTimeController.text.trim();
-
-    String duration = _durationController.text.trim();
-
     String guests = _guestsController.text.trim();
-
-
-
+    
     // Validation
-
-    if (event.isEmpty || date.isEmpty || startTime.isEmpty || duration.isEmpty || guests.isEmpty) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(
-
-          content: const Row(
-
-            children: [
-
-              Icon(Icons.error_outline, color: Colors.white),
-
-              SizedBox(width: 12),
-
-              Text('Please fill in all fields'),
-
-            ],
-
-          ),
-
-          backgroundColor: Colors.red,
-
-          behavior: SnackBarBehavior.floating,
-
-        ),
-
-      );
-
+    if (_selectedEventType == null) {
+      _showSnackBar('Please select an event type', Colors.red);
       return;
+    }
+    if (date.isEmpty) {
+      _showSnackBar('Please select a date', Colors.red);
+      return;
+    }
+    if (startTime.isEmpty) {
+      _showSnackBar('Please select a start time', Colors.red);
+      return;
+    }
+    if (_selectedBaseDuration == null) {
+      _showSnackBar('Please select a base duration', Colors.red);
+      return;
+    }
+    if (guests.isEmpty) {
+      _showSnackBar('Please enter the number of guests', Colors.red);
+      return;
+    }
 
+    int guestCount = int.tryParse(guests) ?? 0;
+    if (guestCount < 10 || guestCount > 500) {
+      _showSnackBar('Number of guests must be between 10 and 500', Colors.red);
+      return;
+    }
+
+    double totalDuration = double.tryParse(_durationController.text) ?? 0.0;
+    if (totalDuration == 0) {
+      _showSnackBar('Invalid duration selected', Colors.red);
+      return;
     }
 
 
@@ -3063,21 +3047,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
       // Create reservation WITHOUT payment first (pending confirmation)
-
       await _createReservationWithoutPayment(
-
         currentUser,
-
-        event,
-
+        _selectedEventType!,
         formattedDate,
-
         startTime,
-
-        int.parse(duration.replaceAll(RegExp(r'[^0-9]'), '')),
-
-        int.parse(guests.replaceAll(RegExp(r'[^0-9]'), '')),
-
+        totalDuration,
+        guestCount,
       );
 
 
@@ -3121,19 +3097,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Future<void> _createReservationWithoutPayment(
-
     User currentUser,
-
     String event,
-
     String formattedDate,
-
     String startTime,
-
-    int duration,
-
+    num duration,
     int guests,
-
   ) async {
 
     try {
@@ -3207,16 +3176,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
       // Clear form
-
       _eventController.clear();
-
       _dateController.clear();
-
       _startTimeController.clear();
-
       _durationController.clear();
-
       _guestsController.clear();
+      
+      setState(() {
+        _selectedEventType = null;
+        _selectedBaseDuration = null;
+        _addExtraTime = false;
+        _selectedExtraTime = null;
+      });
 
 
 
@@ -3368,10 +3339,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-    if (shouldProceed == true) {
-
+    if (shouldProceed == true && mounted) {
       // Navigate to payment page
-
       await Navigator.of(context).push(
 
         MaterialPageRoute(
@@ -3515,6 +3484,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
 
+
+  void _updateDurationText() {
+    if (_selectedBaseDuration == null) {
+      _durationController.text = '';
+      return;
+    }
+    double total = double.parse(_selectedBaseDuration!.split(' ')[0]);
+    if (_addExtraTime && _selectedExtraTime != null) {
+      if (_selectedExtraTime == '30 minutes') {
+        total += 0.5;
+      } else {
+        total += double.parse(_selectedExtraTime!.split(' ')[0]);
+      }
+    }
+    _durationController.text = total.toString();
+  }
 
   void _showLogoutDialog() {
 

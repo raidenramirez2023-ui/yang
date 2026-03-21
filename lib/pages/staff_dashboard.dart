@@ -11,10 +11,12 @@ class StaffDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         toolbarHeight: 50,
         automaticallyImplyLeading: false,
         title: Row(
