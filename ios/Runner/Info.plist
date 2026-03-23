@@ -53,6 +53,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>yangchow</string>
+				<string>io.supabase.flutter</string>
 			</array>
 		</dict>
 	</array>

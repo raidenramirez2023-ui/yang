@@ -48,11 +48,32 @@ class _LoginPageState extends State<LoginPage> {
     _checkInitialSession();
     _loadStoredCredentials();
     
-    // Listen for auth state changes for real-time redirects after Google Sign in
+    // Listen for auth state changes for real-time redirects after OAuth login.
+    //
+    // On mobile  → Supabase fires [AuthChangeEvent.signedIn] after deep-link.
+    // On web     → Supabase fires [AuthChangeEvent.initialSession] after the
+    //              page reloads from the Facebook/Google OAuth redirect.
+    //
+    // We only act on OAuth sessions (provider != 'email') so that regular
+    // email/password logins are handled exclusively by [handleLogin()].
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      if (data.event == AuthChangeEvent.signedIn && data.session != null) {
-        debugPrint('OAuth: Signed in event detected on login page.');
-        _handleOAuthSuccess(data.session!);
+      final session = data.session;
+      if (session == null) return;
+
+      final isOAuthEvent =
+          data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.initialSession;
+
+      // Distinguish OAuth logins from email/password logins.
+      final provider =
+          session.user.appMetadata['provider']?.toString() ?? 'email';
+      final isOAuthProvider = provider != 'email';
+
+      if (isOAuthEvent && isOAuthProvider) {
+        debugPrint(
+          'OAuth: ${data.event} detected — provider: $provider',
+        );
+        _handleOAuthSuccess(session);
       }
     });
   }
@@ -76,69 +97,19 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _checkInitialSession() async {
-
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session != null && session.user.email != null) {
-
-      final email = session.user.email!;
-
-      debugPrint('Login: Existing session found for $email');
-
-      
-
-      try {
-
-        final userResponse = await Supabase.instance.client
-
-            .from('users')
-
-            .select('role')
-
-            .eq('email', email)
-
-            .maybeSingle();
-
-
-
-        if (mounted) {
-
-          if (userResponse == null) {
-
-            // New user (likely from Google) is treated as customer
-
-            Navigator.pushReplacementNamed(context, '/customer-dashboard');
-
-          } else {
-
-            String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
-
-            _redirectByUserRole(email, userRole);
-
-          }
-
-        }
-
-        return; // Success, don't clear loader yet (navigation will happen)
-
-      } catch (e) {
-
-        debugPrint('Login: Redirect error: $e');
-
-      }
-
+      debugPrint('Login: Initial session found for ${session.user.email}');
+      // Delegate to the common success handler to ensure database sync and correct redirect
+      _handleOAuthSuccess(session);
+      return;
     }
 
-    
-
-    // No session or error occurred, show login form
-
+    // No session found, show login form
     if (mounted) {
-
       setState(() => _isSessionChecking = false);
-
     }
-
   }
 
 
@@ -503,59 +474,182 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Triggers Facebook OAuth login via Supabase.
+  /// - On web: redirects to the current origin so the browser handles the callback.
+  /// - On mobile: uses the Android/iOS deep-link scheme so the app is re-opened.
+  /// After login, the [onAuthStateChange] listener fires → [_handleOAuthSuccess].
+  Future<void> signInWithFacebook() async {
+    if (_isLoading) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      if (kIsWeb) {
+        // Web: sign out any stale session first, then redirect in the same tab.
+        // Supabase will redirect back to the current origin after Facebook login.
+        await supabase.auth.signOut();
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.facebook,
+          redirectTo: Uri.base.origin,
+        );
+      } else {
+        // Mobile (Android / iOS): use the custom deep-link scheme registered
+        // in AndroidManifest.xml (and Info.plist on iOS) so that Facebook can
+        // redirect back into the app after a successful login.
+        //   • Supabase Dashboard → Auth → URL Configuration → Redirect URLs
+        //     must also include: io.supabase.flutter://login-callback/
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.facebook,
+          redirectTo: 'io.supabase.flutter://login-callback/',
+        );
+      }
+
+      // At this point the browser / in-app WebView has been launched.
+      // Session detection + navigation is handled by the
+      // onAuthStateChange listener in initState → _handleOAuthSuccess().
+    } on AuthException catch (e) {
+      debugPrint('Facebook Sign-In AuthException: ${e.message}');
+      if (mounted) {
+        final message = switch (e.message.toLowerCase()) {
+          String m when m.contains('cancelled') || m.contains('canceled') =>
+            'Facebook sign-in was cancelled.',
+          String m when m.contains('network') =>
+            'Network error. Please check your connection and try again.',
+          _ => 'Facebook sign-in failed: ${e.message}',
+        };
+        _showSnackBar(message, Colors.red.shade700, Icons.error_outline);
+      }
+    } catch (e) {
+      debugPrint('Facebook Sign-In error: $e');
+      if (mounted) {
+        // Handle user-cancelled flow (plugin throws PlatformException on cancel)
+        final errorStr = e.toString().toLowerCase();
+        if (errorStr.contains('cancel') || errorStr.contains('user_cancelled')) {
+          _showSnackBar(
+            'Facebook sign-in was cancelled.',
+            Colors.orange.shade700,
+            Icons.cancel_outlined,
+          );
+        } else if (errorStr.contains('network') || errorStr.contains('socket')) {
+          _showSnackBar(
+            'Network error. Please check your connection.',
+            Colors.red.shade700,
+            Icons.wifi_off_outlined,
+          );
+        } else {
+          _showSnackBar(
+            'An unexpected error occurred. Please try again.',
+            Colors.red.shade700,
+            Icons.error_outline,
+          );
+        }
+      }
+    } finally {
+      // Only reset loading if we are NOT about to redirect.
+      if (mounted && !_isRedirecting) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _handleOAuthSuccess(Session session) async {
-    if (_isRedirecting) return;
-    
+    if (_isRedirecting) {
+      debugPrint('OAuth: Already redirecting, skipping...');
+      return;
+    }
+
     final email = session.user.email;
-    if (email == null) return;
+    if (email == null) {
+      debugPrint('OAuth: No email found in session.');
+      _showSnackBar("OAuth Error: No email found in your Facebook account.", Colors.red.shade700, Icons.error_outline);
+      return;
+    }
 
     _isRedirecting = true;
     if (mounted) {
-      setState(() => _isSessionChecking = true); // show loading overlay
+      setState(() {
+        _isSessionChecking = true;
+        _isLoading = true;
+      });
+      _showSnackBar(
+        "Facebook Sync: $email",
+        Colors.blue.shade700,
+        Icons.sync,
+      );
     }
+
     try {
+      debugPrint('OAuth: Syncing $email with database...');
       // Check if user exists in the users table
       final userResponse = await Supabase.instance.client
           .from('users')
-          .select('role')
+          .select('role, avatar_url')
           .eq('email', email)
           .maybeSingle();
 
+      debugPrint('OAuth: Database response: $userResponse');
+
       final metadata = session.user.userMetadata ?? {};
-      final name = metadata['full_name']?.toString() ?? metadata['name']?.toString() ?? 'Customer';
+      final name = metadata['full_name']?.toString() ??
+          metadata['name']?.toString() ??
+          'Customer';
+      final avatarUrl = metadata['avatar_url']?.toString() ?? 
+                       metadata['picture']?.toString();
 
       if (userResponse == null) {
+        debugPrint('OAuth: Registering new user: $name ($email)');
+        _showSnackBar("New account detected, registering...", Colors.blue.shade700, Icons.person_add);
+        
         // Create new user with 'customer' role
         await Supabase.instance.client.from('users').insert({
           'email': email,
           'role': 'customer',
           'name': name,
+          'avatar_url': avatarUrl,
         });
-        
+
+        debugPrint('OAuth: Successfully registered. Navigating...');
         if (mounted) {
+          _showSnackBar(
+            "Welcome to Yang Chow!",
+            Colors.green.shade700,
+            Icons.check_circle_outline,
+          );
           Navigator.pushReplacementNamed(context, '/customer-dashboard');
         }
       } else {
-        // Check if existing user is NOT a customer
-        String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
-        if (userRole != 'customer') {
-          // If they have an existing non-customer account we log them in, 
-          // but we can redirect them to the correct dashboard via _redirectByUserRole
-          if (mounted) {
-             _redirectByUserRole(email, userRole);
-          }
-          return;
-        } else {
-           if (mounted) {
-             Navigator.pushReplacementNamed(context, '/customer-dashboard');
-           }
+        // Update existing user if avatar_url changed or is missing
+        if (avatarUrl != null && userResponse['avatar_url'] != avatarUrl) {
+          await Supabase.instance.client
+              .from('users')
+              .update({'avatar_url': avatarUrl, 'name': name})
+              .eq('email', email);
+        }
+
+        String userRole =
+            userResponse['role']?.toString().toLowerCase() ?? 'customer';
+        debugPrint('OAuth: Existing user found with role: $userRole');
+        
+        if (mounted) {
+          _showSnackBar("Redirecting to your dashboard...", Colors.blue.shade700, Icons.arrow_forward);
+          _redirectByUserRole(email, userRole);
         }
       }
     } catch (e) {
-      debugPrint('Error in _handleOAuthSuccess: $e');
+      debugPrint('OAuth Error: $e');
       if (mounted) {
-        setState(() => _isSessionChecking = false);
-        _isRedirecting = false;
+        setState(() {
+          _isSessionChecking = false;
+          _isLoading = false;
+          _isRedirecting = false;
+        });
+        _showSnackBar(
+          "Facebook Auth Error: $e",
+          Colors.red.shade700,
+          Icons.error_outline,
+        );
       }
     }
   }
@@ -867,54 +961,28 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 16),
 
-        // Remember me & Forgot Password
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: Checkbox(
-                    value: _rememberMe,
-                    onChanged: (value) {
-                      setState(() {
-                        _rememberMe = value ?? false;
-                      });
-                    },
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                    activeColor: const Color(0xFFE81E0D),
-                    checkColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFE81E0D)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Remember me',
-                  style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ],
+        const SizedBox(height: 16),
+        // Forgot Password
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _isLoading ? null : () {
+              Navigator.pushNamed(context, '/forgot-password');
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            TextButton(
-              onPressed: _isLoading ? null : () {
-                Navigator.pushNamed(context, '/forgot-password');
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Forgot Password?',
-                style: TextStyle(
-                  color: Color(0xFFE81E0D),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            child: const Text(
+              'Forgot Password?',
+              style: TextStyle(
+                color: Color(0xFFE81E0D),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 32),
 
@@ -985,11 +1053,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(width: 16),
             _buildSocialIcon(
-              child: const Icon(Icons.apple, size: 24, color: Colors.black),
-            ),
-            const SizedBox(width: 16),
-            _buildSocialIcon(
               child: Icon(Icons.facebook, size: 24, color: Colors.blue.shade700),
+              onTap: _isLoading ? null : signInWithFacebook,
             ),
           ],
         ),

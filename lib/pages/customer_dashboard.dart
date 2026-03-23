@@ -15,6 +15,8 @@ import 'package:yang_chow/pages/login_page.dart';
 
 import 'package:yang_chow/pages/payment_page.dart';
 
+import 'package:yang_chow/pages/edit_profile_page.dart';
+
 import 'package:yang_chow/services/paymongo_service.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -38,6 +40,7 @@ class CustomerDashboardPage extends StatefulWidget {
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   int _selectedIndex = 0;
+  bool _hasUnreadNotifications = false; // Off by default
 
   List<Map<String, dynamic>> customerReservations = [];
 
@@ -113,39 +116,40 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Future<void> _loadCustomerReservations() async {
-
     try {
-
       final currentUser = Supabase.instance.client.auth.currentUser;
-
       if (currentUser == null) return;
 
-
-
       final response = await Supabase.instance.client
-
           .from('reservations')
-
           .select('*')
-
           .eq('customer_email', currentUser.email!)
-
           .order('created_at', ascending: false);
 
+      final newReservations = List<Map<String, dynamic>>.from(response);
 
+      // Detection for status changes (e.g. pending -> confirmed)
+      bool shouldNotify = false;
+      if (customerReservations.isNotEmpty) {
+        for (var res in newReservations) {
+          final oldRes = customerReservations.firstWhere(
+            (o) => o['id'] == res['id'],
+            orElse: () => {},
+          );
+          if (oldRes.isNotEmpty && oldRes['status'] != res['status']) {
+            shouldNotify = true;
+            break;
+          }
+        }
+      }
 
       setState(() {
-
-        customerReservations = List<Map<String, dynamic>>.from(response);
-
+        customerReservations = newReservations;
+        if (shouldNotify) _hasUnreadNotifications = true;
       });
-
     } catch (e) {
-
       debugPrint('Error loading customer reservations: $e');
-
     }
-
   }
 
 
@@ -159,9 +163,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
     return Scaffold(
-
-      backgroundColor: Colors.white,
-
+      backgroundColor: isDesktop ? Colors.white : const Color(0xFFF9F9FF),
       appBar: isDesktop 
           ? AppBar(
               automaticallyImplyLeading: false,
@@ -169,13 +171,112 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               backgroundColor: AppTheme.primaryRed,
               foregroundColor: Colors.white,
             )
-          : null,
+          : _buildDashboardAppBar(_getAppBarTitle()),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
 
     );
 
   }
 
+  String _getAppBarTitle() {
+    switch (_selectedIndex) {
+      case 0: return 'Home';
+      case 1: return 'Reservation';
+      case 2: return 'History';
+      case 3: return 'Account';
+      default: return 'Home';
+    }
+  }
+
+  PreferredSizeWidget _buildDashboardAppBar(String title) {
+    return AppBar(
+      backgroundColor: const Color(0xFFF9F9FF),
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF1D1B1E),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        _buildNotificationIcon(),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildNotificationIcon() {
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1D1B1E)),
+          onPressed: _showNotificationsDialog,
+          tooltip: 'Notifications',
+        ),
+        if (_hasUnreadNotifications)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF9F9FF), width: 2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showNotificationsDialog() {
+    setState(() => _hasUnreadNotifications = false);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_rounded, color: AppTheme.primaryRed),
+            SizedBox(width: 12),
+            Text('Notifications'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Divider(),
+            const SizedBox(height: 16),
+            Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            const Text(
+              'No new notifications',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'We\'ll let you know when the status of your reservation changes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
 
   // =========================
@@ -390,6 +491,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                         children: [
 
+                          _buildNotificationIcon(),
+                          const SizedBox(width: 8),
                           IconButton(
 
                             onPressed: _showLogoutDialog,
@@ -455,24 +558,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         // Main Content
 
         Expanded(
-
           child: Container(
-
-            color: const Color(0xFFF5F5F5),
-
+            color: Colors.transparent,
             child: RefreshIndicator(
 
               onRefresh: _loadCustomerReservations,
 
               color: AppTheme.primaryRed,
 
-              child: Padding(
-
-                padding: const EdgeInsets.all(16.0),
-
-                child: _buildContent(),
-
-              ),
+              child: _selectedIndex == 3
+                  ? _buildContent()
+                  : Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _buildContent(),
+                    ),
 
             ),
 
@@ -781,27 +880,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               children: [
 
                 Container(
-
-                  padding: const EdgeInsets.all(20),
-
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-
                     color: Colors.white.withValues(alpha: 0.2),
-
                     shape: BoxShape.circle,
-
+                    image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-
-                  child: const Icon(
-
-                    Icons.waving_hand,
-
-                    color: Colors.white,
-
-                    size: 40,
-
-                  ),
-
+                  child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
+                      ? const Icon(
+                          Icons.waving_hand,
+                          color: Colors.white,
+                          size: 40,
+                        )
+                      : null,
                 ),
 
                 const SizedBox(width: 24),
@@ -2055,383 +2152,201 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Widget _buildProfileSection() {
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
-    final name = currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
-
+    final name = currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ??
                  currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'Customer';
-
     final email = currentUser?.email ?? 'Not provided';
-
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
 
-
-
     return SingleChildScrollView(
-
       physics: const AlwaysScrollableScrollPhysics(),
-
-      child: Column(
-
-        children: [
-
-          const SizedBox(height: 24),
-
-          // Profile Avatar
-
-          Stack(
-
-            children: [
-
-              Container(
-
-                width: 100,
-
-                height: 100,
-
-                decoration: BoxDecoration(
-
-                  color: const Color(0xFFF0B38B), // Peach color from image
-
-                  shape: BoxShape.circle,
-
-                  border: Border.all(color: Colors.white, width: 4),
-
-                  boxShadow: [
-
-                    BoxShadow(
-
-                      color: Colors.black.withValues(alpha: 0.1),
-
-                      blurRadius: 8,
-
-                      offset: const Offset(0, 4),
-
-                    ),
-
-                  ],
-
-                ),
-
-                child: Center(
-
-                  child: Text(
-
-                    initial,
-
-                    style: const TextStyle(
-
-                      fontSize: 40,
-
-                      fontWeight: FontWeight.bold,
-
-                      color: Colors.white,
-
-                    ),
-
-                  ),
-
-                ),
-
-              ),
-
-              Positioned(
-
-                bottom: 0,
-
-                right: 0,
-
-                child: Container(
-
-                  padding: const EdgeInsets.all(4),
-
-                  decoration: const BoxDecoration(
-
-                    color: AppTheme.primaryRed,
-
-                    shape: BoxShape.circle,
-
-                  ),
-
-                  child: const Icon(
-
-                    Icons.add,
-
-                    color: Colors.white,
-
-                    size: 20,
-
-                  ),
-
-                ),
-
-              ),
-
-            ],
-
-          ),
-
-          const SizedBox(height: 16),
-
-          // Name and Email
-
-          Text(
-
-            name,
-
-            style: const TextStyle(
-
-              fontSize: 24,
-
-              fontWeight: FontWeight.bold,
-
-              color: Color(0xFF1E1E1E),
-
-            ),
-
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-
-            email,
-
-            style: TextStyle(
-
-              fontSize: 14,
-
-              color: Colors.grey.shade600,
-
-            ),
-
-          ),
-
-          const SizedBox(height: 32),
-
-          
-
-          // Menu Cards
-
-          Container(
-
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-
-            child: Column(
-
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 32),
+
+            // Profile Header Row
+            Row(
               children: [
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.person_outline,
-
-                  title: 'Personal Information',
-
-                  subtitle: 'Name, email, phone',
-
-                  onTap: () {},
-
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB4AB),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    image: currentUser?.userMetadata?['avatar_url'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: currentUser?.userMetadata?['avatar_url'] == null
+                      ? Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1D1B1E),
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.help_outline,
-
-                  title: 'Help & Support',
-
-                  subtitle: 'FAQs, contact us',
-
-                  onTap: () {},
-
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1D1B1E),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.logout,
-
-                  title: 'Logout',
-
-                  subtitle: null,
-
-                  isDestructive: true,
-
-                  onTap: _showLogoutDialog,
-
-                ),
-
-                const SizedBox(height: 24),
-
               ],
-
             ),
 
-          ),
+            const SizedBox(height: 36),
 
-        ],
+            // Menu Cards
+            _buildAccountMenuCard(
+              icon: Icons.person_outline_rounded,
+              title: 'Edit Profile',
+              subtitle: 'Details about your account',
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const EditProfilePage(),
+                  ),
+                );
+                if (mounted) {
+                  setState(() {});
+                }
+              },
+            ),
+            _buildAccountMenuCard(
+              icon: Icons.logout_rounded,
+              title: 'Logout',
+              subtitle: 'Securely exit your session',
+              isDestructive: true,
+              onTap: _showLogoutDialog,
+            ),
 
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
-
     );
-
   }
 
 
 
+
   Widget _buildAccountMenuCard({
-
     required IconData icon,
-
     required String title,
-
     String? subtitle,
-
     required VoidCallback onTap,
-
     bool isDestructive = false,
-
   }) {
-
-    final color = isDestructive ? AppTheme.primaryRed : const Color(0xFF1E1E1E);
-
-    final iconBgColor = AppTheme.primaryRed.withValues(alpha: 0.1);
-
-
-
-    return InkWell(
-
-      onTap: onTap,
-
-      borderRadius: BorderRadius.circular(16),
-
-      child: Container(
-
-        padding: const EdgeInsets.all(16),
-
-        decoration: BoxDecoration(
-
-          color: Colors.white,
-
-          borderRadius: BorderRadius.circular(16),
-
-          boxShadow: [
-
-            BoxShadow(
-
-              color: Colors.black.withValues(alpha: 0.03),
-
-              blurRadius: 10,
-
-              offset: const Offset(0, 4),
-
-            ),
-
-          ],
-
-        ),
-
-        child: Row(
-
-          children: [
-
-            Container(
-
-              padding: const EdgeInsets.all(12),
-
-              decoration: BoxDecoration(
-
-                color: iconBgColor,
-
-                borderRadius: BorderRadius.circular(12),
-
-              ),
-
-              child: Icon(
-
-                icon,
-
-                color: isDestructive ? AppTheme.primaryRed : const Color(0xFFC04F4F),
-
-                size: 24,
-
-              ),
-
-            ),
-
-            const SizedBox(width: 16),
-
-            Expanded(
-
-              child: Column(
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-
-                  Text(
-
-                    title,
-
-                    style: TextStyle(
-
-                      fontSize: 16,
-
-                      fontWeight: FontWeight.w600,
-
-                      color: color,
-
-                    ),
-
-                  ),
-
-                  if (subtitle != null) ...[
-
-                    const SizedBox(height: 4),
-
-                    Text(
-
-                      subtitle,
-
-                      style: TextStyle(
-
-                        fontSize: 13,
-
-                        color: Colors.grey.shade500,
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ],
-
-              ),
-
-            ),
-
-            Icon(
-
-              Icons.chevron_right,
-
-              color: isDestructive ? AppTheme.primaryRed : Colors.grey.shade400,
-
-              size: 20,
-
-            ),
-
-          ],
-
-        ),
-
+    final color = isDestructive ? const Color(0xFFBA1A1A) : const Color(0xFF1D1B1E);
+    final iconBgColor = isDestructive ? const Color(0xFFFFDAD6).withValues(alpha: 0.5) : const Color(0xFFFFDAD6);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey.shade400,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-
   }
 
 
