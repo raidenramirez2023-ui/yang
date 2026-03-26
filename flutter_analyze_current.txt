@@ -1,0 +1,28 @@
+﻿Analyzing yang...                                               
+
+   info - Statements in an if should be enclosed in a block - lib\pages\customer_dashboard.dart:1582:49 - curly_braces_in_flow_control_structures
+   info - The local variable '_cancelReservation' starts with an underscore - lib\pages\customer_dashboard.dart:2432:10 - no_leading_underscores_for_local_identifiers
+   info - Unnecessary use of 'toList' in a spread - lib\pages\customer_dashboard.dart:2463:22 - unnecessary_to_list_in_spreads
+   info - Don't invoke 'print' in production code - lib\services\app_settings_service.dart:35:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\app_settings_service.dart:90:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\app_settings_service.dart:109:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:183:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:191:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:381:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:406:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:423:7 - avoid_print
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\email_notification_service.dart:437:38 - use_null_aware_elements
+   info - Don't invoke 'print' in production code - lib\services\email_notification_service.dart:440:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:69:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:132:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:169:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:190:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:216:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:244:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:262:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:281:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:298:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:330:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:348:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\reservation_service.dart:364:7 - avoid_print
+
