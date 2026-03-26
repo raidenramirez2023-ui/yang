@@ -1,0 +1,5 @@
+﻿Analyzing yang...                                               
+
+  error - Expected to find ']' - lib\pages\customer_dashboard.dart:2464:21 - expected_token
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\email_notification_service.dart:438:38 - use_null_aware_elements
+

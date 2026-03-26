@@ -1,0 +1,4 @@
+﻿Analyzing yang...                                               
+
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\email_notification_service.dart:438:38 - use_null_aware_elements
+

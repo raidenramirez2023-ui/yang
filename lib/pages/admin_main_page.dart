@@ -1,147 +1,79 @@
 import 'package:flutter/material.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:google_sign_in/google_sign_in.dart';
-
 import 'package:yang_chow/utils/app_theme.dart';
-
 import 'package:yang_chow/utils/role_helper.dart';
-
 import 'package:yang_chow/utils/responsive_utils.dart';
-
 import 'package:yang_chow/pages/user_management.dart';
-
 import 'package:yang_chow/pages/sales_report_page.dart';
-
 import 'package:yang_chow/pages/inventory_management.dart';
-
 import 'package:yang_chow/pages/settings.dart';
-
 import 'package:yang_chow/pages/admin_dashboard.dart';
-
 import 'package:yang_chow/pages/admin_reservations_page.dart';
-
 import 'package:yang_chow/pages/admin_announcements_page.dart';
-
-
+import 'package:yang_chow/services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 class AdminMainPage extends StatefulWidget {
-
   const AdminMainPage({super.key});
 
-
-
   @override
-
   State<AdminMainPage> createState() => _AdminMainPageState();
-
 }
 
-
-
 class _AdminMainPageState extends State<AdminMainPage> {
-
   int _selectedIndex = 0;
 
-
-
   @override
-
   void initState() {
-
     super.initState();
-
     _checkUserRole();
-
   }
-
-
 
   Future<void> _checkUserRole() async {
-
     final isAdmin = await RoleHelper.isAdmin();
-
     
-
     if (!isAdmin && mounted) {
-
       Navigator.pushReplacementNamed(context, '/staff-dashboard');
-
     }
-
   }
 
-
-
   static const List<Widget> _pages = [
-
     AdminDashboardPage(),
-
     SalesReportPage(),
-
     InventoryPage(),
-
     AdminReservationsPage(),
-
     UserManagementPage(),
-
     AdminAnnouncementsPage(),
-
     SettingsPage(),
-
   ];
-
-
 
   static const List<String> _pageTitles = [
-
     'Dashboard',
-
     'Sales Reports',
-
     'Inventory',
-
     'Reservations',
-
     'User Management',
-
     'Announcements',
-
     'Settings',
-
   ];
-
-
 
   static const List<IconData> _pageIcons = [
-
     Icons.dashboard,
-
     Icons.analytics,
-
     Icons.inventory_2,
-
     Icons.event_available,
-
     Icons.people,
-
     Icons.campaign,
-
     Icons.settings,
-
   ];
 
-
-
   @override
-
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
     final useDrawer = ResponsiveUtils.shouldUseDrawer(context);
     
-    // Use navigation rail for tablet/desktop, drawer for web mobile, bottom navigation for mobile app
     if (isDesktop || isTablet) {
       return _buildDesktopLayout();
     } else if (useDrawer) {
@@ -153,7 +85,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildDesktopLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9), // Light blue-grey background
+      backgroundColor: const Color(0xFFF1F5F9), 
       body: Row(
         children: [
           _buildSidebar(),
@@ -181,7 +113,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
       color: Colors.white,
       child: Column(
         children: [
-          // Sidebar Header
           Padding(
             padding: const EdgeInsets.all(24),
             child: Row(
@@ -218,7 +149,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
           
           const SizedBox(height: 8),
           
-          // Navigation Items
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -299,8 +229,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
             ),
           ),
           const Spacer(),
-          const SizedBox(width: 8),
-          // Profile Section
+          _buildAdminNotificationIcon(),
+          const SizedBox(width: 16),
           Row(
             children: [
               Container(
@@ -418,7 +348,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
       ),
     );
   }
-
 
   Widget _buildDrawer() {
     return Drawer(
@@ -571,7 +500,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                     mobile: 18,
                     tablet: 20,
                     desktop: 22,
-                  ),
+                    ),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -641,4 +570,106 @@ class _AdminMainPageState extends State<AdminMainPage> {
     );
   }
 
+  Widget _buildAdminNotificationIcon() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: NotificationService.getAdminNotificationsStream(),
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final hasUnread = notifications.any((n) => !n['is_read']);
+
+        return Stack(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF64748B)),
+              onPressed: () => _showAdminNotificationsDialog(notifications),
+              tooltip: 'Notifications',
+            ),
+            if (hasUnread)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAdminNotificationsDialog(List<Map<String, dynamic>> notifications) {
+    NotificationService.markAllAsRead('', forAdmin: true);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Admin Notifications'),
+        content: SizedBox(
+          width: 400,
+          height: 500,
+          child: notifications.isEmpty
+              ? const Center(child: Text('No new activity'))
+              : ListView.separated(
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final date = DateTime.parse(n['created_at']).toLocal();
+                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
+                    
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.1),
+                        child: Icon(_getIconForAction(n['action_type']), color: AppTheme.primaryRed, size: 20),
+                      ),
+                      title: Text(
+                        _getAdminNotificationTitle(n),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}'),
+                          Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForAction(String action) {
+    switch (action) {
+      case 'created': return Icons.add_circle;
+      case 'cancelled':
+      case 'deleted': return Icons.cancel;
+      case 'paid': return Icons.payments;
+      case 'updated': return Icons.edit;
+      default: return Icons.notifications;
+    }
+  }
+
+  String _getAdminNotificationTitle(Map<String, dynamic> n) {
+    switch (n['action_type']) {
+      case 'created': return 'New Reservation';
+      case 'cancelled': return 'Reservation Cancelled';
+      case 'deleted': return 'Reservation Deleted';
+      case 'paid': return 'Payment Received';
+      case 'updated': return 'Reservation Modified';
+      default: return 'Activity Alert';
+    }
+  }
 }
