@@ -512,7 +512,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           horizontal: isMobile ? AppTheme.lg : 0,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+          color: isSelected ? AppTheme.primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         ),
         alignment: Alignment.center,
@@ -777,7 +777,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Container(
                   width: 90,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.05),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.05),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(AppTheme.radiusLg),
                       bottomLeft: Radius.circular(AppTheme.radiusLg),
@@ -794,7 +794,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryRed,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                         Text(
@@ -920,13 +920,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             Container(
               padding: const EdgeInsets.all(AppTheme.lg),
               decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.event_available_rounded, 
                 size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 48, tablet: 56, desktop: 64), 
-                color: AppTheme.primaryRed,
+                color: AppTheme.primaryColor,
               ),
             ),
             ResponsiveUtils.verticalSpace(context, mobile: 24, tablet: 28, desktop: 32),
@@ -1387,7 +1387,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             ),
             onPressed: () async {

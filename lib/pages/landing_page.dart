@@ -1,4 +1,4 @@
-  import 'dart:ui' as ui;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -24,10 +24,21 @@ class _LandingPageState extends State<LandingPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingSession = true;
   int? _selectedMonth; // null means "Show All" or "Latest"
+  
+  // Real-time announcements stream
+  Stream<List<Map<String, dynamic>>> _announcementsStream = const Stream.empty();
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize real-time announcements stream first
+    _announcementsStream = Supabase.instance.client
+        .from('announcements')
+        .stream(primaryKey: ['id'])
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+    
     _checkAndRedirectUser();
   }
 
@@ -115,7 +126,7 @@ class _LandingPageState extends State<LandingPage> {
       return Scaffold(
         backgroundColor: const Color(0xFF0A0A0A),
         body: const Center(
-          child: CircularProgressIndicator(color: AppTheme.primaryRed),
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
       );
     }
@@ -218,7 +229,7 @@ class _LandingPageState extends State<LandingPage> {
                       key: const Key('nav_login_btn'),
                       onPressed: () => Navigator.pushNamed(context, '/login'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryRed,
+                        backgroundColor: AppTheme.primaryColor,
                         foregroundColor: AppTheme.white,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         minimumSize: Size.zero,
@@ -262,7 +273,7 @@ class _LandingPageState extends State<LandingPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryRed,
+                  AppTheme.primaryColor,
                   Color(0xFF8B0000), // Darker red for depth
                 ],
               ),
@@ -332,7 +343,7 @@ class _LandingPageState extends State<LandingPage> {
     return ListTile(
       key: key,
       contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
-      leading: Icon(icon, color: AppTheme.primaryRed, size: 24),
+      leading: Icon(icon, color: AppTheme.primaryColor, size: 24),
       title: Text(
         title,
         style: const TextStyle(
@@ -417,20 +428,20 @@ class _LandingPageState extends State<LandingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryRed),
+                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryColor),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'SINCE 2024',
                             style: TextStyle(
-                              color: AppTheme.primaryRed,
+                              color: AppTheme.primaryColor,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 4,
                               fontSize: isMobile ? 10 : 12,
                             ),
                           ),
                         ),
-                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryRed),
+                        Container(width: isMobile ? 20 : 40, height: 1, color: AppTheme.primaryColor),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -534,8 +545,8 @@ class _LandingPageState extends State<LandingPage> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppTheme.primaryRed,
-                        AppTheme.primaryRed.withValues(alpha: 0),
+                        AppTheme.primaryColor,
+                        AppTheme.primaryColor.withValues(alpha: 0),
                       ],
                     ),
                   ),
@@ -556,7 +567,7 @@ class _LandingPageState extends State<LandingPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: isPrimary ? [
           BoxShadow(
-            color: AppTheme.primaryRed.withValues(alpha: 0.3),
+            color: AppTheme.primaryColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
@@ -566,7 +577,7 @@ class _LandingPageState extends State<LandingPage> {
         key: Key('hero_cta_${label.replaceAll(' ', '_').toLowerCase()}'),
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? AppTheme.primaryRed : Colors.white.withValues(alpha: 0.05),
+          backgroundColor: isPrimary ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.05),
           foregroundColor: AppTheme.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -641,7 +652,7 @@ class _LandingPageState extends State<LandingPage> {
                             width: 100,
                             height: 100,
                             decoration: BoxDecoration(
-                              border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3), width: 2),
+                              border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
@@ -659,7 +670,7 @@ class _LandingPageState extends State<LandingPage> {
                       const Text(
                         'THE STORY OF YANG CHOW',
                         style: TextStyle(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primaryColor,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 2,
                           fontSize: 14,
@@ -699,7 +710,7 @@ class _LandingPageState extends State<LandingPage> {
                       const SizedBox(height: 56),
                       TextButton.icon(
                         onPressed: () {},
-                        icon: const Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryRed),
+                        icon: const Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryColor),
                         label: const Text(
                           'READ OUR FULL JOURNEY',
                           style: TextStyle(
@@ -741,7 +752,7 @@ class _LandingPageState extends State<LandingPage> {
         Text(
           label,
           style: TextStyle(
-            color: AppTheme.primaryRed,
+            color: AppTheme.primaryColor,
             fontSize: 10,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
@@ -819,10 +830,10 @@ class _LandingPageState extends State<LandingPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 32),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 32),
           ),
           const SizedBox(height: 32),
           Text(
@@ -850,13 +861,13 @@ class _LandingPageState extends State<LandingPage> {
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: AppTheme.primaryColor, shape: BoxShape.circle),
               ),
               const SizedBox(width: 12),
               Text(
                 'AVAILABLE NOW',
                 style: TextStyle(
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primaryColor,
                   fontWeight: FontWeight.w900,
                   fontSize: 10,
                   letterSpacing: 2,
@@ -890,20 +901,45 @@ class _LandingPageState extends State<LandingPage> {
             const SizedBox(height: 48),
             _buildMonthFilterBar(context),
             const SizedBox(height: 64),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: _fetchFilteredAnnouncements(),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _announcementsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed));
+                  return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
                 }
 
                 if (snapshot.hasError) {
-                  return const Center(
-                    child: Text('Error loading updates.', style: TextStyle(color: AppTheme.mediumGrey)),
+                  return Center(
+                    child: Text('Error loading announcements: ${snapshot.error}', 
+                        style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 16)),
                   );
                 }
 
-                final updates = snapshot.data ?? [];
+                final allAnnouncements = snapshot.data ?? [];
+
+                // Filter out expired announcements
+                final now = DateTime.now();
+                final activeAnnouncements = allAnnouncements.where((announcement) {
+                  final expirationDate = announcement['expiration_date'];
+                  if (expirationDate == null) return true; // No expiration date means always active
+
+                  try {
+                    final expiry = DateTime.parse(expirationDate);
+                    return expiry.isAfter(now); // Only show if not expired
+                  } catch (e) {
+                    return true; // If parsing fails, keep it active
+                  }
+                }).toList();
+
+                // Apply month filter if selected
+                final filteredAnnouncements = _selectedMonth != null
+                    ? activeAnnouncements.where((announcement) {
+                        final createdAt = DateTime.parse(announcement['created_at']);
+                        return createdAt.month == _selectedMonth && createdAt.year == now.year;
+                      }).toList()
+                    : activeAnnouncements.take(12).toList(); // Show latest 12
+
+                final updates = filteredAnnouncements;
 
                 if (updates.isEmpty) {
                   return const Center(
@@ -926,39 +962,6 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchFilteredAnnouncements() async {
-    // Basic query
-    dynamic finalQuery = Supabase.instance.client.from('announcements').select();
-    
-    // Always filter by is_active for landing page
-    finalQuery = finalQuery.eq('is_active', true);
-
-    if (_selectedMonth == null) {
-      // Show latest 12 active (with expiration check)
-      finalQuery = finalQuery
-          .or('expires_at.is.null,expires_at.gte.${DateTime.now().toUtc().toIso8601String()}')
-          .order('created_at', ascending: false)
-          .limit(12);
-    } else {
-      // Filter by specific month of the current year
-      final now = DateTime.now();
-      final year = now.year;
-      final startOfMonth = DateTime(year, _selectedMonth!, 1);
-      final endOfMonth = _selectedMonth == 12 
-          ? DateTime(year + 1, 1, 1) 
-          : DateTime(year, _selectedMonth! + 1, 1);
-
-      finalQuery = finalQuery
-          .gte('created_at', startOfMonth.toUtc().toIso8601String())
-          .lt('created_at', endOfMonth.toUtc().toIso8601String())
-          .or('expires_at.is.null,expires_at.gte.${DateTime.now().toUtc().toIso8601String()}')
-          .order('created_at', ascending: false);
-    }
-
-    final response = await finalQuery;
-    return List<Map<String, dynamic>>.from(response);
-  }
-
   Widget _buildMonthFilterBar(BuildContext context) {
     final months = [
       'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
@@ -979,7 +982,7 @@ class _LandingPageState extends State<LandingPage> {
         child: DropdownButton<int?>(
           value: _selectedMonth,
           dropdownColor: const Color(0xFF0F0F0F),
-          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryRed),
+          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
           items: [
             const DropdownMenuItem<int?>(
               value: null,
@@ -1054,7 +1057,7 @@ class _LandingPageState extends State<LandingPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
@@ -1104,7 +1107,7 @@ class _LandingPageState extends State<LandingPage> {
                     children: [
                       const CircleAvatar(
                         radius: 12,
-                        backgroundColor: AppTheme.primaryRed,
+                        backgroundColor: AppTheme.primaryColor,
                         child: Icon(Icons.person_rounded, size: 14, color: AppTheme.white),
                       ),
                       const SizedBox(width: 12),
@@ -1114,11 +1117,11 @@ class _LandingPageState extends State<LandingPage> {
                           fontWeight: FontWeight.w900, 
                           fontSize: 11, 
                           letterSpacing: 1.5, 
-                          color: AppTheme.primaryRed, // Red for better accent
+                          color: AppTheme.primaryColor, // Red for better accent
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryRed.withValues(alpha: 0.5)),
+                      Icon(Icons.arrow_right_alt_rounded, color: AppTheme.primaryColor.withValues(alpha: 0.5)),
                     ],
                   ),
                 ],
@@ -1160,11 +1163,11 @@ class _LandingPageState extends State<LandingPage> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF161616),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3), width: 1),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.access_time_filled_rounded, color: AppTheme.primaryRed, size: 40),
+                        const Icon(Icons.access_time_filled_rounded, color: AppTheme.primaryColor, size: 40),
                         const SizedBox(height: 32),
                         const Text(
                           'OPENING HOURS',
@@ -1193,7 +1196,7 @@ class _LandingPageState extends State<LandingPage> {
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.location_on_rounded, color: AppTheme.primaryRed, size: 40),
+                        const Icon(Icons.location_on_rounded, color: AppTheme.primaryColor, size: 40),
                         const SizedBox(height: 32),
                         const Text(
                           'RESTAURANT LOCATION',
@@ -1324,10 +1327,10 @@ class _LandingPageState extends State<LandingPage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed.withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppTheme.primaryRed, size: 32),
+            child: Icon(icon, color: AppTheme.primaryColor, size: 32),
           ),
           const SizedBox(height: 32),
           Text(
@@ -1336,7 +1339,7 @@ class _LandingPageState extends State<LandingPage> {
               fontWeight: FontWeight.w900,
               letterSpacing: 2,
               fontSize: 12,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 12),
@@ -1492,7 +1495,7 @@ class _LandingPageState extends State<LandingPage> {
         Text(
           title,
           style: const TextStyle(
-            color: AppTheme.primaryRed,
+            color: AppTheme.primaryColor,
             fontWeight: FontWeight.w900,
             letterSpacing: 4,
             fontSize: 12,
@@ -1514,7 +1517,7 @@ class _LandingPageState extends State<LandingPage> {
         Container(
           width: 40,
           height: 1,
-          color: AppTheme.primaryRed.withValues(alpha: 0.5),
+          color: AppTheme.primaryColor.withValues(alpha: 0.5),
         ),
       ],
     );

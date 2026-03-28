@@ -120,7 +120,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -158,7 +158,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Material(
-                    color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
@@ -264,7 +264,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: const Color(0xFFF1F5F9),
-                child: const Icon(Icons.person, color: AppTheme.primaryRed),
+                child: const Icon(Icons.person, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 8),
               const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B), size: 20),
@@ -305,7 +305,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -366,7 +366,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -402,7 +402,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Material(
-                    color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
@@ -459,7 +459,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: AppTheme.white,
-      selectedItemColor: AppTheme.primaryRed,
+      selectedItemColor: AppTheme.primaryColor,
       unselectedItemColor: AppTheme.mediumGrey,
       items: _pageTitles.asMap().entries.map((entry) {
         final index = entry.key;
@@ -487,7 +487,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
           children: [
             Icon(
               Icons.logout,
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
               size: ResponsiveUtils.getResponsiveIconSize(context),
             ),
             SizedBox(width: isMobile ? 8 : 12),
@@ -592,7 +592,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -626,8 +626,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
                     
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.1),
-                        child: Icon(_getIconForAction(n['action_type']), color: AppTheme.primaryRed, size: 20),
+                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        child: Icon(_getIconForAction(n['action_type']), color: AppTheme.primaryColor, size: 20),
                       ),
                       title: Text(
                         _getAdminNotificationTitle(n),

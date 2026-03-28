@@ -186,7 +186,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Leave a Review'),
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -237,13 +237,13 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: isSelected
-                                    ? AppTheme.primaryRed
+                                    ? AppTheme.primaryColor
                                     : Colors.grey.shade300,
                                 width: isSelected ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(8),
                               color: isSelected
-                                  ? AppTheme.primaryRed.withValues(alpha: 0.05)
+                                  ? AppTheme.primaryColor.withValues(alpha: 0.05)
                                   : Colors.white,
                             ),
                             child: Column(
@@ -350,7 +350,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
                       child: ElevatedButton(
                         onPressed: _isSubmitting ? null : _submitReview,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryRed,
+                          backgroundColor: AppTheme.primaryColor,
                           foregroundColor: Colors.white,
                         ),
                         child: _isSubmitting

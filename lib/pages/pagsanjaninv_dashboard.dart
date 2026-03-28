@@ -79,7 +79,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         return AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.logout, color: AppTheme.primaryRed, size: 24),
+              const Icon(Icons.logout, color: AppTheme.primaryColor, size: 24),
               const SizedBox(width: 12),
               const Text('Confirm Logout'),
             ],
@@ -111,7 +111,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: AppTheme.primaryColor,
                 foregroundColor: AppTheme.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 shape: RoundedRectangleBorder(
@@ -171,7 +171,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Widget _buildDashboardPage() {
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
-      color: AppTheme.primaryRed,
+      color: AppTheme.primaryColor,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -180,7 +180,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             // Simple Stats Cards
             Row(
               children: [
-                Expanded(child: _buildSimpleStatCard('Total Items', _totalInventoryItems.toString(), AppTheme.primaryRed)),
+                Expanded(child: _buildSimpleStatCard('Total Items', _totalInventoryItems.toString(), AppTheme.primaryColor)),
                 const SizedBox(width: 12),
                 Expanded(child: _buildSimpleStatCard('Low Stock', _lowStockItems.toString(), AppTheme.warningOrange)),
                 const SizedBox(width: 12),
@@ -207,7 +207,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   child: _buildSimpleActionCard(
                     title: 'Kitchen Requests',
                     icon: Icons.shopping_cart,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     onTap: () => _onItemTapped(1),
                   ),
                 ),
@@ -349,7 +349,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         priorityColor = AppTheme.infoBlue;
         break;
       default:
-        priorityColor = AppTheme.primaryRed;
+        priorityColor = AppTheme.primaryColor;
     }
     
     return Container(
@@ -594,7 +594,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           Container(
             width: 200,
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.darkGrey.withValues(alpha: 0.1),
@@ -733,7 +733,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         _selectedIndex == 2 ? Icons.outbox :
                         _selectedIndex == 3 ? Icons.inventory :
                         _selectedIndex == 4 ? Icons.trending_up : Icons.room,
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -752,7 +752,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       const Spacer(),
                       if (_selectedIndex == 0)
                         IconButton(
-                          icon: const Icon(Icons.refresh, color: AppTheme.primaryRed, size: 20),
+                          icon: const Icon(Icons.refresh, color: AppTheme.primaryColor, size: 20),
                           onPressed: _loadDashboardData,
                         ),
                     ],
@@ -762,7 +762,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 // Content
                 Expanded(
                   child: _isLoading && _selectedIndex == 0
-                      ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
+                      ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
                       : _getPages()[_selectedIndex],
                 ),
               ],
@@ -777,7 +777,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
         elevation: 0,
         title: Row(
@@ -803,8 +803,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.primaryRed,
-                AppTheme.primaryRedDark,
+                AppTheme.primaryColor,
+                AppTheme.primaryDark,
               ],
             ),
           ),
@@ -914,7 +914,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         ),
       ),
       body: _isLoading && _selectedIndex == 0
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryRed))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
           : _getPages()[_selectedIndex],
     );
   }
@@ -988,7 +988,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Widget _buildKitchenRequestsPage() {
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
-      color: AppTheme.primaryRed,
+      color: AppTheme.primaryColor,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1029,7 +1029,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
                       padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator(color: AppTheme.primaryRed)),
+                      child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
                     );
                   }
                   
@@ -1074,7 +1074,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Widget _buildOutgoingPage() {
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
-      color: AppTheme.primaryRed,
+      color: AppTheme.primaryColor,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1116,7 +1116,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
                       padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator(color: AppTheme.primaryRed)),
+                      child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
                     );
                   }
                   
@@ -1244,13 +1244,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '$totalQuantity $unit',
                                   style: TextStyle(
-                                    color: AppTheme.primaryRed,
+                                    color: AppTheme.primaryColor,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),

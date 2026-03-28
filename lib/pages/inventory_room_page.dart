@@ -868,14 +868,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   InputDecoration _buildDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: AppTheme.primaryRed),
+      prefixIcon: Icon(icon, color: AppTheme.primaryColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppTheme.lightGrey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppTheme.primaryRed),
+        borderSide: const BorderSide(color: AppTheme.primaryColor),
       ),
       filled: true,
       fillColor: AppTheme.backgroundColor,
@@ -1017,7 +1017,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
         title: ResponsiveUtils.isMobile(context)
             ? const Text('Inventory Room')
@@ -1095,7 +1095,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   hintText: 'Search items in storage...',
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                   ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -1112,7 +1112,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.primaryRed),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor),
                   ),
                   filled: true,
                   fillColor: AppTheme.backgroundColor,
@@ -1133,13 +1133,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           setState(() => _selectedStorageRoom = room);
                         },
                         backgroundColor: AppTheme.white,
-                        selectedColor: AppTheme.primaryRed.withValues(
+                        selectedColor: AppTheme.primaryColor.withValues(
                           alpha: 0.2,
                         ),
-                        checkmarkColor: AppTheme.primaryRed,
+                        checkmarkColor: AppTheme.primaryColor,
                         labelStyle: TextStyle(
                           color: isSelected
-                              ? AppTheme.primaryRed
+                              ? AppTheme.primaryColor
                               : AppTheme.darkGrey,
                           fontWeight: isSelected
                               ? FontWeight.w600
@@ -1147,7 +1147,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         ),
                         side: BorderSide(
                           color: isSelected
-                              ? AppTheme.primaryRed
+                              ? AppTheme.primaryColor
                               : AppTheme.lightGrey,
                         ),
                       ),
@@ -1169,7 +1169,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
-                  child: CircularProgressIndicator(color: AppTheme.primaryRed),
+                  child: CircularProgressIndicator(color: AppTheme.primaryColor),
                 );
               }
 
@@ -1340,7 +1340,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
-                                      color: AppTheme.primaryRed,
+                                      color: AppTheme.primaryColor,
                                     ),
                                   ),
                                 ],

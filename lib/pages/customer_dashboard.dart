@@ -139,7 +139,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
           ? AppBar(
               automaticallyImplyLeading: false,
               title: const Text('Customer Dashboard'),
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             )
           : _buildDashboardAppBar(_getAppBarTitle()),
@@ -208,7 +208,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: const Color(0xFFF9F9FF),
@@ -235,7 +235,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.notifications_rounded, color: AppTheme.primaryRed),
+            Icon(Icons.notifications_rounded, color: AppTheme.primaryColor),
             SizedBox(width: 12),
             Text('Notifications'),
           ],
@@ -479,7 +479,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                       height: 40,
 
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
 
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -532,7 +532,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                   decoration: BoxDecoration(
                     color: _selectedIndex == index
-                        ? AppTheme.primaryRed
+                        ? AppTheme.primaryColor
                         : Colors.transparent,
 
                     borderRadius: BorderRadius.circular(8),
@@ -652,7 +652,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             child: RefreshIndicator(
               onRefresh: _loadCustomerReservations,
 
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
 
               child: _selectedIndex == 3
                   ? _buildContent()
@@ -687,7 +687,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
 
                   blurRadius: 20,
 
@@ -752,7 +752,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryRed.withValues(alpha: 0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : Colors.transparent,
 
           borderRadius: BorderRadius.circular(20),
@@ -784,7 +784,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
 
                             blurRadius: 12,
 
@@ -798,7 +798,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     icon,
 
                     color: isSelected
-                        ? AppTheme.primaryRed
+                        ? AppTheme.primaryColor
                         : Colors.grey.shade700,
 
                     size: 24,
@@ -818,7 +818,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 label,
 
                 style: TextStyle(
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primaryColor,
 
                   fontWeight: FontWeight.w700,
 
@@ -877,7 +877,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             padding: const EdgeInsets.all(32),
 
             decoration: BoxDecoration(
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
 
               borderRadius: BorderRadius.circular(16),
             ),
@@ -1013,7 +1013,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                         height: 48,
 
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primaryColor,
 
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -1184,7 +1184,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                         'View All Activity',
 
                         style: TextStyle(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primaryColor,
 
                           fontWeight: FontWeight.w600,
                         ),
@@ -1455,7 +1455,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     Container(
                       width: 4,
                       decoration: const BoxDecoration(
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(24),
                           bottomLeft: Radius.circular(24),
@@ -1624,7 +1624,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                           ),
                                           child: const Icon(
                                             Icons.history_toggle_off_rounded,
-                                            color: AppTheme.primaryRed,
+                                            color: AppTheme.primaryColor,
                                             size: 20,
                                           ),
                                         ),
@@ -1654,7 +1654,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                         ),
                                         Switch(
                                           value: _addExtraTime,
-                                          activeThumbColor: AppTheme.primaryRed,
+                                          activeThumbColor: AppTheme.primaryColor,
                                           onChanged: (val) {
                                             setState(() {
                                               _addExtraTime = val;
@@ -1740,7 +1740,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                               8,
                                             ),
                                             borderSide: const BorderSide(
-                                              color: AppTheme.primaryRed,
+                                              color: AppTheme.primaryColor,
                                               width: 1.5,
                                             ),
                                           ),
@@ -1769,10 +1769,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                                       ? null
                                       : _submitReservation,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryRed,
+                                    backgroundColor: AppTheme.primaryColor,
                                     foregroundColor: Colors.white,
                                     elevation: 2,
-                                    shadowColor: AppTheme.primaryRed.withValues(
+                                    shadowColor: AppTheme.primaryColor.withValues(
                                       alpha: 0.3,
                                     ),
                                     shape: RoundedRectangleBorder(
@@ -1875,7 +1875,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
       ),
     );
@@ -1910,7 +1910,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
         suffixIcon: Icon(
           Icons.keyboard_arrow_down_rounded,
@@ -3121,7 +3121,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             onPressed: () => Navigator.of(context).pop(true),
 
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
 
               foregroundColor: Colors.white,
             ),
@@ -3281,7 +3281,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
         title: const Row(
           children: [
-            Icon(Icons.logout, color: AppTheme.primaryRed),
+            Icon(Icons.logout, color: AppTheme.primaryColor),
 
             SizedBox(width: 12),
 
@@ -3304,7 +3304,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
 
               foregroundColor: Colors.white,
             ),

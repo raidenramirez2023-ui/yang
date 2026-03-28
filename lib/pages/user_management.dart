@@ -318,7 +318,7 @@ class _RoleSection extends StatelessWidget {
                     radius: 30,
                     backgroundColor: Colors.grey[200],
                     backgroundImage: NetworkImage(mockImage),
-                    child: mockImage.isEmpty ? Icon(_icon, size: 28, color: AppTheme.primaryRed) : null,
+                    child: mockImage.isEmpty ? Icon(_icon, size: 28, color: AppTheme.primaryColor) : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -416,7 +416,7 @@ class _RoleSection extends StatelessWidget {
                           child: mockImage.isEmpty ? Text(
                             mockName.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase(),
                             style: const TextStyle(
-                              color: AppTheme.primaryRed,
+                              color: AppTheme.primaryColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ) : null,
@@ -514,7 +514,7 @@ class _RoleSection extends StatelessWidget {
                 radius: 40,
                 backgroundColor: Colors.grey[200],
                 backgroundImage: imageUrl != null && imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-                child: imageUrl == null || imageUrl.isEmpty ? Icon(_icon, size: 36, color: AppTheme.primaryRed) : null,
+                child: imageUrl == null || imageUrl.isEmpty ? Icon(_icon, size: 36, color: AppTheme.primaryColor) : null,
               ),
               const SizedBox(height: 16),
               Text(
@@ -531,13 +531,13 @@ class _RoleSection extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   role,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.primaryRed,
+                    color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -557,7 +557,7 @@ class _RoleSection extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryRed,
+                    backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(

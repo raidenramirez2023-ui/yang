@@ -408,14 +408,14 @@ class _InventoryPageState extends State<InventoryPage> {
   InputDecoration _decoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: AppTheme.primaryRed),
+      prefixIcon: Icon(icon, color: AppTheme.primaryColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: AppTheme.lightGrey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: AppTheme.primaryRed),
+        borderSide: BorderSide(color: AppTheme.primaryColor),
       ),
       filled: true,
       fillColor: AppTheme.backgroundColor,
@@ -548,7 +548,7 @@ class _InventoryPageState extends State<InventoryPage> {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: AppTheme.white,
             ),
             onPressed: () => Navigator.pop(ctx),
@@ -690,12 +690,12 @@ class _InventoryPageState extends State<InventoryPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppTheme.primaryRed, AppTheme.primaryRedDark],
+                  colors: [AppTheme.primaryColor, AppTheme.primaryDark],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryRed.withValues(alpha: 0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -842,7 +842,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       hintText: 'Search items...',
                       prefixIcon: const Icon(
                         Icons.search,
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
                       ),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
@@ -860,7 +860,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: AppTheme.primaryRed),
+                        borderSide: BorderSide(color: AppTheme.primaryColor),
                       ),
                       filled: true,
                       fillColor: AppTheme.backgroundColor,
@@ -881,13 +881,13 @@ class _InventoryPageState extends State<InventoryPage> {
                               setState(() => _selectedCategory = category);
                             },
                             backgroundColor: AppTheme.white,
-                            selectedColor: AppTheme.primaryRed.withValues(
+                            selectedColor: AppTheme.primaryColor.withValues(
                               alpha: 0.2,
                             ),
-                            checkmarkColor: AppTheme.primaryRed,
+                            checkmarkColor: AppTheme.primaryColor,
                             labelStyle: TextStyle(
                               color: isSelected
-                                  ? AppTheme.primaryRed
+                                  ? AppTheme.primaryColor
                                   : AppTheme.darkGrey,
                               fontWeight: isSelected
                                   ? FontWeight.w600
@@ -895,7 +895,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             ),
                             side: BorderSide(
                               color: isSelected
-                                  ? AppTheme.primaryRed
+                                  ? AppTheme.primaryColor
                                   : AppTheme.lightGrey,
                             ),
                           ),
@@ -918,7 +918,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
                       ),
                     );
                   }
@@ -1134,7 +1134,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                                 Icon(
                                                   Icons.edit,
                                                   size: 16,
-                                                  color: AppTheme.primaryRed,
+                                                  color: AppTheme.primaryColor,
                                                 ),
                                                 SizedBox(width: 8),
                                                 Text('Edit'),
@@ -1222,7 +1222,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800,
-                                        color: AppTheme.primaryRed,
+                                        color: AppTheme.primaryColor,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -1245,7 +1245,7 @@ class _InventoryPageState extends State<InventoryPage> {
       floatingActionButton: _isAdmin
           ? FloatingActionButton.extended(
               onPressed: () => _addOrEditItem(),
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: AppTheme.white,
               icon: const Icon(Icons.add),
               label: const Text('Add Item'),

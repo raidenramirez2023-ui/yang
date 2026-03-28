@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 /// Professional App Theme System
 class AppTheme {
   // Primary Colors
-  static const Color primaryRed = Color(0xFFD32F2F);
-  static const Color primaryRedDark = Color(0xFFB71C1C);
-  static const Color primaryRedLight = Color(0xFFEF5350);
+  static const Color primaryColor = Color(0xFFD32F2F);
+  static const Color primaryDark = Color(0xFFB71C1C);
+  static const Color primaryLight = Color(0xFFEF5350);
 
   // Neutral Colors
   static const Color darkGrey = Color(0xFF212121);
@@ -25,10 +25,10 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: primaryRed,
+      primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryRed,
+        backgroundColor: primaryColor,
         foregroundColor: white,
         elevation: 2,
         centerTitle: false,
@@ -42,7 +42,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryRed,
+          backgroundColor: primaryColor,
           foregroundColor: white,
           elevation: 4,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -57,8 +57,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryRed,
-          side: const BorderSide(color: primaryRed, width: 1.5),
+          foregroundColor: primaryColor,
+          side: const BorderSide(color: primaryColor, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -67,7 +67,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primaryRed,
+          foregroundColor: primaryColor,
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -86,7 +86,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryRed, width: 2),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         labelStyle: const TextStyle(
           color: mediumGrey,
