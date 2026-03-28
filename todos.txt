@@ -1,0 +1,20 @@
+﻿lib\pages\admin_dashboard.dart:105:              ((order['total_amount'] as num?)?.toDouble() ?? 0.0);
+lib\pages\admin_dashboard.dart:447:    final maxY = (_weeklyRevenue.reduce(max) * 1.2).ceilToDouble();
+lib\pages\admin_dashboard.dart:561:                    value: _occupiedTables.toDouble(),
+lib\pages\admin_dashboard.dart:572:                    value: available.toDouble(),
+lib\pages\chef_dashboard.dart:943:    final total = (order['total_amount'] as num?)?.toDouble() ?? 0;
+lib\pages\customer_dashboard.dart:2708:        return refundPercentage.toDouble();
+lib\pages\customer_dashboard.dart:2939:        duration: duration.toDouble(),
+lib\pages\inventory_forecast_page.dart:112:        totalUsage += (transaction['quantity'] as num?)?.toDouble() ?? 0;
+lib\pages\sales_report_page.dart:87:      totalRevenue += (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+lib\pages\sales_report_page.dart:107:      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+lib\pages\sales_report_page.dart:775:                maxY: (chartValues.isEmpty ? 1000.0 : chartValues.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000.0, 10000000.0).toDouble(),
+lib\pages\staff_order_history_page.dart:282:    final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+lib\pages\staff_order_history_page.dart:461:                                    (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+lib\pages\staff_order_history_page.dart:540:                                      'Γé▒ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
+lib\pages\staff_order_history_page.dart:553:                                      'Γé▒ ${widget.fmt.format((o['change_due'] as num?)?.toDouble() ?? 0.0)}',
+lib\services\email_notification_service.dart:185:      // TODO: Integrate with actual email service (SendGrid, AWS SES, Mailgun, etc.)
+lib\services\reservation_service.dart:292:        'overall': (response['avg_rating'] as num?)?.toDouble() ?? 0.0,
+lib\services\reservation_service.dart:293:        'food': (response['avg_food_quality'] as num?)?.toDouble() ?? 0.0,
+lib\services\reservation_service.dart:294:        'service': (response['avg_service_quality'] as num?)?.toDouble() ?? 0.0,
+lib\services\reservation_service.dart:295:        'ambiance': (response['avg_ambiance'] as num?)?.toDouble() ?? 0.0,
