@@ -252,11 +252,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.primaryRed),
+              CircularProgressIndicator(color: AppTheme.primaryColor),
               SizedBox(height: 16),
               Text(
                 'Syncing with Google...',
-                style: TextStyle(color: AppTheme.primaryRed),
+                style: TextStyle(color: AppTheme.primaryColor),
               ),
             ],
           ),
@@ -271,7 +271,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       appBar: isDesktop
           ? AppBar(
               title: const Text('Customer Registration'),
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               elevation: 2,
             )
@@ -802,7 +802,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                         _agreeToTerms = value ?? false;
                       });
                     },
-              activeColor: AppTheme.primaryRed,
+              activeColor: AppTheme.primaryColor,
             ),
             Expanded(
               child: Text(
@@ -821,7 +821,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             onPressed: _isLoading ? null : handleRegistration,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             ),
             child: _isLoading
@@ -850,7 +850,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             child: Text(
               'Already have an account? Sign In',
               style: TextStyle(
-                color: AppTheme.primaryRed,
+                color: AppTheme.primaryColor,
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
                   context,
                   mobile: 12,

@@ -105,13 +105,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.lock_reset,
                       size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 40, tablet: 48, desktop: 56),
-                      color: AppTheme.primaryRed,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
                   
@@ -177,7 +177,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _resetPassword,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryRed,
+                                backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -258,8 +258,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryRed,
-                          side: BorderSide(color: AppTheme.primaryRed),
+                          foregroundColor: AppTheme.primaryColor,
+                          side: BorderSide(color: AppTheme.primaryColor),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                           ),

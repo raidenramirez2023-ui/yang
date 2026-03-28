@@ -37,7 +37,7 @@ class _PaymentPageState extends State<PaymentPage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Payment'),
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -106,7 +106,7 @@ class _PaymentPageState extends State<PaymentPage> {
             child: ElevatedButton(
               onPressed: _selectedPaymentMethod != null ? _processPayment : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.grey.shade300,
                 shape: RoundedRectangleBorder(
@@ -170,13 +170,13 @@ class _PaymentPageState extends State<PaymentPage> {
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: const Center(
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryRed),
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
             ),
           ),
         ),
@@ -310,7 +310,7 @@ class _PaymentPageState extends State<PaymentPage> {
               _simulatePaymentSuccess();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             ),
             child: const Text('Payment Completed'),
@@ -424,7 +424,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Payment'),
-          backgroundColor: AppTheme.primaryRed,
+          backgroundColor: AppTheme.primaryColor,
           foregroundColor: Colors.white,
         ),
         body: const Center(
@@ -462,7 +462,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Secure Payment'),
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.close),

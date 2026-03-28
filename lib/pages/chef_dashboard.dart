@@ -77,7 +77,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 Text('$pending new order${pending == 1 ? '' : 's'} in the kitchen!'),
               ],
             ),
-            backgroundColor: AppTheme.primaryRed,
+            backgroundColor: AppTheme.primaryColor,
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
             shape:
@@ -134,7 +134,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             width: 40,
             height: 40,
             decoration: const BoxDecoration(
-              color: AppTheme.primaryRed,
+              color: AppTheme.primaryColor,
               shape: BoxShape.circle,
             ),
             child: const Center(
@@ -272,7 +272,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                       clipBehavior: Clip.none,
                       children: [
                         Icon(icon,
-                            color: selected ? AppTheme.primaryRed : const Color(0xFF64748B),
+                            color: selected ? AppTheme.primaryColor : const Color(0xFF64748B),
                             size: 24),
                         if (hasBadge)
                           Positioned(
@@ -281,7 +281,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
-                                  color: AppTheme.primaryRed,
+                                  color: AppTheme.primaryColor,
                                   shape: BoxShape.circle),
                               child: Text(
                                 '$_pendingOrderCount',
@@ -298,7 +298,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                     Text(
                       label,
                       style: TextStyle(
-                        color: selected ? AppTheme.primaryRed : const Color(0xFF64748B),
+                        color: selected ? AppTheme.primaryColor : const Color(0xFF64748B),
                         fontSize: 11,
                         fontWeight: selected ? FontWeight.bold : FontWeight.w500,
                       ),
@@ -331,7 +331,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
@@ -403,7 +403,7 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryRed));
+              child: CircularProgressIndicator(color: AppTheme.primaryColor));
         }
         final rawOrders = snap.data ?? [];
 
@@ -833,7 +833,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                           backgroundColor: nextStatus == 'Done'
                               ? AppTheme.successGreen
                               : widget.statusColors[nextStatus] ??
-                                  AppTheme.primaryRed,
+                                  AppTheme.primaryColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -902,7 +902,7 @@ class _FinishedOrdersTab extends StatelessWidget {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryRed));
+              child: CircularProgressIndicator(color: AppTheme.primaryColor));
         }
         final orders = snap.data ?? [];
         if (orders.isEmpty) {
@@ -1305,7 +1305,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 const Row(
                   children: [
                     Icon(Icons.add_shopping_cart,
-                        color: AppTheme.primaryRed, size: 22),
+                        color: AppTheme.primaryColor, size: 22),
                     SizedBox(width: 10),
                     Text(
                       'Request Ingredients',
@@ -1385,13 +1385,13 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         unit,
                                         style: TextStyle(
-                                          color: AppTheme.primaryRed,
+                                          color: AppTheme.primaryColor,
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -1534,7 +1534,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                   child: ElevatedButton.icon(
                     onPressed: _submitting ? null : _submitRequest,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryRed,
+                      backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -1582,7 +1582,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                     child: Padding(
                   padding: EdgeInsets.all(24),
                   child:
-                      CircularProgressIndicator(color: AppTheme.primaryRed),
+                      CircularProgressIndicator(color: AppTheme.primaryColor),
                 ));
               }
               final requests = snap.data!;
@@ -1639,9 +1639,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-        prefixIcon: Icon(icon, color: AppTheme.primaryRed, size: 18),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 18),
         suffixText: suffixText,
-        suffixStyle: const TextStyle(color: AppTheme.primaryRed, fontSize: 12, fontWeight: FontWeight.w800),
+        suffixStyle: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w800),
         filled: true,
         fillColor: const Color(0xFFF1F5F9),
         isDense: true,
@@ -1652,7 +1652,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
         ),
       ),
     );
@@ -1820,7 +1820,7 @@ class _StockViewTabState extends State<_StockViewTab> {
             decoration: InputDecoration(
               hintText: 'Search ingredients…',
               hintStyle: const TextStyle(color: Color(0xFF64748B)),
-              prefixIcon: const Icon(Icons.search, color: AppTheme.primaryRed, size: 20),
+              prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor, size: 20),
               filled: true,
               fillColor: Colors.white,
               isDense: true,
@@ -1834,7 +1834,7 @@ class _StockViewTabState extends State<_StockViewTab> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+                borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
             ),
           ),
@@ -1908,7 +1908,7 @@ class _StockViewTabState extends State<_StockViewTab> {
               if (!snap.hasData) {
                 return const Center(
                     child: CircularProgressIndicator(
-                        color: AppTheme.primaryRed));
+                        color: AppTheme.primaryColor));
               }
               var items = snap.data!;
               final hasItems = items.isNotEmpty;

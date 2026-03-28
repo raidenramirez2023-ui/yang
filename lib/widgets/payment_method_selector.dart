@@ -49,9 +49,9 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primaryRed.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.3)),
+            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -69,7 +69,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryRed,
+                  color: AppTheme.primaryColor,
                 ),
               ),
             ],
@@ -120,10 +120,10 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryRed.withValues(alpha: 0.1) : Colors.white,
+        color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryRed : Colors.grey.shade300,
+          color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
           width: isSelected ? 2 : 1,
         ),
         boxShadow: [
@@ -170,7 +170,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? AppTheme.primaryRed : const Color(0xFF1E1E1E),
+                          color: isSelected ? AppTheme.primaryColor : const Color(0xFF1E1E1E),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -191,9 +191,9 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
                     border: Border.all(
-                      color: isSelected ? AppTheme.primaryRed : Colors.grey.shade400,
+                      color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
                       width: 2,
                     ),
                   ),

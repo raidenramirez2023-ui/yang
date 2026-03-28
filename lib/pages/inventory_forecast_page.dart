@@ -203,7 +203,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryRed,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
         title: const Text('Inventory Forecast'),
         actions: [
@@ -267,7 +267,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        color: AppTheme.primaryRed,
+                        color: AppTheme.primaryColor,
                       ),
                     );
                   }
@@ -382,14 +382,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     setState(() => _selectedPeriod = period);
                   },
                   backgroundColor: AppTheme.white,
-                  selectedColor: AppTheme.primaryRed.withValues(alpha: 0.2),
-                  checkmarkColor: AppTheme.primaryRed,
+                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  checkmarkColor: AppTheme.primaryColor,
                   labelStyle: TextStyle(
-                    color: isSelected ? AppTheme.primaryRed : AppTheme.darkGrey,
+                    color: isSelected ? AppTheme.primaryColor : AppTheme.darkGrey,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   side: BorderSide(
-                    color: isSelected ? AppTheme.primaryRed : AppTheme.lightGrey,
+                    color: isSelected ? AppTheme.primaryColor : AppTheme.lightGrey,
                   ),
                 ),
               );
@@ -417,14 +417,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           initialValue: _selectedCategory,
           decoration: InputDecoration(
             labelText: 'Select Category',
-            prefixIcon: const Icon(Icons.category, color: AppTheme.primaryRed),
+            prefixIcon: const Icon(Icons.category, color: AppTheme.primaryColor),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.lightGrey),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.primaryRed),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
             filled: true,
             fillColor: AppTheme.backgroundColor,
@@ -542,7 +542,7 @@ class _ForecastCard extends StatelessWidget {
                       title: 'Current Stock',
                       value: '$currentStock ${item['unit']}',
                       icon: Icons.inventory_2,
-                      iconColor: AppTheme.primaryRed,
+                      iconColor: AppTheme.primaryColor,
                     ),
                     const SizedBox(height: 8),
                     _InfoCard(
@@ -574,7 +574,7 @@ class _ForecastCard extends StatelessWidget {
                         title: 'Current Stock',
                         value: '$currentStock ${item['unit']}',
                         icon: Icons.inventory_2,
-                        iconColor: AppTheme.primaryRed,
+                        iconColor: AppTheme.primaryColor,
                       ),
                     ),
                     const SizedBox(width: 12),

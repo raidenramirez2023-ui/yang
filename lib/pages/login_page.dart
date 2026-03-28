@@ -716,11 +716,11 @@ class _LoginPageState extends State<LoginPage> {
 
             children: [
 
-              CircularProgressIndicator(color: AppTheme.primaryRed),
+              CircularProgressIndicator(color: AppTheme.primaryColor),
 
               SizedBox(height: 16),
 
-              Text('Checking authentication...', style: TextStyle(color: AppTheme.primaryRed)),
+              Text('Checking authentication...', style: TextStyle(color: AppTheme.primaryColor)),
 
             ],
 
@@ -1233,7 +1233,7 @@ class _LoginPageState extends State<LoginPage> {
 
               padding: const EdgeInsets.symmetric(vertical: 16),
 
-              backgroundColor: AppTheme.primaryRed,
+              backgroundColor: AppTheme.primaryColor,
 
               foregroundColor: Colors.white,
 
@@ -1285,7 +1285,7 @@ class _LoginPageState extends State<LoginPage> {
 
               padding: const EdgeInsets.symmetric(vertical: 16),
 
-              side: BorderSide(color: AppTheme.primaryRed),
+              side: BorderSide(color: AppTheme.primaryColor),
 
             ),
 
@@ -1295,7 +1295,7 @@ class _LoginPageState extends State<LoginPage> {
 
               style: TextStyle(
 
-                color: AppTheme.primaryRed,
+                color: AppTheme.primaryColor,
 
                 fontWeight: FontWeight.w600,
 
@@ -1331,7 +1331,7 @@ class _LoginPageState extends State<LoginPage> {
 
               style: TextStyle(
 
-                color: AppTheme.primaryRed,
+                color: AppTheme.primaryColor,
 
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
 

@@ -247,7 +247,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryRed,
+                          color: AppTheme.primaryColor,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -406,7 +406,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

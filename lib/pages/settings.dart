@@ -98,10 +98,10 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
-                child: const Icon(Icons.settings_rounded, color: AppTheme.primaryRed, size: 32),
+                child: const Icon(Icons.settings_rounded, color: AppTheme.primaryColor, size: 32),
               ),
               const SizedBox(width: AppTheme.md),
               Column(
@@ -142,7 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
             child: FilledButton.icon(
               onPressed: _isLoading ? null : _saveSettings,
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primaryRed,
+                backgroundColor: AppTheme.primaryColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 ),
@@ -318,7 +318,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+              borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
             ),
           ),
         ),
