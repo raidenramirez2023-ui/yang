@@ -871,10 +871,15 @@ class _SalesReportPageState extends State<SalesReportPage>
           return GestureDetector(
             onTap: () {
               setState(() {
-                if (t == 'Daily') selectedPeriod = 'Daily';
-                else if (t == 'Weekly') selectedPeriod = 'Weekly';
-                else if (t == 'Monthly') selectedPeriod = 'Monthly';
-                else if (t == 'Yearly') selectedPeriod = 'Annually';
+                if (t == 'Daily') {
+                  selectedPeriod = 'Daily';
+                } else if (t == 'Weekly') {
+                  selectedPeriod = 'Weekly';
+                } else if (t == 'Monthly') {
+                  selectedPeriod = 'Monthly';
+                } else if (t == 'Yearly') {
+                  selectedPeriod = 'Annually';
+                }
               });
             },
             child: Container(

@@ -1,0 +1,31 @@
+﻿Analyzing yang...                                               
+
+warning - Unused import: 'package:flutter/foundation.dart' - lib\main.dart:4:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:507:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:517:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:593:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:635:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:789:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:841:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:887:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:991:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:1101:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:1337:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:1509:83 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:1579:83 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\customer_dashboard.dart:1772:23 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\customer_dashboard.dart:1902:23 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\pages\customer_dashboard.dart:1939:25 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\pages\customer_dashboard.dart:2105:43 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\pages\customer_dashboard.dart:3346:26 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\pages\sales_report_page.dart:874:35 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\sales_report_page.dart:875:41 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\sales_report_page.dart:876:42 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\pages\sales_report_page.dart:877:41 - curly_braces_in_flow_control_structures
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\paymongo_service.dart:46:15 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\paymongo_service.dart:96:15 - use_null_aware_elements
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\paymongo_service.dart:185:15 - use_null_aware_elements
+   info - The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\widgets\payment_logo_placeholder.dart:2:8 - unnecessary_import
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\widgets\payment_method_selector.dart:152:17 - sized_box_for_whitespace
+warning - The declaration '_getPaymentIcon' isn't referenced - lib\widgets\payment_method_selector.dart:216:12 - unused_element
+

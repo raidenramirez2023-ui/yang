@@ -149,7 +149,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
             child: Row(
               children: [
                 // Payment Method Icon
-                Container(
+                SizedBox(
                   width: 48,
                   height: 48,
                   child: PaymentLogoPlaceholder(
@@ -211,20 +211,5 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         ),
       ),
     );
-  }
-
-  IconData _getPaymentIcon(String type) {
-    switch (type) {
-      case 'gcash':
-        return Icons.account_balance_wallet;
-      case 'paymaya':
-        return Icons.account_balance_wallet;
-      case 'card':
-        return Icons.credit_card;
-      case 'bank_transfer':
-        return Icons.account_balance;
-      default:
-        return Icons.payment;
-    }
   }
 }

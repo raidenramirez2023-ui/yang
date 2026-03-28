@@ -41,9 +41,9 @@ class PayMongoService {
               'billing': {
                 'name': 'Customer',
                 'email': 'customer@example.com',
-                'phone': '+639123456789',
+              'phone': '+639123456789',
               },
-              if (metadata != null) 'metadata': metadata,
+               'metadata': metadata,
               'payment_method_types': ['gcash', 'paymaya', 'card', 'bank_transfer'],
             },
           },
@@ -93,7 +93,7 @@ class PayMongoService {
               'payment_method_options': {
                 'card': {'request_three_d_secure': 'any'},
               },
-              if (metadata != null) 'metadata': metadata,
+               'metadata': metadata,
             },
           },
         }),
@@ -182,7 +182,7 @@ class PayMongoService {
             'attributes': {
               'type': type,
               'details': details,
-              if (metadata != null) 'metadata': metadata,
+               'metadata': metadata,
             },
           },
         }),

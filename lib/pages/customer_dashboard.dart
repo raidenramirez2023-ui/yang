@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,6 +14,8 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/login_page.dart';
 
 import 'package:yang_chow/pages/payment_page.dart';
+
+import 'package:yang_chow/pages/edit_profile_page.dart';
 
 import 'package:yang_chow/services/paymongo_service.dart';
 
@@ -37,6 +40,7 @@ class CustomerDashboardPage extends StatefulWidget {
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   int _selectedIndex = 0;
+  bool _hasUnreadNotifications = false; // Off by default
 
   List<Map<String, dynamic>> customerReservations = [];
 
@@ -55,6 +59,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   final TextEditingController _durationController = TextEditingController();
 
   final TextEditingController _guestsController = TextEditingController();
+  
+  // New state variables for form improvements
+  String? _selectedEventType;
+  String? _selectedBaseDuration;
+  bool _addExtraTime = false;
+  String? _selectedExtraTime;
+
+  final List<String> _eventTypes = ['Birthday Party', 'Wedding', 'Meeting'];
+  final List<String> _baseDurations = ['2 hours', '3 hours'];
+  final List<String> _extraTimeOptions = [
+    '30 minutes',
+    '1 hour',
+    '1 hour 30 minutes',
+    '2 hours'
+  ];
 
 
 
@@ -97,39 +116,40 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Future<void> _loadCustomerReservations() async {
-
     try {
-
       final currentUser = Supabase.instance.client.auth.currentUser;
-
       if (currentUser == null) return;
 
-
-
       final response = await Supabase.instance.client
-
           .from('reservations')
-
           .select('*')
-
           .eq('customer_email', currentUser.email!)
-
           .order('created_at', ascending: false);
 
+      final newReservations = List<Map<String, dynamic>>.from(response);
 
+      // Detection for status changes (e.g. pending -> confirmed)
+      bool shouldNotify = false;
+      if (customerReservations.isNotEmpty) {
+        for (var res in newReservations) {
+          final oldRes = customerReservations.firstWhere(
+            (o) => o['id'] == res['id'],
+            orElse: () => {},
+          );
+          if (oldRes.isNotEmpty && oldRes['status'] != res['status']) {
+            shouldNotify = true;
+            break;
+          }
+        }
+      }
 
       setState(() {
-
-        customerReservations = List<Map<String, dynamic>>.from(response);
-
+        customerReservations = newReservations;
+        if (shouldNotify) _hasUnreadNotifications = true;
       });
-
     } catch (e) {
-
       debugPrint('Error loading customer reservations: $e');
-
     }
-
   }
 
 
@@ -143,31 +163,120 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
     return Scaffold(
-
-      backgroundColor: Colors.white,
-
+      backgroundColor: isDesktop ? Colors.white : const Color(0xFFF9F9FF),
       appBar: isDesktop 
-
           ? AppBar(
-
               automaticallyImplyLeading: false,
-
               title: const Text('Customer Dashboard'),
-
               backgroundColor: AppTheme.primaryRed,
-
               foregroundColor: Colors.white,
-
             )
-
-          : null,
-
+          : _buildDashboardAppBar(_getAppBarTitle()),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
 
     );
 
   }
 
+  String _getAppBarTitle() {
+    switch (_selectedIndex) {
+      case 0: return 'Home';
+      case 1: return 'Reservation';
+      case 2: return 'History';
+      case 3: return 'Account';
+      default: return 'Home';
+    }
+  }
+
+  PreferredSizeWidget _buildDashboardAppBar(String title) {
+    return AppBar(
+      backgroundColor: const Color(0xFFF9F9FF),
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF1D1B1E),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      actions: [
+        _buildNotificationIcon(),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildNotificationIcon() {
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1D1B1E)),
+          onPressed: _showNotificationsDialog,
+          tooltip: 'Notifications',
+        ),
+        if (_hasUnreadNotifications)
+          Positioned(
+            right: 12,
+            top: 12,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF9F9FF), width: 2),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showNotificationsDialog() {
+    setState(() => _hasUnreadNotifications = false);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_rounded, color: AppTheme.primaryRed),
+            SizedBox(width: 12),
+            Text('Notifications'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Divider(),
+            const SizedBox(height: 16),
+            Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            const Text(
+              'No new notifications',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'We\'ll let you know when the status of your reservation changes.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
 
   // =========================
@@ -382,6 +491,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                         children: [
 
+                          _buildNotificationIcon(),
+                          const SizedBox(width: 8),
                           IconButton(
 
                             onPressed: _showLogoutDialog,
@@ -447,24 +558,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         // Main Content
 
         Expanded(
-
           child: Container(
-
-            color: const Color(0xFFF5F5F5),
-
+            color: Colors.transparent,
             child: RefreshIndicator(
 
               onRefresh: _loadCustomerReservations,
 
               color: AppTheme.primaryRed,
 
-              child: Padding(
-
-                padding: const EdgeInsets.all(16.0),
-
-                child: _buildContent(),
-
-              ),
+              child: _selectedIndex == 3
+                  ? _buildContent()
+                  : Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _buildContent(),
+                    ),
 
             ),
 
@@ -773,27 +880,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               children: [
 
                 Container(
-
-                  padding: const EdgeInsets.all(20),
-
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-
                     color: Colors.white.withValues(alpha: 0.2),
-
                     shape: BoxShape.circle,
-
+                    image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-
-                  child: const Icon(
-
-                    Icons.waving_hand,
-
-                    color: Colors.white,
-
-                    size: 40,
-
-                  ),
-
+                  child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
+                      ? const Icon(
+                          Icons.waving_hand,
+                          color: Colors.white,
+                          size: 40,
+                        )
+                      : null,
                 ),
 
                 const SizedBox(width: 24),
@@ -1760,24 +1865,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
-                      controller: _eventController,
-
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedEventType,
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., Birthday Party, Wedding, Meeting',
-
+                        hintText: 'Select event type',
                         prefixIcon: const Icon(Icons.event),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
+                      items: _eventTypes.map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedEventType = value;
+                          _eventController.text = value ?? '';
+                        });
+                      },
                     ),
 
                     const SizedBox(height: 16),
@@ -1797,51 +1903,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     const SizedBox(height: 8),
 
                     TextField(
-
                       controller: _dateController,
-
                       readOnly: true,
-
                       decoration: InputDecoration(
-
-                        hintText: 'Select date',
-
+                        hintText: 'Select date (at least 4 days advance)',
                         prefixIcon: const Icon(Icons.calendar_today),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                       onTap: () async {
-
+                        final minDate = DateTime.now().add(const Duration(days: 4));
                         DateTime? pickedDate = await showDatePicker(
-
                           context: context,
-
-                          initialDate: DateTime.now(),
-
-                          firstDate: DateTime.now(),
-
+                          initialDate: minDate,
+                          firstDate: minDate,
                           lastDate: DateTime.now().add(const Duration(days: 365)),
-
                         );
-
                         if (pickedDate != null) {
-
                           setState(() {
-
                             _dateController.text = "${pickedDate.month}/${pickedDate.day}/${pickedDate.year}";
-
                           });
-
                         }
-
                       },
-
                     ),
 
                     const SizedBox(height: 16),
@@ -1860,48 +1944,39 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
+                    TextField( // Reverted to TextField to match other fields
                       controller: _startTimeController,
-
                       readOnly: true,
-
                       decoration: InputDecoration(
-
-                        hintText: 'Select time',
-
+                        hintText: 'Select time (10 AM - 4 PM)',
                         prefixIcon: const Icon(Icons.access_time),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                       onTap: () async {
-
                         TimeOfDay? pickedTime = await showTimePicker(
-
                           context: context,
-
-                          initialTime: TimeOfDay.now(),
-
+                          initialTime: const TimeOfDay(hour: 10, minute: 0),
                         );
-
                         if (pickedTime != null) {
-
+                          // Validation: 10:00 AM to 4:00 PM (16:00)
+                          if (pickedTime.hour < 10 || pickedTime.hour > 16 || (pickedTime.hour == 16 && pickedTime.minute > 0)) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please select a time between 10:00 AM and 4:00 PM'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           setState(() {
-
                             _startTimeController.text = pickedTime.format(context);
-
                           });
-
                         }
-
                       },
-
                     ),
 
                     const SizedBox(height: 16),
@@ -1920,27 +1995,64 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     const SizedBox(height: 8),
 
-                    TextField(
-
-                      controller: _durationController,
-
-                      keyboardType: TextInputType.number,
-
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedBaseDuration,
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., 2, 3, 4',
-
+                        hintText: 'Select base duration',
                         prefixIcon: const Icon(Icons.hourglass_empty),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
+                      items: _baseDurations.map((duration) => DropdownMenuItem(
+                        value: duration,
+                        child: Text(duration),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedBaseDuration = value;
+                          _updateDurationText();
+                        });
+                      },
                     ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      title: const Text('Add extra time?', style: TextStyle(fontSize: 14)),
+                      value: _addExtraTime,
+                      activeColor: AppTheme.primaryRed,
+                      onChanged: (value) {
+                        setState(() {
+                          _addExtraTime = value ?? false;
+                          if (!_addExtraTime) _selectedExtraTime = null;
+                          _updateDurationText();
+                        });
+                      },
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                    if (_addExtraTime) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedExtraTime,
+                        decoration: InputDecoration(
+                          hintText: 'Select extra time',
+                          prefixIcon: const Icon(Icons.add_alarm),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          ),
+                        ),
+                        items: _extraTimeOptions.map((extra) => DropdownMenuItem(
+                          value: extra,
+                          child: Text(extra),
+                        )).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedExtraTime = value;
+                            _updateDurationText();
+                          });
+                        },
+                      ),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -1959,25 +2071,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     const SizedBox(height: 8),
 
                     TextField(
-
                       controller: _guestsController,
-
                       keyboardType: TextInputType.number,
-
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
-
-                        hintText: 'e.g., 10, 25, 50',
-
+                        hintText: 'Enter number of guests (10-500)',
                         prefixIcon: const Icon(Icons.people),
-
                         border: OutlineInputBorder(
-
                           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
                         ),
-
                       ),
-
                     ),
 
                     const SizedBox(height: 24),
@@ -2049,397 +2152,201 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Widget _buildProfileSection() {
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
-    final name = currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? 
-
+    final name = currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ??
                  currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'Customer';
-
     final email = currentUser?.email ?? 'Not provided';
-
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
 
-
-
     return SingleChildScrollView(
-
       physics: const AlwaysScrollableScrollPhysics(),
-
-      child: Column(
-
-        children: [
-
-          const SizedBox(height: 24),
-
-          // Profile Avatar
-
-          Stack(
-
-            children: [
-
-              Container(
-
-                width: 100,
-
-                height: 100,
-
-                decoration: BoxDecoration(
-
-                  color: const Color(0xFFF0B38B), // Peach color from image
-
-                  shape: BoxShape.circle,
-
-                  border: Border.all(color: Colors.white, width: 4),
-
-                  boxShadow: [
-
-                    BoxShadow(
-
-                      color: Colors.black.withValues(alpha: 0.1),
-
-                      blurRadius: 8,
-
-                      offset: const Offset(0, 4),
-
-                    ),
-
-                  ],
-
-                ),
-
-                child: Center(
-
-                  child: Text(
-
-                    initial,
-
-                    style: const TextStyle(
-
-                      fontSize: 40,
-
-                      fontWeight: FontWeight.bold,
-
-                      color: Colors.white,
-
-                    ),
-
-                  ),
-
-                ),
-
-              ),
-
-              Positioned(
-
-                bottom: 0,
-
-                right: 0,
-
-                child: Container(
-
-                  padding: const EdgeInsets.all(4),
-
-                  decoration: const BoxDecoration(
-
-                    color: AppTheme.primaryRed,
-
-                    shape: BoxShape.circle,
-
-                  ),
-
-                  child: const Icon(
-
-                    Icons.add,
-
-                    color: Colors.white,
-
-                    size: 20,
-
-                  ),
-
-                ),
-
-              ),
-
-            ],
-
-          ),
-
-          const SizedBox(height: 16),
-
-          // Name and Email
-
-          Text(
-
-            name,
-
-            style: const TextStyle(
-
-              fontSize: 24,
-
-              fontWeight: FontWeight.bold,
-
-              color: Color(0xFF1E1E1E),
-
-            ),
-
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-
-            email,
-
-            style: TextStyle(
-
-              fontSize: 14,
-
-              color: Colors.grey.shade600,
-
-            ),
-
-          ),
-
-          const SizedBox(height: 32),
-
-          
-
-          // Menu Cards
-
-          Container(
-
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-
-            child: Column(
-
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 32),
+
+            // Profile Header Row
+            Row(
               children: [
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.person_outline,
-
-                  title: 'Personal Information',
-
-                  subtitle: 'Name, email, phone',
-
-                  onTap: () {},
-
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB4AB),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    image: currentUser?.userMetadata?['avatar_url'] != null
+                        ? DecorationImage(
+                            image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: currentUser?.userMetadata?['avatar_url'] == null
+                      ? Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1D1B1E),
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.settings_outlined,
-
-                  title: 'Settings',
-
-                  subtitle: 'Notifications, privacy',
-
-                  onTap: () {},
-
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1D1B1E),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.help_outline,
-
-                  title: 'Help & Support',
-
-                  subtitle: 'FAQs, contact us',
-
-                  onTap: () {},
-
-                ),
-
-                const SizedBox(height: 12),
-
-                _buildAccountMenuCard(
-
-                  icon: Icons.logout,
-
-                  title: 'Logout',
-
-                  subtitle: null,
-
-                  isDestructive: true,
-
-                  onTap: _showLogoutDialog,
-
-                ),
-
-                const SizedBox(height: 24),
-
               ],
-
             ),
 
-          ),
+            const SizedBox(height: 36),
 
-        ],
+            // Menu Cards
+            _buildAccountMenuCard(
+              icon: Icons.person_outline_rounded,
+              title: 'Edit Profile',
+              subtitle: 'Details about your account',
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const EditProfilePage(),
+                  ),
+                );
+                if (mounted) {
+                  setState(() {});
+                }
+              },
+            ),
+            _buildAccountMenuCard(
+              icon: Icons.logout_rounded,
+              title: 'Logout',
+              subtitle: 'Securely exit your session',
+              isDestructive: true,
+              onTap: _showLogoutDialog,
+            ),
 
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
-
     );
-
   }
 
 
 
+
   Widget _buildAccountMenuCard({
-
     required IconData icon,
-
     required String title,
-
     String? subtitle,
-
     required VoidCallback onTap,
-
     bool isDestructive = false,
-
   }) {
-
-    final color = isDestructive ? AppTheme.primaryRed : const Color(0xFF1E1E1E);
-
-    final iconBgColor = AppTheme.primaryRed.withValues(alpha: 0.1);
-
-
-
-    return InkWell(
-
-      onTap: onTap,
-
-      borderRadius: BorderRadius.circular(16),
-
-      child: Container(
-
-        padding: const EdgeInsets.all(16),
-
-        decoration: BoxDecoration(
-
-          color: Colors.white,
-
-          borderRadius: BorderRadius.circular(16),
-
-          boxShadow: [
-
-            BoxShadow(
-
-              color: Colors.black.withValues(alpha: 0.03),
-
-              blurRadius: 10,
-
-              offset: const Offset(0, 4),
-
-            ),
-
-          ],
-
-        ),
-
-        child: Row(
-
-          children: [
-
-            Container(
-
-              padding: const EdgeInsets.all(12),
-
-              decoration: BoxDecoration(
-
-                color: iconBgColor,
-
-                borderRadius: BorderRadius.circular(12),
-
-              ),
-
-              child: Icon(
-
-                icon,
-
-                color: isDestructive ? AppTheme.primaryRed : const Color(0xFFC04F4F),
-
-                size: 24,
-
-              ),
-
-            ),
-
-            const SizedBox(width: 16),
-
-            Expanded(
-
-              child: Column(
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-
-                  Text(
-
-                    title,
-
-                    style: TextStyle(
-
-                      fontSize: 16,
-
-                      fontWeight: FontWeight.w600,
-
-                      color: color,
-
-                    ),
-
-                  ),
-
-                  if (subtitle != null) ...[
-
-                    const SizedBox(height: 4),
-
-                    Text(
-
-                      subtitle,
-
-                      style: TextStyle(
-
-                        fontSize: 13,
-
-                        color: Colors.grey.shade500,
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ],
-
-              ),
-
-            ),
-
-            Icon(
-
-              Icons.chevron_right,
-
-              color: isDestructive ? AppTheme.primaryRed : Colors.grey.shade400,
-
-              size: 20,
-
-            ),
-
-          ],
-
-        ),
-
+    final color = isDestructive ? const Color(0xFFBA1A1A) : const Color(0xFF1D1B1E);
+    final iconBgColor = isDestructive ? const Color(0xFFFFDAD6).withValues(alpha: 0.5) : const Color(0xFFFFDAD6);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey.shade400,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-
   }
 
 
@@ -2956,50 +2863,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   void _submitReservation() async {
 
-    String event = _eventController.text.trim();
-
     String date = _dateController.text.trim();
-
     String startTime = _startTimeController.text.trim();
-
-    String duration = _durationController.text.trim();
-
     String guests = _guestsController.text.trim();
-
-
-
+    
     // Validation
-
-    if (event.isEmpty || date.isEmpty || startTime.isEmpty || duration.isEmpty || guests.isEmpty) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(
-
-          content: const Row(
-
-            children: [
-
-              Icon(Icons.error_outline, color: Colors.white),
-
-              SizedBox(width: 12),
-
-              Text('Please fill in all fields'),
-
-            ],
-
-          ),
-
-          backgroundColor: Colors.red,
-
-          behavior: SnackBarBehavior.floating,
-
-        ),
-
-      );
-
+    if (_selectedEventType == null) {
+      _showSnackBar('Please select an event type', Colors.red);
       return;
+    }
+    if (date.isEmpty) {
+      _showSnackBar('Please select a date', Colors.red);
+      return;
+    }
+    if (startTime.isEmpty) {
+      _showSnackBar('Please select a start time', Colors.red);
+      return;
+    }
+    if (_selectedBaseDuration == null) {
+      _showSnackBar('Please select a base duration', Colors.red);
+      return;
+    }
+    if (guests.isEmpty) {
+      _showSnackBar('Please enter the number of guests', Colors.red);
+      return;
+    }
 
+    int guestCount = int.tryParse(guests) ?? 0;
+    if (guestCount < 10 || guestCount > 500) {
+      _showSnackBar('Number of guests must be between 10 and 500', Colors.red);
+      return;
+    }
+
+    double totalDuration = double.tryParse(_durationController.text) ?? 0.0;
+    if (totalDuration == 0) {
+      _showSnackBar('Invalid duration selected', Colors.red);
+      return;
     }
 
 
@@ -3063,21 +2962,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
       // Create reservation WITHOUT payment first (pending confirmation)
-
       await _createReservationWithoutPayment(
-
         currentUser,
-
-        event,
-
+        _selectedEventType!,
         formattedDate,
-
         startTime,
-
-        int.parse(duration.replaceAll(RegExp(r'[^0-9]'), '')),
-
-        int.parse(guests.replaceAll(RegExp(r'[^0-9]'), '')),
-
+        totalDuration,
+        guestCount,
       );
 
 
@@ -3121,19 +3012,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Future<void> _createReservationWithoutPayment(
-
     User currentUser,
-
     String event,
-
     String formattedDate,
-
     String startTime,
-
-    int duration,
-
+    num duration,
     int guests,
-
   ) async {
 
     try {
@@ -3207,16 +3091,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
       // Clear form
-
       _eventController.clear();
-
       _dateController.clear();
-
       _startTimeController.clear();
-
       _durationController.clear();
-
       _guestsController.clear();
+      
+      setState(() {
+        _selectedEventType = null;
+        _selectedBaseDuration = null;
+        _addExtraTime = false;
+        _selectedExtraTime = null;
+      });
 
 
 
@@ -3368,10 +3254,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-    if (shouldProceed == true) {
-
+    if (shouldProceed == true && mounted) {
       // Navigate to payment page
-
       await Navigator.of(context).push(
 
         MaterialPageRoute(
@@ -3515,6 +3399,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
 
+
+  void _updateDurationText() {
+    if (_selectedBaseDuration == null) {
+      _durationController.text = '';
+      return;
+    }
+    double total = double.parse(_selectedBaseDuration!.split(' ')[0]);
+    if (_addExtraTime && _selectedExtraTime != null) {
+      if (_selectedExtraTime == '30 minutes') {
+        total += 0.5;
+      } else {
+        total += double.parse(_selectedExtraTime!.split(' ')[0]);
+      }
+    }
+    _durationController.text = total.toString();
+  }
 
   void _showLogoutDialog() {
 
