@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/services/notification_service.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   const AdminReservationsPage({super.key});
@@ -231,6 +232,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           'is_active': true,
           'expires_at': expiresAt.toUtc().toIso8601String(),
         });
+      }
+
+      // Send notification to customer
+      if (reservation != null) {
+        String actionVerb = 'updated';
+        if (newStatus == 'confirmed') actionVerb = 'approved';
+        if (newStatus == 'cancelled') actionVerb = 'cancelled';
+        if (newStatus == 'completed') actionVerb = 'completed';
+
+        await NotificationService.sendNotification(
+          recipientEmail: reservation['customer_email'],
+          actorName: 'Admin',
+          actionType: actionVerb,
+          reservationId: reservationId,
+          eventType: reservation['event_type'],
+          eventDate: reservation['event_date'],
+        );
       }
 
       _showSnackBar('Reservation status updated to $newStatus', Colors.green);
@@ -1262,7 +1280,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
           IconButton(
-            onPressed: () => _updateReservationStatus(reservationId, 'cancelled'),
+            onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
             icon: Icon(
               Icons.close, 
               color: Colors.red,
@@ -1274,7 +1292,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         ],
         if (status == 'confirmed') ...[
           IconButton(
-            onPressed: () => _updateReservationStatus(reservationId, 'cancelled'),
+            onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
             icon: Icon(
               Icons.cancel, 
               color: Colors.red,
@@ -1284,7 +1302,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
         ],
-        if (status == 'completed') ...[
+          IconButton(
+            onPressed: () => _showEditReservationDialog(reservation),
+            icon: Icon(
+              Icons.edit,
+              color: AppTheme.infoBlue,
+              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
+            tooltip: 'Modify',
+          ),
+          if (status == 'completed') ...[
           // No actions for completed reservations
           Container(
             padding: EdgeInsets.symmetric(
@@ -1316,6 +1343,84 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
         ),
       ],
+    );
+  }
+
+  void _showEditReservationDialog(Map<String, dynamic> reservation) {
+    final dateController = TextEditingController(text: reservation['event_date']?.toString() ?? '');
+    final timeController = TextEditingController(text: reservation['start_time']?.toString() ?? '');
+    final guestsController = TextEditingController(text: reservation['number_of_guests']?.toString() ?? '');
+    final tableController = TextEditingController(text: reservation['table_number']?.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modify Reservation'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: dateController,
+                decoration: const InputDecoration(labelText: 'Event Date (YYYY-MM-DD)'),
+              ),
+              TextField(
+                controller: timeController,
+                decoration: const InputDecoration(labelText: 'Start Time'),
+              ),
+              TextField(
+                controller: guestsController,
+                decoration: const InputDecoration(labelText: 'Number of Guests'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: tableController,
+                decoration: const InputDecoration(labelText: 'Table Number (Optional)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await Supabase.instance.client.from('reservations').update({
+                  'event_date': dateController.text,
+                  'start_time': timeController.text,
+                  'number_of_guests': int.tryParse(guestsController.text) ?? reservation['number_of_guests'],
+                  'table_number': tableController.text,
+                  'updated_at': DateTime.now().toIso8601String(),
+                }).eq('id', reservation['id']);
+
+                // Send notification
+                await NotificationService.sendNotification(
+                  recipientEmail: reservation['customer_email'],
+                  actorName: 'Admin',
+                  actionType: 'updated',
+                  reservationId: reservation['id'],
+                  eventType: reservation['event_type'],
+                  eventDate: dateController.text,
+                );
+
+                _showSnackBar('Reservation updated successfully', Colors.green);
+                _loadReservations();
+              } catch (e) {
+                _showSnackBar('Error updating reservation: $e', Colors.red);
+              }
+            },
+            child: const Text('Save Changes'),
+          ),
+        ],
+      ),
     );
   }
 }

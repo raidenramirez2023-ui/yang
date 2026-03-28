@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_options.dart';  // Supabase configuration
+import 'supabase_options.dart'; // Supabase configuration
 import 'utils/app_theme.dart';
+import 'services/app_settings_service.dart';
 
 // Features
 import 'pages/login_page.dart';
@@ -35,10 +36,21 @@ Future<void> main() async {
       debug: true, // Enable debug mode for better error messages
     );
     debugPrint('✅ Supabase initialized successfully');
+
+    // Initialize application settings from database
+    try {
+      final appSettings = AppSettingsService();
+      await appSettings.initializeSettings();
+      debugPrint('✅ Application settings loaded');
+    } catch (e) {
+      debugPrint('⚠️ Could not load app settings: $e (using defaults)');
+    }
   } catch (e) {
     debugPrint('❌ Supabase initialization failed: $e');
-    debugPrint('Please check your Supabase configuration in lib/supabase_options.dart');
-    
+    debugPrint(
+      'Please check your Supabase configuration in lib/supabase_options.dart',
+    );
+
     // Continue with app even if Supabase fails (for testing)
     debugPrint('⚠️ Continuing with app in offline mode...');
   }
@@ -69,7 +81,8 @@ class YangChowApp extends StatelessWidget {
         // Admin routes
         '/dashboard': (context) => const AdminMainPage(),
         '/admin-reservations': (context) => const AdminReservationsPage(),
-        '/pagsanjaninv-dashboard': (context) => const PagsanjaninvDashboardPage(),
+        '/pagsanjaninv-dashboard': (context) =>
+            const PagsanjaninvDashboardPage(),
 
         // Staff routes
         '/staff-dashboard': (context) => const StaffDashboardPage(),
