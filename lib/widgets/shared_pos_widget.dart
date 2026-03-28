@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -127,12 +127,12 @@ class ReceiptTemplate extends StatelessWidget {
             ],
           ),
           
-          // Host and Date/Time - Matching the image style
+          // Date and Time - Matching the image style
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('HOST: ${customerName ?? 'BOB'}'),
-              Text('$_formattedDate    $_formattedTime'),
+              Text(_formattedDate),
+              Text(_formattedTime),
             ],
           ),
           
@@ -848,9 +848,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     final index = cart.indexWhere((e) => e.item.name == item.name);
     setState(() {
       if (index >= 0) {
-        cart[index].quantity++;
+        final existing = cart.removeAt(index);
+        existing.quantity++;
+        cart.insert(0, existing);
       } else {
-        cart.add(CartItem(item, 1));
+        cart.insert(0, CartItem(item, 1));
       }
     });
   }
@@ -1172,15 +1174,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
-                      controller: _mobileCustomerNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Customer Name',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8),
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1205,9 +1198,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 // Close the bottom sheet first, then show
                                 // the receipt dialog using the parent context.
                                 Navigator.pop(context);
-                                await _generateReceipt(
-                                  customerName: _mobileCustomerNameController.text.trim(),
-                                );
+                                await _generateReceipt();
                                 _mobileCustomerNameController.clear();
                               }
                             : null,
@@ -1351,53 +1342,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       backgroundColor: const Color(0xFFF5F6FA),
       body: Column(
         children: [
-          // ── Top Header Bar ───────────────────────────────────────────────
-          Container(
-            height: 56,
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                // Logo + Title
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: const BoxDecoration(
-                    color: Color.fromARGB(255, 255, 0, 0),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text('P',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text('Order Menu',
-                    style: TextStyle(
-                        color: Color(0xFF1A1A2E),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20)),
-                const Spacer(),
-                // Search bar
-                SizedBox(width: 280, child: _buildSearchBar()),
-                const SizedBox(width: 12),
-                // Settings icon
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F0F5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.tune_rounded,
-                      size: 18, color: Color(0xFF6B7280)),
-                ),
-              ],
-            ),
-          ),
           // ── Body Row ─────────────────────────────────────────────────────
           Expanded(
             child: Stack(
