@@ -7,7 +7,7 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final void Function(String name, String note, double totalAmount)
+  final void Function(String name, String note, double totalAmount, int guestCount)
   onProceedPayment;
   final VoidCallback onClearCart;
   final bool isMobile;
@@ -29,6 +29,7 @@ class OrderListPanel extends StatefulWidget {
 
 class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _guestCountController = TextEditingController(text: '1');
   bool _isDiscountEnabled = false; // Discount state variable
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
@@ -42,6 +43,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
   @override
   void dispose() {
     _noteController.dispose();
+    _guestCountController.dispose();
     super.dispose();
   }
 
@@ -68,6 +70,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 14),
+                  _buildGuestCountField(),
+                  const SizedBox(height: 10),
                   _buildNoteField(),
                   const SizedBox(height: 20),
                   _buildItemsHeader(),
@@ -143,6 +147,52 @@ class _OrderListPanelState extends State<OrderListPanel> {
           borderSide: const BorderSide(color: _indigo, width: 1.5),
         ),
       ),
+    );
+  }
+
+  Widget _buildGuestCountField() {
+    return Row(
+      children: [
+        const Text(
+          'No. of Guest:',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _textDark,
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 70,
+          child: TextField(
+            controller: _guestCountController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: _bg,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _indigo, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -408,10 +458,12 @@ class _OrderListPanelState extends State<OrderListPanel> {
                           ? (subtotal * 0.20)
                           : 0.0;
                       final total = subtotal - discountAmount;
+                      final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
                       widget.onProceedPayment(
                         '',
                         _noteController.text.trim(),
                         total,
+                        guestCount,
                       );
                     }
                   : null,
