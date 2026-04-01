@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'order_list_panel.dart';
 import 'payment_panel.dart';
+import '../services/recipe_service.dart';
 
 /// =====================
 /// MODELS
@@ -90,8 +91,8 @@ class ReceiptTemplate extends StatelessWidget {
     final fmt = NumberFormat('#,##0.00', 'en_US');
 
     return Container(
-      width: 320,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      width: 283,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(0),
@@ -105,7 +106,7 @@ class ReceiptTemplate extends StatelessWidget {
             const Text(
               'CEAZAR GABRIEL\'S RES',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
               ),
@@ -114,16 +115,16 @@ class ReceiptTemplate extends StatelessWidget {
             const Text(
               'TAURANT',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
               ),
               textAlign: TextAlign.center,
             ),
             const Text(
-              'YANG CHON',
+              'YANG CHOW',
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 fontFamily: 'monospace',
               ),
@@ -131,29 +132,29 @@ class ReceiptTemplate extends StatelessWidget {
             ),
             const Text(
               'Owned & optd by:',
-              style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+              style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
               textAlign: TextAlign.center,
             ),
             const Text(
               'Ceazar Gabriel R.  Areza',
               style: TextStyle(
-                fontSize: 8,
+                fontSize: 12,
                 fontFamily: 'monospace',
               ),
               textAlign: TextAlign.center,
             ),
             const Text(
               'Areza Town Center Mall brgy. Bi\u00f1an',
-              style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+              style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
               textAlign: TextAlign.center,
             ),
             const Text(
               'Pagsanjan Laguna',
-              style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+              style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
               textAlign: TextAlign.center,
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // ===== ORDER INFO SECTION =====
             // Row 1: Table # | No. of Guest
@@ -163,14 +164,14 @@ class ReceiptTemplate extends StatelessWidget {
                 Text(
                   'Table #: ${tableNumber?.toString() ?? '32'}',
                   style: const TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontFamily: 'monospace',
                   ),
                 ),
                 Text(
                   'No. of Guest:  ${guestCount?.toString() ?? '2'}',
                   style: const TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -182,11 +183,11 @@ class ReceiptTemplate extends StatelessWidget {
               children: [
                 Text(
                   'Term. No.  $terminalNumber',
-                  style: const TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ),
-            const SizedBox(height: 1),
+            const SizedBox(height: 2),
 
             // Row 3: WALK-IN left-aligned
             Align(
@@ -194,7 +195,7 @@ class ReceiptTemplate extends StatelessWidget {
               child: Text(
                 orderType ?? 'WALK-IN',
                 style: const TextStyle(
-                  fontSize: 8,
+                  fontSize: 12,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -205,55 +206,53 @@ class ReceiptTemplate extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Cahr: ${cashierName ?? 'JANE'}',
-                  style: const TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  'Cashr: ${cashierName ?? 'JANE'}',
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
-                if (serverName != null)
-                  Text(
-                    'Server: $serverName',
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontFamily: 'monospace',
-                    ),
+                Text(
+                  'Server: ${serverName ?? 'bara 3'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'monospace',
                   ),
+                ),
               ],
             ),
             _dashDivider(),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
 
-            _dashDivider(),
             Row(
               children: [
-                SizedBox(
-                  width: 32,
-                  child: const Text(
+                const SizedBox(
+                  width: 50,
+                  child: Text(
                     'Qty',
                     style: TextStyle(
-                      fontSize: 8,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                     ),
                   ),
                 ),
-                Expanded(
+                const Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: const Text(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
                       'Description(s)',
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'monospace',
                       ),
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 70,
-                  child: const Text(
+                const SizedBox(
+                  width: 110,
+                  child: Text(
                     'Price',
                     style: TextStyle(
-                      fontSize: 8,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
                     ),
@@ -263,57 +262,54 @@ class ReceiptTemplate extends StatelessWidget {
               ],
             ),
             _dashDivider(),
-            const SizedBox(height: 2),
-
-            _dashDivider(),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
 
             // ===== CATEGORY LABEL =====
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
-              child: const Text(
+              child: Text(
                 'DINE IN',
-                style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
               ),
             ),
 
             // Items (indented qty)
             ...cart.map(
               (item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 0.5),
+                padding: const EdgeInsets.symmetric(vertical: 1),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: 32,
+                      width: 50,
                       child: Text(
                         '  ${item.quantity.toStringAsFixed(2)}',
                         style: const TextStyle(
-                          fontSize: 8,
+                          fontSize: 12,
                           fontFamily: 'monospace',
                         ),
                       ),
                     ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Text(
                           item.item.name.toUpperCase(),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 8,
+                            fontSize: 12,
                             fontFamily: 'monospace',
                           ),
                         ),
                       ),
                     ),
                     SizedBox(
-                      width: 70,
+                      width: 110,
                       child: Text(
                         fmt.format(item.item.price * item.quantity),
                         style: const TextStyle(
-                          fontSize: 8,
+                          fontSize: 12,
                           fontFamily: 'monospace',
                         ),
                         textAlign: TextAlign.right,
@@ -324,31 +320,33 @@ class ReceiptTemplate extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
 
             // ===== ITEM COUNT WITH DASHES =====
             Text(
-              '-----------${cart.length} Item(s)-----------',
+              '----------------------------${cart.length} Item(s)-----------------------------',
               style: const TextStyle(
-                fontSize: 8,
+                fontSize: 12,
                 fontFamily: 'monospace',
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
             // ===== SUBTOTAL & TOTAL SECTION =====
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  '   Sub Total',
-                  style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  '  Sub Total',
+                  style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
                 Text(
                   fmt.format(subtotal),
-                  style: const TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ),
@@ -359,7 +357,7 @@ class ReceiptTemplate extends StatelessWidget {
                 const Text(
                   'TOTAL',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                   ),
@@ -367,123 +365,105 @@ class ReceiptTemplate extends StatelessWidget {
                 Text(
                   fmt.format(totalAmount),
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                   ),
                 ),
               ],
             ),
-            _dashDivider(),
 
-            const SizedBox(height: 2),
+            const SizedBox(height: 16),
 
             // ===== PAYMENT SECTION =====
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Tendered:',
-                  style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ),
-            const SizedBox(height: 1),
+            const SizedBox(height: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '  ${paymentMethod.toUpperCase()}',
                   style: const TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontFamily: 'monospace',
                   ),
                 ),
                 Text(
                   fmt.format(paidAmount),
-                  style: const TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
               ],
             ),
-            const SizedBox(height: 1),
+            const SizedBox(height: 2),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Change:',
-                  style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+                  style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 ),
                 Text(
                   fmt.format(changeDue),
                   style: const TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontFamily: 'monospace',
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             _dashDivider(),
-            const SizedBox(height: 20),
-
-            _dashDivider(),
-            const SizedBox(height: 4),
+            const SizedBox(height: 24),
 
             // ===== TIMESTAMP =====
             Text(
-              '$_formattedDate $_formattedTime24',
+              '                $_formattedDate $_formattedTime24',
               style: const TextStyle(
-                fontSize: 8,
+                fontSize: 12,
                 fontFamily: 'monospace',
               ),
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.left,
             ),
 
-            const SizedBox(height: 6),
-
-            const Text(
-              'RE-PRINT',
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 12),
-
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
             // ===== NAME & ADDRESS =====
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
-              child: const Text(
-                '  Name: __________________________',
-                style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '  Address: _______________________',
-                style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '           _______________________',
-                style: TextStyle(fontSize: 8, fontFamily: 'monospace'),
+              child: Text(
+                'Name: _________________________________________',
+                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                maxLines: 1,
               ),
             ),
             const SizedBox(height: 6),
-            _dashDivider(),
-
-            const SizedBox(height: 4),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Address: ______________________________________',
+                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '         ______________________________________',
+                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -496,11 +476,11 @@ class ReceiptTemplate extends StatelessWidget {
 
   Widget _dashDivider() {
     return const Text(
-      '------------------------------------------',
+      '------------------------------------------------',
       style: TextStyle(
-        fontSize: 8,
+        fontSize: 12,
         fontFamily: 'monospace',
-        letterSpacing: -0.5,
+        letterSpacing: 0,
       ),
       maxLines: 1,
       overflow: TextOverflow.clip,
@@ -1516,12 +1496,245 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   void _removeItem(CartItem cartItem) => setState(() => cart.remove(cartItem));
 
+  Future<void> _showIngredientsDialog(MenuItem item) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                // Header
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        item.customImagePath ?? item.fallbackImagePath,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, _, _) => Container(
+                          width: 60,
+                          height: 60,
+                          color: const Color(0xFFF5F6FA),
+                          child: const Icon(Icons.fastfood, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          Text(
+                            '₱${item.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Recipe Ingredients Section
+                const Text(
+                  'Recipe Ingredients & Stock Status',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Ingredients List
+                Expanded(
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: RecipeService().getIngredientsWithInventoryStatus(item.name),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text('Error loading ingredients: ${snapshot.error}'),
+                        );
+                      }
+                      
+                      final ingredients = snapshot.data ?? [];
+                      
+                      if (ingredients.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No recipe found for this item',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        );
+                      }
+                      
+                      return ListView.builder(
+                        itemCount: ingredients.length,
+                        itemBuilder: (context, index) {
+                          final ingredient = ingredients[index];
+                          final requiredQuantity = ingredient['required_quantity'] as double;
+                          final inventoryQuantity = ingredient['inventory_quantity'] as int;
+                          final unit = ingredient['unit']?.toString() ?? 'pcs';
+                          final stockStatus = ingredient['stock_status']?.toString() ?? 'UNKNOWN';
+                          final isAvailable = ingredient['is_available'] as bool;
+                          final stockColor = _getStockStatusColor(stockStatus);
+                          
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F6FA),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isAvailable ? const Color(0xFFE5E7EB) : Colors.red.withValues(alpha: 0.3),
+                                width: isAvailable ? 1 : 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        ingredient['name']?.toString() ?? 'Unknown',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: isAvailable ? const Color(0xFF1E293B) : Colors.red,
+                                        ),
+                                      ),
+                                      if ((ingredient['category'] != null))
+                                        Text(
+                                          ingredient['category']?.toString() ?? 'No category',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Stock: $inventoryQuantity ${ingredient['inventory_unit']?.toString() ?? 'pcs'}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isAvailable ? const Color(0xFF1E293B) : Colors.red,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: stockColor.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          stockStatus,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: stockColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Close Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Color _getStockStatusColor(String status) {
+    switch (status) {
+      case 'OUT OF STOCK':
+        return Colors.red;
+      case 'INSUFFICIENT':
+        return Colors.orange;
+      case 'LOW STOCK':
+        return Colors.blue;
+      case 'AVAILABLE':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
   Future<void> _generateReceipt({
     String customerName = '',
     String note = '',
     String paymentMethod = 'CASH',
     double paidAmount = 0.0,
     double changeDue = 0.0,
+    int guestCount = 1,
   }) async {
     if (cart.isEmpty) {
       ScaffoldMessenger.of(
@@ -1594,7 +1807,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             paidAmount: paidAmount,
             changeDue: changeDue,
             tableNumber: 32, // TODO: Connect to actual table management
-            guestCount: 2, // TODO: Connect to actual reservation system
+            guestCount: guestCount,
             serverName: 'bara 3', // TODO: Connect to current staff
             orderType: 'WALK-IN',
             terminalNumber: 1,
@@ -2034,6 +2247,36 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       backgroundColor: const Color(0xFFF5F6FA),
       body: Column(
         children: [
+          // ── Instructions Bar ───────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.blue.withValues(alpha: 0.1),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.blue, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  '💡 Long-press any food item to view ingredients and inventory status',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    // Add a way to dismiss this instruction
+                  },
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.blue,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
           // ── Body Row ─────────────────────────────────────────────────────
           Expanded(
             child: Stack(
@@ -2057,7 +2300,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       onQuantityIncreased: _increaseQuantity,
                       onQuantityDecreased: _decreaseQuantity,
                       onRemoveItem: _removeItem,
-                      onProceedPayment: (name, note, totalAmount) {
+                      onProceedPayment: (name, note, totalAmount, guestCount) {
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -2096,6 +2339,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                         paymentMethod: method,
                                         paidAmount: paid,
                                         changeDue: change,
+                                        guestCount: guestCount,
                                       );
                                       setState(() => cart.clear());
                                     },
@@ -2302,6 +2546,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     return GestureDetector(
       onTap: () => addToCart(item),
+      onLongPress: () => _showIngredientsDialog(item),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -2405,6 +2650,25 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                     ),
                   ),
                 ),
+
+              // ── Ingredients indicator (top-left) ─────────────────────────
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.info_outline,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
