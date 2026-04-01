@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 /// Professional App Theme System
 class AppTheme {
   // Primary Colors
-  static const Color primaryColor = Color(0xFFD32F2F);
-  static const Color primaryDark = Color(0xFFB71C1C);
-  static const Color primaryLight = Color(0xFFEF5350);
+  static const Color primaryColor = Color.fromARGB(255, 131, 29, 29);
+  static const Color primaryDark = Color.fromARGB(255, 183, 28, 28);
+  static const Color primaryLight = Color.fromARGB(255, 239, 83, 80);
 
   // Neutral Colors
   static const Color darkGrey = Color(0xFF212121);
@@ -35,9 +35,7 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -46,13 +44,8 @@ class AppTheme {
           foregroundColor: white,
           elevation: 4,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -60,22 +53,20 @@ class AppTheme {
           foregroundColor: primaryColor,
           side: const BorderSide(color: primaryColor, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primaryColor,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: lightGrey),
