@@ -212,17 +212,6 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-    // Restrict staff users from using main login page
-    if (email.toLowerCase() == 'staffycp@gmail.com') {
-      _showSnackBar(
-        "Staff users must use the staff login page",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
-      setState(() => _isLoading = false);
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
@@ -573,18 +562,6 @@ class _LoginPageState extends State<LoginPage> {
     if (email == null) {
       debugPrint('OAuth: No email found in session.');
       _showSnackBar("OAuth Error: No email found in your Facebook account.", Colors.red.shade700, Icons.error_outline);
-      return;
-    }
-
-    // Restrict staff users from using main login page via OAuth
-    if (email.toLowerCase() == 'staffycp@gmail.com') {
-      debugPrint('OAuth: Staff user detected on main login page - blocking access');
-      _showSnackBar(
-        "Staff users must use the staff login page",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
-      await Supabase.instance.client.auth.signOut();
       return;
     }
 
