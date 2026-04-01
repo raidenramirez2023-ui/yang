@@ -7,7 +7,8 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final void Function(String name, String note) onProceedPayment;
+  final void Function(String name, String note, double totalAmount)
+  onProceedPayment;
   final VoidCallback onClearCart;
   final bool isMobile;
 
@@ -28,6 +29,7 @@ class OrderListPanel extends StatefulWidget {
 
 class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _noteController = TextEditingController();
+  bool _isDiscountEnabled = false; // Discount state variable
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
@@ -44,7 +46,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
   }
 
   double get _subtotal => widget.cart.fold(
-      0.0, (sum, item) => sum + (item.item.price * item.quantity));
+    0.0,
+    (sum, item) => sum + (item.item.price * item.quantity),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +76,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
-                        child: Text('No items in order',
-                            style: TextStyle(color: _grey, fontSize: 13)),
+                        child: Text(
+                          'No items in order',
+                          style: TextStyle(color: _grey, fontSize: 13),
+                        ),
                       ),
                     )
                   else
@@ -120,7 +126,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
         filled: true,
         fillColor: _bg,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: _border),
@@ -141,17 +150,23 @@ class _OrderListPanelState extends State<OrderListPanel> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('Items',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 15, color: _textDark)),
+        const Text(
+          'Items',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: _textDark,
+          ),
+        ),
         GestureDetector(
           onTap: widget.cart.isNotEmpty ? widget.onClearCart : null,
           child: Text(
             'Clear All',
             style: TextStyle(
-                color: widget.cart.isNotEmpty ? Colors.red : _grey,
-                fontSize: 13,
-                fontWeight: FontWeight.w600),
+              color: widget.cart.isNotEmpty ? Colors.red : _grey,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -159,8 +174,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
   }
 
   Widget _buildCartItem(CartItem item) {
-    final imagePath =
-        item.item.customImagePath ?? item.item.fallbackImagePath;
+    final imagePath = item.item.customImagePath ?? item.item.fallbackImagePath;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -193,9 +207,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       child: Text(
                         item.item.name,
                         style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _textDark),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _textDark,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -204,9 +219,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     Text(
                       '₱${_fmt.format(item.item.price * item.quantity)}',
                       style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: _textDark),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _textDark,
+                      ),
                     ),
                   ],
                 ),
@@ -216,22 +232,35 @@ class _OrderListPanelState extends State<OrderListPanel> {
                   children: [
                     Row(
                       children: [
-                        _qtyBtn(Icons.remove, () => widget.onQuantityDecreased(item)),
+                        _qtyBtn(
+                          Icons.remove,
+                          () => widget.onQuantityDecreased(item),
+                        ),
                         SizedBox(
                           width: 32,
                           child: Center(
-                            child: Text('${item.quantity}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            child: Text(
+                              '${item.quantity}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
                         ),
-                        _qtyBtn(Icons.add, () => widget.onQuantityIncreased(item)),
+                        _qtyBtn(
+                          Icons.add,
+                          () => widget.onQuantityIncreased(item),
+                        ),
                       ],
                     ),
                     GestureDetector(
                       onTap: () => widget.onRemoveItem(item),
-                      child: const Icon(Icons.delete_outline,
-                          size: 20, color: Colors.redAccent),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Colors.redAccent,
+                      ),
                     ),
                   ],
                 ),
@@ -260,6 +289,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   Widget _buildTotalsSection() {
     final subtotal = _subtotal;
+    final discountAmount = _isDiscountEnabled ? (subtotal * 0.20) : 0.0;
+    final total = subtotal - discountAmount;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: const BoxDecoration(
@@ -271,21 +303,70 @@ class _OrderListPanelState extends State<OrderListPanel> {
         children: [
           _totalLine('Subtotal', '₱${_fmt.format(subtotal)}'),
           const SizedBox(height: 8),
-          _totalLine('Tax (0%)', '₱0.00'),
+          // Discount row with checkbox
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Checkbox(
+                        value: _isDiscountEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _isDiscountEnabled = value ?? false;
+                          });
+                        },
+                        activeColor: _indigo,
+                        checkColor: Colors.white,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Discount (20%)',
+                      style: TextStyle(
+                        color: _grey,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '₱${_fmt.format(discountAmount)}',
+                style: TextStyle(
+                  color: _grey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: _textDark)),
-              Text('₱${_fmt.format(subtotal)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: _indigo)),
+              const Text(
+                'Total',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: _textDark,
+                ),
+              ),
+              Text(
+                '₱${_fmt.format(total)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: _indigo,
+                ),
+              ),
             ],
           ),
         ],
@@ -298,9 +379,14 @@ class _OrderListPanelState extends State<OrderListPanel> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: _grey, fontSize: 14)),
-        Text(value,
-            style: const TextStyle(
-                color: _textDark, fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: _textDark,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }
@@ -308,56 +394,42 @@ class _OrderListPanelState extends State<OrderListPanel> {
   Widget _buildFooter() {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(child: _secondaryBtn('Hold Order')),
-              const SizedBox(width: 12),
-              Expanded(child: _secondaryBtn('Discount')),
-            ],
-          ),
-          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
               onPressed: widget.cart.isNotEmpty
-                  ? () => widget.onProceedPayment(
+                  ? () {
+                      final subtotal = _subtotal;
+                      final discountAmount = _isDiscountEnabled
+                          ? (subtotal * 0.20)
+                          : 0.0;
+                      final total = subtotal - discountAmount;
+                      widget.onProceedPayment(
                         '',
                         _noteController.text.trim(),
-                      )
+                        total,
+                      );
+                    }
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Proceed Payment',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text(
+                'Proceed Payment',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _secondaryBtn(String label) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Text(label,
-            style: const TextStyle(
-                color: _textDark, fontWeight: FontWeight.w600, fontSize: 13)),
       ),
     );
   }
