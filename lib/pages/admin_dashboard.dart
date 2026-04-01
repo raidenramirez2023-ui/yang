@@ -51,6 +51,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   List<String> _conflictDates = [];
   bool? _showConflictNotification;
   String _newConflictDate = '';
+  bool _userClosedConflictNotification = false;
   
   // ── Real-time reservation tracking ───────────────────────────────
   int _previousReservationCount = 0;
@@ -363,8 +364,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   _conflictDates.add(dateStr);
                   
                   // Show conflict notification with priority info
-                  _showConflictNotification = true;
-                  _newConflictDate = '${DateFormat('MMM dd').format(start1)}: ${event1['customer_name']} (priority) vs ${event2['customer_name']}';
+                  if (!_userClosedConflictNotification) {
+                    _showConflictNotification = true;
+                  }
+                  _newConflictDate = '${DateFormat('MMM dd').format(start1)}: ${event1['customer_name']} (priority)';
                   
                   // Auto-hide notification after 8 seconds
                   Future.delayed(const Duration(seconds: 8), () {
@@ -1901,68 +1904,94 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ── Event Conflict Notification Widget ────────────────────────────────────
   Widget _buildConflictNotification() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.warningOrange,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.warningOrange.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.warningOrange,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.warningOrange.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: const Icon(
-              Icons.event_busy,
-              color: Colors.white,
-              size: 20,
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.event_busy,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'EVENT CONFLICT!',
-                style: TextStyle(
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'EVENT CONFLICT!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Multiple events on $_newConflictDate',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Click to view details',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: () {
+                debugPrint('X button tapped - closing conflict notification');
+                setState(() {
+                  _showConflictNotification = false;
+                  _userClosedConflictNotification = true;
+                });
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.close,
                   color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                  size: 18,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Multiple events on $_newConflictDate',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Click to view details',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

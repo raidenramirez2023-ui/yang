@@ -7,15 +7,14 @@ import 'services/app_settings_service.dart';
 
 // Features
 import 'pages/login_page.dart';
-import 'pages/staff_login_page.dart';
 import 'pages/customer_registration_page.dart';
-import 'pages/customer_dashboard.dart';
-import 'pages/admin_reservations_page.dart';
 import 'pages/forgot_password_page.dart';
+import 'pages/landing_page.dart';
+import 'pages/customer_dashboard.dart';
 import 'pages/admin_main_page.dart';
+import 'pages/admin_reservations_page.dart';
 import 'pages/staff_dashboard.dart';
 import 'pages/pagsanjaninv_dashboard.dart';
-import 'pages/landing_page.dart';
 import 'pages/chef_dashboard.dart';
 
 Future<void> main() async {
@@ -70,26 +69,15 @@ class YangChowApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       initialRoute: '/',
       routes: {
-        // Auth routes
         '/': (context) => const LandingPage(),
         '/login': (context) => const LoginPage(),
-        '/staff': (context) => const StaffLoginPage(),
         '/register': (context) => const CustomerRegistrationPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
-
-        // Customer routes
         '/customer-dashboard': (context) => const CustomerDashboardPage(),
-
-        // Admin routes
         '/dashboard': (context) => const AdminMainPage(),
         '/admin-reservations': (context) => const AdminReservationsPage(),
-        '/pagsanjaninv-dashboard': (context) =>
-            const PagsanjaninvDashboardPage(),
-
-        // Staff routes
+        '/pagsanjaninv-dashboard': (context) => const PagsanjaninvDashboardPage(),
         '/staff-dashboard': (context) => const StaffDashboardPage(),
-
-        // Chef routes
         '/chef-dashboard': (context) => const ChefDashboardPage(),
       },
     );
