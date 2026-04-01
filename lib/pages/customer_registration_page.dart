@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -12,7 +13,9 @@ class CustomerRegistrationPage extends StatefulWidget {
 }
 
 class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
-  final TextEditingController nameController = TextEditingController();
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -31,21 +34,58 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
   @override
   void dispose() {
-    nameController.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
+    phoneController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
   }
 
+  bool _isValidName(String name) {
+    if (name.length < 2 || name.length > 50) return false;
+    
+    // Check for consecutive spaces, hyphens, or apostrophes
+    if (RegExp(r"[\s\-'’]{2,}").hasMatch(name)) return false;
+    
+    // Check leading/trailing special characters
+    if (RegExp(r"^[\s\-'’]|[\s\-'’]$").hasMatch(name)) return false;
+
+    // Reject 3 or more identical consecutive characters (e.g. "Aaa", "Bbb")
+    if (RegExp(r"(.)\1{2,}", caseSensitive: false).hasMatch(name)) return false;
+
+    // Unicode letter support allowing spaces, hyphens, apostrophes
+    return RegExp(r"^[\p{L}\p{M}\s\-'’]+$", unicode: true).hasMatch(name);
+  }
+
+  String _formatToTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.toLowerCase().replaceAllMapped(
+      RegExp(r"(^|[\s\-'’])(\p{L}\p{M}*)", unicode: true),
+      (Match m) => '${m[1]}${m[2]!.toUpperCase()}'
+    );
+  }
+
   Future<void> handleRegistration() async {
-    String name = nameController.text.trim();
+    String rawFirstName = firstNameController.text.trim();
+    String rawLastName = lastNameController.text.trim();
+    String phone = phoneController.text.trim();
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
+    // Formatting names to title case
+    String firstName = _formatToTitleCase(rawFirstName);
+    String lastName = _formatToTitleCase(rawLastName);
+
+    // Update controllers to show title case (optional, but good for validation before insert below, though inserting works too)
+    // Actually we will just pass formatted ones to insert
+
     // Validation
-    if (name.isEmpty ||
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
@@ -53,6 +93,33 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         "Please fill in all fields",
         Colors.red.shade700,
         Icons.error_outline,
+      );
+      return;
+    }
+
+    if (!_isValidName(firstName)) {
+      _showSnackBar(
+        "Please enter a valid First Name (2-50 chars, letters/spaces/hyphens/apostrophes only)",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
+    if (!_isValidName(lastName)) {
+      _showSnackBar(
+        "Please enter a valid Last Name (2-50 chars, letters/spaces/hyphens/apostrophes only)",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
+    if (phone.length != 11 || !phone.startsWith('09') || !RegExp(r'^[0-9]+$').hasMatch(phone)) {
+      _showSnackBar(
+        "Please enter a valid phone number (11 digits, starting with 09)",
+        Colors.orange.shade700,
+        Icons.warning_amber,
       );
       return;
     }
@@ -107,21 +174,27 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
     try {
       // Name duplication validation
-      final normalizedInputName = name.replaceAll(' ', '').toLowerCase();
+      final normalizedInputFirstName = firstName.replaceAll(' ', '').toLowerCase();
+      final normalizedInputLastName = lastName.replaceAll(' ', '').toLowerCase();
       
       final existingUsers = await Supabase.instance.client
           .from('users')
-          .select('name, email');
+          .select('firstname, lastname, email');
           
       for (var user in existingUsers) {
-        final existingName = user['name']?.toString() ?? '';
+        final existingFirstName = user['firstname']?.toString() ?? '';
+        final existingLastName = user['lastname']?.toString() ?? '';
         final existingEmail = user['email']?.toString() ?? '';
-        final normalizedExistingName = existingName.replaceAll(' ', '').toLowerCase();
+        final normalizedExistingFirstName = existingFirstName.replaceAll(' ', '').toLowerCase();
+        final normalizedExistingLastName = existingLastName.replaceAll(' ', '').toLowerCase();
         
         // Check for name duplication
-        if (normalizedInputName == normalizedExistingName && normalizedExistingName.isNotEmpty) {
+        if (normalizedInputFirstName == normalizedExistingFirstName && 
+            normalizedInputLastName == normalizedExistingLastName && 
+            normalizedExistingFirstName.isNotEmpty && 
+            normalizedExistingLastName.isNotEmpty) {
           _showSnackBar(
-            "This Full Name is already registered. Please use a different name.",
+            "This Name is already registered. Please use a different name.",
             Colors.red.shade700,
             Icons.error_outline,
           );
@@ -149,14 +222,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       final authResponse = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name, 'role': 'customer'},
+        data: {'firstname': firstName, 'lastname': lastName, 'phone': phone, 'role': 'customer'},
       );
 
       if (authResponse.user != null) {
         // Insert user into users table
         await Supabase.instance.client.from('users').insert({
           'email': email,
-          'name': name,
+          'firstname': firstName,
+          'lastname': lastName,
+          'phone': phone,
           'role': 'customer',
         });
 
@@ -169,7 +244,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         debugPrint('=== CUSTOMER CREATED VIA AUTH ===');
         debugPrint('User ID: ${authResponse.user!.id}');
         debugPrint('Email: $email');
-        debugPrint('Name: $name');
+        debugPrint('Name: $firstName $lastName');
         debugPrint('SUCCESS: Customer account ready');
 
         _showSnackBar(
@@ -187,7 +262,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       String errorMessage;
       switch (e.message.toLowerCase()) {
         case 'user already registered':
-          errorMessage = 'The Full Name or Email Address is already registered.';
+          errorMessage = 'The Name or Email Address is already registered.';
           break;
         case 'invalid email':
           errorMessage = 'Please enter a valid email address';
@@ -203,7 +278,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       String errorMessage;
       if (e.code == '23505') {
         errorMessage =
-            'The Full Name or Email Address is already registered.';
+            'The Name or Email Address is already registered.';
       } else if (e.message.contains('duplicate')) {
         errorMessage =
             'This email is already registered. Please use a different email.';
@@ -387,9 +462,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Full Name Field
+        // First Name Field
         const Text(
-          'Full Name',
+          'First Name',
           style: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 13,
@@ -398,12 +473,95 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         ),
         const SizedBox(height: 8),
         TextField(
-          controller: nameController,
+          controller: firstNameController,
           enabled: !_isLoading,
           decoration: InputDecoration(
-            hintText: 'Enter your full name',
+            hintText: 'Enter your first name',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Last Name Field
+        const Text(
+          'Last Name',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: lastNameController,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your last name',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Phone Number Field
+        const Text(
+          'Phone Number',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: phoneController,
+          enabled: !_isLoading,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(11),
+          ],
+          decoration: InputDecoration(
+            hintText: 'Enter your phone number',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: const Icon(Icons.phone_outlined, color: Colors.grey),
             filled: true,
             fillColor: Colors.grey.shade50,
             contentPadding: const EdgeInsets.symmetric(
@@ -699,15 +857,52 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Full Name Field
-        Text('Full Name', style: Theme.of(context).textTheme.titleSmall),
+        // First Name Field
+        Text('First Name', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         TextField(
-          controller: nameController,
+          controller: firstNameController,
           enabled: !_isLoading,
           decoration: InputDecoration(
-            hintText: 'Enter your full name',
+            hintText: 'Enter your first name',
             prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Last Name Field
+        Text('Last Name', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 6),
+        TextField(
+          controller: lastNameController,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your last name',
+            prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Phone Number Field
+        Text('Phone Number', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 6),
+        TextField(
+          controller: phoneController,
+          enabled: !_isLoading,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(11),
+          ],
+          decoration: InputDecoration(
+            hintText: 'Enter your phone number',
+            prefixIcon: const Icon(Icons.phone_outlined),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),

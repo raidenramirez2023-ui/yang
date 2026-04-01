@@ -13,9 +13,12 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  String _initialName = '';
+  final _phoneNumberController = TextEditingController();
+  String _initialFirstName = '';
+  String _initialLastName = '';
 
   bool _isSaving = false;
   XFile? _pickedFile;
@@ -29,43 +32,128 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
+    _phoneNumberController.dispose();
     super.dispose();
   }
 
   void _loadUserData() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    String name = user.userMetadata?['full_name'] ??
-        user.userMetadata?['name'] ??
-        '';
-    _nameController.text = name;
-    _initialName = name;
+    
+    String firstName = user.userMetadata?['firstname'] ?? '';
+    String lastName = user.userMetadata?['lastname'] ?? '';
+    
+    // Fallback if data is missing or user has legacy full_name
+    if (firstName.isEmpty && lastName.isEmpty) {
+      String fullName = user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? '';
+      if (fullName.isNotEmpty) {
+        final parts = fullName.split(' ');
+        firstName = parts.first;
+        if (parts.length > 1) {
+          lastName = parts.sublist(1).join(' ');
+        }
+      }
+    }
+
+    _firstNameController.text = firstName;
+    _initialFirstName = firstName;
+    _lastNameController.text = lastName;
+    _initialLastName = lastName;
     _emailController.text = user.email ?? '';
+    _phoneNumberController.text = user.userMetadata?['phone'] ?? '';
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 20, 24, 10),
+                child: Text(
+                  'Profile Photo',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1D1B1E),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppTheme.primaryColor),
+                title: const Text('Upload Image'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryColor),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      setState(() {
-        _pickedFile = picked;
-        _pickedFileBytes = bytes;
-      });
+
+    if (source != null) {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _pickedFile = picked;
+          _pickedFileBytes = bytes;
+        });
+      }
     }
   }
 
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final currentName = _nameController.text.trim();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final currentAvatarUrl = user.userMetadata?['avatar_url'] as String?;
+    final hasNoExistingPhoto = currentAvatarUrl == null || currentAvatarUrl.isEmpty;
+    
+    if (hasNoExistingPhoto && _pickedFile == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Profile photo is required.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    final currentFirstName = _firstNameController.text.trim();
+    final currentLastName = _lastNameController.text.trim();
     final hasImageChanged = _pickedFile != null;
-    final hasNameChanged = currentName != _initialName;
+    final hasNameChanged = currentFirstName != _initialFirstName || currentLastName != _initialLastName;
 
     if (!hasImageChanged && !hasNameChanged) {
       if (mounted) Navigator.of(context).pop();
@@ -75,10 +163,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      String? avatarUrl = user.userMetadata?['avatar_url'];
+      String? avatarUrl = currentAvatarUrl;
 
       // ── 1. Upload new image if picked ──────────────────────────────────
       if (_pickedFile != null) {
@@ -100,22 +185,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
             .getPublicUrl(filePath);
       }
 
-      final fullName = _nameController.text.trim();
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
 
-      // ── 2. Update user metadata (full_name, avatar_url) ────────────────
+      // ── 2. Update user metadata ─────────────────────────────────────────
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(
           data: {
-            'full_name': fullName,
-            'name': fullName,
+            'firstname': firstName,
+            'lastname': lastName,
             'avatar_url': avatarUrl,
+            // Keep full_name for backward compatibility if needed
+            'full_name': '$firstName $lastName'.trim(),
+            'name': '$firstName $lastName'.trim(),
           },
         ),
       );
 
       // ── 3. Update public users table ────────────────────────────────────
       await Supabase.instance.client.from('users').update({
-        'name': fullName,
+        'firstname': firstName,
+        'lastname': lastName,
+        'name': '$firstName $lastName'.trim(),
       }).eq('email', user.email ?? '');
 
       if (!mounted) return;
@@ -160,7 +251,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final user = Supabase.instance.client.auth.currentUser;
     final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
     final initial =
-        _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'U';
+        _firstNameController.text.isNotEmpty ? _firstNameController.text[0].toUpperCase() : 'U';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FF),
@@ -278,18 +369,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
               const SizedBox(height: 32),
 
-              // ── Full Name ──────────────────────────────────────────────
-              _buildFieldLabel('FULL NAME'),
+              // ── First Name ──────────────────────────────────────────────
+              _buildFieldLabel('FIRST NAME'),
               const SizedBox(height: 8),
               TextFormField(
-                controller: _nameController,
+                controller: _firstNameController,
                 textCapitalization: TextCapitalization.words,
                 decoration: _fieldDecoration(
-                  hint: 'Enter your full name',
+                  hint: 'Enter your first name',
                   suffixIcon: Icons.person_outline_rounded,
                 ),
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                    (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Last Name ──────────────────────────────────────────────
+              _buildFieldLabel('LAST NAME'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _lastNameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: _fieldDecoration(
+                  hint: 'Enter your last name',
+                  suffixIcon: Icons.person_outline_rounded,
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Phone Number ────────────────────────────────────────────
+              _buildFieldLabel('PHONE NUMBER'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _phoneNumberController,
+                keyboardType: TextInputType.phone,
+                decoration: _fieldDecoration(
+                  hint: 'Enter your phone number',
+                  suffixIcon: Icons.phone_outlined,
+                ),
               ),
 
               const SizedBox(height: 20),

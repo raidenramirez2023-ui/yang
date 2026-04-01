@@ -210,37 +210,40 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Quantity
-                          _input(
-                            qtyCtrl,
-                            'Quantity',
-                            Icons.numbers,
-                            isNumber: true,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(3),
-                              TextInputFormatter.withFunction((
-                                oldValue,
-                                newValue,
-                              ) {
-                                if (newValue.text.isEmpty) return newValue;
-                                if (newValue.text.startsWith('0')) {
-                                  final stripped = newValue.text.replaceFirst(
-                                    RegExp(r'^0+'),
-                                    '',
-                                  );
-                                  return TextEditingValue(
-                                    text: stripped,
-                                    selection: TextSelection.collapsed(
-                                      offset: stripped.length,
-                                    ),
-                                  );
-                                }
-                                return newValue;
-                              }),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+                          if (item != null) ...[
+                            // Quantity
+                            _input(
+                              qtyCtrl,
+                              'Quantity',
+                              Icons.numbers,
+                              isNumber: true,
+                              readOnly: true,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(3),
+                                TextInputFormatter.withFunction((
+                                  oldValue,
+                                  newValue,
+                                ) {
+                                  if (newValue.text.isEmpty) return newValue;
+                                  if (newValue.text.startsWith('0')) {
+                                    final stripped = newValue.text.replaceFirst(
+                                      RegExp(r'^0+'),
+                                      '',
+                                    );
+                                    return TextEditingValue(
+                                      text: stripped,
+                                      selection: TextSelection.collapsed(
+                                        offset: stripped.length,
+                                      ),
+                                    );
+                                  }
+                                  return newValue;
+                                }),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                          ],
 
                           // Unit Dropdown
                           DropdownButtonFormField<String>(
@@ -320,14 +323,14 @@ class _InventoryPageState extends State<InventoryPage> {
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
-                          final qty = int.tryParse(qtyCtrl.text);
+                          final qty = item == null ? 0 : int.tryParse(qtyCtrl.text);
                           if (nameCtrl.text.isEmpty ||
                               selectedCategory == null ||
                               selectedUnit == null ||
                               selectedStorageRoom == null ||
                               (item == null && supplierCtrl.text.isEmpty) ||
                               qty == null ||
-                              qty < 1) {
+                              qty < 0) {
                             return;
                           }
 
@@ -428,11 +431,13 @@ class _InventoryPageState extends State<InventoryPage> {
     IconData icon, {
     bool isNumber = false,
     List<TextInputFormatter>? inputFormatters,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       inputFormatters: inputFormatters,
+      readOnly: readOnly,
       decoration: _decoration(label, icon),
     );
   }
@@ -610,10 +615,14 @@ class _InventoryPageState extends State<InventoryPage> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          // All stock status buttons navigate to All category
+          // Set category to All to show all items
           _selectedCategory = 'All';
-          // Clear stock status filter when using category navigation
-          _selectedStockStatus = null;
+          // Toggle stock status filter - if already selected, clear it
+          if (_selectedStockStatus == stockStatus) {
+            _selectedStockStatus = null;
+          } else {
+            _selectedStockStatus = stockStatus;
+          }
         });
       },
       child: Container(
@@ -877,7 +886,11 @@ class _InventoryPageState extends State<InventoryPage> {
                             label: Text(category),
                             selected: isSelected,
                             onSelected: (selected) {
-                              setState(() => _selectedCategory = category);
+                              setState(() {
+                                _selectedCategory = category;
+                                // Clear stock status filter when using category navigation
+                                _selectedStockStatus = null;
+                              });
                             },
                             backgroundColor: AppTheme.white,
                             selectedColor: AppTheme.primaryColor.withValues(
