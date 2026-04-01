@@ -62,6 +62,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   DateTime? _focusedMonth;
   DateTime? _selectedDate;
   bool? _isCalendarGridExpanded;
+  String _selectedPeriod = 'Weekly'; // New period selector state
+  String _selectedYear = '2026'; // New year selector state
 
   @override
   void initState() {
@@ -426,27 +428,81 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
   }
 
-  List<double> _processChartData(List<Map<String, dynamic>> orders) {
-    Map<int, double> dailyRevenue = {for (int i = 0; i < 7; i++) i: 0.0};
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+  List<String> getChartLabels() {
+    if (_selectedPeriod == 'Daily') {
+      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
+      return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+    } else if (_selectedPeriod == 'Weekly') {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    } else if (_selectedPeriod == 'Monthly') {
+      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    } else {
+      // Annual - 2016 to current year (2026)
+      return ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+    }
+  }
 
+  List<double> _processChartData(List<Map<String, dynamic>> orders) {
+    final now = DateTime.now();
+    Map<int, double> periodData = {};
+    
     for (var order in orders) {
-      final dateStr = order['created_at']?.toString();
-      if (dateStr == null) continue;
+      final date = DateTime.tryParse(order['created_at'] ?? '');
+      if (date == null) continue;
       
-      final date = DateTime.tryParse(dateStr);
-      if (date != null) {
-        final orderDate = DateTime(date.year, date.month, date.day);
-        final diff = today.difference(orderDate).inDays;
-        
-        if (diff >= 0 && diff < 7) {
-          dailyRevenue[6 - diff] = (dailyRevenue[6 - diff] ?? 0) + 
-              ((order['total_amount'] as num?)?.toDouble() ?? 0.0);
-        }
+      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+      
+      // Apply period-specific filtering
+      switch (_selectedPeriod) {
+        case 'Daily':
+          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
+          final orderHour = date.hour;
+          if (date.year == now.year && 
+              date.month == now.month && 
+              date.day == now.day &&
+              orderHour >= 10 && orderHour < 20) { // Only 10:00 AM to 8:00 PM
+            final key = orderHour - 10; // 0 = 10:00, 1 = 11:00, ..., 10 = 20:00
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Weekly':
+          // Last 7 days - group by day of week (Monday=0, Tuesday=1, etc.)
+          final dailyDiff = now.difference(date).inDays;
+          if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == _selectedYear) {
+            final key = date.weekday - 1; // 0 = Monday, 6 = Sunday
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Monthly':
+          // All months of selected year
+          if (date.year.toString() == _selectedYear) {
+            final key = date.month - 1; // 0 = Jan, 11 = Dec
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
+        case 'Annually':
+          // Years 2016 to current year
+          if (date.year >= 2016 && date.year <= now.year) {
+            final key = date.year - 2016; // 0 = 2016, 10 = 2026
+            periodData[key] = (periodData[key] ?? 0) + amount;
+          }
+          break;
       }
     }
-    return dailyRevenue.values.toList();
+    
+    // Convert to list based on selected period
+    if (_selectedPeriod == 'Daily') {
+      return List.generate(11, (i) => periodData[i] ?? 0.0); // 11 business hours: 10:00-20:00
+    } else if (_selectedPeriod == 'Weekly') {
+      return List.generate(7, (i) => periodData[i] ?? 0.0);
+    } else if (_selectedPeriod == 'Monthly') {
+      return List.generate(12, (i) => periodData[i] ?? 0.0);
+    } else {
+      // For yearly, generate from 2016 to current year
+      final currentYear = now.year;
+      final yearRange = currentYear - 2016 + 1;
+      return List.generate(yearRange, (i) => periodData[i] ?? 0.0);
+    }
   }
 
   void _updateActivity(
@@ -541,7 +597,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         _buildKpiGrid(isDesktop || isTablet),
                         const SizedBox(height: AppTheme.xl),
 
-                        // ── Charts + Venue Status ──────────────────
+                        // ── Charts Layout with Centered Venue Status ──────────────────
                         ResponsiveUtils.isMobile(context)
                             ? Column(
                                 children: [
@@ -554,9 +610,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                 ? Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(flex: 3, child: _buildRevenueChart(context)),
-                                      const SizedBox(width: AppTheme.lg),
-                                      Expanded(flex: 2, child: _buildVenueStatus(context)),
+                                      Expanded(
+                                        flex: 3,
+                                        child: Column(
+                                          children: [
+                                            _buildRevenueChart(context),
+                                            const SizedBox(height: AppTheme.lg),
+                                            _buildVenueStatus(context),
+                                          ],
+                                        ),
+                                      ),
                                     ],
                                   )
                                 : Column(
@@ -812,11 +875,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ── Revenue Chart ─────────────────────────────────────────────────────────
   Widget _buildRevenueChart(BuildContext context) {
-    final now = DateTime.now();
-    final dayLabels = List.generate(7, (i) {
-      final date = now.subtract(Duration(days: 6 - i));
-      return DateFormat('E').format(date);
-    });
+    final dayLabels = getChartLabels();
 
     final maxRevenue = _weeklyRevenue.isEmpty ? 0.0 : _weeklyRevenue.reduce(max);
     // Add 20% headroom for labels and clarity
@@ -833,36 +892,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Weekly Revenue Performance',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.darkGrey,
-                      letterSpacing: -0.5,
-                    ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.lightGrey),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Last 7 Days',
-                      style: TextStyle(
-                        fontSize: 11,
+              Expanded(
+                child: Text(
+                  'Revenue Analytics',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.darkGrey,
+                        letterSpacing: -0.5,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, size: 14, color: AppTheme.mediumGrey),
-                  ],
                 ),
               ),
+              const SizedBox(width: 16),
+              _periodSelector(),
             ],
           ),
           const SizedBox(height: AppTheme.xxl),
@@ -929,7 +970,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       getTitlesWidget: (value, _) => Padding(
                         padding: const EdgeInsets.only(top: 12),
                         child: Text(
-                          dayLabels[value.toInt() % 7],
+                          dayLabels[value.toInt() % dayLabels.length],
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppTheme.mediumGrey,
@@ -952,7 +993,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: List.generate(
-                  7,
+                  dayLabels.length,
                   (i) => BarChartGroupData(
                     x: i,
                     barRods: [
@@ -1982,6 +2023,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Period Selector Widget ───────────────────────────────────────────────
+  Widget _periodSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: DropdownButton<String>(
+        value: _selectedPeriod,
+        underline: const SizedBox(),
+        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+        items: ['Daily', 'Weekly', 'Monthly', 'Annually']
+            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
+            .toList(),
+        onChanged: (v) => setState(() => _selectedPeriod = v!),
       ),
     );
   }

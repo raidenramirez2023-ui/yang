@@ -610,11 +610,10 @@ class _InventoryPageState extends State<InventoryPage> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          if (isSelected) {
-            _selectedStockStatus = null;
-          } else {
-            _selectedStockStatus = stockStatus;
-          }
+          // All stock status buttons navigate to All category
+          _selectedCategory = 'All';
+          // Clear stock status filter when using category navigation
+          _selectedStockStatus = null;
         });
       },
       child: Container(

@@ -136,7 +136,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         } catch (_) {}
         
         if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/');
+          Navigator.of(context).pushReplacementNamed('/login');
         }
       } catch (e) {
         if (mounted) {

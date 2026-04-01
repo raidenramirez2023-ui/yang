@@ -101,7 +101,7 @@ class StaffDashboardPage extends StatelessWidget {
                         } catch (_) {}
 
                         if (context.mounted) {
-                          Navigator.pushReplacementNamed(context, '/');
+                          Navigator.pushReplacementNamed(context, '/login');
                         }
                       },
                       child: const Text('Logout'),
