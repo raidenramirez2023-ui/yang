@@ -6,9 +6,17 @@ import 'shared_pos_widget.dart';
 class PaymentPanel extends StatefulWidget {
   final List<CartItem> cart;
   final VoidCallback onBack;
-  final void Function(String customerName, String note, String paymentMethod, double paidAmount, double changeDue) onComplete;
+  final void Function(
+    String customerName,
+    String note,
+    String paymentMethod,
+    double paidAmount,
+    double changeDue,
+  )
+  onComplete;
   final String customerName;
   final String note;
+  final double? overrideTotalAmount; // Optional total with discount included
 
   const PaymentPanel({
     super.key,
@@ -17,6 +25,7 @@ class PaymentPanel extends StatefulWidget {
     required this.onComplete,
     this.customerName = '',
     this.note = '',
+    this.overrideTotalAmount,
   });
 
   @override
@@ -60,6 +69,7 @@ class _PaymentPanelState extends State<PaymentPanel>
   }
 
   double get _total =>
+      widget.overrideTotalAmount ??
       widget.cart.fold(0.0, (s, i) => s + i.item.price * i.quantity);
 
   double get _paid => double.tryParse(_entered) ?? 0.0;
@@ -85,7 +95,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           _entered = _entered.isEmpty ? '0.' : '$_entered.';
         }
       } else {
-        if (_entered.length < 10) _entered += key;
+        if (_entered.length < 9) _entered += key;
       }
     });
   }
@@ -101,17 +111,25 @@ class _PaymentPanelState extends State<PaymentPanel>
         if (key == LogicalKeyboardKey.backspace) {
           _tap('DEL');
           return KeyEventResult.handled;
-        } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+        } else if (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter) {
           if (_canComplete) {
             _ctrl.reverse().then((_) {
-              widget.onComplete(widget.customerName, widget.note, _method, _paid, _change);
+              widget.onComplete(
+                widget.customerName,
+                widget.note,
+                _method,
+                _paid,
+                _change,
+              );
             });
           }
           return KeyEventResult.handled;
         } else if (key == LogicalKeyboardKey.escape) {
           widget.onBack();
           return KeyEventResult.handled;
-        } else if (key == LogicalKeyboardKey.period || key == LogicalKeyboardKey.numpadDecimal) {
+        } else if (key == LogicalKeyboardKey.period ||
+            key == LogicalKeyboardKey.numpadDecimal) {
           _tap('.');
           return KeyEventResult.handled;
         }
@@ -134,7 +152,10 @@ class _PaymentPanelState extends State<PaymentPanel>
               _buildSidebar(),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
                   child: Column(
                     children: [
                       _buildTopSummary(),
@@ -167,7 +188,11 @@ class _PaymentPanelState extends State<PaymentPanel>
           const SizedBox(height: 8),
           IconButton(
             onPressed: widget.onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _labelGrey, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: _labelGrey,
+              size: 20,
+            ),
           ),
           const SizedBox(height: 8),
           // Logo Icon
@@ -178,21 +203,17 @@ class _PaymentPanelState extends State<PaymentPanel>
               color: _indigo,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.point_of_sale, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.point_of_sale,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(height: 32),
           _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
           _sidebarItem('GCash', Icons.account_balance_wallet_outlined, 'GCASH'),
-          _sidebarItem('Card', Icons.credit_card_outlined, 'CARD'),
-          _sidebarItem('QR', Icons.qr_code_2_outlined, 'QR'),
+          _sidebarItem('Maya', Icons.account_balance_wallet_outlined, 'MAYA'),
           const Spacer(),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 20, left: 16),
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Icon(Icons.dark_mode_outlined, color: _labelGrey, size: 20),
-            ),
-          ),
         ],
       ),
     );
@@ -209,14 +230,19 @@ class _PaymentPanelState extends State<PaymentPanel>
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isSelected ? _indigo : Colors.transparent, width: 1.5),
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: _indigo.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ] : null,
+          border: Border.all(
+            color: isSelected ? _indigo : Colors.transparent,
+            width: 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: _indigo.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           children: [
@@ -299,7 +325,10 @@ class _PaymentPanelState extends State<PaymentPanel>
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _indigo.withValues(alpha: 0.3), width: 1.5),
+            border: Border.all(
+              color: _indigo.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
           ),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -367,18 +396,24 @@ class _PaymentPanelState extends State<PaymentPanel>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDel ? Colors.red.withValues(alpha: 0.1) : _border),
+          border: Border.all(
+            color: isDel ? Colors.red.withValues(alpha: 0.1) : _border,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 4,
               offset: const Offset(0, 2),
-            )
+            ),
           ],
         ),
         child: Center(
           child: isDel
-              ? const Icon(Icons.backspace_outlined, color: Colors.redAccent, size: 24)
+              ? const Icon(
+                  Icons.backspace_outlined,
+                  color: Colors.redAccent,
+                  size: 24,
+                )
               : Text(
                   key,
                   style: const TextStyle(
@@ -405,9 +440,14 @@ class _PaymentPanelState extends State<PaymentPanel>
                 backgroundColor: const Color(0xFFF1F5F9),
                 foregroundColor: _textDark,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-              child: const Text('CLEAR', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'CLEAR',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ),
@@ -420,7 +460,13 @@ class _PaymentPanelState extends State<PaymentPanel>
               onPressed: _canComplete
                   ? () {
                       _ctrl.reverse().then((_) {
-                        widget.onComplete(widget.customerName, widget.note, _method, _paid, _change);
+                        widget.onComplete(
+                          widget.customerName,
+                          widget.note,
+                          _method,
+                          _paid,
+                          _change,
+                        );
                       });
                     }
                   : null,
@@ -429,7 +475,9 @@ class _PaymentPanelState extends State<PaymentPanel>
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: _indigo.withValues(alpha: 0.3),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
