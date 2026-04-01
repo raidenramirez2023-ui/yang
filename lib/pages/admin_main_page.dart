@@ -7,7 +7,6 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/user_management.dart';
 import 'package:yang_chow/pages/sales_report_page.dart';
 import 'package:yang_chow/pages/inventory_management.dart';
-import 'package:yang_chow/pages/settings.dart';
 import 'package:yang_chow/pages/admin_dashboard.dart';
 import 'package:yang_chow/pages/admin_reservations_page.dart';
 import 'package:yang_chow/pages/admin_announcements_page.dart';
@@ -45,7 +44,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     AdminReservationsPage(),
     UserManagementPage(),
     AdminAnnouncementsPage(),
-    SettingsPage(),
   ];
 
   static const List<String> _pageTitles = [
@@ -55,7 +53,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Reservations',
     'User Management',
     'Announcements',
-    'Settings',
   ];
 
   static const List<IconData> _pageIcons = [
@@ -65,7 +62,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.event_available,
     Icons.people,
     Icons.campaign,
-    Icons.settings,
   ];
 
   @override
@@ -550,7 +546,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
               } catch (_) {}
               
               if (mounted) {
-                navigator.pushReplacementNamed('/');
+                navigator.pushReplacementNamed('/login');
               }
             },
             child: Text(

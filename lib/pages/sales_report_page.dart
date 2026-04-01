@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io' show File;
 import 'dart:convert';
+import 'dart:async';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -30,6 +31,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   String _transactionPeriod = 'All Time';
   late Stream<List<Map<String, dynamic>>> _ordersStreamVar;
   late Stream<List<Map<String, dynamic>>> _inventoryStreamVar;
+  Timer? _refreshTimer;
 
   Stream<List<Map<String, dynamic>>> _ordersStream() {
     return _supabase
@@ -58,13 +60,16 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Apply period-specific filtering
       switch (selectedPeriod) {
         case 'Daily':
-          // Last 7 days of selected year
-          final diff = now.difference(date).inDays;
-          return diff >= 0 && diff < 7 && date.year.toString() == selectedYear;
+          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
+          final orderHour = date.hour;
+          return date.year == now.year && 
+              date.month == now.month && 
+              date.day == now.day &&
+              orderHour >= 10 && orderHour < 20; // Only 10:00 AM to 8:00 PM
         case 'Weekly':
-          // Last 7 weeks of selected year
-          final diff = now.difference(date).inDays;
-          return diff >= 0 && diff < 49 && date.year.toString() == selectedYear;
+          // Last 7 days of selected year
+          final dailyDiff = now.difference(date).inDays;
+          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
         case 'Monthly':
           // All months of selected year
           return date.year.toString() == selectedYear;
@@ -109,18 +114,21 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Apply period-specific filtering
       switch (selectedPeriod) {
         case 'Daily':
-          // Last 7 days of selected year
-          final diff = now.difference(date).inDays;
-          if (diff >= 0 && diff < 7 && date.year.toString() == selectedYear) {
-            final key = 6 - diff; // 0 = 6 days ago, 6 = today
+          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
+          final orderHour = date.hour;
+          if (date.year == now.year && 
+              date.month == now.month && 
+              date.day == now.day &&
+              orderHour >= 10 && orderHour < 20) { // Only 10:00 AM to 8:00 PM
+            final key = orderHour - 10; // 0 = 10:00, 1 = 11:00, ..., 10 = 20:00
             periodData[key] = (periodData[key] ?? 0) + amount;
           }
           break;
         case 'Weekly':
-          // Last 7 weeks of selected year
-          final weeklyDiff = now.difference(date).inDays;
-          if (weeklyDiff >= 0 && weeklyDiff < 49 && date.year.toString() == selectedYear) { // 7 weeks * 7 days
-            final key = 6 - (weeklyDiff ~/ 7); // 0 = 6 weeks ago, 6 = this week
+          // Last 7 days - group by day of week (Monday=0, Tuesday=1, etc.)
+          final dailyDiff = now.difference(date).inDays;
+          if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
+            final key = date.weekday - 1; // 0 = Monday, 6 = Sunday
             periodData[key] = (periodData[key] ?? 0) + amount;
           }
           break;
@@ -142,7 +150,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     }
     
     // Convert to list based on selected period
-    if (selectedPeriod == 'Daily' || selectedPeriod == 'Weekly') {
+    if (selectedPeriod == 'Daily') {
+      return List.generate(11, (i) => periodData[i] ?? 0.0); // 11 business hours: 10:00-20:00
+    } else if (selectedPeriod == 'Weekly') {
       return List.generate(7, (i) => periodData[i] ?? 0.0);
     } else if (selectedPeriod == 'Monthly') {
       return List.generate(12, (i) => periodData[i] ?? 0.0);
@@ -174,6 +184,13 @@ class _SalesReportPageState extends State<SalesReportPage>
     _ordersStreamVar = _ordersStream();
     _inventoryStreamVar = _inventoryStream();
     
+    // Start automatic refresh timer for real-time updates
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        setState(() {}); // Trigger rebuild to show new orders immediately
+      }
+    });
+    
     _searchController.addListener(() {
       setState(() {});
     });
@@ -184,6 +201,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     _animationController.dispose();
     _cardAnimationController.dispose();
     _searchController.dispose();
+    _refreshTimer?.cancel(); // Cancel the refresh timer
     super.dispose();
   }
 
@@ -271,7 +289,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         ]);
       }
       String csvData = csv_pkg.CsvCodec().encode(rows);
-      final Uint8List bytes = Uint8List.fromList(utf8.encode(csvData));
+      final Uint8List bytes = utf8.encode(csvData);
 
       // Save file
       String? outputFile = await FilePicker.platform.saveFile(
@@ -326,9 +344,10 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   List<String> getChartLabels() {
     if (selectedPeriod == 'Daily') {
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
+      return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
     } else if (selectedPeriod == 'Weekly') {
-      return ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7'];
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     } else if (selectedPeriod == 'Monthly') {
       return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     } else {
@@ -357,8 +376,15 @@ class _SalesReportPageState extends State<SalesReportPage>
                 final metrics = _processMetrics(allOrders);
                 final chartValues = _processChartData(allOrders);
                 
+                final now = DateTime.now();
+                final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8:00 PM
+                
                 final lowStockCount = allInventory.where((item) {
                   final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                  // For Daily view, only count low stock if currently within business hours
+                  if (selectedPeriod == 'Daily' && !isBusinessHours) {
+                    return false; // Don't count low stock outside business hours for Daily view
+                  }
                   return qty < 10;
                 }).length;
 
@@ -763,7 +789,6 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ],
                 ),
               ),
-              _chartTimeframeToggle(),
             ],
           ),
           const SizedBox(height: 40),
@@ -851,57 +876,6 @@ class _SalesReportPageState extends State<SalesReportPage>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _chartTimeframeToggle() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: ['Daily', 'Weekly', 'Monthly', 'Yearly'].map((t) {
-          final isSelected = (t == 'Daily' && selectedPeriod == 'Daily') ||
-              (t == 'Weekly' && selectedPeriod == 'Weekly') ||
-              (t == 'Monthly' && selectedPeriod == 'Monthly') ||
-              (t == 'Yearly' && selectedPeriod == 'Annually');
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (t == 'Daily') {
-                  selectedPeriod = 'Daily';
-                } else if (t == 'Weekly') {
-                  selectedPeriod = 'Weekly';
-                } else if (t == 'Monthly') {
-                  selectedPeriod = 'Monthly';
-                } else if (t == 'Yearly') {
-                  selectedPeriod = 'Annually';
-                }
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: isSelected
-                    ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                    : null,
-              ),
-              child: Text(
-                t,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
       ),
     );
   }

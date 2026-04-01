@@ -124,7 +124,7 @@ class _LandingPageState extends State<LandingPage> {
   Widget build(BuildContext context) {
     if (_isCheckingSession) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A0A0A),
+        backgroundColor: const Color(0xFFF5F5DC),
         body: const Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
@@ -133,7 +133,7 @@ class _LandingPageState extends State<LandingPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFFF5F5DC),
       drawer: _buildMobileDrawer(),
       body: Stack(
         children: [
@@ -170,7 +170,7 @@ class _LandingPageState extends State<LandingPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.7),
+              color: Color(0xFF3E2723).withValues(alpha: 0.7),
               border: Border(
                 bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.5),
               ),
@@ -189,21 +189,21 @@ class _LandingPageState extends State<LandingPage> {
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: AppTheme.white.withValues(alpha: 0.1),
+                              color: Color(0xFF3E2723).withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Image.asset(
                               'assets/images/logo.jpg',
                               height: 32,
                               errorBuilder: (context, error, stackTrace) => 
-                                  const Icon(Icons.restaurant_rounded, color: AppTheme.white, size: 20),
+                                  const Icon(Icons.restaurant_rounded, color: Color(0xFF3E2723), size: 20),
                             ),
                           ),
                           const SizedBox(width: 16),
                           const Text(
                             'YANG CHOW',
                             style: TextStyle(
-                              color: AppTheme.white,
+                              color: Color(0xFF3E2723),
                               fontWeight: FontWeight.w900,
                               letterSpacing: 4,
                               fontSize: 18,
@@ -230,7 +230,7 @@ class _LandingPageState extends State<LandingPage> {
                       onPressed: () => Navigator.pushNamed(context, '/login'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: AppTheme.white,
+                        foregroundColor: Color(0xFF3E2723),
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         minimumSize: Size.zero,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -246,7 +246,7 @@ class _LandingPageState extends State<LandingPage> {
                       const SizedBox(width: 12),
                       IconButton(
                         key: const Key('nav_menu_btn'),
-                        icon: const Icon(Icons.menu_rounded, color: AppTheme.white),
+                        icon: const Icon(Icons.menu_rounded, color: Colors.black),
                         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                       ),
                     ],
@@ -262,7 +262,7 @@ class _LandingPageState extends State<LandingPage> {
 
   Widget _buildMobileDrawer() {
     return Drawer(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: const Color(0xFFF5F5DC),
       child: Column(
         children: [
           Container(
@@ -285,21 +285,21 @@ class _LandingPageState extends State<LandingPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
+                      color: Color(0xFF3E2723).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Image.asset(
                       'assets/images/logo.jpg',
                       height: 50,
                       errorBuilder: (context, error, stackTrace) => 
-                          const Icon(Icons.restaurant, color: AppTheme.white, size: 30),
+                          const Icon(Icons.restaurant, color: Color(0xFF3E2723), size: 30),
                     ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
                     'YANG CHOW',
                     style: TextStyle(
-                      color: AppTheme.white,
+                      color: Color(0xFF3E2723),
                       fontWeight: FontWeight.w900,
                       fontSize: 20,
                       letterSpacing: 3,
@@ -325,9 +325,9 @@ class _LandingPageState extends State<LandingPage> {
           Padding(
             padding: const EdgeInsets.all(24.0),
             child: Text(
-              '© 2024 YANG CHOW',
+              ' 2024 YANG CHOW',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Color(0xFF3E2723).withValues(alpha: 0.3),
                 fontSize: 10,
                 letterSpacing: 1.2,
                 fontWeight: FontWeight.bold,
@@ -347,7 +347,7 @@ class _LandingPageState extends State<LandingPage> {
       title: Text(
         title,
         style: const TextStyle(
-          color: AppTheme.white,
+          color: Color(0xFF3E2723),
           fontWeight: FontWeight.w700,
           fontSize: 15,
           letterSpacing: 1,
@@ -369,7 +369,7 @@ class _LandingPageState extends State<LandingPage> {
         child: Text(
           label,
           style: const TextStyle(
-            color: AppTheme.white,
+            color: Color(0xFF3E2723),
             fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
@@ -458,11 +458,11 @@ class _LandingPageState extends State<LandingPage> {
                         ),
                         fontWeight: FontWeight.w900,
                         color: AppTheme.white,
-                        letterSpacing: isMobile ? 8 : 20,
+                        letterSpacing: isMobile ? 6 : 12,
                         height: 0.9,
                         shadows: [
                           Shadow(
-                            color: Colors.black.withValues(alpha: 0.5),
+                            color: Color(0xFF3E2723).withValues(alpha: 0.5),
                             offset: const Offset(0, 10),
                             blurRadius: 30,
                           ),
@@ -473,7 +473,7 @@ class _LandingPageState extends State<LandingPage> {
                     Text(
                       'AUTHENTIC CHINESE CUISINE',
                       style: TextStyle(
-                        color: AppTheme.white.withValues(alpha: 0.8),
+                        color: AppTheme.white,
                         fontWeight: FontWeight.w300,
                         letterSpacing: isMobile ? 4 : 8,
                         fontSize: isMobile ? 14 : 18,
@@ -487,7 +487,7 @@ class _LandingPageState extends State<LandingPage> {
                         'Where tradition meets modern perfection. Discover a menu crafted with passion, featuring the finest ingredients and time-honored recipes that define the heart of Pagsanjan dining.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppTheme.white.withValues(alpha: 0.7),
+                          color: AppTheme.white,
                           fontSize: isMobile ? 16 : 20,
                           height: 1.6,
                           fontWeight: FontWeight.w300,
@@ -530,7 +530,7 @@ class _LandingPageState extends State<LandingPage> {
                 Text(
                   'SCROLL TO EXPLORE',
                   style: TextStyle(
-                    color: AppTheme.white.withValues(alpha: 0.3),
+                    color: Color(0xFF3E2723).withValues(alpha: 0.3),
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2,
@@ -577,12 +577,12 @@ class _LandingPageState extends State<LandingPage> {
         key: Key('hero_cta_${label.replaceAll(' ', '_').toLowerCase()}'),
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.05),
-          foregroundColor: AppTheme.white,
+          backgroundColor: isPrimary ? AppTheme.primaryColor : Colors.black.withValues(alpha: 0.05),
+          foregroundColor: Color(0xFF3E2723),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isPrimary ? BorderSide.none : BorderSide(color: AppTheme.white.withValues(alpha: 0.2), width: 1.5),
+            side: isPrimary ? BorderSide.none : BorderSide(color: Color(0xFF3E2723).withValues(alpha: 0.2), width: 1.5),
           ),
         ),
         child: Text(
@@ -607,7 +607,7 @@ class _LandingPageState extends State<LandingPage> {
         vertical: isMobile ? 80 : 120,
         horizontal: 24,
       ),
-      color: const Color(0xFF0A0A0A), // Deep dark heritage background
+      color: const Color(0xFFF5F5DC), // Deep beige heritage background
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -637,7 +637,7 @@ class _LandingPageState extends State<LandingPage> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
+                              color: Color(0xFF3E2723).withValues(alpha: 0.3),
                               blurRadius: 40,
                               offset: const Offset(0, 20),
                             ),
@@ -680,7 +680,7 @@ class _LandingPageState extends State<LandingPage> {
                       Text(
                         'Crafting Culinary Excellence Since Day One',
                         style: TextStyle(
-                          color: AppTheme.white,
+                          color: Color(0xFF3E2723),
                           fontSize: isMobile ? 28 : 42,
                           fontWeight: FontWeight.w900,
                           height: 1.2,
@@ -690,7 +690,7 @@ class _LandingPageState extends State<LandingPage> {
                       Text(
                         'Yang Chow Pagsanjan was born from a simple vision: to bring authentic, high-quality Chinese cuisine to our local community. What started as a passion for traditional flavors has grown into a beloved dining destination, where every detail—from the selection of our secret spices to the warmth of our service—is handled with utmost care.',
                         style: TextStyle(
-                          color: AppTheme.white.withValues(alpha: 0.7),
+                          color: Color(0xFF3E2723).withValues(alpha: 0.7),
                           fontSize: 18,
                           height: 1.8,
                           fontWeight: FontWeight.w300,
@@ -714,10 +714,10 @@ class _LandingPageState extends State<LandingPage> {
                         label: const Text(
                           'READ OUR FULL JOURNEY',
                           style: TextStyle(
-                            color: AppTheme.white,
+                            color: Color(0xFF3E2723),
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                            fontSize: 13,
+                            letterSpacing: 4,
+                            fontSize: 18,
                           ),
                         ),
                         style: TextButton.styleFrom(
@@ -742,7 +742,7 @@ class _LandingPageState extends State<LandingPage> {
         Text(
           value,
           style: const TextStyle(
-            color: AppTheme.white,
+            color: Color(0xFF3E2723),
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
@@ -773,7 +773,7 @@ class _LandingPageState extends State<LandingPage> {
         vertical: isMobile ? 80 : 120,
         horizontal: 24,
       ),
-      color: const Color(0xFF0F0F0F), // Ultra dark background for high contrast
+      color: const Color(0xFFF5F5DC), // Light beige background for high contrast
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -815,10 +815,10 @@ class _LandingPageState extends State<LandingPage> {
       decoration: BoxDecoration(
         color: const Color(0xFF161616),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Color(0xFF3E2723).withValues(alpha: 0.5),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -849,7 +849,7 @@ class _LandingPageState extends State<LandingPage> {
           Text(
             desc,
             style: TextStyle(
-              color: AppTheme.white.withValues(alpha: 0.6),
+              color: AppTheme.white.withValues(alpha: 0.8),
               fontSize: 16,
               height: 1.6,
               fontWeight: FontWeight.w300,
@@ -889,7 +889,7 @@ class _LandingPageState extends State<LandingPage> {
         vertical: isMobile ? 80 : 120,
         horizontal: 24,
       ),
-      color: const Color(0xFF0F0F0F), // Consistent dark background
+      color: const Color(0xFFF5F5DC), // Consistent light beige background
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -911,7 +911,7 @@ class _LandingPageState extends State<LandingPage> {
                 if (snapshot.hasError) {
                   return Center(
                     child: Text('Error loading announcements: ${snapshot.error}', 
-                        style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 16)),
+                        style: const TextStyle(color: Color(0xFF3E2723), fontSize: 16)),
                   );
                 }
 
@@ -944,7 +944,7 @@ class _LandingPageState extends State<LandingPage> {
                 if (updates.isEmpty) {
                   return const Center(
                     child: Text('No announcements yet. Check back soon!', 
-                        style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16)),
+                        style: TextStyle(color: Color(0xFF3E2723), fontSize: 16)),
                   );
                 }
 
@@ -971,17 +971,17 @@ class _LandingPageState extends State<LandingPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
+          color: Color(0xFF3E2723).withValues(alpha: 0.1),
           width: 1,
         ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int?>(
           value: _selectedMonth,
-          dropdownColor: const Color(0xFF0F0F0F),
+          dropdownColor: const Color(0xFFF5F5DC),
           icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
           items: [
             const DropdownMenuItem<int?>(
@@ -989,7 +989,7 @@ class _LandingPageState extends State<LandingPage> {
               child: Text(
                 'LATEST / ALL',
                 style: TextStyle(
-                  color: AppTheme.white,
+                  color: Color(0xFF3E2723),
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
@@ -1002,7 +1002,7 @@ class _LandingPageState extends State<LandingPage> {
                 child: Text(
                   months[index],
                   style: const TextStyle(
-                    color: AppTheme.white,
+                    color: Color(0xFF3E2723),
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -1030,10 +1030,10 @@ class _LandingPageState extends State<LandingPage> {
       decoration: BoxDecoration(
         color: const Color(0xFF161616), // Dark card for dark mode
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: Color(0xFF3E2723).withValues(alpha: 0.3),
             blurRadius: 40,
             offset: const Offset(0, 20),
           ),
@@ -1069,7 +1069,7 @@ class _LandingPageState extends State<LandingPage> {
                   Text(
                     formattedDate.toUpperCase(),
                     style: TextStyle(
-                      color: AppTheme.white.withValues(alpha: 0.5),
+                      color: AppTheme.white,
                       fontWeight: FontWeight.w900,
                       fontSize: 11,
                       letterSpacing: 2,
@@ -1088,7 +1088,7 @@ class _LandingPageState extends State<LandingPage> {
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 28,
-                      color: AppTheme.white, // White text for dark mode
+                      color: AppTheme.white,
                       height: 1.2,
                     ),
                   ),
@@ -1096,7 +1096,7 @@ class _LandingPageState extends State<LandingPage> {
                   Text(
                     update['content'].toString(),
                     style: TextStyle(
-                      color: AppTheme.white.withValues(alpha: 0.6), // Dimmed white for content
+                      color: AppTheme.white.withValues(alpha: 0.8), // White text for content
                       fontSize: 17,
                       height: 1.7,
                       fontWeight: FontWeight.w300,
@@ -1108,7 +1108,7 @@ class _LandingPageState extends State<LandingPage> {
                       const CircleAvatar(
                         radius: 12,
                         backgroundColor: AppTheme.primaryColor,
-                        child: Icon(Icons.person_rounded, size: 14, color: AppTheme.white),
+                        child: Icon(Icons.person_rounded, size: 14, color: Colors.black),
                       ),
                       const SizedBox(width: 12),
                       const Text(
@@ -1142,7 +1142,7 @@ class _LandingPageState extends State<LandingPage> {
         vertical: isMobile ? 80 : 120,
         horizontal: 24,
       ),
-      color: const Color(0xFF0F0F0F),
+      color: const Color(0xFFF5F5DC),
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -1159,7 +1159,7 @@ class _LandingPageState extends State<LandingPage> {
                 Expanded(
                   flex: isMobile ? 0 : 1,
                   child: Container(
-                    padding: const EdgeInsets.all(60),
+                    padding: const EdgeInsets.all(40),
                     decoration: BoxDecoration(
                       color: const Color(0xFF161616),
                       borderRadius: BorderRadius.circular(24),
@@ -1173,7 +1173,7 @@ class _LandingPageState extends State<LandingPage> {
                           'OPENING HOURS',
                           style: TextStyle(
                             color: AppTheme.white,
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 4,
                           ),
@@ -1221,7 +1221,7 @@ class _LandingPageState extends State<LandingPage> {
                         Text(
                           'Ground floor near mall entrance',
                           style: TextStyle(
-                            color: AppTheme.white.withValues(alpha: 0.5),
+                            color: AppTheme.white.withValues(alpha: 0.8),
                             fontSize: 14,
                           ),
                         ),
@@ -1271,7 +1271,7 @@ class _LandingPageState extends State<LandingPage> {
         vertical: isMobile ? 80 : 120,
         horizontal: 24,
       ),
-      color: const Color(0xFF0A0A0A), // Unified deep dark background
+      color: const Color(0xFFF5F5DC), // Unified deep beige background
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -1339,7 +1339,7 @@ class _LandingPageState extends State<LandingPage> {
               fontWeight: FontWeight.w900,
               letterSpacing: 2,
               fontSize: 12,
-              color: AppTheme.primaryColor,
+              color: AppTheme.white,
             ),
           ),
           const SizedBox(height: 12),
@@ -1361,7 +1361,7 @@ class _LandingPageState extends State<LandingPage> {
             desc,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppTheme.white.withValues(alpha: 0.5),
+              color: AppTheme.white.withValues(alpha: 0.8),
               fontSize: 14,
               height: 1.5,
             ),
@@ -1376,10 +1376,10 @@ class _LandingPageState extends State<LandingPage> {
     
     return Container(
       padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 80 : 120,
-        horizontal: 40,
+        vertical: isMobile ? 20 : 25,
+        horizontal: 30,
       ),
-      color: const Color(0xFF0A0A0A), // Deep black footer
+      color: const Color(0xFFF5F5DC), // Deep beige footer
       child: MaxWidthContainer(
         child: Column(
           children: [
@@ -1397,21 +1397,21 @@ class _LandingPageState extends State<LandingPage> {
                         mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(2),
                             decoration: const BoxDecoration(color: AppTheme.white, shape: BoxShape.circle),
-                            child: Image.asset('assets/images/logo.jpg', height: 40),
+                            child: Image.asset('assets/images/logo.jpg', height: 18),
                           ),
-                          const SizedBox(width: 20),
+                          const SizedBox(width: 6),
                           const Text(
                             'YANG CHOW',
-                            style: TextStyle(color: AppTheme.white, fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: 4),
+                            style: TextStyle(color: Color(0xFF8B7355), fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 8),
                       Text(
-                        'Elevating the culinary landscape of Pagsanjan with authentic flavors and executive-tier hospitality. Join us for a journey of taste that defines excellence.',
-                        style: TextStyle(color: AppTheme.white.withValues(alpha: 0.4), height: 1.8, fontSize: 15),
+                        'Elevating the culinary landscape.',
+                        style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.4), height: 1.4, fontSize: 10),
                         textAlign: isMobile ? TextAlign.center : TextAlign.start,
                       ),
                     ],
@@ -1434,7 +1434,7 @@ class _LandingPageState extends State<LandingPage> {
                 Expanded(
                   flex: isMobile ? 0 : 3,
                   child: Padding(
-                    padding: EdgeInsets.only(top: isMobile ? 64 : 0),
+                    padding: EdgeInsets.only(top: isMobile ? 10 : 0),
                     child: _footerColumn('INQUIRIES', [
                       'TEL# 501-9179',
                       '+63 975-041-9671',
@@ -1445,21 +1445,21 @@ class _LandingPageState extends State<LandingPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 80),
+            const SizedBox(height: 15),
             Divider(color: Colors.white.withValues(alpha: 0.05)),
-            const SizedBox(height: 48),
+            const SizedBox(height: 8),
             Flex(
               direction: isMobile ? Axis.vertical : Axis.horizontal,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '© 2024 YANG CHOW RESTAURANT. ALL RIGHTS RESERVED.',
-                  style: TextStyle(color: AppTheme.white.withValues(alpha: 0.2), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                  style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.2), fontSize: 6, fontWeight: FontWeight.w900, letterSpacing: 1),
                 ),
-                if (isMobile) const SizedBox(height: 16),
+                if (isMobile) const SizedBox(height: 6),
                 Text(
-                  'DESIGNED FOR PARAMOUNT EXCELLENCE',
-                  style: TextStyle(color: AppTheme.white.withValues(alpha: 0.1), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2),
+                  'DESIGNED FOR EXCELLENCE',
+                  style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.1), fontSize: 6, fontWeight: FontWeight.w900, letterSpacing: 2),
                 ),
               ],
             ),
@@ -1475,14 +1475,29 @@ class _LandingPageState extends State<LandingPage> {
       children: [
         Text(
           title,
-          style: const TextStyle(color: AppTheme.white, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
+          style: const TextStyle(color: Color(0xFF8B7355), fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
         ),
         const SizedBox(height: 32),
         ...items.map((item) => Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: Text(
-            item,
-            style: TextStyle(color: AppTheme.white.withValues(alpha: 0.4), fontSize: 14, fontWeight: FontWeight.w300),
+          child: InkWell(
+            onTap: () {
+              // Add navigation logic here if needed
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  item,
+                  style: TextStyle(
+                    color: Color(0xFF8B7355).withValues(alpha: 0.4), 
+                    fontSize: 14, 
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+              ),
+            ),
           ),
         )),
       ],
@@ -1495,7 +1510,7 @@ class _LandingPageState extends State<LandingPage> {
         Text(
           title,
           style: const TextStyle(
-            color: AppTheme.primaryColor,
+            color: Color(0xFF8B7355), // Beige color for text
             fontWeight: FontWeight.w900,
             letterSpacing: 4,
             fontSize: 12,
@@ -1506,7 +1521,7 @@ class _LandingPageState extends State<LandingPage> {
           subtitle,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isDark ? AppTheme.white : AppTheme.darkGrey,
+            color: Color(0xFF8B7355), // Beige color for text
             fontSize: 42,
             fontWeight: FontWeight.w900,
             height: 1.1,
@@ -1517,7 +1532,7 @@ class _LandingPageState extends State<LandingPage> {
         Container(
           width: 40,
           height: 1,
-          color: AppTheme.primaryColor.withValues(alpha: 0.5),
+          color: Color(0xFF8B7355).withValues(alpha: 0.5), // Beige underline
         ),
       ],
     );
