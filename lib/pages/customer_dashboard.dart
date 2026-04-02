@@ -44,6 +44,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   late List<String> _baseDurations;
   late List<String> _extraTimeOptions;
   bool _enableSpecialRequests = AppConstants.defaultEnableSpecialRequests;
+  String? _lastSeenNotificationId;
 
   // Form controllers
 
@@ -154,7 +155,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       case 1:
         return 'Reservation';
       case 2:
-        return 'History';
+        return 'Activity';
       case 3:
         return 'Account';
       default:
@@ -188,7 +189,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       stream: _notificationsStream,
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
+        final newestId = notifications.isNotEmpty ? notifications.first['id']?.toString() : null;
+        
+        // Show dot if:
+        // 1. There are unread items in the list
+        // 2. The newest item's ID is different from what we last "saw" (cleared)
         final hasUnread = notifications.any((n) => !n['is_read']);
+        final isTrulyNew = newestId != _lastSeenNotificationId;
+        final showDot = hasUnread && isTrulyNew;
 
         return Stack(
           children: [
@@ -197,10 +205,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 Icons.notifications_none_rounded,
                 color: Color(0xFF1D1B1E),
               ),
-              onPressed: () => _showNotificationsDialog(notifications),
+              onPressed: () {
+                if (notifications.isNotEmpty) {
+                  final currentNewestId = notifications.first['id']?.toString();
+                  setState(() => _lastSeenNotificationId = currentNewestId);
+                }
+                _showNotificationsDialog(notifications);
+              },
               tooltip: 'Notifications',
             ),
-            if (hasUnread)
+            if (showDot)
               Positioned(
                 right: 12,
                 top: 12,
@@ -224,9 +238,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   }
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser != null) {
-      NotificationService.markAllAsRead(currentUser.email!);
+    if (notifications.isNotEmpty) {
+      final unreadIds = notifications
+          .where((n) => !n['is_read'])
+          .map((n) => n['id'].toString())
+          .toList();
+      if (unreadIds.isNotEmpty) {
+        NotificationService.markVisibleAsRead(unreadIds);
+      }
     }
 
     showDialog(
@@ -517,12 +536,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                   Icons.event_available_rounded,
 
-                  Icons.history_rounded,
+                  Icons.assignment_rounded,
 
                   Icons.person_rounded,
                 ];
 
-                final labels = ['Home', 'Reservations', 'History', 'Account'];
+                final labels = ['Home', 'Reservations', 'Activity', 'Account'];
 
                 return Container(
                   margin: const EdgeInsets.symmetric(
@@ -719,7 +738,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     'Reserve',
                   ),
 
-                  _buildMobileNavItem(2, Icons.history_rounded, 'History'),
+                  _buildMobileNavItem(2, Icons.assignment_rounded, 'Activity'),
 
                   _buildMobileNavItem(3, Icons.person_rounded, 'Account'),
                 ],
@@ -854,7 +873,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         return _buildReservationsSection();
 
       case 2:
-        return _buildHistorySection();
+        return _buildActivitySection();
 
       case 3:
         return _buildProfileSection();
@@ -1226,7 +1245,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                             const SizedBox(height: 8),
 
                             Text(
-                              'Book your first table to start seeing history here.',
+                              'Book your first table to start seeing activity here.',
 
                               style: TextStyle(
                                 fontSize: 14,
@@ -2033,6 +2052,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               },
             ),
             _buildAccountMenuCard(
+              icon: Icons.history_edu_rounded,
+              title: 'Activity History',
+              subtitle: 'View your past and ongoing activities',
+              onTap: _showHistoryPage,
+            ),
+            _buildAccountMenuCard(
               icon: Icons.logout_rounded,
               title: 'Logout',
               subtitle: 'Securely exit your session',
@@ -2041,6 +2066,177 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
 
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHistoryPage() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: const Color(0xFFF9F9FF),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFFF9F9FF),
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1D1B1E)),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: const Text(
+              'Activity History',
+              style: TextStyle(
+                color: Color(0xFF1D1B1E),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          body: customerReservations.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.history_edu_rounded,
+                        size: 64,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No activities found',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: customerReservations.length,
+                  itemBuilder: (context, index) {
+                    final reservation = customerReservations[index];
+                    return _buildHistoryItem(reservation);
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    reservation['event_type'] ?? 'Reservation',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                _buildStatusChip(reservation['status']),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Date: ${reservation['event_date']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.people_alt_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Guests: ${reservation['number_of_guests']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Transaction Status',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    Text(
+                      reservation['payment_status']?.toUpperCase() ?? 'NONE',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: reservation['payment_status'] == 'paid'
+                            ? Colors.green
+                            : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Booked on ${reservation['created_at']?.toString().split('T')[0] ?? 'N/A'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade400,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -2130,7 +2326,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  Widget _buildHistorySection() {
+  Widget _buildActivitySection() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
 
@@ -2143,7 +2339,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
             children: [
               const Text(
-                'Reservation History',
+                'Reservation Activity',
 
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
@@ -2160,17 +2356,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                       children: [
                         const Icon(
-                          Icons.history_outlined,
-
+                          Icons.assignment_outlined,
                           size: 64,
-
                           color: Colors.grey,
                         ),
 
                         const SizedBox(height: 16),
 
                         const Text(
-                          'No reservation history',
+                          'No reservation activity',
 
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
@@ -2178,7 +2372,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                         const SizedBox(height: 8),
 
                         const Text(
-                          'Make your first reservation to see your history here!',
+                          'Make your first reservation to see your activity here!',
 
                           style: TextStyle(fontSize: 14),
                         ),
