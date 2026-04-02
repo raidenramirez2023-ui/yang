@@ -49,82 +49,106 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       });
     } catch (e) {
       debugPrint('Error loading reservations: $e');
+      
+      // If we hit a schema error, try to sync and reload once
+      if (e.toString().contains('PGRST204') || e.toString().contains('is_archived')) {
+        debugPrint('Detected schema mismatch. Attempting auto-sync...');
+        await _ensureSchemaSynchronized(silent: true);
+        // Retry load once after sync
+        try {
+          final retryResponse = await Supabase.instance.client
+              .from('reservations')
+              .select('*')
+              .order('created_at', ascending: false);
+          setState(() {
+            reservations = List<Map<String, dynamic>>.from(retryResponse);
+            _isLoading = false;
+          });
+          return;
+        } catch (_) {}
+      }
+
       setState(() => _isLoading = false);
       _showSnackBar('Error loading reservations: $e', Colors.red);
     }
   }
 
+  Future<void> _ensureSchemaSynchronized({bool silent = false}) async {
+    try {
+      // 1. Ensure column exists
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;"
+      });
+      
+      // 2. Notify PostgREST to reload schema cache
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "NOTIFY pgrst, 'reload schema';"
+      });
+
+      if (!silent) _showSnackBar('Database schema synchronized successfully', Colors.green);
+    } catch (e) {
+      debugPrint('Manual sync error: $e');
+      if (!silent) {
+        _showSnackBar('Sync failed. Please ensure you have the "exec_sql" RPC function defined in Supabase.', Colors.orange);
+      }
+    }
+  }
+
   Future<void> _updateExpiredReservations(List<Map<String, dynamic>> reservations) async {
     final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
     
     for (final reservation in reservations) {
-      // Only check confirmed reservations
-      if (reservation['status'] != 'confirmed') continue;
+      // Target confirmed reservations that are not archived
+      final currentStatus = (reservation['status'] ?? '').toString().toLowerCase();
+      final isArchived = reservation['is_archived'] == true;
+      
+      if (currentStatus != 'confirmed' || isArchived) continue;
       
       try {
-        final eventDate = reservation['event_date'];
-        final startTime = reservation['start_time'];
+        final eventDate = reservation['event_date']?.toString() ?? '';
+        final startTime = reservation['start_time']?.toString() ?? '';
         
-        DateTime eventDateTime;
-        try {
-          // Parse start time (same logic as announcement creation)
-          if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
-            DateTime parsedTime;
-            try {
-              parsedTime = DateFormat.jm().parse(startTime.trim());
-            } catch (e) {
-              String fixedTime = startTime.toUpperCase().replaceAll('AM', ' AM').replaceAll('PM', ' PM').trim().replaceAll('  ', ' ');
-              parsedTime = DateFormat.jm().parse(fixedTime);
-            }
-            final parsedDate = DateTime.parse(eventDate);
-            eventDateTime = DateTime(
-              parsedDate.year,
-              parsedDate.month,
-              parsedDate.day,
-              parsedTime.hour,
-              parsedTime.minute,
-            );
-          } else {
-            // Handle 24-hour format with seconds (HH:mm:ss)
-            String timeStr = startTime;
-            if (timeStr.length == 8 && timeStr.contains(':')) {
-              // Format: "18:35:00" -> take only "18:35"
-              timeStr = timeStr.substring(0, 5);
-            } else if (timeStr.length == 5) {
-              // Already in correct format: "18:35"
-              timeStr = '$timeStr:00';
-            }
-            eventDateTime = DateTime.parse('${eventDate}T$timeStr');
-          }
-        } catch (e) {
-          debugPrint('Error parsing reservation date/time: $e');
+        if (eventDate.isEmpty || startTime.isEmpty) continue;
+
+        // --- RULE 1: If the date is strictly before today, it's finished ---
+        if (eventDate.compareTo(todayStr) < 0) {
+          await _markAsCompleted(reservation, now);
           continue;
         }
-        
-        // Get duration
-        final durationValue = reservation['duration_hours'];
-        int durationHours = 4; // Default
-        if (durationValue != null) {
-          if (durationValue is int) {
-            durationHours = durationValue;
-          } else if (durationValue is String) {
-            durationHours = int.tryParse(durationValue) ?? 4;
+
+        // --- RULE 2: If the date is today, check the specific time + duration ---
+        if (eventDate == todayStr) {
+          DateTime? eventDateTime;
+          try {
+            if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
+              DateTime parsedTime;
+              try {
+                parsedTime = DateFormat.jm().parse(startTime.trim());
+              } catch (e) {
+                String fixedTime = startTime.toUpperCase().replaceAll('AM', ' AM').replaceAll('PM', ' PM').trim().replaceAll('  ', ' ');
+                parsedTime = DateFormat.jm().parse(fixedTime);
+              }
+              final parsedDate = DateTime.parse(eventDate);
+              eventDateTime = DateTime(parsedDate.year, parsedDate.month, parsedDate.day, parsedTime.hour, parsedTime.minute);
+            } else {
+              String timeStr = startTime;
+              if (timeStr.length == 8 && timeStr.contains(':')) timeStr = timeStr.substring(0, 5);
+              eventDateTime = DateTime.parse('${eventDate}T$timeStr');
+            }
+          } catch (e) {
+            debugPrint('Expiration parsing error for ${reservation['id']}: $e');
           }
-        }
-        
-        final expiresAt = eventDateTime.add(Duration(hours: durationHours));
-        
-        // If reservation has expired, update status to 'completed'
-        if (now.isAfter(expiresAt)) {
-          await Supabase.instance.client
-              .from('reservations')
-              .update({
-                'status': 'completed',
-                'updated_at': now.toIso8601String()
-              })
-              .eq('id', reservation['id']);
-          
-          debugPrint('Reservation ${reservation['id']} marked as completed (expired)');
+
+          if (eventDateTime != null) {
+            final durationValue = reservation['duration_hours'];
+            int durationHours = (durationValue is int) ? durationValue : (int.tryParse(durationValue?.toString() ?? '4') ?? 4);
+            final expiresAt = eventDateTime.add(Duration(hours: durationHours));
+            
+            if (now.isAfter(expiresAt)) {
+              await _markAsCompleted(reservation, now);
+            }
+          }
         }
       } catch (e) {
         debugPrint('Error checking reservation expiration: $e');
@@ -132,19 +156,67 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     }
   }
 
-  Future<void> _deleteReservation(String reservationId) async {
-  try {
-    await Supabase.instance.client
-        .from('reservations')
-        .delete()
-        .eq('id', reservationId);
-
-    _showSnackBar('Reservation deleted successfully', Colors.green);
-    _loadReservations(); // Refresh the list
-  } catch (e) {
-    _showSnackBar('Error deleting reservation: $e', Colors.red);
+  Future<void> _markAsCompleted(Map<String, dynamic> reservation, DateTime now) async {
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .update({
+            'status': 'completed',
+            'updated_at': now.toIso8601String()
+          })
+          .eq('id', reservation['id']);
+      
+      // Update local state immediately
+      reservation['status'] = 'completed';
+      debugPrint('Reservation ${reservation['id']} auto-completed.');
+    } catch (e) {
+      debugPrint('Failed to mark reservation as completed in DB: $e');
+      // If DB update fails (schema issue), we still mark it locally so the UI looks correct for this session
+      reservation['status'] = 'completed';
+    }
   }
-}
+
+  Future<void> _archiveReservation(String reservationId) async {
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .update({'is_archived': true, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', reservationId);
+
+      _showSnackBar('Reservation archived successfully', Colors.green);
+      _loadReservations();
+    } catch (e) {
+      _showSnackBar('Error archiving reservation: $e', Colors.red);
+    }
+  }
+
+  Future<void> _restoreReservation(String reservationId) async {
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .update({'is_archived': false, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', reservationId);
+
+      _showSnackBar('Reservation restored', Colors.green);
+      _loadReservations();
+    } catch (e) {
+      _showSnackBar('Error restoring reservation: $e', Colors.red);
+    }
+  }
+
+  Future<void> _hardDeleteReservation(String reservationId) async {
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .delete()
+          .eq('id', reservationId);
+
+      _showSnackBar('Reservation permanently deleted', Colors.green);
+      _loadReservations();
+    } catch (e) {
+      _showSnackBar('Error deleting reservation: $e', Colors.red);
+    }
+  }
 
   Future<void> _updateReservationStatus(String reservationId, String newStatus, [Map<String, dynamic>? reservation]) async {
     try {
@@ -280,8 +352,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   List<Map<String, dynamic>> get _filteredReservations {
-    if (_selectedFilter == 'all') return reservations;
-    return reservations.where((r) => r['status'] == _selectedFilter).toList();
+    if (_selectedFilter == 'archived') {
+      return reservations.where((r) => r['is_archived'] == true).toList();
+    }
+    final unarchived = reservations.where((r) => r['is_archived'] != true);
+    if (_selectedFilter == 'all') return unarchived.toList();
+    return unarchived.where((r) => r['status'] == _selectedFilter).toList();
   }
 
   @override
@@ -311,14 +387,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: _loadReservations,
-                icon: Icon(
-                  Icons.refresh,
-                  size: ResponsiveUtils.getResponsiveIconSize(context),
-                ),
-                tooltip: 'Refresh',
-              ),
+              const Spacer(),
             ],
           ),
           ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
@@ -360,10 +429,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     if (_isLoading) return const SizedBox.shrink();
 
     final isMobile = ResponsiveUtils.isMobile(context);
-    final total = reservations.length;
-    final pending = reservations.where((r) => r['status'] == 'pending').length;
-    final confirmed = reservations.where((r) => r['status'] == 'confirmed').length;
-    final completed = reservations.where((r) => r['status'] == 'completed').length;
+    final unarchived = reservations.where((r) => r['is_archived'] != true);
+    final total = unarchived.length;
+    final pending = unarchived.where((r) => r['status'] == 'pending').length;
+    final confirmed = unarchived.where((r) => r['status'] == 'confirmed').length;
+    final completed = unarchived.where((r) => r['status'] == 'completed').length;
 
     final cards = [
       _buildKpiCard('Total Events', total.toString(), Icons.event, AppTheme.infoBlue),
@@ -386,7 +456,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           Row(
             children: [
               Expanded(child: cards[2]),
-              const Spacer(),
+              const SizedBox(width: AppTheme.sm),
+              Expanded(child: cards[3]),
             ],
           ),
         ],
@@ -400,7 +471,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         Expanded(child: cards[1]),
         const SizedBox(width: AppTheme.md),
         Expanded(child: cards[2]),
-        if (!ResponsiveUtils.isTablet(context)) const Spacer(flex: 1),
+        const SizedBox(width: AppTheme.md),
+        Expanded(child: cards[3]),
       ],
     );
   }
@@ -465,6 +537,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       {'value': 'confirmed', 'label': 'Confirmed'},
       {'value': 'completed', 'label': 'Completed'},
       {'value': 'cancelled', 'label': 'Cancelled'},
+      {'value': 'archived', 'label': 'Archived'},
     ];
 
     return Container(
@@ -1096,7 +1169,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
-  void _showDeleteConfirmationDialog(String reservationId, String eventType) {
+  void _showDeleteConfirmationDialog(String reservationId, String eventType, {bool isArchived = false}) {
     final isMobile = ResponsiveUtils.isMobile(context);
     
     showDialog(
@@ -1110,14 +1183,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         title: Row(
           children: [
             Icon(
-              Icons.warning, 
-              color: Colors.orange,
+              isArchived ? Icons.delete_forever : Icons.archive, 
+              color: isArchived ? Colors.red : Colors.orange,
               size: ResponsiveUtils.getResponsiveIconSize(context),
             ),
             SizedBox(width: isMobile ? 8 : 12),
             Expanded(
               child: Text(
-                'Delete Reservation',
+                isArchived ? 'Permanent Delete' : 'Archive Reservation',
                 style: TextStyle(
                   fontSize: ResponsiveUtils.getResponsiveFontSize(
                     context,
@@ -1135,7 +1208,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to delete "$eventType" reservation?',
+              isArchived 
+                ? 'Are you sure you want to permanently delete "$eventType"?' 
+                : 'Move "$eventType" reservation to archive?',
               style: TextStyle(
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
                   context,
@@ -1147,9 +1222,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
             ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
             Text(
-              'This action cannot be undone and will permanently remove the reservation.',
+              isArchived 
+                ? 'This action CANNOT be undone. All data will be lost.' 
+                : 'It will be removed from your active list but can be recovered from the Archive section.',
               style: TextStyle(
-                color: Colors.red,
+                color: isArchived ? Colors.red : AppTheme.mediumGrey,
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
                   context,
                   mobile: 12,
@@ -1178,7 +1255,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: isArchived ? Colors.red : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(
                 horizontal: isMobile ? 16 : 24,
@@ -1187,10 +1264,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
             onPressed: () {
               Navigator.pop(context);
-              _deleteReservation(reservationId);
+              if (isArchived) {
+                _hardDeleteReservation(reservationId);
+              } else {
+                _archiveReservation(reservationId);
+              }
             },
             child: Text(
-              'Delete',
+              isArchived ? 'Delete Permanently' : 'Archive',
               style: TextStyle(
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
                   context,
@@ -1264,55 +1345,57 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget _buildActionButtons(Map<String, dynamic> reservation) {
     String status = reservation['status'];
     String reservationId = reservation['id'];
+    bool isArchived = reservation['is_archived'] == true;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (status == 'pending') ...[
-          IconButton(
-            onPressed: () => _showConfirmReservationDialog(reservation),
-            icon: Icon(
-              Icons.check, 
-              color: Colors.green,
-              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+        if (!isArchived) ...[
+          if (status == 'pending') ...[
+            IconButton(
+              onPressed: () => _showConfirmReservationDialog(reservation),
+              icon: Icon(
+                Icons.check, 
+                color: Colors.green,
+                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+              ),
+              tooltip: 'Confirm',
+              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
             ),
-            tooltip: 'Confirm',
-            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-          ),
-          IconButton(
-            onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
-            icon: Icon(
-              Icons.close, 
-              color: Colors.red,
-              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            IconButton(
+              onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
+              icon: Icon(
+                Icons.close, 
+                color: Colors.red,
+                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+              ),
+              tooltip: 'Cancel',
+              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
             ),
-            tooltip: 'Cancel',
-            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-          ),
+          ],
+          if (status == 'confirmed') ...[
+            IconButton(
+              onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
+              icon: Icon(
+                Icons.cancel, 
+                color: Colors.red,
+                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+              ),
+              tooltip: 'Cancel',
+              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
+          ],
         ],
-        if (status == 'confirmed') ...[
-          IconButton(
-            onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
-            icon: Icon(
-              Icons.cancel, 
-              color: Colors.red,
-              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-            ),
-            tooltip: 'Cancel',
-            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+        IconButton(
+          onPressed: () => _showViewReservationDialog(reservation),
+          icon: Icon(
+            Icons.visibility,
+            color: AppTheme.infoBlue,
+            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
-        ],
-          IconButton(
-            onPressed: () => _showEditReservationDialog(reservation),
-            icon: Icon(
-              Icons.edit,
-              color: AppTheme.infoBlue,
-              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-            ),
-            tooltip: 'Modify',
-          ),
-          if (status == 'completed') ...[
-          // No actions for completed reservations
+          tooltip: 'View Details',
+        ),
+        if (!isArchived && status == 'completed') ...[
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: ResponsiveUtils.getResponsiveFontSize(context, mobile: 8, tablet: 10, desktop: 12),
@@ -1332,93 +1415,129 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ),
           ),
         ],
+        if (isArchived)
+          IconButton(
+            onPressed: () => _restoreReservation(reservationId),
+            icon: Icon(
+              Icons.restore, 
+              color: AppTheme.successGreen,
+              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            ),
+            tooltip: 'Restore',
+            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+          ),
         IconButton(
-          onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type']),
+          onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived),
           icon: Icon(
-            Icons.delete, 
+            isArchived ? Icons.delete_forever : Icons.archive, 
             color: Colors.red,
             size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
           ),
-          tooltip: 'Delete',
+          tooltip: isArchived ? 'Delete Permanently' : 'Archive',
           iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
         ),
       ],
     );
   }
 
-  void _showEditReservationDialog(Map<String, dynamic> reservation) {
-    final dateController = TextEditingController(text: reservation['event_date']?.toString() ?? '');
-    final timeController = TextEditingController(text: reservation['start_time']?.toString() ?? '');
-    final guestsController = TextEditingController(text: reservation['number_of_guests']?.toString() ?? '');
-    final tableController = TextEditingController(text: reservation['table_number']?.toString() ?? '');
+  void _showViewReservationDialog(Map<String, dynamic> reservation) {
+    final status = reservation['status'];
+    final isPending = status == 'pending';
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    Widget buildDetailRow(String label, String value, {IconData? icon}) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+            ],
+            SizedBox(
+              width: 120,
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(color: AppTheme.darkGrey),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Modify Reservation'),
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: AppTheme.primaryColor),
+            const SizedBox(width: 8),
+            const Text('Reservation Details'),
+          ],
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: dateController,
-                decoration: const InputDecoration(labelText: 'Event Date (YYYY-MM-DD)'),
-              ),
-              TextField(
-                controller: timeController,
-                decoration: const InputDecoration(labelText: 'Start Time'),
-              ),
-              TextField(
-                controller: guestsController,
-                decoration: const InputDecoration(labelText: 'Number of Guests'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: tableController,
-                decoration: const InputDecoration(labelText: 'Table Number (Optional)'),
-              ),
-            ],
+          child: SizedBox(
+            width: isMobile ? double.maxFinite : 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    children: [
+                      buildDetailRow('Customer Name', reservation['customer_name'] ?? 'N/A', icon: Icons.person),
+                      buildDetailRow('Email', reservation['customer_email'] ?? 'N/A', icon: Icons.email),
+                      buildDetailRow('Phone', reservation['customer_phone'] ?? 'N/A', icon: Icons.phone),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 24),
+                buildDetailRow('Event Type', reservation['event_type'] ?? 'N/A', icon: Icons.event),
+                buildDetailRow('Event Date', reservation['event_date'] ?? 'N/A', icon: Icons.calendar_today),
+                buildDetailRow('Start Time', reservation['start_time'] ?? 'N/A', icon: Icons.access_time),
+                buildDetailRow('Guests', '${reservation['number_of_guests'] ?? '0'}', icon: Icons.people),
+                buildDetailRow('Table Number', reservation['table_number']?.toString() ?? 'Unassigned', icon: Icons.table_restaurant),
+                const SizedBox(height: 16),
+                buildDetailRow('Status', status?.toString().toUpperCase() ?? 'UNKNOWN', icon: Icons.info),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Close'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
+          if (isPending)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check, size: 18),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successGreen,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _updateReservationStatus(reservation['id'], 'confirmed', reservation);
+              },
+              label: const Text('Accept Reservation'),
             ),
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await Supabase.instance.client.from('reservations').update({
-                  'event_date': dateController.text,
-                  'start_time': timeController.text,
-                  'number_of_guests': int.tryParse(guestsController.text) ?? reservation['number_of_guests'],
-                  'table_number': tableController.text,
-                  'updated_at': DateTime.now().toIso8601String(),
-                }).eq('id', reservation['id']);
-
-                // Send notification
-                await NotificationService.sendNotification(
-                  recipientEmail: reservation['customer_email'],
-                  actorName: 'Admin',
-                  actionType: 'updated',
-                  reservationId: reservation['id'],
-                  eventType: reservation['event_type'],
-                  eventDate: dateController.text,
-                );
-
-                _showSnackBar('Reservation updated successfully', Colors.green);
-                _loadReservations();
-              } catch (e) {
-                _showSnackBar('Error updating reservation: $e', Colors.red);
-              }
-            },
-            child: const Text('Save Changes'),
-          ),
         ],
       ),
     );
