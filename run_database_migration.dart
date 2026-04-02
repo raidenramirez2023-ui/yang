@@ -15,6 +15,9 @@ Future<void> runDatabaseMigration() async {
         UPDATE public.announcements 
         SET expiration_date = created_at + INTERVAL '7 days' 
         WHERE expiration_date IS NULL;
+
+        ALTER TABLE public.reservations 
+        ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;
       '''
     });
     

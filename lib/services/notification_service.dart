@@ -72,6 +72,19 @@ class NotificationService {
     }
   }
 
+  /// Mark specific notifications as read by their IDs
+  static Future<void> markVisibleAsRead(List<String> notificationIds) async {
+    if (notificationIds.isEmpty) return;
+    try {
+      await _supabase
+          .from('notifications')
+          .update({'is_read': true})
+          .filter('id', 'in', notificationIds);
+    } catch (e) {
+      debugPrint('Error marking specific notifications as read: $e');
+    }
+  }
+
   /// Get real-time stream of notifications for a recipient
   static Stream<List<Map<String, dynamic>>> getNotificationsStream(
     String email,
