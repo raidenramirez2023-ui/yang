@@ -546,7 +546,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
               } catch (_) {}
               
               if (mounted) {
-                navigator.pushReplacementNamed('/login');
+                navigator.pushReplacementNamed('/staff-login');
               }
             },
             child: Text(

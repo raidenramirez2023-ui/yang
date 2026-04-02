@@ -33,7 +33,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _isSessionChecking = true; // New flag to handle initial redirect smoothly
   bool _isRedirecting = false;
   bool _rememberMe = false;
-
   // Google Sign-In instance
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb 
@@ -48,34 +47,21 @@ class _LoginPageState extends State<LoginPage> {
     _checkInitialSession();
     _loadStoredCredentials();
     
-    // Listen for auth state changes for real-time redirects after OAuth login.
-    //
-    // On mobile  → Supabase fires [AuthChangeEvent.signedIn] after deep-link.
-    // On web     → Supabase fires [AuthChangeEvent.initialSession] after the
-    //              page reloads from the Facebook/Google OAuth redirect.
-    //
-    // We only act on OAuth sessions (provider != 'email') so that regular
-    // email/password logins are handled exclusively by [handleLogin()].
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final session = data.session;
-      if (session == null) return;
-
-      final isOAuthEvent =
-          data.event == AuthChangeEvent.signedIn ||
-          data.event == AuthChangeEvent.initialSession;
-
-      // Distinguish OAuth logins from email/password logins.
-      final provider =
-          session.user.appMetadata['provider']?.toString() ?? 'email';
-      final isOAuthProvider = provider != 'email';
-
-      if (isOAuthEvent && isOAuthProvider) {
-        debugPrint(
-          'OAuth: ${data.event} detected — provider: $provider',
-        );
-        _handleOAuthSuccess(session);
-      }
-    });
+    // Only add auth listener for web OAuth redirects
+    if (kIsWeb) {
+      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        final session = data.session;
+        if (session == null || !mounted) return;
+        
+        final provider = session.user.appMetadata['provider']?.toString() ?? 'email';
+        
+        // Only handle OAuth events on web
+        if (provider != 'email' && data.event == AuthChangeEvent.signedIn) {
+          debugPrint('Web OAuth detected: $provider');
+          _handleOAuthSuccess(session);
+        }
+      });
+    }
   }
 
   Future<void> _loadStoredCredentials() async {
@@ -101,7 +87,29 @@ class _LoginPageState extends State<LoginPage> {
 
     if (session != null && session.user.email != null) {
       debugPrint('Login: Initial session found for ${session.user.email}');
-      // Delegate to the common success handler to ensure database sync and correct redirect
+      
+      // Check user role in database
+      final userResponse = await Supabase.instance.client
+          .from('users')
+          .select('role')
+          .eq('email', session.user.email!)
+          .maybeSingle();
+
+      if (userResponse != null) {
+        String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
+        
+        // If staff user detected in customer login, redirect to staff portal
+        if (userRole != 'customer') {
+          debugPrint('Initial session: Staff user detected, redirecting to staff portal');
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/staff-login');
+          }
+          return;
+        }
+      }
+      
+      // Delegate to the common success handler for customers
       _handleOAuthSuccess(session);
       return;
     }
@@ -330,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
 
           _showSnackBar(
 
-            "Welcome back, customer!",
+            "Welcome back, ${email.split('@')[0]}!",
 
             Colors.green.shade700,
 
@@ -354,26 +362,39 @@ class _LoginPageState extends State<LoginPage> {
 
         debugPrint('User role found: $userRole');
 
+        // Check if user is staff - if yes, block and redirect to staff portal
+        if (userRole != 'customer') {
+          debugPrint('Staff user detected in customer login, blocking access');
+          await Supabase.instance.client.auth.signOut(); // Sign them out
 
+          _showSnackBar(
+            "Staff account detected. Please use the Staff Portal to login.",
+            Colors.orange.shade700,
+            Icons.admin_panel_settings,
+          );
 
-        _showSnackBar(
-
-          "Login successful as $userRole!",
-
-          Colors.green.shade700,
-
-          Icons.check_circle_outline,
-
-        );
-
-
-
-        if (mounted) {
-
-          _redirectByUserRole(email, userRole);
-
+          if (mounted) {
+            // Redirect to staff portal after a short delay
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/staff-login');
+              }
+            });
+          }
+          return;
         }
 
+        debugPrint('Customer user verified, allowing access');
+
+        _showSnackBar(
+          "Welcome back, ${email.split('@')[0]}!",
+          Colors.green.shade700,
+          Icons.check_circle_outline,
+        );
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+        }
       }
 
     } on AuthException catch (e) {
@@ -443,6 +464,7 @@ class _LoginPageState extends State<LoginPage> {
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         if (googleUser == null) {
           // User cancelled the sign-in
+          setState(() => _isLoading = false);
           return;
         }
 
@@ -459,99 +481,25 @@ class _LoginPageState extends State<LoginPage> {
           idToken: idToken,
           accessToken: googleAuth.accessToken,
         );
+        
+        // Handle success directly
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null && mounted) {
+          _handleOAuthSuccess(session);
+        }
       }
     } catch (e) {
       if (mounted) {
         _showSnackBar("Google Sign-In Error: $e", Colors.red.shade700, Icons.error_outline);
       }
     } finally {
-      // Don't set isLoading to false if we are redirecting
       if (mounted && !_isRedirecting) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  /// Triggers Facebook OAuth login via Supabase.
-  /// - On web: redirects to the current origin so the browser handles the callback.
-  /// - On mobile: uses the Android/iOS deep-link scheme so the app is re-opened.
-  /// After login, the [onAuthStateChange] listener fires → [_handleOAuthSuccess].
-  Future<void> signInWithFacebook() async {
-    if (_isLoading) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final supabase = Supabase.instance.client;
-
-      if (kIsWeb) {
-        // Web: sign out any stale session first, then redirect in the same tab.
-        // Supabase will redirect back to the current origin after Facebook login.
-        await supabase.auth.signOut();
-        await supabase.auth.signInWithOAuth(
-          OAuthProvider.facebook,
-          redirectTo: Uri.base.origin,
-        );
-      } else {
-        // Mobile (Android / iOS): use the custom deep-link scheme registered
-        // in AndroidManifest.xml (and Info.plist on iOS) so that Facebook can
-        // redirect back into the app after a successful login.
-        //   • Supabase Dashboard → Auth → URL Configuration → Redirect URLs
-        //     must also include: io.supabase.flutter://login-callback/
-        await supabase.auth.signInWithOAuth(
-          OAuthProvider.facebook,
-          redirectTo: 'io.supabase.flutter://login-callback/',
-        );
-      }
-
-      // At this point the browser / in-app WebView has been launched.
-      // Session detection + navigation is handled by the
-      // onAuthStateChange listener in initState → _handleOAuthSuccess().
-    } on AuthException catch (e) {
-      debugPrint('Facebook Sign-In AuthException: ${e.message}');
-      if (mounted) {
-        final message = switch (e.message.toLowerCase()) {
-          String m when m.contains('cancelled') || m.contains('canceled') =>
-            'Facebook sign-in was cancelled.',
-          String m when m.contains('network') =>
-            'Network error. Please check your connection and try again.',
-          _ => 'Facebook sign-in failed: ${e.message}',
-        };
-        _showSnackBar(message, Colors.red.shade700, Icons.error_outline);
-      }
-    } catch (e) {
-      debugPrint('Facebook Sign-In error: $e');
-      if (mounted) {
-        // Handle user-cancelled flow (plugin throws PlatformException on cancel)
-        final errorStr = e.toString().toLowerCase();
-        if (errorStr.contains('cancel') || errorStr.contains('user_cancelled')) {
-          _showSnackBar(
-            'Facebook sign-in was cancelled.',
-            Colors.orange.shade700,
-            Icons.cancel_outlined,
-          );
-        } else if (errorStr.contains('network') || errorStr.contains('socket')) {
-          _showSnackBar(
-            'Network error. Please check your connection.',
-            Colors.red.shade700,
-            Icons.wifi_off_outlined,
-          );
-        } else {
-          _showSnackBar(
-            'An unexpected error occurred. Please try again.',
-            Colors.red.shade700,
-            Icons.error_outline,
-          );
-        }
-      }
-    } finally {
-      // Only reset loading if we are NOT about to redirect.
-      if (mounted && !_isRedirecting) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
+  
   Future<void> _handleOAuthSuccess(Session session) async {
     if (_isRedirecting) {
       debugPrint('OAuth: Already redirecting, skipping...');
@@ -561,7 +509,7 @@ class _LoginPageState extends State<LoginPage> {
     final email = session.user.email;
     if (email == null) {
       debugPrint('OAuth: No email found in session.');
-      _showSnackBar("OAuth Error: No email found in your Facebook account.", Colors.red.shade700, Icons.error_outline);
+      _showSnackBar("OAuth Error: No email found in your Google account.", Colors.red.shade700, Icons.error_outline);
       return;
     }
 
@@ -629,10 +577,32 @@ class _LoginPageState extends State<LoginPage> {
         String userRole =
             userResponse['role']?.toString().toLowerCase() ?? 'customer';
         debugPrint('OAuth: Existing user found with role: $userRole');
+
+        // Check if user is staff - if yes, block and redirect to staff portal
+        if (userRole != 'customer') {
+          debugPrint('OAuth: Staff user detected in customer login, blocking access');
+          await Supabase.instance.client.auth.signOut(); // Sign them out
+          
+          _showSnackBar(
+            "Staff account detected. Please use the Staff Portal to login.",
+            Colors.orange.shade700,
+            Icons.admin_panel_settings,
+          );
+
+          if (mounted) {
+            // Redirect to staff portal after a short delay
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/staff-login');
+              }
+            });
+          }
+          return;
+        }
         
         if (mounted) {
-          _showSnackBar("Redirecting to your dashboard...", Colors.blue.shade700, Icons.arrow_forward);
-          _redirectByUserRole(email, userRole);
+          _showSnackBar("Welcome back, ${session.user.email!.split('@')[0]}!", Colors.green.shade700, Icons.check_circle_outline);
+          Navigator.pushReplacementNamed(context, '/customer-dashboard');
         }
       }
     } catch (e) {
@@ -644,7 +614,7 @@ class _LoginPageState extends State<LoginPage> {
           _isRedirecting = false;
         });
         _showSnackBar(
-          "Facebook Auth Error: $e",
+          "OAuth Error: $e",
           Colors.red.shade700,
           Icons.error_outline,
         );
@@ -810,6 +780,219 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
+  Widget _buildLoginForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Email Label
+        const Text(
+          'Email',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your Email',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: Icon(Icons.email_outlined, color: Colors.red.shade700),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)), // Refined red color
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Password Label
+        const Text(
+          'Password',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black87),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: passwordController,
+          obscureText: !_isPasswordVisible,
+          enabled: !_isLoading,
+          decoration: InputDecoration(
+            hintText: 'Enter your Password', 
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            prefixIcon: Icon(Icons.lock_outline, color: Colors.red.shade700),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: Icon(
+                  _isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: Colors.red.shade700,
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              ),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        const SizedBox(height: 16),
+        // Forgot Password
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _isLoading ? null : () {
+              Navigator.pushNamed(context, '/forgot-password');
+            },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Forgot Password?',
+              style: TextStyle(
+                color: Color(0xFFE81E0D),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Login Button
+        Container(
+          width: double.infinity,
+          height: 54,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFE81E0D).withValues(alpha: 0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : handleLogin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEE2A12), // Vibrant red matching screenshot
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  )
+                : const Text(
+                    'Login',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Or continue with row
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Or continue with',
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.grey.shade300, thickness: 1)),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Social Login Buttons for Desktop
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleGoogleSignIn,
+            icon: Image.asset('assets/images/glogo.png', width: 20, height: 20),
+            label: const Text(
+              'Sign in with Google',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Register Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _isLoading ? null : () {
+              Navigator.pushNamed(context, '/register');
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: BorderSide(color: AppTheme.primaryColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+            ),
+            child: Text(
+              'Create New Account',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+
+      ],
+    );
+  }
+
   Widget _buildMobileLayout() {
     return Container(
       decoration: const BoxDecoration(
@@ -852,7 +1035,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       // Title
                       Text(
-                        'Login',
+                        'Customer Login',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               color: Colors.black87,
@@ -1049,16 +1232,20 @@ class _LoginPageState extends State<LoginPage> {
               child: Image.asset('assets/images/glogo.png', width: 20, height: 20),
               onTap: _isLoading ? null : _handleGoogleSignIn,
             ),
-            const SizedBox(width: 16),
-            _buildSocialIcon(
-              child: Icon(Icons.facebook, size: 24, color: Colors.blue.shade700),
-              onTap: _isLoading ? null : signInWithFacebook,
+            const SizedBox(width: 8),
+            const Text(
+              'Sign in with Google',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 32),
 
-        // Sign Up Link
+        // Customer Registration Link
         Center(
           child: GestureDetector(
             onTap: _isLoading ? null : () {
@@ -1083,21 +1270,21 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 16),
 
-        // Staff Login Link
+        // Staff Access Button
         Center(
           child: GestureDetector(
             onTap: _isLoading ? null : () {
-              Navigator.pushReplacementNamed(context, '/staff');
+              Navigator.pushReplacementNamed(context, '/staff-login');
             },
             child: RichText(
-              text: const TextSpan(
-                text: 'Staff user? ',
-                style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500),
+              text: TextSpan(
+                text: 'Staff Portal? ',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500),
                 children: [
                   TextSpan(
-                    text: 'Staff Login',
+                    text: 'Access Here',
                     style: TextStyle(
-                      color: Colors.blue,
+                      color: Colors.blue.shade700,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1125,261 +1312,4 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-
-
-  Widget _buildLoginForm() {
-
-    return Column(
-
-      mainAxisSize: MainAxisSize.min,
-
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-
-        // Email Field
-
-        Text(
-
-          'Email Address',
-
-          style: Theme.of(context).textTheme.titleSmall,
-
-        ),
-
-        const SizedBox(height: 8),
-
-        TextField(
-
-          controller: emailController,
-
-          keyboardType: TextInputType.emailAddress,
-
-          enabled: !_isLoading,
-
-          decoration: InputDecoration(
-
-            hintText: 'Enter your email',
-
-            prefixIcon: const Icon(Icons.email_outlined),
-
-            border: OutlineInputBorder(
-
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
-            ),
-
-          ),
-
-        ),
-
-        const SizedBox(height: 20),
-
-
-
-        // Password Field
-
-        Text(
-
-          'Password',
-
-          style: Theme.of(context).textTheme.titleSmall,
-
-        ),
-
-        const SizedBox(height: 8),
-
-        TextField(
-
-          controller: passwordController,
-
-          obscureText: !_isPasswordVisible,
-
-          enabled: !_isLoading,
-
-          decoration: InputDecoration(
-
-            hintText: 'Enter your password',
-
-            prefixIcon: const Icon(Icons.lock_outline),
-
-            suffixIcon: IconButton(
-
-              icon: Icon(
-
-                _isPasswordVisible 
-
-                  ? Icons.visibility_outlined 
-
-                  : Icons.visibility_off_outlined,
-
-              ),
-
-              onPressed: () {
-
-                setState(() {
-
-                  _isPasswordVisible = !_isPasswordVisible;
-
-                });
-
-              },
-
-            ),
-
-            border: OutlineInputBorder(
-
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-
-            ),
-
-          ),
-
-        ),
-
-        const SizedBox(height: 28),
-
-
-
-        // Login Button
-
-        SizedBox(
-
-          width: double.infinity,
-
-          child: ElevatedButton(
-
-            onPressed: _isLoading ? null : handleLogin,
-
-            style: ElevatedButton.styleFrom(
-
-              padding: const EdgeInsets.symmetric(vertical: 16),
-
-              backgroundColor: AppTheme.primaryColor,
-
-              foregroundColor: Colors.white,
-
-            ),
-
-            child: _isLoading
-
-              ? const SizedBox(
-
-                  height: 20,
-
-                  width: 20,
-
-                  child: CircularProgressIndicator(
-
-                    strokeWidth: 2,
-
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-
-                  ),
-
-                )
-
-              : const Text('Sign In'),
-
-          ),
-
-        ),
-
-        const SizedBox(height: 16),
-
-
-
-        // Register Button
-
-        SizedBox(
-
-          width: double.infinity,
-
-          child: OutlinedButton(
-
-            onPressed: _isLoading ? null : () {
-
-              Navigator.pushNamed(context, '/register');
-
-            },
-
-            style: OutlinedButton.styleFrom(
-
-              padding: const EdgeInsets.symmetric(vertical: 16),
-
-              side: BorderSide(color: AppTheme.primaryColor),
-
-            ),
-
-            child: Text(
-
-              'Create New Account',
-
-              style: TextStyle(
-
-                color: AppTheme.primaryColor,
-
-                fontWeight: FontWeight.w600,
-
-              ),
-
-            ),
-
-          ),
-
-        ),
-
-        const SizedBox(height: 16),
-
-
-
-        // Forgot Password Link
-
-        Align(
-
-          alignment: Alignment.centerRight,
-
-          child: TextButton(
-
-            onPressed: _isLoading ? null : () {
-
-              Navigator.pushNamed(context, '/forgot-password');
-
-            },
-
-            child: Text(
-
-              'Forgot Password?',
-
-              style: TextStyle(
-
-                color: AppTheme.primaryColor,
-
-                fontSize: ResponsiveUtils.getResponsiveFontSize(
-
-                  context,
-
-                  mobile: 12,
-
-                  tablet: 13,
-
-                  desktop: 14,
-
-                ),
-
-              ),
-
-            ),
-
-          ),
-
-        ),
-
-      ],
-
-    );
-
-  }
-
 }
