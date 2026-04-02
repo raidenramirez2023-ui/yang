@@ -339,7 +339,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             onPressed: () async {
               Navigator.pop(ctx);
               await Supabase.instance.client.auth.signOut();
-              if (mounted) Navigator.pushReplacementNamed(context, '/login');
+              if (mounted) Navigator.pushReplacementNamed(context, '/staff-login');
             },
             child: const Text('Logout'),
           ),
