@@ -7,9 +7,10 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final void Function(String name, String note, double totalAmount, int guestCount)
+  final void Function(String name, String note, double totalAmount, int guestCount, String tableNumber)
   onProceedPayment;
   final VoidCallback onClearCart;
+  final void Function(VoidCallback clearFunction) onClearInputs;
   final bool isMobile;
 
   const OrderListPanel({
@@ -20,6 +21,7 @@ class OrderListPanel extends StatefulWidget {
     required this.onRemoveItem,
     required this.onProceedPayment,
     required this.onClearCart,
+    required this.onClearInputs,
     this.isMobile = false,
   });
 
@@ -30,6 +32,7 @@ class OrderListPanel extends StatefulWidget {
 class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _guestCountController = TextEditingController(text: '1');
+  final TextEditingController _tableNumberController = TextEditingController();
   bool _isDiscountEnabled = false; // Discount state variable
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
@@ -41,9 +44,17 @@ class _OrderListPanelState extends State<OrderListPanel> {
   static const _textDark = Color(0xFF1E293B);
 
   @override
+  void initState() {
+    super.initState();
+    // Pass the clearInputs function to parent widget
+    widget.onClearInputs(clearInputs);
+  }
+
+  @override
   void dispose() {
     _noteController.dispose();
     _guestCountController.dispose();
+    _tableNumberController.dispose();
     super.dispose();
   }
 
@@ -51,6 +62,12 @@ class _OrderListPanelState extends State<OrderListPanel> {
     0.0,
     (sum, item) => sum + (item.item.price * item.quantity),
   );
+
+  void clearInputs() {
+    _noteController.clear();
+    _guestCountController.text = '1';
+    _tableNumberController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +87,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 14),
-                  _buildGuestCountField(),
+                  _buildTableAndGuestFields(),
                   const SizedBox(height: 10),
                   _buildNoteField(),
                   const SizedBox(height: 20),
@@ -147,6 +164,151 @@ class _OrderListPanelState extends State<OrderListPanel> {
           borderSide: const BorderSide(color: _indigo, width: 1.5),
         ),
       ),
+    );
+  }
+
+  Widget _buildTableAndGuestFields() {
+    return Row(
+      children: [
+        // Table Number Field
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Table No.:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _textDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _tableNumberController,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  hintText: 'Table #',
+                  hintStyle: const TextStyle(color: _grey, fontSize: 13),
+                  filled: true,
+                  fillColor: _bg,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _indigo, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Guest Count Field
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'No. of Guest:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _textDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _guestCountController,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  hintText: 'Guests',
+                  hintStyle: const TextStyle(color: _grey, fontSize: 13),
+                  filled: true,
+                  fillColor: _bg,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: _indigo, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableNumberField() {
+    return Row(
+      children: [
+        const Text(
+          'Table No.:',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _textDark,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: _tableNumberController,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              hintText: 'Enter table number',
+              hintStyle: const TextStyle(color: _grey, fontSize: 13),
+              filled: true,
+              fillColor: _bg,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: _indigo, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -459,11 +621,13 @@ class _OrderListPanelState extends State<OrderListPanel> {
                           : 0.0;
                       final total = subtotal - discountAmount;
                       final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
+                      final tableNumber = _tableNumberController.text.trim();
                       widget.onProceedPayment(
                         '',
                         _noteController.text.trim(),
                         total,
                         guestCount,
+                        tableNumber,
                       );
                     }
                   : null,

@@ -676,6 +676,38 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                               ),
                             ),
                           ],
+                          if (widget.order['table_number']?.toString().isNotEmpty == true) ...[
+                            const SizedBox(width: 4),
+                            const Text('•',
+                                style: TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 11)),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Table ${widget.order['table_number']}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 11),
+                              ),
+                            ),
+                          ],
+                          if (widget.order['number_of_guests'] != null) ...[
+                            const SizedBox(width: 4),
+                            const Text('•',
+                                style: TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 11)),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${widget.order['number_of_guests']} ${widget.order['number_of_guests'] == 1 ? 'guest' : 'guests'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 11),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -1004,6 +1036,34 @@ class _FinishedOrderCard extends StatelessWidget {
                       Text(timeStr,
                           style: const TextStyle(
                               color: Color(0xFF64748B), fontSize: 11)),
+                      if (order['table_number']?.toString().isNotEmpty == true || order['number_of_guests'] != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            if (order['table_number']?.toString().isNotEmpty == true) ...[
+                              const Icon(Icons.table_restaurant, size: 12, color: Color(0xFF64748B)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Table ${order['table_number']}',
+                                style: const TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 10),
+                              ),
+                            ],
+                            if (order['table_number']?.toString().isNotEmpty == true && order['number_of_guests'] != null) ...[
+                              const SizedBox(width: 8),
+                            ],
+                            if (order['number_of_guests'] != null) ...[
+                              const Icon(Icons.people, size: 12, color: Color(0xFF64748B)),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${order['number_of_guests']} ${order['number_of_guests'] == 1 ? 'guest' : 'guests'}',
+                                style: const TextStyle(
+                                    color: Color(0xFF64748B), fontSize: 10),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -552,7 +552,6 @@ class _LoginPageState extends State<LoginPage> {
         await Supabase.instance.client.from('users').insert({
           'email': email,
           'role': 'customer',
-          'name': name,
           'avatar_url': avatarUrl,
         });
 
@@ -570,7 +569,7 @@ class _LoginPageState extends State<LoginPage> {
         if (avatarUrl != null && userResponse['avatar_url'] != avatarUrl) {
           await Supabase.instance.client
               .from('users')
-              .update({'avatar_url': avatarUrl, 'name': name})
+              .update({'avatar_url': avatarUrl})
               .eq('email', email);
         }
 

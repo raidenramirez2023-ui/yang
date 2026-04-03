@@ -205,15 +205,23 @@ class ReceiptTemplate extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Cashr: ${cashierName ?? 'JANE'}',
-                  style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                Flexible(
+                  child: Text(
+                    'Cashr: ${cashierName ?? 'JANE'}',
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-                Text(
-                  'Server: ${serverName ?? 'bara 3'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'monospace',
+                Flexible(
+                  child: Text(
+                    'Server: ${serverName ?? 'bara 3'}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -660,6 +668,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   List<CartItem> cart = [];
   final TextEditingController _mobileCustomerNameController =
       TextEditingController();
+  VoidCallback? _clearOrderInputs;
 
   @override
   void initState() {
@@ -1735,6 +1744,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     double paidAmount = 0.0,
     double changeDue = 0.0,
     int guestCount = 1,
+    String tableNumber = '',
+    String cashierName = '',
+    String serverName = '',
   }) async {
     if (cart.isEmpty) {
       ScaffoldMessenger.of(
@@ -1786,6 +1798,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       paymentMethod: paymentMethod,
       amountPaid: paidAmount,
       changeDue: changeDue,
+      guestCount: guestCount,
+      tableNumber: tableNumber,
     );
 
     // Use the widget's own context (Scaffold context) so the dialog
@@ -1806,12 +1820,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             transactionDate: DateTime.now(),
             paidAmount: paidAmount,
             changeDue: changeDue,
-            tableNumber: 32, // TODO: Connect to actual table management
+            tableNumber: tableNumber.isNotEmpty ? int.tryParse(tableNumber) : null,
             guestCount: guestCount,
-            serverName: 'bara 3', // TODO: Connect to current staff
+            serverName: serverName.isNotEmpty ? serverName : 'JANE',
             orderType: 'WALK-IN',
             terminalNumber: 1,
-            cashierName: customerName.isNotEmpty ? customerName : 'JANE',
+            cashierName: cashierName.isNotEmpty ? cashierName : 'JANE',
           ),
         ),
       ),
@@ -1827,6 +1841,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     required String paymentMethod,
     required double amountPaid,
     required double changeDue,
+    required int guestCount,
+    required String tableNumber,
   }) async {
     try {
       final supabase = Supabase.instance.client;
@@ -1846,6 +1862,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             'change_due': changeDue,
             'item_count': cartSnapshot.fold(0, (s, c) => s + c.quantity),
             'staff_email': staffEmail,
+            'table_number': tableNumber.isNotEmpty ? tableNumber : null,
+            'number_of_guests': guestCount,
             'created_at': DateTime.now().toIso8601String(),
           })
           .select('id')
@@ -2300,7 +2318,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       onQuantityIncreased: _increaseQuantity,
                       onQuantityDecreased: _decreaseQuantity,
                       onRemoveItem: _removeItem,
-                      onProceedPayment: (name, note, totalAmount, guestCount) {
+                      onProceedPayment: (name, note, totalAmount, guestCount, tableNumber) {
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -2329,7 +2347,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 overrideTotalAmount: totalAmount,
                                 onBack: () => Navigator.pop(context),
                                 onComplete:
-                                    (name, note, method, paid, change) async {
+                                    (name, note, method, paid, change, cashierName, serverName) async {
                                       Navigator.pop(
                                         context,
                                       ); // Close payment dialog
@@ -2340,8 +2358,13 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                         paidAmount: paid,
                                         changeDue: change,
                                         guestCount: guestCount,
+                                        tableNumber: tableNumber,
+                                        cashierName: cashierName,
+                                        serverName: serverName,
                                       );
                                       setState(() => cart.clear());
+                                      _mobileCustomerNameController.clear();
+                                      _clearOrderInputs?.call();
                                     },
                               ),
                             ),
@@ -2350,6 +2373,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       },
                       onClearCart: () {
                         setState(() => cart.clear());
+                      },
+                      onClearInputs: (clearFunction) {
+                        _clearOrderInputs = clearFunction;
                       },
                     ),
                   ],
