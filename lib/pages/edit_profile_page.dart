@@ -204,9 +204,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       // ── 3. Update public users table ────────────────────────────────────
       await Supabase.instance.client.from('users').update({
-        'firstname': firstName,
-        'lastname': lastName,
-        'name': '$firstName $lastName'.trim(),
+        'avatar_url': avatarUrl,
       }).eq('email', user.email ?? '');
 
       if (!mounted) return;

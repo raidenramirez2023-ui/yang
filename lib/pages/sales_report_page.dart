@@ -772,7 +772,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5),
+                            color: Colors.red,
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -794,20 +794,40 @@ class _SalesReportPageState extends State<SalesReportPage>
           const SizedBox(height: 40),
           SizedBox(
             height: 350,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceEvenly,
+            child: LineChart(
+              LineChartData(
                 maxY: (chartValues.isEmpty ? 1000.0 : chartValues.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000.0, 10000000.0).toDouble(),
-                barTouchData: BarTouchData(
-                  enabled: true,
-                  touchTooltipData: BarTouchTooltipData(
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (_) => const Color(0xFF1E293B),
-                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      return BarTooltipItem(
-                        _currencyFormat.format(rod.toY),
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      );
+                    tooltipPadding: const EdgeInsets.all(12),
+                    getTooltipItems: (spots) {
+                      return spots.map((spot) {
+                        final labels = getChartLabels();
+                        final dayIndex = spot.x.toInt();
+                        final dayLabel = dayIndex < labels.length 
+                            ? labels[dayIndex] 
+                            : 'Day ${dayIndex + 1}';
+                        
+                        return LineTooltipItem(
+                          _currencyFormat.format(spot.y),
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '\n$dayLabel',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList();
                     },
                   ),
                 ),
@@ -816,14 +836,22 @@ class _SalesReportPageState extends State<SalesReportPage>
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1, // Ensure one label per interval
                       getTitlesWidget: (value, meta) {
                         final labels = getChartLabels();
-                        if (value.toInt() >= 0 && value.toInt() < labels.length) {
+                        final dayIndex = value.toInt();
+                        
+                        // Only show labels within our data bounds
+                        if (dayIndex >= chartValues.length || dayIndex < 0) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        if (dayIndex < labels.length) {
                           return SideTitleWidget(
                             meta: meta,
                             child: Text(
-                              labels[value.toInt()],
-                              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w500),
+                              labels[dayIndex],
+                              style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           );
                         }
@@ -840,7 +868,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                           meta: meta,
                           child: Text(
                             _formatCurrency(value),
-                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                            style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         );
                       },
@@ -852,26 +880,55 @@ class _SalesReportPageState extends State<SalesReportPage>
                 ),
                 gridData: FlGridData(
                   show: true,
-                  drawVerticalLine: false,
+                  drawVerticalLine: true,
+                  horizontalInterval: 1000,
+                  verticalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: const Color(0xFFF1F5F9),
+                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
                     strokeWidth: 1,
+                    dashArray: [3, 3],
+                  ),
+                  getDrawingVerticalLine: (value) => FlLine(
+                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.3),
+                    strokeWidth: 1,
+                    dashArray: [2, 4],
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                barGroups: chartValues.asMap().entries.map((entry) {
-                  return BarChartGroupData(
-                    x: entry.key,
-                    barRods: [
-                      BarChartRodData(
-                        toY: entry.value,
-                        color: const Color(0xFF4F46E5),
-                        width: 20,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(
+                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      chartValues.length,
+                      (i) => FlSpot(i.toDouble(), chartValues[i]),
+                    ),
+                    isCurved: true,
+                    color: Colors.red,
+                    barWidth: 5,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 6,
+                          color: Colors.red,
+                          strokeWidth: 3,
+                          strokeColor: Colors.white,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.red.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ],
+                minY: 0,
               ),
             ),
           ),

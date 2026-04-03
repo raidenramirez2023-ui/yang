@@ -147,7 +147,7 @@ class _LandingPageState extends State<LandingPage> {
                 _buildServicesSection(context),
                 _buildHoursAndLocationSection(context),
                 _buildContactSection(context),
-                _buildFooter(context),
+                _buildSimpleFooter(context),
               ],
             ),
           ),
@@ -181,47 +181,52 @@ class _LandingPageState extends State<LandingPage> {
                 child: Row(
                   children: [
                     // Brand Identity
-                    InkWell(
-                      key: const Key('brand_identity'),
-                      onTap: () => _scrollToSection(_heroKey),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Color(0xFF3E2723).withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
+                    Expanded(
+                      child: InkWell(
+                        key: const Key('brand_identity'),
+                        onTap: () => _scrollToSection(_heroKey),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Color(0xFF3E2723).withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Image.asset(
+                                'assets/images/logo.jpg',
+                                height: 32,
+                                errorBuilder: (context, error, stackTrace) => 
+                                    const Icon(Icons.restaurant_rounded, color: Color(0xFF3E2723), size: 20),
+                              ),
                             ),
-                            child: Image.asset(
-                              'assets/images/logo.jpg',
-                              height: 32,
-                              errorBuilder: (context, error, stackTrace) => 
-                                  const Icon(Icons.restaurant_rounded, color: Color(0xFF3E2723), size: 20),
+                            const SizedBox(width: 16),
+                            Flexible(
+                              child: const Text(
+                                'YANG CHOW',
+                                style: TextStyle(
+                                  color: Color(0xFF3E2723),
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 4,
+                                  fontSize: 18,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Text(
-                            'YANG CHOW',
-                            style: TextStyle(
-                              color: Color(0xFF3E2723),
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 4,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     
-                    const Spacer(),
-                    
                     if (!isMobile) ...[
+                      const SizedBox(width: 20),
                       _navButton('HOME', const Key('nav_home'), () => _scrollToSection(_heroKey)),
                       _navButton('ABOUT', const Key('nav_about'), () => _scrollToSection(_aboutKey)),
                       _navButton('UPDATES', const Key('nav_updates'), () => _scrollToSection(_updatesKey)),
                       _navButton('SERVICES', const Key('nav_services'), () => _scrollToSection(_servicesKey)),
                       _navButton('CONTACT', const Key('nav_contact'), () => _scrollToSection(_contactKey)),
-                      const SizedBox(width: 40),
+                      const SizedBox(width: 20),
                     ],
                     
                     // Action Button
@@ -230,8 +235,8 @@ class _LandingPageState extends State<LandingPage> {
                       onPressed: () => Navigator.pushNamed(context, '/login'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Color(0xFF3E2723),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         minimumSize: Size.zero,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         elevation: 0,
@@ -243,7 +248,7 @@ class _LandingPageState extends State<LandingPage> {
                     ),
                     
                     if (isMobile) ...[
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       IconButton(
                         key: const Key('nav_menu_btn'),
                         icon: const Icon(Icons.menu_rounded, color: Colors.black),
@@ -363,21 +368,14 @@ class _LandingPageState extends State<LandingPage> {
   Widget _navButton(String label, Key key, VoidCallback onPressed) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: InkWell(
+      child: _HoverableNavButton(
+        label: label,
         key: key,
-        onTap: onPressed,
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF3E2723),
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 2,
-          ),
-        ),
+        onPressed: onPressed,
       ),
     );
   }
+
   Widget _buildHeroSection(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
     
@@ -571,26 +569,33 @@ class _LandingPageState extends State<LandingPage> {
             blurRadius: 20,
             offset: const Offset(0, 10),
           )
-        ] : null,
+        ] : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          )
+        ],
       ),
       child: ElevatedButton(
         key: Key('hero_cta_${label.replaceAll(' ', '_').toLowerCase()}'),
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? AppTheme.primaryColor : Colors.black.withValues(alpha: 0.05),
-          foregroundColor: Color(0xFF3E2723),
+          backgroundColor: isPrimary ? AppTheme.primaryColor : Colors.white,
+          foregroundColor: isPrimary ? Colors.white : const Color(0xFF3E2723),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: isPrimary ? BorderSide.none : BorderSide(color: Color(0xFF3E2723).withValues(alpha: 0.2), width: 1.5),
+            side: isPrimary ? BorderSide.none : BorderSide(color: AppTheme.primaryColor, width: 2),
           ),
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w900,
             letterSpacing: 1.5,
             fontSize: 14,
+            color: isPrimary ? Colors.white : const Color(0xFF3E2723),
           ),
         ),
       ),
@@ -1166,6 +1171,7 @@ class _LandingPageState extends State<LandingPage> {
                       border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.access_time_filled_rounded, color: AppTheme.primaryColor, size: 40),
                         const SizedBox(height: 32),
@@ -1371,136 +1377,21 @@ class _LandingPageState extends State<LandingPage> {
     );
   }
 
-  Widget _buildFooter(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    
+  Widget _buildSimpleFooter(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 20 : 25,
-        horizontal: 30,
-      ),
-      color: const Color(0xFFF5F5DC), // Deep beige footer
-      child: MaxWidthContainer(
-        child: Column(
-          children: [
-            Flex(
-              direction: isMobile ? Axis.vertical : Axis.horizontal,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Column 1: Brand
-                Expanded(
-                  flex: isMobile ? 0 : 4,
-                  child: Column(
-                    crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: isMobile ? MainAxisAlignment.center : MainAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(color: AppTheme.white, shape: BoxShape.circle),
-                            child: Image.asset('assets/images/logo.jpg', height: 18),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'YANG CHOW',
-                            style: TextStyle(color: Color(0xFF8B7355), fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Elevating the culinary landscape.',
-                        style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.4), height: 1.4, fontSize: 10),
-                        textAlign: isMobile ? TextAlign.center : TextAlign.start,
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isMobile) const Spacer(flex: 1),
-                // Column 2: Quick Links
-                if (!isMobile)
-                  Expanded(
-                    flex: 2,
-                    child: _footerColumn('NAVIGATION', [
-                      'Home',
-                      'About Heritage',
-                      'Latest Updates',
-                      'Elite Services',
-                      'Contact Us',
-                    ]),
-                  ),
-                // Column 3: Contact Details
-                Expanded(
-                  flex: isMobile ? 0 : 3,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: isMobile ? 10 : 0),
-                    child: _footerColumn('INQUIRIES', [
-                      'TEL# 501-9179',
-                      '+63 975-041-9671',
-                      'yangchowpags@gmail.com',
-                      'CLA Town Center, Pagsanjan',
-                    ], isMobile: isMobile),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            Divider(color: Colors.white.withValues(alpha: 0.05)),
-            const SizedBox(height: 8),
-            Flex(
-              direction: isMobile ? Axis.vertical : Axis.horizontal,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '© 2024 YANG CHOW RESTAURANT. ALL RIGHTS RESERVED.',
-                  style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.2), fontSize: 6, fontWeight: FontWeight.w900, letterSpacing: 1),
-                ),
-                if (isMobile) const SizedBox(height: 6),
-                Text(
-                  'DESIGNED FOR EXCELLENCE',
-                  style: TextStyle(color: Color(0xFF8B7355).withValues(alpha: 0.1), fontSize: 6, fontWeight: FontWeight.w900, letterSpacing: 2),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _footerColumn(String title, List<String> items, {bool isMobile = false}) {
-    return Column(
-      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(color: Color(0xFF8B7355), fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 3),
-        ),
-        const SizedBox(height: 32),
-        ...items.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: InkWell(
-            onTap: () {
-              // Add navigation logic here if needed
-            },
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    color: Color(0xFF8B7355).withValues(alpha: 0.4), 
-                    fontSize: 14, 
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      color: const Color(0xFF3E2723).withOpacity(0.9),
+      child: Center(
+        child: Text(
+          'Yang Chow Restaurant All Rights Reserved @ 2026',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1,
           ),
-        )),
-      ],
+        ),
+      ),
     );
   }
 
@@ -1549,6 +1440,58 @@ class MaxWidthContainer extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
         child: child,
+      ),
+    );
+  }
+}
+
+class _HoverableNavButton extends StatefulWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const _HoverableNavButton({
+    required this.label,
+    required Key key,
+    required this.onPressed,
+  });
+
+  @override
+  State<_HoverableNavButton> createState() => _HoverableNavButtonState();
+}
+
+class _HoverableNavButtonState extends State<_HoverableNavButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: _isHovered ? Colors.red : Colors.transparent, 
+            width: 2
+          ),
+          borderRadius: BorderRadius.circular(4),
+          color: _isHovered ? Colors.red.withOpacity(0.1) : Colors.transparent,
+        ),
+        child: InkWell(
+          key: widget.key,
+          onTap: widget.onPressed,
+          hoverColor: Colors.transparent,
+          child: Text(
+            widget.label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
       ),
     );
   }

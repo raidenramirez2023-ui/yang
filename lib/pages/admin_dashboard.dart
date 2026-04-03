@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -17,6 +18,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeIn;
+  late Timer? _realtimeTimer;
 
   final _supabase = Supabase.instance.client;
   late Stream<List<Map<String, dynamic>>> _ordersStream;
@@ -38,6 +40,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   double _revenueGrowth = 0.0;
   double _orderGrowth = 0.0;
   double _customerGrowth = 0.0;
+
+  // ── Confirmed Events Analytics Data ───────────────────────────────
+  Map<String, int> _eventTypeDistribution = {};
+  List<double> _monthlyEventTrends = List.filled(12, 0.0);
+  double _averageEventDuration = 0.0;
+  int _totalConfirmedGuests = 0;
+  int _averageGuestsPerEvent = 0;
+  List<Map<String, dynamic>> _topEventTypes = [];
+  
+  // ── Real-time Event Status Analytics ───────────────────────────────
+  List<Map<String, dynamic>> _upcomingEvents = [];
+  List<Map<String, dynamic>> _ongoingEvents = [];
+  List<Map<String, dynamic>> _completedEventsToday = [];
+  Map<String, dynamic> _nextEvent = {};
+  String _nextEventCountdown = '';
+  double _venueUtilizationRate = 0.0;
+  int _totalExpectedGuestsToday = 0;
+  int _currentGuestsOnSite = 0;
+  double _estimatedRevenueToday = 0.0;
+  List<Map<String, dynamic>> _eventConflicts = [];
 
   // ── Recent activity (now derived from streams) ───────────────────────────
   List<_ActivityItem> _recentActivity = [];
@@ -104,11 +126,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
     _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _controller.forward();
+    
+    // Initialize real-time timer for countdown updates
+    _realtimeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _updateRealtimeData();
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _realtimeTimer?.cancel();
     super.dispose();
   }
 
@@ -185,11 +217,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     });
     _totalOrders = todayOrders.length;
     
-    Set<String> uniqueCustomers = {};
-    for (var o in todayOrders) {
-      uniqueCustomers.add(o['customer_name'] ?? 'Guest');
-    }
-    _totalCustomers = uniqueCustomers.length;
+    // Count completed orders as customer count (each non-pending order = 1 customer)
+    _totalCustomers = todayOrders.where((o) {
+      final status = o['kitchen_status']?.toString() ?? 'Pending';
+      return status != 'Pending';  // Count everything except Pending
+    }).length;
     
     // Reservations (Events) - Count all active confirmed and pending reservations
     final confirmedReservations = allReservations.where((r) {
@@ -237,12 +269,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       _orderGrowth = _totalOrders > 0 ? 100.0 : 0.0;
     }
     
-    Set<String> yesterdayCustomers = {};
-    for (var o in yesterdayOrders) {
-      yesterdayCustomers.add(o['customer_name'] ?? 'Guest');
-    }
-    if (yesterdayCustomers.isNotEmpty) {
-      _customerGrowth = ((_totalCustomers - yesterdayCustomers.length) / yesterdayCustomers.length) * 100;
+    // Count yesterday's completed orders for customer growth comparison
+    final yesterdayCompletedOrders = yesterdayOrders.where((o) {
+      final status = o['kitchen_status']?.toString() ?? 'Pending';
+      return status != 'Pending';  // Count everything except Pending
+    }).length;
+    
+    if (yesterdayCompletedOrders > 0) {
+      _customerGrowth = ((_totalCustomers - yesterdayCompletedOrders) / yesterdayCompletedOrders) * 100;
     } else {
       _customerGrowth = _totalCustomers > 0 ? 100.0 : 0.0;
     }
@@ -257,6 +291,275 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     _lastUpdated = DateTime.now();
     // Update Recent Activity
     _updateActivity(todayOrders, allInventory, allReservations);
+    
+    // Process Confirmed Events Analytics
+    _processConfirmedEventsAnalytics(allReservations);
+    
+    // Process Real-time Event Status
+    _processRealtimeEventStatus(allReservations);
+  }
+
+  void _processConfirmedEventsAnalytics(List<Map<String, dynamic>> allReservations) {
+    // Filter only confirmed reservations
+    final confirmedReservations = allReservations.where((r) {
+      final status = (r['status']?.toString() ?? '').toLowerCase();
+      return status == 'confirmed';
+    }).toList();
+
+    if (confirmedReservations.isEmpty) {
+      _eventTypeDistribution.clear();
+      _monthlyEventTrends = List.filled(12, 0.0);
+      _averageEventDuration = 0.0;
+      _totalConfirmedGuests = 0;
+      _averageGuestsPerEvent = 0;
+      _topEventTypes = [];
+      return;
+    }
+
+    // 2. Monthly Event Trends (current year)
+    final now = DateTime.now();
+    _monthlyEventTrends = List.filled(12, 0.0);
+    for (var reservation in confirmedReservations) {
+      final eventDate = DateTime.tryParse(reservation['event_date']?.toString() ?? '');
+      if (eventDate != null && eventDate.year == now.year) {
+        final monthIndex = eventDate.month - 1; // 0 = Jan, 11 = Dec
+        _monthlyEventTrends[monthIndex] = _monthlyEventTrends[monthIndex] + 1.0;
+      }
+    }
+
+    // 1. Event Type Distribution (current year only for consistency)
+    _eventTypeDistribution.clear();
+    for (var reservation in confirmedReservations) {
+      final eventDate = DateTime.tryParse(reservation['event_date']?.toString() ?? '');
+      if (eventDate != null && eventDate.year == now.year) {
+        final eventType = reservation['event_type']?.toString() ?? 'Unknown';
+        _eventTypeDistribution[eventType] = (_eventTypeDistribution[eventType] ?? 0) + 1;
+      }
+    }
+
+    // 3. Average Event Duration
+    double totalDuration = 0.0;
+    int validDurations = 0;
+    for (var reservation in confirmedReservations) {
+      final duration = (reservation['duration_hours'] as num?)?.toDouble();
+      if (duration != null && duration > 0) {
+        totalDuration += duration;
+        validDurations++;
+      }
+    }
+    _averageEventDuration = validDurations > 0 ? totalDuration / validDurations : 0.0;
+
+    // 4. Guest Count Analytics
+    _totalConfirmedGuests = 0;
+    for (var reservation in confirmedReservations) {
+      final guests = (reservation['number_of_guests'] as num?)?.toInt() ?? 0;
+      _totalConfirmedGuests += guests;
+    }
+    _averageGuestsPerEvent = confirmedReservations.isNotEmpty ? 
+        (_totalConfirmedGuests / confirmedReservations.length).round() : 0;
+
+    // 5. Top Event Types (sorted by count)
+    _topEventTypes = _eventTypeDistribution.entries.map((entry) => {
+      'event_type': entry.key,
+      'count': entry.value,
+      'percentage': _eventTypeDistribution.isNotEmpty ? 
+          ((entry.value / _eventTypeDistribution.values.reduce((a, b) => a + b)) * 100).toStringAsFixed(1) : '0.0'
+    }).toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int))
+      ..take(5); // Top 5 event types
+  }
+
+  void _processRealtimeEventStatus(List<Map<String, dynamic>> allReservations) {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    
+    // Filter confirmed reservations
+    final confirmedReservations = allReservations.where((r) {
+      final status = (r['status']?.toString() ?? '').toLowerCase();
+      return status == 'confirmed';
+    }).toList();
+
+    // Clear previous lists
+    _upcomingEvents.clear();
+    _ongoingEvents.clear();
+    _completedEventsToday.clear();
+    _nextEvent = {};
+    _nextEventCountdown = '';
+    _totalExpectedGuestsToday = 0;
+    _currentGuestsOnSite = 0;
+    _estimatedRevenueToday = 0.0;
+
+    // Process each confirmed reservation
+    for (var reservation in confirmedReservations) {
+      final eventDate = reservation['event_date']?.toString();
+      final startTime = reservation['start_time']?.toString();
+      final duration = (reservation['duration_hours'] as num?)?.toDouble() ?? 4.0;
+      final guests = (reservation['number_of_guests'] as num?)?.toInt() ?? 0;
+      
+      if (eventDate != null && startTime != null) {
+        DateTime eventStart;
+        DateTime eventEnd;
+        
+        try {
+          // Parse start time
+          if (startTime.toUpperCase().contains('AM') || startTime.toUpperCase().contains('PM')) {
+            DateTime parsedTime = DateFormat.jm().parse(startTime.trim());
+            final parsedDate = DateTime.parse(eventDate);
+            eventStart = DateTime(
+              parsedDate.year, parsedDate.month, parsedDate.day, 
+              parsedTime.hour, parsedTime.minute
+            );
+          } else {
+            String timeStr = startTime;
+            if (timeStr.length == 5) timeStr = '$timeStr:00';
+            eventStart = DateTime.parse('${eventDate}T$timeStr');
+          }
+          
+          eventEnd = eventStart.add(Duration(hours: duration.toInt()));
+          
+          // Add enhanced data to reservation
+          final enhancedReservation = {
+            ...reservation,
+            'event_start': eventStart,
+            'event_end': eventEnd,
+            'time_until_start': eventStart.difference(now),
+            'time_until_end': eventEnd.difference(now),
+          };
+          
+          // Categorize events based on current time
+          if (now.isBefore(eventStart)) {
+            // Upcoming event
+            _upcomingEvents.add(enhancedReservation);
+            _totalExpectedGuestsToday += guests;
+            
+            // Track next event (closest upcoming)
+            if (_nextEvent.isEmpty || eventStart.isBefore(_nextEvent['event_start'] as DateTime)) {
+              _nextEvent = enhancedReservation;
+            }
+          } else if (now.isAfter(eventStart) && now.isBefore(eventEnd)) {
+            // Ongoing event
+            _ongoingEvents.add(enhancedReservation);
+            _currentGuestsOnSite += guests;
+          } else if (now.isAfter(eventEnd) && eventDate == todayStr) {
+            // Completed event today
+            _completedEventsToday.add(enhancedReservation);
+          }
+          
+          // Calculate estimated revenue
+          _estimatedRevenueToday += guests * 500.0;
+          
+        } catch (e) {
+          // If parsing fails, skip this reservation
+          continue;
+        }
+      }
+    }
+    
+    // Sort upcoming events by start time
+    _upcomingEvents.sort((a, b) {
+      final startA = a['event_start'] as DateTime?;
+      final startB = b['event_start'] as DateTime?;
+      if (startA == null || startB == null) return 0;
+      return startA.compareTo(startB);
+    });
+    
+    // Calculate venue utilization rate
+    final totalVenueHours = 12; // Assuming 12 operational hours (10 AM to 10 PM)
+    double totalBookedHours = 0.0;
+    
+    for (var event in _ongoingEvents) {
+      final start = event['event_start'] as DateTime?;
+      final end = event['event_end'] as DateTime?;
+      if (start != null && end != null) {
+        // Calculate overlap with today's operational hours
+        final dayStart = DateTime(now.year, now.month, now.day, 10, 0);
+        final dayEnd = DateTime(now.year, now.month, now.day, 22, 0);
+        
+        final overlapStart = start.isAfter(dayStart) ? start : dayStart;
+        final overlapEnd = end.isBefore(dayEnd) ? end : dayEnd;
+        
+        if (overlapEnd.isAfter(overlapStart)) {
+          totalBookedHours += overlapEnd.difference(overlapStart).inHours;
+        }
+      }
+    }
+    
+    _venueUtilizationRate = totalVenueHours > 0 ? (totalBookedHours / totalVenueHours) * 100 : 0.0;
+    
+    // Update countdown for next event
+    _updateNextEventCountdown();
+  }
+
+  void _updateRealtimeData() {
+    // This method is called every second by the timer
+    _updateNextEventCountdown();
+    
+    // Recalculate current guests on site (in case events ended)
+    final now = DateTime.now();
+    _currentGuestsOnSite = 0;
+    
+    for (var event in _ongoingEvents) {
+      final eventEnd = event['event_end'] as DateTime?;
+      if (eventEnd != null && now.isBefore(eventEnd)) {
+        final guests = (event['number_of_guests'] as num?)?.toInt() ?? 0;
+        _currentGuestsOnSite += guests;
+      }
+    }
+    
+    // Move events from ongoing to completed if they ended
+    _ongoingEvents.removeWhere((event) {
+      final eventEnd = event['event_end'] as DateTime?;
+      if (eventEnd != null && now.isAfter(eventEnd)) {
+        final eventDate = event['event_date']?.toString();
+        final todayStr = DateFormat('yyyy-MM-dd').format(now);
+        if (eventDate == todayStr) {
+          _completedEventsToday.add(event);
+        }
+        return true;
+      }
+      return false;
+    });
+    
+    // Move events from upcoming to ongoing if they started
+    _upcomingEvents.removeWhere((event) {
+      final eventStart = event['event_start'] as DateTime?;
+      if (eventStart != null && now.isAfter(eventStart)) {
+        final eventEnd = event['event_end'] as DateTime?;
+        if (eventEnd != null && now.isBefore(eventEnd)) {
+          _ongoingEvents.add(event);
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  void _updateNextEventCountdown() {
+    if (_nextEvent.isNotEmpty) {
+      final eventStart = _nextEvent['event_start'] as DateTime?;
+      if (eventStart != null) {
+        final now = DateTime.now();
+        final difference = eventStart.difference(now);
+        
+        if (difference.inSeconds > 0) {
+          if (difference.inDays > 0) {
+            _nextEventCountdown = '${difference.inDays}d ${difference.inHours % 24}h ${difference.inMinutes % 60}m';
+          } else if (difference.inHours > 0) {
+            _nextEventCountdown = '${difference.inHours}h ${difference.inMinutes % 60}m';
+          } else if (difference.inMinutes > 0) {
+            _nextEventCountdown = '${difference.inMinutes}m ${difference.inSeconds % 60}s';
+          } else {
+            _nextEventCountdown = '${difference.inSeconds}s';
+          }
+        } else {
+          _nextEventCountdown = 'Starting now!';
+        }
+      } else {
+        _nextEventCountdown = '';
+      }
+    } else {
+      _nextEventCountdown = 'No upcoming events';
+    }
   }
 
   void _processEventConflicts(List<Map<String, dynamic>> allReservations) {
@@ -635,6 +938,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                         const SizedBox(height: AppTheme.xl),
 
+                        // ── Confirmed Events Analytics ──────────────────────────────────
+                        _buildSectionTitle(context, 'Confirmed Events Analytics'),
+                        const SizedBox(height: AppTheme.md),
+                        _buildConfirmedEventsAnalytics(context, isDesktop || isTablet),
+                        const SizedBox(height: AppTheme.xl),
+
+                        
                         ResponsiveUtils.isMobile(context)
                             ? Column(
                                 children: [
@@ -880,6 +1190,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   Widget _buildRevenueChart(BuildContext context) {
     final dayLabels = getChartLabels();
 
+    // Ensure data consistency
+    final dataLength = _weeklyRevenue.length;
+    final labelsLength = dayLabels.length;
+    final chartLength = dataLength < labelsLength ? dataLength : labelsLength;
+
     final maxRevenue = _weeklyRevenue.isEmpty ? 0.0 : _weeklyRevenue.reduce(max);
     // Add 20% headroom for labels and clarity
     final maxY = (maxRevenue == 0 ? 1000.0 : maxRevenue * 1.2)
@@ -887,21 +1202,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         .toDouble();
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
+      padding: const EdgeInsets.all(AppTheme.lg),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Revenue Analytics',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.darkGrey,
-                        letterSpacing: -0.5,
+                        fontSize: 18,
                       ),
                 ),
               ),
@@ -909,41 +1232,66 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               _periodSelector(),
             ],
           ),
-          const SizedBox(height: AppTheme.xxl),
+          const SizedBox(height: AppTheme.lg),
           SizedBox(
             height: 240,
-            child: BarChart(
-              BarChartData(
-                maxY: maxY,
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
+            child: LineChart(
+              LineChartData(
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (_) => AppTheme.darkGrey.withValues(alpha: 0.95),
                     tooltipPadding: const EdgeInsets.all(12),
-                    getTooltipItem: (group, _, rod, _) => BarTooltipItem(
-                      '₱${_formatNumber(rod.toY.toInt())}',
-                      const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: '\n${dayLabels[group.x]} Performance',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.normal,
+                    getTooltipItems: (spots) {
+                      return spots.where((spot) => spot.x.toInt() < chartLength).map((spot) {
+                        final dayIndex = spot.x.toInt();
+                        String dayLabel;
+                        
+                        if (_selectedPeriod == 'Weekly') {
+                          // Weekly: Show full day names
+                          final weeklyLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                          dayLabel = dayIndex < weeklyLabels.length 
+                              ? weeklyLabels[dayIndex] 
+                              : 'Day ${dayIndex + 1}';
+                        } else if (_selectedPeriod == 'Daily') {
+                          // Daily: Show time with AM/PM
+                          final dailyLabels = ['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'];
+                          dayLabel = dayIndex < dailyLabels.length 
+                              ? dailyLabels[dayIndex] 
+                              : '${dayIndex + 1}:00';
+                        } else {
+                          // Monthly/Annually: Use original logic
+                          dayLabel = dayIndex < dayLabels.length 
+                              ? dayLabels[dayIndex] 
+                              : 'Month ${dayIndex + 1}';
+                        }
+                        
+                        return LineTooltipItem(
+                          '₱${_formatNumber(spot.y.toInt())}',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                        ),
-                      ],
-                    ),
+                          children: [
+                            TextSpan(
+                              text: '\n$dayLabel',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList();
+                    },
                   ),
                 ),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
+                      reservedSize: 45,
                       getTitlesWidget: (value, _) {
                         if (value == 0) return const SizedBox.shrink();
                         String label = '';
@@ -957,8 +1305,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         return Text(
                           label,
                           style: const TextStyle(
-                            color: AppTheme.mediumGrey,
-                            fontSize: 9,
+                            color: AppTheme.darkGrey,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
                         );
@@ -970,57 +1318,109 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      getTitlesWidget: (value, _) => Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          dayLabels[value.toInt() % dayLabels.length],
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.mediumGrey,
-                            fontWeight: FontWeight.bold,
+                      interval: 1, // Ensure one label per interval
+                      getTitlesWidget: (value, _) {
+                        final dayIndex = value.toInt();
+                        
+                        // Only show labels within our chart bounds
+                        if (dayIndex >= chartLength) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        String dayLabel;
+                        
+                        if (_selectedPeriod == 'Weekly') {
+                          // Weekly: Show day abbreviations
+                          final weeklyLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                          dayLabel = dayIndex < weeklyLabels.length 
+                              ? weeklyLabels[dayIndex] 
+                              : 'D${dayIndex + 1}';
+                        } else if (_selectedPeriod == 'Daily') {
+                          // Daily: Show time
+                          final dailyLabels = ['10a', '11a', '12p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p'];
+                          dayLabel = dayIndex < dailyLabels.length 
+                              ? dailyLabels[dayIndex] 
+                              : '${dayIndex + 1}h';
+                        } else {
+                          // Monthly/Annually: Use original logic
+                          dayLabel = dayIndex < dayLabels.length 
+                              ? dayLabels[dayIndex] 
+                              : 'M${dayIndex + 1}';
+                        }
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            dayLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.darkGrey,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
                 gridData: FlGridData(
                   show: true,
-                  drawVerticalLine: false,
+                  drawVerticalLine: true,
                   horizontalInterval: maxY / 4,
+                  verticalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: AppTheme.lightGrey.withValues(alpha: 0.5),
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
                     strokeWidth: 1,
-                    dashArray: [5, 5],
+                    dashArray: [3, 3],
+                  ),
+                  getDrawingVerticalLine: (value) => FlLine(
+                    color: AppTheme.lightGrey.withValues(alpha: 0.2),
+                    strokeWidth: 1,
+                    dashArray: [2, 4],
                   ),
                 ),
-                borderData: FlBorderData(show: false),
-                barGroups: List.generate(
-                  dayLabels.length,
-                  (i) => BarChartGroupData(
-                    x: i,
-                    barRods: [
-                      BarChartRodData(
-                        toY: _weeklyRevenue[i],
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.primaryColor,
-                            AppTheme.primaryColor.withValues(alpha: 0.7),
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                        width: 24,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: maxY,
-                          color: AppTheme.backgroundColor,
-                        ),
-                      ),
-                    ],
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                    width: 1,
                   ),
                 ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      chartLength,
+                      (i) {
+                        // Ensure we don't go out of bounds
+                        final revenueValue = i < _weeklyRevenue.length 
+                            ? _weeklyRevenue[i] 
+                            : 0.0;
+                        return FlSpot(i.toDouble(), revenueValue);
+                      },
+                    ),
+                    isCurved: true,
+                    color: AppTheme.primaryColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: AppTheme.primaryColor,
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        );
+                      },
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ],
+                minY: 0,
+                maxY: maxY,
               ),
             ),
           ),
@@ -1802,6 +2202,979 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               separatorBuilder: (_, __) => const SizedBox(height: 16),
               itemBuilder: (context, index) => _ActivityTile(item: _recentActivity[index]),
             ),
+        ],
+      ),
+    );
+  }
+
+  // ── Confirmed Events Analytics Widget ─────────────────────────────────────
+  Widget _buildConfirmedEventsAnalytics(BuildContext context, bool isWide) {
+    if (_eventTypeDistribution.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppTheme.xl),
+        decoration: _cardDecoration(),
+        child: Column(
+          children: [
+            Icon(Icons.event_busy, color: AppTheme.mediumGrey.withValues(alpha: 0.5), size: 48),
+            const SizedBox(height: AppTheme.md),
+            Text(
+              'No confirmed events yet',
+              style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16),
+            ),
+            const SizedBox(height: AppTheme.sm),
+            Text(
+              'Analytics will appear once events are confirmed',
+              style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final maxEvents = _monthlyEventTrends.isEmpty ? 0.0 : _monthlyEventTrends.reduce(max);
+    final maxY = (maxEvents == 0 ? 5.0 : maxEvents * 1.2).clamp(5.0, 50.0).toDouble();
+
+    return Column(
+      children: [
+        // Next Event Countdown (Most Important - Top Priority)
+        if (_nextEvent.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(AppTheme.lg),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.timer,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppTheme.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'NEXT EVENT STARTS IN',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _nextEventCountdown,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.darkGrey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_nextEvent['event_type']} · ${_nextEvent['customer_name']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.mediumGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getEventStatusColor(_nextEvent).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _getEventStatusText(_nextEvent),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: _getEventStatusColor(_nextEvent),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.lg),
+        ],
+        
+        // Live Event Status Indicators (Real-time Updates)
+        if (_ongoingEvents.isNotEmpty || _upcomingEvents.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(AppTheme.lg),
+            decoration: _cardDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Live Event Status',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.darkGrey,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'LIVE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.lg),
+                
+                // Ongoing Events
+                if (_ongoingEvents.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.successGreen,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_ongoingEvents.length} Ongoing Event${_ongoingEvents.length > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.successGreen,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Live Now',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.successGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ..._ongoingEvents.take(2).map((event) => _buildLiveEventTile(event, true)),
+                  if (_ongoingEvents.length > 2)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '+${_ongoingEvents.length - 2} more ongoing...',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.mediumGrey,
+                        ),
+                      ),
+                    ),
+                ],
+                
+                if (_ongoingEvents.isNotEmpty && _upcomingEvents.isNotEmpty)
+                  const SizedBox(height: AppTheme.lg),
+                
+                // Upcoming Events
+                if (_upcomingEvents.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.warningOrange,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_upcomingEvents.length} Upcoming Event${_upcomingEvents.length > 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.warningOrange,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Next 24 Hours',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.warningOrange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ..._upcomingEvents.take(2).map((event) => _buildLiveEventTile(event, false)),
+                  if (_upcomingEvents.length > 2)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '+${_upcomingEvents.length - 2} more scheduled...',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.mediumGrey,
+                        ),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.xl),
+        ],
+        
+        // Charts Section (Visual Analytics)
+        if (isWide)
+          Row(
+            children: [
+              // Monthly Trends Chart
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(AppTheme.lg),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Monthly Event Trends - ${DateTime.now().year}',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.lg),
+                      SizedBox(
+                        height: 200,
+                        child: LineChart(
+                          LineChartData(
+                            lineTouchData: LineTouchData(
+                              touchTooltipData: LineTouchTooltipData(
+                                getTooltipColor: (_) => AppTheme.darkGrey.withValues(alpha: 0.95),
+                                tooltipPadding: const EdgeInsets.all(8),
+                                getTooltipItems: (spots) {
+                                  return spots.map((spot) {
+                                    return LineTooltipItem(
+                                      '${spot.y.toInt()} events',
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  }).toList();
+                                },
+                              ),
+                              handleBuiltInTouches: true,
+                            ),
+                            titlesData: FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 35,
+                                  getTitlesWidget: (value, _) => Text(
+                                    value.toInt().toString(),
+                                    style: const TextStyle(
+                                      color: AppTheme.mediumGrey,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, _) => Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      monthLabels[value.toInt() % 12],
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppTheme.mediumGrey,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: true,
+                              horizontalInterval: maxY / 4,
+                              verticalInterval: 1,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                                strokeWidth: 1,
+                                dashArray: [3, 3],
+                              ),
+                              getDrawingVerticalLine: (value) => FlLine(
+                                color: AppTheme.lightGrey.withValues(alpha: 0.2),
+                                strokeWidth: 1,
+                                dashArray: [2, 4],
+                              ),
+                            ),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: Border.all(
+                                color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: List.generate(
+                                  12,
+                                  (i) => FlSpot(i.toDouble(), _monthlyEventTrends[i]),
+                                ),
+                                isCurved: true,
+                                color: AppTheme.primaryColor,
+                                barWidth: 3,
+                                isStrokeCapRound: true,
+                                dotData: FlDotData(
+                                  show: true,
+                                  getDotPainter: (spot, percent, barData, index) {
+                                    return FlDotCirclePainter(
+                                      radius: 4,
+                                      color: AppTheme.primaryColor,
+                                      strokeWidth: 2,
+                                      strokeColor: Colors.white,
+                                    );
+                                  },
+                                ),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                ),
+                              ),
+                            ],
+                            minY: 0,
+                            maxY: maxY,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppTheme.lg),
+              
+              // Event Type Distribution
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(AppTheme.lg),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Top Event Types',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.lg),
+                      ..._topEventTypes.take(5).map((eventType) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppTheme.sm),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    eventType['event_type'] ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.darkGrey,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${eventType['count']} events',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.mediumGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${eventType['percentage']}%',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          )
+        else
+          Column(
+            children: [
+              // Monthly Trends Chart
+              Container(
+                padding: const EdgeInsets.all(AppTheme.lg),
+                decoration: _cardDecoration(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Monthly Event Trends - ${DateTime.now().year}',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.lg),
+                    SizedBox(
+                      height: 180,
+                      child: LineChart(
+                        LineChartData(
+                          lineTouchData: LineTouchData(
+                            touchTooltipData: LineTouchTooltipData(
+                              getTooltipColor: (_) => AppTheme.darkGrey.withValues(alpha: 0.95),
+                              tooltipPadding: const EdgeInsets.all(8),
+                              getTooltipItems: (spots) {
+                                return spots.map((spot) {
+                                  return LineTooltipItem(
+                                    '${spot.y.toInt()} events',
+                                    const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                            handleBuiltInTouches: true,
+                          ),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 35,
+                                getTitlesWidget: (value, _) => Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(
+                                    color: AppTheme.mediumGrey,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (value, _) => Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    monthLabels[value.toInt() % 12],
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.mediumGrey,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: true,
+                            horizontalInterval: maxY / 4,
+                            verticalInterval: 1,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                              strokeWidth: 1,
+                              dashArray: [3, 3],
+                            ),
+                            getDrawingVerticalLine: (value) => FlLine(
+                              color: AppTheme.lightGrey.withValues(alpha: 0.2),
+                              strokeWidth: 1,
+                              dashArray: [2, 4],
+                            ),
+                          ),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border.all(
+                              color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: List.generate(
+                                12,
+                                (i) => FlSpot(i.toDouble(), _monthlyEventTrends[i]),
+                              ),
+                              isCurved: true,
+                              color: AppTheme.primaryColor,
+                              barWidth: 3,
+                              isStrokeCapRound: true,
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) {
+                                  return FlDotCirclePainter(
+                                    radius: 4,
+                                    color: AppTheme.primaryColor,
+                                    strokeWidth: 2,
+                                    strokeColor: Colors.white,
+                                  );
+                                },
+                              ),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                              ),
+                            ),
+                          ],
+                          minY: 0,
+                          maxY: maxY,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.lg),
+              
+              // Event Type Distribution
+              Container(
+                padding: const EdgeInsets.all(AppTheme.lg),
+                decoration: _cardDecoration(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Top Event Types',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.lg),
+                    ..._topEventTypes.take(5).map((eventType) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppTheme.sm),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  eventType['event_type'] ?? 'Unknown',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: AppTheme.darkGrey,
+                                  ),
+                                ),
+                                Text(
+                                  '${eventType['count']} events',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.mediumGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${eventType['percentage']}%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRealtimeStatusCard(String title, String value, IconData icon, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const Spacer(),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.md),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.mediumGrey,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 8,
+              color: AppTheme.mediumGrey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveEventTile(Map<String, dynamic> event, bool isOngoing) {
+    final eventStart = event['event_start'] as DateTime?;
+    final eventEnd = event['event_end'] as DateTime?;
+    final now = DateTime.now();
+    
+    String timeText = '';
+    Color statusColor = isOngoing ? AppTheme.successGreen : AppTheme.warningOrange;
+    
+    if (isOngoing && eventEnd != null) {
+      final remaining = eventEnd.difference(now);
+      if (remaining.inHours > 0) {
+        timeText = '${remaining.inHours}h ${remaining.inMinutes % 60}m remaining';
+      } else {
+        timeText = '${remaining.inMinutes}m remaining';
+      }
+    } else if (!isOngoing && eventStart != null) {
+      final waitTime = eventStart.difference(now);
+      if (waitTime.inHours > 0) {
+        timeText = 'Starts in ${waitTime.inHours}h ${waitTime.inMinutes % 60}m';
+      } else {
+        timeText = 'Starts in ${waitTime.inMinutes}m';
+      }
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event['event_type'] ?? 'Event',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                Text(
+                  '${event['customer_name']} · ${event['number_of_guests']} guests',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: AppTheme.mediumGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            timeText,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getEventStatusColor(Map<String, dynamic> event) {
+    final now = DateTime.now();
+    final eventStart = event['event_start'] as DateTime?;
+    final eventEnd = event['event_end'] as DateTime?;
+    
+    if (eventStart != null && eventEnd != null) {
+      if (now.isAfter(eventStart) && now.isBefore(eventEnd)) {
+        return AppTheme.successGreen; // Ongoing
+      } else if (now.isBefore(eventStart)) {
+        final waitTime = eventStart.difference(now);
+        if (waitTime.inMinutes <= 30) {
+          return AppTheme.errorRed; // Starting soon
+        } else {
+          return AppTheme.warningOrange; // Upcoming
+        }
+      }
+    }
+    return AppTheme.mediumGrey; // Ended/Unknown
+  }
+
+  String _getEventStatusText(Map<String, dynamic> event) {
+    final now = DateTime.now();
+    final eventStart = event['event_start'] as DateTime?;
+    final eventEnd = event['event_end'] as DateTime?;
+    
+    if (eventStart != null && eventEnd != null) {
+      if (now.isAfter(eventStart) && now.isBefore(eventEnd)) {
+        return 'LIVE NOW';
+      } else if (now.isBefore(eventStart)) {
+        final waitTime = eventStart.difference(now);
+        if (waitTime.inMinutes <= 30) {
+          return 'STARTING SOON';
+        } else {
+          return 'UPCOMING';
+        }
+      }
+    }
+    return 'ENDED';
+  }
+
+  Widget _buildAnalyticsCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.md),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppTheme.mediumGrey,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
+              letterSpacing: -0.5,
+            ),
+          ),
         ],
       ),
     );

@@ -3121,7 +3121,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
             'start_time': startTime,
 
-            'duration_hours': duration,
+            'duration_hours': duration.toInt(),
 
             'number_of_guests': guests,
 

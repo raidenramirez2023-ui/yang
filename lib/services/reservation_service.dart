@@ -41,7 +41,7 @@ class ReservationService {
             'event_type': eventType,
             'event_date': eventDate,
             'start_time': startTime,
-            'duration_hours': durationHours,
+            'duration_hours': durationHours.toInt(),
             'number_of_guests': numberOfGuests,
             'status': 'pending',
             'payment_status': 'unpaid',
@@ -153,7 +153,7 @@ class ReservationService {
       };
 
       if (newDuration != null) {
-        updates['duration_hours'] = newDuration;
+        updates['duration_hours'] = newDuration.toInt();
       }
 
       if (newGuests != null) {

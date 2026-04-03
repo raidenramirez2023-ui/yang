@@ -5,9 +5,6 @@ import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/payment_method_selector.dart';
 
-// Conditional import for WebView
-import 'package:webview_flutter/webview_flutter.dart' if (dart.library.io) 'package:webview_flutter/webview_flutter.dart';
-
 class PaymentPage extends StatefulWidget {
   final double amount;
   final String description;
@@ -382,108 +379,103 @@ class PaymentWebView extends StatefulWidget {
 }
 
 class _PaymentWebViewState extends State<PaymentWebView> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    _launchPaymentUrl();
+  }
+
+  Future<void> _launchPaymentUrl() async {
+    setState(() {
+      _isLoading = true;
+    });
     
-    // Only initialize WebView if not on web
-    if (!kIsWeb) {
-      _controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onProgress: (int progress) {
-              // Update loading bar
-            },
-            onPageStarted: (String url) {
-              setState(() {
-                _isLoading = true;
-              });
-            },
-            onPageFinished: (String url) {
-              setState(() {
-                _isLoading = false;
-              });
-            },
-            onWebResourceError: (WebResourceError error) {
-              widget.onError('WebView error: ${error.description}');
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(widget.checkoutUrl));
+    try {
+      final uri = Uri.parse(widget.checkoutUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        widget.onError('Could not launch payment URL');
+      }
+    } catch (e) {
+      widget.onError('Error launching payment: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) {
-      // For web, show a message instead of WebView
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Payment'),
-          backgroundColor: AppTheme.primaryColor,
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Payment'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.open_in_browser,
-                size: 64,
-                color: Colors.grey,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Payment opened in new tab',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              if (_isLoading) ...[
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Please complete the payment in your browser and return to this app.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
+                const SizedBox(height: 24),
+                const Text(
+                  'Opening payment page...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
+              ] else ...[
+                const Icon(
+                  Icons.launch_rounded,
+                  size: 64,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Payment page opened in your browser',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Complete your payment in the browser window',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _launchPaymentUrl,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: const Text('Reopen Payment Page'),
+                ),
+              ],
             ],
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Secure Payment'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: widget.onCancel,
-        ),
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-            ),
-        ],
       ),
-      body: WebViewWidget(controller: _controller),
+      backgroundColor: AppTheme.primaryColor,
     );
   }
 }

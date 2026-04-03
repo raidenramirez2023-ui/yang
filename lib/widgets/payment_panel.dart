@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../pages/user_management.dart';
+import '../models/recipe_model.dart';
+import '../services/recipe_service.dart';
 import 'package:intl/intl.dart';
 import 'shared_pos_widget.dart';
 
@@ -12,6 +15,8 @@ class PaymentPanel extends StatefulWidget {
     String paymentMethod,
     double paidAmount,
     double changeDue,
+    String cashierName,
+    String serverName,
   )
   onComplete;
   final String customerName;
@@ -41,12 +46,34 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   String _method = 'Cash';
   String _entered = '';
+  String _selectedCashier = 'Spongebob Squarepants';
+  String _selectedServer = 'Sanji';
 
   static const _border = Color(0xFFE2E8F0);
   static const _labelGrey = Color(0xFF94A3B8);
   static const _textDark = Color(0xFF1E293B);
   static const _indigo = Color(0xFF4F46E5);
   static const _green = Color(0xFF10B981);
+
+  // Get users from user management based on roles
+  List<String> get _cashierNames {
+    // Static list based on your user management data
+    return [
+      'Spongebob Squarepants', // Cashier & Food Server
+      'Squidward Tentacles',  // Cashier & Food Server
+    ];
+  }
+
+  List<String> get _serverNames {
+    // Static list based on your user management data
+    return [
+      'Sanji',        // Dine-in Food Server
+      'Peter Parker', // Dine-in Food Server
+      'Clark Kent',   // Dine-in Food Server
+      'Spongebob Squarepants', // Also serves as food server
+      'Squidward Tentacles',   // Also serves as food server
+    ];
+  }
 
   @override
   void initState() {
@@ -121,6 +148,8 @@ class _PaymentPanelState extends State<PaymentPanel>
                 _method,
                 _paid,
                 _change,
+                _selectedCashier,
+                _selectedServer,
               );
             });
           }
@@ -183,38 +212,130 @@ class _PaymentPanelState extends State<PaymentPanel>
         color: Colors.white,
         border: Border(right: BorderSide(color: _border)),
       ),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          IconButton(
-            onPressed: widget.onBack,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: _labelGrey,
-              size: 20,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            IconButton(
+              onPressed: widget.onBack,
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: _labelGrey,
+                size: 20,
+              ),
             ),
+            const SizedBox(height: 6),
+            // Logo Icon
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _indigo,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.point_of_sale,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
+            _sidebarItem('GCash', Icons.account_balance_wallet_outlined, 'GCASH'),
+            _sidebarItem('Maya', Icons.account_balance_wallet_outlined, 'MAYA'),
+            _sidebarCashierButton(),
+            _sidebarServerButton(),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarServerButton() {
+    return GestureDetector(
+      onTap: () => _showServerSelection(),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: Colors.green,
+            width: 1.5,
           ),
-          const SizedBox(height: 8),
-          // Logo Icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _indigo,
-              borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: const Icon(
-              Icons.point_of_sale,
-              color: Colors.white,
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.room_service_outlined,
+              color: Colors.green,
               size: 24,
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Server',
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarCashierButton() {
+    return GestureDetector(
+      onTap: () => _showCashierSelection(),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: _indigo,
+            width: 1.5,
           ),
-          const SizedBox(height: 32),
-          _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
-          _sidebarItem('GCash', Icons.account_balance_wallet_outlined, 'GCASH'),
-          _sidebarItem('Maya', Icons.account_balance_wallet_outlined, 'MAYA'),
-          const Spacer(),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(
+              Icons.person_outline,
+              color: _indigo,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Cashier',
+              style: TextStyle(
+                color: _indigo,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -259,6 +380,287 @@ class _PaymentPanelState extends State<PaymentPanel>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCashierDropdown() {
+    return InkWell(
+      onTap: () => _showCashierSelection(),
+      child: Container(
+        height: 90, // Same height as _buildTopSummary
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.person_outline,
+              color: _labelGrey,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Cashier',
+              style: TextStyle(
+                color: _labelGrey,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _selectedCashier.length > 15 
+                    ? '${_selectedCashier.substring(0, 15)}...'
+                    : _selectedCashier,
+                style: const TextStyle(
+                  color: _indigo,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showServerSelection() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 300,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.room_service_outlined,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Select Server',
+                      style: TextStyle(
+                        color: _textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close,
+                        color: _labelGrey,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                for (String name in _serverNames)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedServer = name;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _selectedServer == name
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: _selectedServer == name
+                              ? Border.all(color: Colors.green, width: 1.5)
+                              : Border.all(color: _border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.room_service_outlined,
+                              color: _selectedServer == name ? Colors.green : _labelGrey,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  color: _selectedServer == name ? Colors.green : _textDark,
+                                  fontSize: 13,
+                                  fontWeight: _selectedServer == name
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (_selectedServer == name)
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCashierSelection() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 300,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_outline,
+                      color: _indigo,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Select Cashier',
+                      style: TextStyle(
+                        color: _textDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close,
+                        color: _labelGrey,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                for (String name in _cashierNames)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedCashier = name;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _selectedCashier == name
+                              ? _indigo.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: _selectedCashier == name
+                              ? Border.all(color: _indigo, width: 1.5)
+                              : Border.all(color: _border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              color: _selectedCashier == name ? _indigo : _labelGrey,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  color: _selectedCashier == name ? _indigo : _textDark,
+                                  fontSize: 13,
+                                  fontWeight: _selectedCashier == name
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (_selectedCashier == name)
+                              const Icon(
+                                Icons.check_circle,
+                                color: _indigo,
+                                size: 16,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -466,6 +868,8 @@ class _PaymentPanelState extends State<PaymentPanel>
                           _method,
                           _paid,
                           _change,
+                          _selectedCashier,
+                          _selectedServer,
                         );
                       });
                     }
