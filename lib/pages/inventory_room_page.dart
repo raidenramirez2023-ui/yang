@@ -734,6 +734,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 return matchesSearch && matchesStorageRoom;
               }).toList();
 
+              // Sort filtered items alphabetically by name
+              filteredItems.sort((a, b) {
+                final nameA = (a['name'] ?? '').toString().toLowerCase();
+                final nameB = (b['name'] ?? '').toString().toLowerCase();
+                return nameA.compareTo(nameB);
+              });
+
               if (filteredItems.isEmpty) {
                 return Center(
                   child: Column(
@@ -1178,29 +1185,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       final minute = date.minute.toString().padLeft(2, '0');
       final amPm = date.hour >= 12 ? 'PM' : 'AM';
       return '${date.month}/${date.day}/${date.year} $hour:$minute $amPm';
-    } catch (e) {
-      return 'Unknown';
-    }
-  }
-
-  String _formatDate(String? dateString) {
-    if (dateString == null) return 'Unknown';
-    try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.inMinutes < 1) {
-        return 'Just now';
-      } else if (difference.inHours < 1) {
-        return '${difference.inMinutes}m ago';
-      } else if (difference.inDays < 1) {
-        return '${difference.inHours}h ago';
-      } else if (difference.inDays < 7) {
-        return '${difference.inDays}d ago';
-      } else {
-        return '${date.day}/${date.month}/${date.year}';
-      }
     } catch (e) {
       return 'Unknown';
     }
