@@ -41,6 +41,7 @@ class _InventoryPageState extends State<InventoryPage> {
     'bot',
     'can',
     'box',
+    'roll',
   ];
 
   @override
@@ -968,6 +969,13 @@ class _InventoryPageState extends State<InventoryPage> {
                         matchesCategory &&
                         matchesStockStatus;
                   }).toList();
+
+                  // Sort filtered items alphabetically by name
+                  filteredItems.sort((a, b) {
+                    final nameA = (a['name'] ?? '').toString().toLowerCase();
+                    final nameB = (b['name'] ?? '').toString().toLowerCase();
+                    return nameA.compareTo(nameB);
+                  });
 
                   if (filteredItems.isEmpty) {
                     return Center(
