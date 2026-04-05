@@ -59,9 +59,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   int _totalExpectedGuestsToday = 0;
   int _currentGuestsOnSite = 0;
   double _estimatedRevenueToday = 0.0;
-  List<Map<String, dynamic>> _eventConflicts = [];
-
-  // ── Recent activity (now derived from streams) ───────────────────────────
+  // Recent activity (now derived from streams)
   List<_ActivityItem> _recentActivity = [];
   DateTime? _lastUpdated;
   int _previousOrderCount = 0;
@@ -83,8 +81,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── UI State Variables ───────────────────────────────────────────────
   bool? _isVenueStatusExpanded; // Start expanded by default
   DateTime? _focusedMonth;
-  DateTime? _selectedDate;
-  bool? _isCalendarGridExpanded;
   String _selectedPeriod = 'Weekly'; // New period selector state
   String _selectedYear = '2026'; // New year selector state
 
@@ -94,12 +90,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     
     // Initialize state variables
     _isVenueStatusExpanded = true;
-    _isCalendarGridExpanded = false;
     _showNewOrderNotification = false;
     _showConflictNotification = false;
     _showNewReservationNotification = false;
     _focusedMonth = DateTime.now();
-    _selectedDate = DateTime.now();
     
     // Enhanced real-time streams with immediate updates
     _ordersStream = _supabase
