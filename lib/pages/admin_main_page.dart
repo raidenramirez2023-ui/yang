@@ -10,6 +10,8 @@ import 'package:yang_chow/pages/inventory_management.dart';
 import 'package:yang_chow/pages/admin_dashboard.dart';
 import 'package:yang_chow/pages/admin_reservations_page.dart';
 import 'package:yang_chow/pages/admin_announcements_page.dart';
+import 'package:yang_chow/pages/admin_chat_page.dart';
+import 'package:yang_chow/widgets/admin_chat_modal.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:intl/intl.dart';
 
@@ -44,6 +46,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     AdminReservationsPage(),
     UserManagementPage(),
     AdminAnnouncementsPage(),
+    AdminChatPage(),
   ];
 
   static const List<String> _pageTitles = [
@@ -53,6 +56,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Reservations',
     'User Management',
     'Announcements',
+    'Customer Chat',
   ];
 
   static const List<IconData> _pageIcons = [
@@ -62,6 +66,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.event_available,
     Icons.people,
     Icons.campaign,
+    Icons.chat_bubble,
   ];
 
   @override
@@ -82,22 +87,28 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildDesktopLayout() {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9), 
-      body: Row(
+      body: Stack(
         children: [
-          _buildSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                _buildModernAppBar(),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    child: _pages[_selectedIndex],
-                  ),
+          Row(
+            children: [
+              _buildSidebar(),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildModernAppBar(),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        child: _pages[_selectedIndex],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          // Chat Modal Overlay
+          const AdminChatModal(),
         ],
       ),
     );
@@ -276,7 +287,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: _buildAppBarWithDrawer(),
       drawer: _buildDrawer(),
-      body: _pages[_selectedIndex],
+      body: Stack(
+        children: [
+          _pages[_selectedIndex],
+          // Chat Modal Overlay
+          const AdminChatModal(),
+        ],
+      ),
     );
   }
 
@@ -285,7 +302,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: _buildAppBarWithDrawer(),
       drawer: _buildDrawer(),
-      body: _pages[_selectedIndex],
+      body: Stack(
+        children: [
+          _pages[_selectedIndex],
+          // Chat Modal Overlay
+          const AdminChatModal(),
+        ],
+      ),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }

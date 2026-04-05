@@ -9,6 +9,7 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/pages/payment_page.dart';
 import 'package:yang_chow/pages/edit_profile_page.dart';
+import 'package:yang_chow/pages/customer_chat_page.dart';
 import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
@@ -144,6 +145,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               foregroundColor: Colors.white,
             )
           : _buildDashboardAppBar(_getAppBarTitle()),
+      drawer: !isDesktop ? _buildDrawer() : null,
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -155,8 +157,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       case 1:
         return 'Reservation';
       case 2:
-        return 'Activity';
+        return 'Chat Support';
       case 3:
+        return 'Activity';
+      case 4:
         return 'Account';
       default:
         return 'Home';
@@ -170,6 +174,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
       centerTitle: true,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(
+            Icons.menu,
+            color: Color(0xFF1D1B1E),
+          ),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
       title: Text(
         title,
         style: const TextStyle(
@@ -178,6 +191,107 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
       ),
       actions: [_buildNotificationIcon(), const SizedBox(width: 8)],
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: const Color(0xFFF9F9FF),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.restaurant_rounded,
+                  size: 48,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Yang Chow',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text(
+                  'Customer Portal',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home_rounded, color: Color(0xFF1D1B1E)),
+            title: const Text('Home'),
+            selected: _selectedIndex == 0,
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedIndex = 0);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.event_available_rounded, color: Color(0xFF1D1B1E)),
+            title: const Text('Reserve'),
+            selected: _selectedIndex == 1,
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedIndex = 1);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF1D1B1E)),
+            title: const Text('Chat Support'),
+            selected: _selectedIndex == 2,
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedIndex = 2);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.assignment_rounded, color: Color(0xFF1D1B1E)),
+            title: const Text('Activity'),
+            selected: _selectedIndex == 3,
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedIndex = 3);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_rounded, color: Color(0xFF1D1B1E)),
+            title: const Text('Account'),
+            selected: _selectedIndex == 4,
+            selectedTileColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+            onTap: () {
+              Navigator.pop(context);
+              setState(() => _selectedIndex = 4);
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              Navigator.pop(context);
+              _showLogoutDialog();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,18 +644,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               ),
 
               // Navigation Items
-              ...List.generate(4, (index) {
+              ...List.generate(5, (index) {
                 final icons = [
                   Icons.home_rounded,
-
                   Icons.event_available_rounded,
-
+                  Icons.chat_bubble_rounded,
                   Icons.assignment_rounded,
-
                   Icons.person_rounded,
                 ];
 
-                final labels = ['Home', 'Reservations', 'Activity', 'Account'];
+                final labels = ['Home', 'Reservations', 'Chat', 'Activity', 'Account'];
 
                 return Container(
                   margin: const EdgeInsets.symmetric(
@@ -730,17 +842,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
 
                 children: [
-                  _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-
-                  _buildMobileNavItem(
-                    1,
-                    Icons.event_available_rounded,
-                    'Reserve',
+                  Expanded(
+                    child: _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
                   ),
 
-                  _buildMobileNavItem(2, Icons.assignment_rounded, 'Activity'),
+                  Expanded(
+                    child: _buildMobileNavItem(
+                      1,
+                      Icons.event_available_rounded,
+                      'Reserve',
+                    ),
+                  ),
 
-                  _buildMobileNavItem(3, Icons.person_rounded, 'Account'),
+                  Expanded(
+                    child: _buildMobileNavItem(2, Icons.chat_bubble_rounded, 'Chat'),
+                  ),
+
+                  Expanded(
+                    child: _buildMobileNavItem(3, Icons.assignment_rounded, 'Activity'),
+                  ),
+
+                  Expanded(
+                    child: _buildMobileNavItem(4, Icons.person_rounded, 'Account'),
+                  ),
                 ],
               ),
             ),
@@ -873,9 +997,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         return _buildReservationsSection();
 
       case 2:
-        return _buildActivitySection();
+        return const CustomerChatPage();
 
       case 3:
+        return _buildActivitySection();
+
+      case 4:
         return _buildProfileSection();
 
       default:

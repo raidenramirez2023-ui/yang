@@ -1,0 +1,187 @@
+-- Create chat system tables
+-- This enables customer-to-admin chat functionality
+
+-- Chat messages table
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    customer_email TEXT NOT NULL,
+    customer_name TEXT,
+    message TEXT NOT NULL,
+    is_from_customer BOOLEAN DEFAULT true,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Foreign key reference to users table (optional, can be null for guest users)
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+-- Chat sessions table (to track conversation sessions)
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    customer_email TEXT NOT NULL,
+    customer_name TEXT,
+    session_status TEXT DEFAULT 'active' CHECK (session_status IN ('active', 'closed', 'archived')),
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Foreign key reference to users table
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    
+    -- Unique constraint per customer email
+    UNIQUE(customer_email)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_chat_messages_customer_email ON chat_messages(customer_email);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON chat_messages(is_read);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_customer_email ON chat_sessions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON chat_sessions(session_status);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for chat_messages
+-- Customers can only see their own messages
+CREATE POLICY "Customers can view own messages" ON chat_messages
+    FOR SELECT USING (
+        customer_email = auth.email()
+    );
+
+-- Customers can insert their own messages
+CREATE POLICY "Customers can insert own messages" ON chat_messages
+    FOR INSERT WITH CHECK (
+        customer_email = auth.email()
+    );
+
+-- Admins can view all messages
+CREATE POLICY "Admins can view all messages" ON chat_messages
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE users.id = auth.uid() 
+            AND users.role = 'admin'
+        )
+    );
+
+-- Admins can update messages (mark as read)
+CREATE POLICY "Admins can update messages" ON chat_messages
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE users.id = auth.uid() 
+            AND users.role = 'admin'
+        )
+    );
+
+-- RLS Policies for chat_sessions
+-- Customers can view their own sessions
+CREATE POLICY "Customers can view own sessions" ON chat_sessions
+    FOR SELECT USING (
+        customer_email = auth.email()
+    );
+
+-- Customers can insert their own sessions
+CREATE POLICY "Customers can insert own sessions" ON chat_sessions
+    FOR INSERT WITH CHECK (
+        customer_email = auth.email()
+    );
+
+-- Admins can view all sessions
+CREATE POLICY "Admins can view all sessions" ON chat_sessions
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE users.id = auth.uid() 
+            AND users.role = 'admin'
+        )
+    );
+
+-- Admins can update sessions
+CREATE POLICY "Admins can update sessions" ON chat_sessions
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM users 
+            WHERE users.id = auth.uid() 
+            AND users.role = 'admin'
+        )
+    );
+
+-- Function to automatically update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers for updated_at
+CREATE TRIGGER update_chat_messages_updated_at 
+    BEFORE UPDATE ON chat_messages 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_chat_sessions_updated_at 
+    BEFORE UPDATE ON chat_sessions 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to update last_message_at when a new message is sent
+CREATE OR REPLACE FUNCTION update_session_last_message()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE chat_sessions 
+    SET last_message_at = NEW.created_at,
+        updated_at = NOW()
+    WHERE customer_email = NEW.customer_email;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Trigger to automatically update session when message is sent
+CREATE TRIGGER update_session_on_message
+    AFTER INSERT ON chat_messages
+    FOR EACH ROW EXECUTE FUNCTION update_session_last_message();
+
+-- Function to create or get chat session for a customer
+CREATE OR REPLACE FUNCTION get_or_create_chat_session(p_customer_email TEXT, p_customer_name TEXT DEFAULT NULL)
+RETURNS UUID AS $$
+DECLARE
+    session_id UUID;
+BEGIN
+    -- Try to get existing session
+    SELECT id INTO session_id 
+    FROM chat_sessions 
+    WHERE customer_email = p_customer_email AND session_status = 'active'
+    LIMIT 1;
+    
+    -- If no session exists, create one
+    IF session_id IS NULL THEN
+        INSERT INTO chat_sessions (customer_email, customer_name)
+        VALUES (p_customer_email, p_customer_name)
+        RETURNING id INTO session_id;
+    END IF;
+    
+    RETURN session_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a view for admin to see all active conversations
+CREATE OR REPLACE VIEW admin_chat_conversations AS
+SELECT 
+    cs.id as session_id,
+    cs.customer_email,
+    cs.customer_name,
+    cs.session_status,
+    cs.last_message_at,
+    cs.created_at,
+    COUNT(cm.id) FILTER (WHERE cm.is_from_customer = true AND cm.is_read = false) as unread_customer_count,
+    COUNT(cm.id) FILTER (WHERE cm.is_from_customer = false AND cm.is_read = false) as unread_admin_count,
+    MAX(cm.created_at) as last_message_time
+FROM chat_sessions cs
+LEFT JOIN chat_messages cm ON cs.customer_email = cm.customer_email
+WHERE cs.session_status = 'active'
+GROUP BY cs.id, cs.customer_email, cs.customer_name, cs.session_status, cs.last_message_at, cs.created_at
+ORDER BY cs.last_message_at DESC;
