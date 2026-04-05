@@ -478,10 +478,7 @@ class ReceiptTemplate extends StatelessWidget {
     );
   }
 
-  Widget _dividerLine() {
-    return _dashDivider();
-  }
-
+  
   Widget _dashDivider() {
     return const Text(
       '------------------------------------------------',
@@ -1610,9 +1607,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                         itemCount: ingredients.length,
                         itemBuilder: (context, index) {
                           final ingredient = ingredients[index];
-                          final requiredQuantity = ingredient['required_quantity'] as double;
                           final inventoryQuantity = ingredient['inventory_quantity'] as int;
-                          final unit = ingredient['unit']?.toString() ?? 'pcs';
                           final stockStatus = ingredient['stock_status']?.toString() ?? 'UNKNOWN';
                           final isAvailable = ingredient['is_available'] as bool;
                           final stockColor = _getStockStatusColor(stockStatus);

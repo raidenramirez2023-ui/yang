@@ -122,44 +122,7 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-  void _redirectByUserRole(String email, String userRole) {
-
-    if (!mounted) return;
-
-    
-
-    if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
-
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
-
-    } else if (email.toLowerCase() == 'chefycp@gmail.com' || email.toLowerCase() == 'chefycp.gmail.com') {
-
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
-
-    } else if (userRole == 'admin') {
-
-      Navigator.pushReplacementNamed(context, '/dashboard');
-
-    } else if (userRole == 'inventory staff') {
-
-      Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
-
-    } else if (userRole == 'chef') {
-
-      Navigator.pushReplacementNamed(context, '/chef-dashboard');
-
-    } else if (userRole == 'customer') {
-
-      Navigator.pushReplacementNamed(context, '/customer-dashboard');
-
-    } else {
-
-      Navigator.pushReplacementNamed(context, '/staff-dashboard');
-
-    }
-
-  }
-
+  
 
 
   @override

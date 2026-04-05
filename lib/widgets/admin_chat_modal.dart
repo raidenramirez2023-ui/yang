@@ -32,7 +32,6 @@ class _AdminChatModalState extends State<AdminChatModal> {
   bool _positionInitialized = false;
 
   // Mobile-specific properties
-  bool get _isMobile => !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
 
   @override
   void initState() {
@@ -114,7 +113,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || 
         _isSending || 
-        _selectedConversation == null) return;
+        _selectedConversation == null) {
+      return;
+    }
 
     final customerEmail = _selectedConversation!['customer_email'];
     final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
