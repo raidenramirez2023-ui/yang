@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class InventoryForecastPage extends StatefulWidget {
   const InventoryForecastPage({super.key});
@@ -16,6 +17,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   late Animation<double> _fadeIn;
   String _selectedPeriod = '7days';
   String _selectedCategory = 'All';
+  String _selectedItemName = 'All';
+  bool _showChart = true; // Toggle between chart and list
+  late Future<List<Map<String, dynamic>>> _forecastFuture;
 
   final List<String> periods = ['7days', '30days', '90days'];
   final List<String> categories = [
@@ -31,6 +35,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     'Packaging',
     'Janitorial',
   ];
+  List<String> itemNames = ['All'];
 
   @override
   void initState() {
@@ -40,6 +45,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       duration: const Duration(milliseconds: 700),
     );
     _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _forecastFuture = _getForecastData();
     _controller.forward();
   }
 
@@ -57,19 +63,30 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           .select()
           .order('name');
 
-      // Get outgoing transactions for the selected period
+      // Get approved kitchen requests for selected period
       final days = _getDaysFromPeriod(_selectedPeriod);
       final cutoffDate = DateTime.now().subtract(Duration(days: days));
 
       final transactionsResponse = await Supabase.instance.client
-          .from('stock_transactions')
+          .from('kitchen_requests')
           .select()
-          .eq('transaction_type', 'outgoing')
+          .eq('status', 'Approved')
           .gte('created_at', cutoffDate.toIso8601String())
           .order('created_at', ascending: false);
 
       final inventory = inventoryResponse;
       final transactions = transactionsResponse;
+
+      // Update item names list for filtering
+      final Set<String> uniqueItems = Set();
+      for (var transaction in transactions) {
+        final itemName = transaction['item_name'] as String;
+        uniqueItems.add(itemName);
+      }
+      
+      setState(() {
+        itemNames = ['All', ...uniqueItems.toList()..sort()];
+      });
 
       return _calculateForecast(inventory, transactions, days);
     } catch (e) {
@@ -97,107 +114,478 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   ) {
     List<Map<String, dynamic>> forecast = [];
 
+    // Create a map of inventory items for quick lookup
+    final Map<String, Map<String, dynamic>> inventoryMap = {};
     for (var item in inventory) {
-      final itemName = item['name'] as String;
-      final currentStock = (item['quantity'] as num?)?.toInt() ?? 0;
-      final unit = item['unit'] as String? ?? 'pcs';
+      inventoryMap[item['name'] as String] = item;
+    }
 
-      // Calculate usage from transactions
-      final itemTransactions = transactions
-          .where((t) => t['item_name'] == itemName)
-          .toList();
-
-      double totalUsage = 0;
-      for (var transaction in itemTransactions) {
-        totalUsage += (transaction['quantity'] as num?)?.toDouble() ?? 0;
+    // Create a separate forecast entry for each approved kitchen request
+    for (var transaction in transactions) {
+      final itemName = transaction['item_name'] as String;
+      final inventoryItem = inventoryMap[itemName];
+      
+      // Only include if item exists in inventory
+      if (inventoryItem == null) {
+        continue;
       }
-
-      // Calculate daily average usage
-      double dailyUsage = totalUsage / periodDays;
-
-      // Calculate days until out of stock
-      int daysUntilEmpty = dailyUsage > 0
-          ? (currentStock / dailyUsage).round()
-          : 999; // No usage = won't run out
-
-      // Calculate risk level
-      String riskLevel = _getRiskLevel(daysUntilEmpty, currentStock);
-      Color riskColor = _getRiskColor(daysUntilEmpty, currentStock);
-      IconData riskIcon = _getRiskIcon(daysUntilEmpty, currentStock);
-
-      // Calculate recommended reorder quantity
-      int recommendedOrder = _calculateRecommendedOrder(
-        dailyUsage,
-        currentStock,
-        daysUntilEmpty,
-      );
+      
+      final currentStock = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
+      final unit = transaction['unit'] as String? ?? 'pcs';
+      final requestQuantity = (transaction['quantity_needed'] as num?)?.toInt() ?? 0;
+      final priority = transaction['priority'] as String? ?? 'Medium';
 
       forecast.add({
         'name': itemName,
-        'category': item['category'] ?? 'Uncategorized',
+        'category': inventoryItem['category'] ?? 'Uncategorized',
         'currentStock': currentStock,
         'unit': unit,
-        'dailyUsage': dailyUsage.toStringAsFixed(2),
-        'totalUsage': totalUsage.toInt(),
-        'daysUntilEmpty': daysUntilEmpty,
-        'riskLevel': riskLevel,
-        'riskColor': riskColor,
-        'riskIcon': riskIcon,
-        'recommendedOrder': recommendedOrder,
-        'lastUsage': itemTransactions.isNotEmpty
-            ? itemTransactions.first['created_at']
-            : null,
+        'requestQuantity': requestQuantity,
+        'priority': priority,
+        'riskColor': _getPriorityColor(priority),
+        'riskIcon': _getPriorityIcon(priority),
+        'requestId': transaction['id'],
+        'requestedBy': transaction['requested_by'],
+        'createdAt': transaction['created_at'],
+        'notes': transaction['notes'],
       });
     }
 
-    // Sort by risk (most critical first)
-    forecast.sort(
-      (a, b) =>
-          (a['daysUntilEmpty'] as int).compareTo(b['daysUntilEmpty'] as int),
-    );
+    // Sort by creation date (newest first) - same as Kitchen Stock Requests queuing
+    forecast.sort((a, b) {
+      final dateA = DateTime.parse(a['createdAt'] as String);
+      final dateB = DateTime.parse(b['createdAt'] as String);
+      return dateB.compareTo(dateA); // Newest first
+    });
 
     return forecast;
   }
 
-  String _getRiskLevel(int daysUntilEmpty, int currentStock) {
-    if (currentStock == 0) return 'OUT OF STOCK';
-    if (daysUntilEmpty <= 3) return 'CRITICAL';
-    if (daysUntilEmpty <= 7) return 'HIGH RISK';
-    if (daysUntilEmpty <= 14) return 'MODERATE RISK';
-    return 'LOW RISK';
+  Color _getPriorityColor(String? priority) {
+    switch (priority) {
+      case 'High':
+      case 'Urgent':
+        return AppTheme.errorRed;
+      case 'Medium':
+      case 'Normal':
+        return AppTheme.warningOrange;
+      case 'Low':
+        return AppTheme.successGreen;
+      default:
+        return AppTheme.infoBlue;
+    }
   }
 
-  Color _getRiskColor(int daysUntilEmpty, int currentStock) {
-    if (currentStock == 0) return AppTheme.errorRed;
-    if (daysUntilEmpty <= 3) return AppTheme.errorRed;
-    if (daysUntilEmpty <= 7) return AppTheme.warningOrange;
-    if (daysUntilEmpty <= 14) return AppTheme.infoBlue;
-    return AppTheme.successGreen;
+  IconData _getPriorityIcon(String? priority) {
+    switch (priority) {
+      case 'High':
+      case 'Urgent':
+        return Icons.priority_high_rounded;
+      case 'Medium':
+      case 'Normal':
+        return Icons.info_rounded;
+      case 'Low':
+        return Icons.check_circle_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
   }
 
-  IconData _getRiskIcon(int daysUntilEmpty, int currentStock) {
-    if (currentStock == 0) return Icons.error_rounded;
-    if (daysUntilEmpty <= 3) return Icons.warning_rounded;
-    if (daysUntilEmpty <= 7) return Icons.priority_high_rounded;
-    if (daysUntilEmpty <= 14) return Icons.info_rounded;
-    return Icons.check_circle_rounded;
+  List<FlSpot> _getChartData(List<Map<String, dynamic>> forecast) {
+    if (forecast.isEmpty) return [];
+    
+    // Group requests by day of week and sum quantities
+    final Map<int, double> dailyTotals = {
+      1: 0.0, // Monday
+      2: 0.0, // Tuesday
+      3: 0.0, // Wednesday
+      4: 0.0, // Thursday
+      5: 0.0, // Friday
+      6: 0.0, // Saturday
+      7: 0.0, // Sunday
+    };
+    
+    for (var item in forecast) {
+      final date = DateTime.parse(item['createdAt'] as String);
+      final dayOfWeek = date.weekday; // 1 = Monday, 7 = Sunday
+      final quantity = (item['requestQuantity'] as num).toDouble();
+      dailyTotals[dayOfWeek] = (dailyTotals[dayOfWeek] ?? 0) + quantity;
+    }
+
+    // Convert to list of FlSpot with proper day indices
+    return List.generate(7, (index) {
+      final dayOfWeek = index + 1; // 1-7 for Monday-Sunday
+      final totalQuantity = dailyTotals[dayOfWeek] ?? 0;
+      return FlSpot(index.toDouble(), totalQuantity);
+    });
   }
 
-  int _calculateRecommendedOrder(
-    double dailyUsage,
-    int currentStock,
-    int daysUntilEmpty,
-  ) {
-    if (dailyUsage == 0) return 0;
+  List<BarChartGroupData> _getTopItemsData(List<Map<String, dynamic>> forecast) {
+    if (forecast.isEmpty) return [];
+    
+    // Group requests by item name and sum quantities
+    final Map<String, double> itemTotals = {};
+    
+    for (var item in forecast) {
+      final itemName = item['name'] as String;
+      final quantity = (item['requestQuantity'] as num).toDouble();
+      itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
+    }
 
-    // Recommend 30 days supply + safety stock (25%)
-    double thirtyDaySupply = dailyUsage * 30;
-    double safetyStock = thirtyDaySupply * 0.25;
-    double totalNeeded = thirtyDaySupply + safetyStock;
-
-    return (totalNeeded - currentStock).round().clamp(0, 999999);
+    // Sort by quantity (descending) and take top 10
+    final sortedItems = itemTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final topItems = sortedItems.take(10).toList();
+    
+    // Convert to BarChartGroupData
+    return List.generate(topItems.length, (index) {
+      final item = topItems[index];
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: item.value,
+            color: AppTheme.primaryColor,
+            width: 20,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      );
+    });
   }
 
+  Widget _buildBarChartCard(List<Map<String, dynamic>> forecast) {
+    if (forecast.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.darkGrey.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text(
+            'No data available for chart',
+            style: TextStyle(
+              color: AppTheme.mediumGrey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final barGroups = _getTopItemsData(forecast);
+    
+    // Get item names for labels
+    final Map<String, double> itemTotals = {};
+    for (var item in forecast) {
+      final itemName = item['name'] as String;
+      final quantity = (item['requestQuantity'] as num).toDouble();
+      itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
+    }
+    final sortedItems = itemTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topItems = sortedItems.take(10).toList();
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.darkGrey.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bar_chart, color: AppTheme.primaryColor, size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Top Requested Items',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Most Requested Ingredients in Kitchen',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.mediumGrey,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 250,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: barGroups.isNotEmpty 
+                    ? barGroups.map((g) => g.barRods.first.toY).reduce((a, b) => a > b ? a : b) * 1.2
+                    : 100,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => AppTheme.darkGrey,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      if (groupIndex < topItems.length) {
+                        final itemName = topItems[groupIndex].key;
+                        final quantity = topItems[groupIndex].value.toInt();
+                        return BarTooltipItem(
+                          '$itemName\n$quantity units',
+                          const TextStyle(color: Colors.white, fontSize: 12),
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 20,
+                      reservedSize: 50,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: AppTheme.mediumGrey,
+                            fontSize: 10,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 80,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index >= 0 && index < topItems.length) {
+                          final itemName = topItems[index].key;
+                          final displayName = itemName.length > 8 
+                              ? '${itemName.substring(0, 8)}...' 
+                              : itemName;
+                          return Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: AppTheme.mediumGrey,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.3)),
+                ),
+                barGroups: barGroups,
+                gridData: const FlGridData(show: false),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLineChartCard(List<Map<String, dynamic>> forecast) {
+    if (forecast.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.darkGrey.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text(
+            'No data available for chart',
+            style: TextStyle(
+              color: AppTheme.mediumGrey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final spots = _getChartData(forecast);
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.darkGrey.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.show_chart, color: AppTheme.primaryColor, size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Quantity Request by Day of Week',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Kitchen Requests',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.mediumGrey,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 250,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  horizontalInterval: 20,
+                  verticalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                      strokeWidth: 1,
+                    );
+                  },
+                  getDrawingVerticalLine: (value) {
+                    return FlLine(
+                      color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 10,
+                      reservedSize: 50,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: AppTheme.mediumGrey,
+                            fontSize: 10,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        final dayIndex = value.toInt();
+                        final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        if (dayIndex >= 0 && dayIndex < dayNames.length) {
+                          return Text(
+                            dayNames[dayIndex],
+                            style: const TextStyle(
+                              color: AppTheme.mediumGrey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.3)),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: AppTheme.primaryColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    ),
+                  ),
+                ],
+                minY: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,6 +599,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             onPressed: () => setState(() {}),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Forecast',
+          ),
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _showChart = !_showChart;
+                _forecastFuture = _getForecastData();
+              });
+            },
+            icon: Icon(_showChart ? Icons.list : Icons.show_chart),
+            tooltip: _showChart ? 'Show List' : 'Show Chart',
           ),
         ],
       ),
@@ -246,23 +644,32 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                             _buildPeriodSelector(),
                             const SizedBox(height: 16),
                             _buildCategorySelector(),
+                            const SizedBox(height: 16),
+                            _buildItemNameSelector(),
                           ],
                         )
-                      : Row(
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(child: _buildPeriodSelector()),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildCategorySelector()),
+                            Row(
+                              children: [
+                                Expanded(child: _buildPeriodSelector()),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildCategorySelector()),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildItemNameSelector(),
                           ],
                         ),
                 ],
               ),
             ),
 
-            // Forecast Results
+            // Main Content Area
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _getForecastData(),
+                future: _forecastFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -282,13 +689,21 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   }
 
                   final forecast = snapshot.data ?? [];
-                  final filteredForecast = _selectedCategory == 'All'
-                      ? forecast
-                      : forecast
-                            .where(
-                              (item) => item['category'] == _selectedCategory,
-                            )
-                            .toList();
+                  var filteredForecast = forecast;
+                  
+                  // Apply category filter first
+                  if (_selectedCategory != 'All') {
+                    filteredForecast = filteredForecast
+                        .where((item) => item['category'] == _selectedCategory)
+                        .toList();
+                  }
+                  
+                  // Apply item name filter second
+                  if (_selectedItemName != 'All') {
+                    filteredForecast = filteredForecast
+                        .where((item) => item['name'] == _selectedItemName)
+                        .toList();
+                  }
 
                   if (filteredForecast.isEmpty) {
                     return Center(
@@ -322,6 +737,24 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     );
                   }
 
+                  // Show Chart View
+                  if (_showChart) {
+                    return SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Bar Chart Card
+                          _buildBarChartCard(filteredForecast),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Line Chart Card
+                          _buildLineChartCard(filteredForecast),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Show List View
                   return ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: filteredForecast.length,
@@ -439,6 +872,46 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       ],
     );
   }
+
+  Widget _buildItemNameSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Item Name Filter',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.darkGrey,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: _selectedItemName,
+          decoration: InputDecoration(
+            labelText: 'Select Item',
+            prefixIcon: const Icon(Icons.inventory, color: AppTheme.primaryColor),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.lightGrey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
+            ),
+            filled: true,
+            fillColor: AppTheme.backgroundColor,
+          ),
+          items: itemNames.map((itemName) {
+            return DropdownMenuItem(value: itemName, child: Text(itemName));
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _selectedItemName = value);
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class _ForecastCard extends StatelessWidget {
@@ -454,10 +927,9 @@ class _ForecastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final riskColor = item['riskColor'] as Color;
     final riskIcon = item['riskIcon'] as IconData;
-    final riskLevel = item['riskLevel'] as String;
-    final daysUntilEmpty = item['daysUntilEmpty'] as int;
+    final priority = item['priority'] as String;
     final currentStock = item['currentStock'] as int;
-    final dailyUsage = double.tryParse(item['dailyUsage'] as String) ?? 0;
+    final requestQuantity = item['requestQuantity'] as int;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -520,7 +992,7 @@ class _ForecastCard extends StatelessWidget {
                     Icon(riskIcon, color: riskColor, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      riskLevel,
+                      priority,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -539,31 +1011,17 @@ class _ForecastCard extends StatelessWidget {
               ? Column(
                   children: [
                     _InfoCard(
-                      title: 'Current Stock',
-                      value: '$currentStock ${item['unit']}',
-                      icon: Icons.inventory_2,
-                      iconColor: AppTheme.primaryColor,
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      title: 'Daily Usage (Average)',
-                      value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
-                      icon: Icons.trending_down,
+                      title: 'Request Quantity',
+                      value: '$requestQuantity ${item['unit']}',
+                      icon: Icons.shopping_cart,
                       iconColor: AppTheme.warningOrange,
                     ),
                     const SizedBox(height: 8),
                     _InfoCard(
-                      title: 'Days Until Empty',
-                      value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
-                      icon: Icons.schedule,
-                      iconColor: riskColor,
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      title: 'Total Usage (Last $periodDays days)',
-                      value: '${item['totalUsage']} ${item['unit']}',
-                      icon: Icons.history,
-                      iconColor: AppTheme.infoBlue,
+                      title: 'Current Stock',
+                      value: '$currentStock ${item['unit']}',
+                      icon: Icons.inventory_2,
+                      iconColor: AppTheme.primaryColor,
                     ),
                   ],
                 )
@@ -580,37 +1038,14 @@ class _ForecastCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _InfoCard(
-                        title: 'Daily Usage (Average)',
-                        value: '${dailyUsage.toStringAsFixed(1)} ${item['unit']}/day',
-                        icon: Icons.trending_down,
+                        title: 'Request Quantity',
+                        value: '$requestQuantity ${item['unit']}',
+                        icon: Icons.shopping_cart,
                         iconColor: AppTheme.warningOrange,
                       ),
                     ),
                   ],
                 ),
-          const SizedBox(height: 12),
-          if (!ResponsiveUtils.isMobile(context))
-            Row(
-              children: [
-                Expanded(
-                  child: _InfoCard(
-                    title: 'Days Until Empty',
-                    value: daysUntilEmpty == 999 ? 'No usage' : '$daysUntilEmpty days',
-                    icon: Icons.schedule,
-                    iconColor: riskColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _InfoCard(
-                    title: 'Total Usage (Last $periodDays days)',
-                    value: '${item['totalUsage']} ${item['unit']}',
-                    icon: Icons.history,
-                    iconColor: AppTheme.infoBlue,
-                  ),
-                ),
-              ],
-            ),
         ],
       ),
     );
