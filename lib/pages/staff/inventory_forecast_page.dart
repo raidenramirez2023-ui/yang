@@ -78,7 +78,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       final transactions = transactionsResponse;
 
       // Update item names list for filtering
-      final Set<String> uniqueItems = Set();
+      final Set<String> uniqueItems = <String>{};
       for (var transaction in transactions) {
         final itemName = transaction['item_name'] as String;
         uniqueItems.add(itemName);

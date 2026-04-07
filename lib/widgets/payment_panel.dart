@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../pages/user_management.dart';
-import '../models/recipe_model.dart';
-import '../services/recipe_service.dart';
 import 'package:intl/intl.dart';
 import 'shared_pos_widget.dart';
 
@@ -383,57 +380,7 @@ class _PaymentPanelState extends State<PaymentPanel>
     );
   }
 
-  Widget _buildCashierDropdown() {
-    return InkWell(
-      onTap: () => _showCashierSelection(),
-      child: Container(
-        height: 90, // Same height as _buildTopSummary
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _border),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.person_outline,
-              color: _labelGrey,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Cashier',
-              style: TextStyle(
-                color: _labelGrey,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _indigo.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _selectedCashier.length > 15 
-                    ? '${_selectedCashier.substring(0, 15)}...'
-                    : _selectedCashier,
-                style: const TextStyle(
-                  color: _indigo,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
+  
   void _showServerSelection() {
     showDialog(
       context: context,
