@@ -3,6 +3,24 @@
 ## Overview
 This guide will help you set up PayMongo payment integration for your Yang Chow Restaurant Flutter app.
 
+## Project Structure Reference
+
+The payment integration involves files organized in the new folder structure:
+
+```
+lib/
+├── services/
+│   ├── paymongo_service.dart          # Core PayMongo integration
+│   └── payment_notification_service.dart
+├── pages/
+│   ├── customer/
+│   │   └── payment_page.dart          # Payment UI for customers
+│   └── login_page.dart                # Customer login
+└── ...
+```
+
+Payment functionality is primarily used in the **customer dashboard** (`lib/pages/customer/customer_dashboard.dart`) which displays reservation payments and payment history.
+
 ## Step 1: PayMongo Account Setup
 
 ### 1.1 Create PayMongo Account
@@ -27,16 +45,19 @@ This guide will help you set up PayMongo payment integration for your Yang Chow 
 ### 2.1 Update PayMongo Service
 Edit `lib/services/paymongo_service.dart`:
 
+⚠️ **IMPORTANT**: Do NOT hardcode API keys in the code. Use environment variables instead.
+
+Check `paymongo_integration_complete.md` for secure setup using `.env` file:
+
 ```dart
 class PayMongoService {
-  // Replace with your actual PayMongo API keys
   static const String _baseUrl = 'https://api.paymongo.com/v1';
-  static const String _publicKey = 'pk_test_YOUR_PUBLIC_KEY_HERE'; // Test Public Key
-  static const String _secretKey = 'sk_test_YOUR_SECRET_KEY_HERE'; // Test Secret Key
   
-  // For production, use:
-  // static const String _publicKey = 'pk_live_YOUR_PUBLIC_KEY_HERE';
-  // static const String _secretKey = 'sk_live_YOUR_SECRET_KEY_HERE';
+  // Load from environment variables (DO NOT hardcode)
+  static String get _publicKey => 
+    String.fromEnvironment('PAYMONGO_PUBLIC_KEY', defaultValue: '');
+  static String get _secretKey => 
+    String.fromEnvironment('PAYMONGO_SECRET_KEY', defaultValue: '');
 }
 ```
 

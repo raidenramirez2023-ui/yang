@@ -18,7 +18,6 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isSessionChecking = true;
-  bool _isRedirecting = false;
   bool _rememberMe = false;
 
   // Staff roles that can access this portal

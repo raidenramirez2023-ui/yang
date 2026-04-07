@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
-import 'package:yang_chow/pages/staff_order_history_page.dart';
+import 'package:yang_chow/pages/staff/staff_order_history_page.dart';
 
 class StaffDashboardPage extends StatefulWidget {
   const StaffDashboardPage({super.key});

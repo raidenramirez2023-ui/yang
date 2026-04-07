@@ -1,5 +1,32 @@
 # CUSTOMER SIDE IMPROVEMENTS - IMPLEMENTATION COMPLETE
 
+## Project Folder Structure
+
+After recent reorganization, customer-related files are organized as follows:
+
+```
+lib/pages/
+├── customer/                              # All customer-facing pages
+│   ├── customer_dashboard.dart            # Main customer hub
+│   ├── customer_registration_page.dart    # New customer signup
+│   ├── customer_reviews_page.dart         # Review & rating system
+│   ├── customer_chat_page.dart            # Support chat
+│   ├── edit_profile_page.dart             # Profile management
+│   └── payment_page.dart                  # Payment processing
+├── login_page.dart                        # Shared customer login
+├── forgot_password_page.dart              # Shared password recovery
+└── ...
+
+lib/services/
+├── app_settings_service.dart              # Configuration management
+├── reservation_service.dart               # Reservation operations
+├── email_notification_service.dart        # Email notifications
+├── paymongo_service.dart                  # Payment processing
+└── ...
+```
+
+---
+
 ## Summary
 
 Successfully implemented comprehensive improvements to the Yang Chow Restaurant customer-facing side, addressing all critical issues and adding important missing features.
@@ -118,7 +145,7 @@ Successfully implemented comprehensive improvements to the Yang Chow Restaurant 
 ### 4. **Pages Created**
 
 #### **CustomerReviewsPage** ✅
-**File**: `lib/pages/customer_reviews_page.dart` (Created)
+**File**: `lib/pages/customer/customer_reviews_page.dart` (Created)
 - Full review and rating system for customers
 - Features:
   - Lists all past (completed) reservations
@@ -137,6 +164,7 @@ Successfully implemented comprehensive improvements to the Yang Chow Restaurant 
 ### 5. **Pages Updated**
 
 #### **customer_dashboard.dart** ✅
+**File**: `lib/pages/customer/customer_dashboard.dart` (Updated)
 **Major Changes**:
 
 **Imports Added**:
