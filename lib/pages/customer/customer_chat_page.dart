@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/services/chat_service.dart';
 
 class CustomerChatPage extends StatefulWidget {
   const CustomerChatPage({super.key});
@@ -505,48 +506,71 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   ? CrossAxisAlignment.end
                   : CrossAxisAlignment.start,
               children: [
-                Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    minWidth: 60,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isFromCustomer
-                        ? const Color(0xFF2C3E50) // Professional dark blue
-                        : const Color(0xFFFFFFFF), // White for support messages
-                    borderRadius: BorderRadius.circular(18).copyWith(
-                      bottomLeft: isFromCustomer
-                          ? const Radius.circular(18)
-                          : const Radius.circular(4),
-                      bottomRight: isFromCustomer
-                          ? const Radius.circular(4)
-                          : const Radius.circular(18),
+                GestureDetector(
+                  onLongPress:
+                      isFromCustomer &&
+                              messageText != ChatService.unsentMessageSentinel
+                          ? () => _showUnsendDialog(message['id'].toString())
+                          : null,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      minWidth: 60,
                     ),
-                    border: !isFromCustomer
-                        ? Border.all(color: const Color(0xFFECF0F1), width: 1)
-                        : null,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: messageText == ChatService.unsentMessageSentinel
+                          ? Colors.grey.withValues(alpha: 0.1)
+                          : isFromCustomer
+                              ? const Color(0xFF2C3E50)
+                              : const Color(0xFFFFFFFF),
+                      borderRadius: BorderRadius.circular(18).copyWith(
+                        bottomLeft: isFromCustomer
+                            ? const Radius.circular(18)
+                            : const Radius.circular(4),
+                        bottomRight: isFromCustomer
+                            ? const Radius.circular(4)
+                            : const Radius.circular(18),
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    messageText,
-                    style: TextStyle(
-                      color: isFromCustomer
-                          ? Colors.white
-                          : const Color(0xFF2C3E50),
-                      fontSize: 15,
-                      fontWeight: isFromCustomer
-                          ? FontWeight.w500
-                          : FontWeight.w400,
+                      border: !isFromCustomer ||
+                              messageText == ChatService.unsentMessageSentinel
+                          ? Border.all(
+                              color: const Color(0xFFECF0F1),
+                              width: 1,
+                            )
+                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      messageText == ChatService.unsentMessageSentinel
+                          ? (isFromCustomer
+                              ? 'You unsent a message'
+                              : 'This message was unsent')
+                          : messageText,
+                      style: TextStyle(
+                        color: messageText == ChatService.unsentMessageSentinel
+                            ? Color(0xFF95A5A6)
+                            : isFromCustomer
+                                ? Colors.white
+                                : const Color(0xFF2C3E50),
+                        fontSize: 15,
+                        fontStyle:
+                            messageText == ChatService.unsentMessageSentinel
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                        fontWeight: isFromCustomer
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),
@@ -694,6 +718,45 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       ),
                     )
                   : const Icon(Icons.send, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUnsendDialog(String messageId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsend message?'),
+        content: const Text(
+          'Unsending will remove this message from the chat for everyone. People in the chat may have already seen it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final success = await ChatService().unsendMessage(messageId);
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to unsend message'),
+                    backgroundColor: AppTheme.errorRed,
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              'Unsend',
+              style: TextStyle(
+                color: Color(0xFFE74C3C),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
