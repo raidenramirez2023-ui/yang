@@ -595,6 +595,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               ),
               child: TextField(
                 controller: _messageController,
+                onChanged: (text) {
+                  setState(() {});
+                },
                 decoration: const InputDecoration(
                   hintText: 'Type your message...',
                   border: InputBorder.none,
