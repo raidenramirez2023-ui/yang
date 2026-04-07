@@ -131,6 +131,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     }
   }
 
+  String _getUserDisplayName() {
+    final metadata = Supabase.instance.client.auth.currentUser?.userMetadata;
+    if (metadata != null) {
+      if (metadata['firstname'] != null && metadata['lastname'] != null) {
+        return '${metadata['firstname']} ${metadata['lastname']}';
+      }
+      final fullName = metadata['full_name']?.replaceAll('User', '');
+      if (fullName != null && fullName.isNotEmpty) return fullName;
+      final name = metadata['name']?.replaceAll('User', '');
+      if (name != null && name.isNotEmpty) return name;
+    }
+    return 'User';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -1081,7 +1095,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                     children: [
                       Text(
-                        'Welcome to Yang Chow, ${Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'User'}!',
+                        'Welcome to Yang Chow, ${_getUserDisplayName()}!',
 
                         style: const TextStyle(
                           color: Colors.white,
@@ -2081,10 +2095,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   Widget _buildProfileSection() {
     final currentUser = Supabase.instance.client.auth.currentUser;
-    final name =
-        currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ??
-        currentUser?.userMetadata?['name']?.replaceAll('User', '') ??
-        'Customer';
+    final name = _getUserDisplayName();
     final email = currentUser?.email ?? 'Not provided';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
 
