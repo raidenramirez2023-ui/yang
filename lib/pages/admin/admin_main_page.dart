@@ -4,13 +4,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/role_helper.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
-import 'package:yang_chow/pages/user_management.dart';
-import 'package:yang_chow/pages/sales_report_page.dart';
-import 'package:yang_chow/pages/inventory_management.dart';
-import 'package:yang_chow/pages/admin_dashboard.dart';
-import 'package:yang_chow/pages/admin_reservations_page.dart';
-import 'package:yang_chow/pages/admin_announcements_page.dart';
-import 'package:yang_chow/pages/admin_chat_page.dart';
+import 'package:yang_chow/pages/admin/user_management.dart';
+import 'package:yang_chow/pages/admin/sales_report_page.dart';
+import 'package:yang_chow/pages/staff/inventory_management.dart';
+import 'package:yang_chow/pages/admin/admin_dashboard.dart';
+import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
+import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
+import 'package:yang_chow/pages/admin/admin_chat_page.dart';
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:intl/intl.dart';
@@ -33,21 +33,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Future<void> _checkUserRole() async {
     final isAdmin = await RoleHelper.isAdmin();
-    
+
     if (!isAdmin && mounted) {
       Navigator.pushReplacementNamed(context, '/staff-dashboard');
     }
   }
-
-  static const List<Widget> _pages = [
-    AdminDashboardPage(),
-    SalesReportPage(),
-    InventoryPage(),
-    AdminReservationsPage(),
-    UserManagementPage(),
-    AdminAnnouncementsPage(),
-    AdminChatPage(),
-  ];
 
   static const List<String> _pageTitles = [
     'Dashboard',
@@ -69,12 +59,22 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.chat_bubble,
   ];
 
+  late final List<Widget> _pages = [
+    const AdminDashboardPage(),
+    const SalesReportPage(),
+    const InventoryPage(),
+    const AdminReservationsPage(),
+    const UserManagementPage(),
+    const AdminAnnouncementsPage(),
+    const AdminChatPage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
     final useDrawer = ResponsiveUtils.shouldUseDrawer(context);
-    
+
     if (isDesktop || isTablet) {
       return _buildDesktopLayout();
     } else if (useDrawer) {
@@ -86,7 +86,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildDesktopLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9), 
+      backgroundColor: const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           Row(
@@ -153,9 +153,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -165,26 +165,37 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Material(
-                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () => setState(() => _selectedIndex = index),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
                             Icon(
                               _pageIcons[index],
                               size: 20,
-                              color: isSelected ? Colors.white : const Color(0xFF64748B),
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF64748B),
                             ),
                             const SizedBox(width: 12),
                             Text(
                               _pageTitles[index],
                               style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -221,9 +232,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Row(
         children: [
@@ -240,11 +249,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
           const SizedBox(width: 16),
           Row(
             children: [
-              Container(
-                height: 32,
-                width: 1,
-                color: const Color(0xFFE2E8F0),
-              ),
+              Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
               const SizedBox(width: 24),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -260,10 +265,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   ),
                   const Text(
                     'Admin',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                 ],
               ),
@@ -274,7 +276,11 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 child: const Icon(Icons.person, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B), size: 20),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                color: Color(0xFF64748B),
+                size: 20,
+              ),
             ],
           ),
         ],
@@ -327,11 +333,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
               color: AppTheme.primaryColor,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.restaurant,
-              size: 16,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.restaurant, size: 16, color: Colors.white),
           ),
           const SizedBox(width: 8),
           const Text(
@@ -360,10 +362,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(
-          color: const Color(0xFFE2E8F0),
-          height: 1,
-        ),
+        child: Container(color: const Color(0xFFE2E8F0), height: 1),
       ),
     );
   }
@@ -421,7 +420,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Material(
-                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
@@ -430,20 +431,29 @@ class _AdminMainPageState extends State<AdminMainPage> {
                         Navigator.pop(context);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         child: Row(
                           children: [
                             Icon(
                               _pageIcons[index],
                               size: 20,
-                              color: isSelected ? Colors.white : const Color(0xFF64748B),
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF64748B),
                             ),
                             const SizedBox(width: 12),
                             Text(
                               _pageTitles[index],
                               style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ],
@@ -458,7 +468,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
+            title: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.redAccent),
+            ),
             onTap: () {
               Navigator.pop(context);
               _showLogoutDialog(context);
@@ -493,7 +506,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   void _showLogoutDialog(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -519,7 +532,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                     mobile: 18,
                     tablet: 20,
                     desktop: 22,
-                    ),
+                  ),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -567,7 +580,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
               try {
                 await GoogleSignIn().signOut();
               } catch (_) {}
-              
+
               if (mounted) {
                 navigator.pushReplacementNamed('/staff-login');
               }
@@ -599,7 +612,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
         return Stack(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF64748B)),
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: Color(0xFF64748B),
+              ),
               onPressed: () => _showAdminNotificationsDialog(notifications),
               tooltip: 'Notifications',
             ),
@@ -642,21 +658,38 @@ class _AdminMainPageState extends State<AdminMainPage> {
                     final n = notifications[index];
                     final date = DateTime.parse(n['created_at']).toLocal();
                     final timeStr = DateFormat('MMM d, h:mm a').format(date);
-                    
+
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        child: Icon(_getIconForAction(n['action_type']), color: AppTheme.primaryColor, size: 20),
+                        backgroundColor: AppTheme.primaryColor.withValues(
+                          alpha: 0.1,
+                        ),
+                        child: Icon(
+                          _getIconForAction(n['action_type']),
+                          color: AppTheme.primaryColor,
+                          size: 20,
+                        ),
                       ),
                       title: Text(
                         _getAdminNotificationTitle(n),
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}'),
-                          Text(timeStr, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          Text(
+                            '${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}',
+                          ),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -664,7 +697,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
                 ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
@@ -672,23 +708,34 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   IconData _getIconForAction(String action) {
     switch (action) {
-      case 'created': return Icons.add_circle;
+      case 'created':
+        return Icons.add_circle;
       case 'cancelled':
-      case 'deleted': return Icons.cancel;
-      case 'paid': return Icons.payments;
-      case 'updated': return Icons.edit;
-      default: return Icons.notifications;
+      case 'deleted':
+        return Icons.cancel;
+      case 'paid':
+        return Icons.payments;
+      case 'updated':
+        return Icons.edit;
+      default:
+        return Icons.notifications;
     }
   }
 
   String _getAdminNotificationTitle(Map<String, dynamic> n) {
     switch (n['action_type']) {
-      case 'created': return 'New Reservation';
-      case 'cancelled': return 'Reservation Cancelled';
-      case 'deleted': return 'Reservation Deleted';
-      case 'paid': return 'Payment Received';
-      case 'updated': return 'Reservation Modified';
-      default: return 'Activity Alert';
+      case 'created':
+        return 'New Reservation';
+      case 'cancelled':
+        return 'Reservation Cancelled';
+      case 'deleted':
+        return 'Reservation Deleted';
+      case 'paid':
+        return 'Payment Received';
+      case 'updated':
+        return 'Reservation Modified';
+      default:
+        return 'Activity Alert';
     }
   }
 }

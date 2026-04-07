@@ -15,10 +15,7 @@ class AdminChatPage extends StatefulWidget {
 class _AdminChatPageState extends State<AdminChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  List<Map<String, dynamic>> _conversations = [];
-  List<Map<String, dynamic>> _messages = [];
   Map<String, dynamic>? _selectedConversation;
-  bool _isLoading = false;
   bool _isSending = false;
   Stream<List<Map<String, dynamic>>>? _conversationsStream;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
@@ -30,27 +27,24 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Future<void> _initializeChat() async {
-    setState(() => _isLoading = true);
-
     // Set up stream for conversations
     _conversationsStream = Supabase.instance.client
         .from('admin_chat_conversations')
         .stream(primaryKey: ['session_id'])
         .order('last_message_at', ascending: false);
-
-    setState(() => _isLoading = false);
   }
 
   void _selectConversation(Map<String, dynamic> conversation) {
-    debugPrint('Admin selecting conversation: ${conversation['customer_email']}');
+    debugPrint(
+      'Admin selecting conversation: ${conversation['customer_email']}',
+    );
     setState(() {
       _selectedConversation = conversation;
-      _messages = []; // Clear previous messages
     });
 
     final customerEmail = conversation['customer_email'];
     debugPrint('Setting up message stream for: $customerEmail');
-    
+
     // Set up stream for messages in this conversation
     _messagesStream = Supabase.instance.client
         .from('chat_messages')
@@ -75,9 +69,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || 
-        _isSending || 
-        _selectedConversation == null) return;
+    if (_selectedConversation == null) {
+      return;
+    }
 
     final customerEmail = _selectedConversation!['customer_email'];
     final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
@@ -97,6 +91,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       _scrollToBottom();
     } catch (e) {
       debugPrint('Error sending message: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to send message'),
@@ -165,7 +160,10 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor),
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 12),
                     const Text(
                       'Conversations',
@@ -179,13 +177,23 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     StreamBuilder<List<Map<String, dynamic>>>(
                       stream: _conversationsStream,
                       builder: (context, snapshot) {
-                        final totalUnread = snapshot.data?.fold<int>(
-                          0, (sum, conv) => sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0)
-                        ) ?? 0;
-                        
+                        final totalUnread =
+                            snapshot.data?.fold<int>(
+                              0,
+                              (sum, conv) =>
+                                  sum +
+                                  ((conv['unread_customer_count'] as num?)
+                                          ?.toInt() ??
+                                      0),
+                            ) ??
+                            0;
+
                         if (totalUnread > 0) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor,
                               borderRadius: BorderRadius.circular(12),
@@ -206,11 +214,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
                   ],
                 ),
               ),
-              
+
               // Conversations List
-              Expanded(
-                child: _buildConversationsList(),
-              ),
+              Expanded(child: _buildConversationsList()),
             ],
           ),
         ),
@@ -229,7 +235,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
     if (_selectedConversation != null) {
       return _buildChatArea();
     }
-    
+
     return Column(
       children: [
         // Header
@@ -251,11 +257,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
             ],
           ),
         ),
-        
+
         // Conversations List
-        Expanded(
-          child: _buildConversationsList(),
-        ),
+        Expanded(child: _buildConversationsList()),
       ],
     );
   }
@@ -265,7 +269,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
       stream: _conversationsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+          return const Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
         }
 
         if (snapshot.hasError) {
@@ -273,7 +279,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Error loading conversations',
@@ -295,7 +305,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 64,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No conversations yet',
@@ -327,7 +341,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Widget _buildConversationItem(Map<String, dynamic> conversation) {
-    final isSelected = _selectedConversation?['session_id'] == conversation['session_id'];
+    final isSelected =
+        _selectedConversation?['session_id'] == conversation['session_id'];
     final customerName = conversation['customer_name'] ?? 'Customer';
     final customerEmail = conversation['customer_email'];
     final unreadCount = conversation['unread_customer_count'] ?? 0;
@@ -338,9 +353,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+        color: isSelected
+            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        border: isSelected 
+        border: isSelected
             ? Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3))
             : null,
       ),
@@ -348,10 +365,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         onTap: () => _selectConversation(conversation),
         leading: CircleAvatar(
           backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-          child: Icon(
-            Icons.person,
-            color: AppTheme.primaryColor,
-          ),
+          child: Icon(Icons.person, color: AppTheme.primaryColor),
         ),
         title: Row(
           children: [
@@ -388,19 +402,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
           children: [
             Text(
               customerEmail,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               overflow: TextOverflow.ellipsis,
             ),
             if (lastMessageTime != null)
               Text(
                 _formatLastMessageTime(lastMessageTime),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
               ),
           ],
         ),
@@ -441,10 +449,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
           Text(
             'Choose a customer conversation from the list\nto start chatting',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -499,7 +504,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 if (!ResponsiveUtils.isDesktop(context))
                   IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () => setState(() => _selectedConversation = null),
+                    onPressed: () =>
+                        setState(() => _selectedConversation = null),
                   ),
               ],
             ),
@@ -510,7 +516,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _messagesStream,
               builder: (context, snapshot) {
-                debugPrint('Admin StreamBuilder state: ${snapshot.connectionState}');
+                debugPrint(
+                  'Admin StreamBuilder state: ${snapshot.connectionState}',
+                );
                 debugPrint('Admin has error: ${snapshot.hasError}');
                 debugPrint('Admin has data: ${snapshot.hasData}');
                 if (snapshot.hasData) {
@@ -521,7 +529,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 }
 
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
+                  );
                 }
 
                 if (snapshot.hasError) {
@@ -529,7 +541,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Error loading messages',
@@ -558,7 +574,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'No messages yet',
@@ -609,10 +629,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
-        crossAxisAlignment: isFromCustomer ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        crossAxisAlignment: isFromCustomer
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.end,
         children: [
           Row(
-            mainAxisAlignment: isFromCustomer ? MainAxisAlignment.start : MainAxisAlignment.end,
+            mainAxisAlignment: isFromCustomer
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.end,
             children: [
               if (isFromCustomer) ...[
                 Container(
@@ -621,7 +645,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     color: Colors.grey.shade300,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person, color: Colors.white, size: 16),
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -630,9 +658,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isFromCustomer ? Colors.grey.shade100 : AppTheme.primaryColor,
+                    color: isFromCustomer
+                        ? Colors.grey.shade100
+                        : AppTheme.primaryColor,
                     borderRadius: BorderRadius.circular(20).copyWith(
                       bottomLeft: Radius.circular(isFromCustomer ? 4 : 20),
                       bottomRight: Radius.circular(isFromCustomer ? 20 : 4),
@@ -655,7 +688,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     color: AppTheme.primaryColor,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.support_agent, color: Colors.white, size: 16),
+                  child: const Icon(
+                    Icons.support_agent,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ],
             ],
@@ -668,10 +705,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
             ),
             child: Text(
               timeStr,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           ),
         ],
@@ -706,7 +740,10 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 decoration: const InputDecoration(
                   hintText: 'Type your response...',
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   hintStyle: TextStyle(color: Colors.grey),
                 ),
                 maxLines: null,
