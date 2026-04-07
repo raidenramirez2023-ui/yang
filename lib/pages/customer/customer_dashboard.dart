@@ -16,11 +16,11 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 
 import 'package:yang_chow/pages/login_page.dart';
 
-import 'package:yang_chow/pages/payment_page.dart';
+import 'package:yang_chow/pages/customer/payment_page.dart';
 
-import 'package:yang_chow/pages/edit_profile_page.dart';
+import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 
-import 'package:yang_chow/pages/customer_chat_page.dart';
+import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 
 import 'package:yang_chow/services/paymongo_service.dart';
 

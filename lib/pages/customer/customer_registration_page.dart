@@ -319,6 +319,104 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     );
   }
 
+  void _showTermsAndConditionsModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Terms and Conditions',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.black87,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTermsSection(
+                  'Personal Information Protection',
+                  'We are committed to protecting your privacy. All personal information collected will be used solely for service provision and will never be shared with third parties without your consent.',
+                ),
+                _buildTermsSection(
+                  'User Responsibility',
+                  'You are responsible for maintaining the confidentiality of your account credentials. You agree not to share your password and to immediately notify us of any unauthorized access to your account.',
+                ),
+                _buildTermsSection(
+                  'Proper Use of Service',
+                  'You agree to use our service only for legitimate purposes. Any misuse, including attempting to access unauthorized areas or disrupting service functionality, is strictly prohibited.',
+                ),
+                _buildTermsSection(
+                  'System Security',
+                  'We maintain industry-standard security measures to protect your data. However, no system is completely secure. You acknowledge the inherent risks of online services and absolve us of liability for unauthorized access due to user negligence.',
+                ),
+                _buildTermsSection(
+                  'Policy Updates',
+                  'We reserve the right to modify these terms at any time. Continued use of our service following any changes constitutes your acceptance of the new terms.',
+                ),
+                _buildTermsSection(
+                  'Agreement',
+                  'By clicking the "Accept" button below, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _agreeToTerms = true;
+                });
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Accept'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTermsSection(String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black54,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isRedirecting) {
@@ -749,9 +847,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 onChanged: _isLoading
                     ? null
                     : (bool? value) {
-                        setState(() {
-                          _agreeToTerms = value ?? false;
-                        });
+                        if (value ?? false) {
+                          // If trying to check, open modal
+                          _showTermsAndConditionsModal();
+                        } else {
+                          // Allow unchecking
+                          setState(() {
+                            _agreeToTerms = false;
+                          });
+                        }
                       },
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
@@ -764,7 +868,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'I agree to the Terms and Conditions and Privacy Policy',
+                'I agree to the Terms and Conditions',
                 style: TextStyle(
                   color: Colors.black54,
                   fontSize: 12,
@@ -993,16 +1097,22 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               onChanged: _isLoading
                   ? null
                   : (bool? value) {
-                      setState(() {
-                        _agreeToTerms = value ?? false;
-                      });
+                      if (value ?? false) {
+                        // If trying to check, open modal
+                        _showTermsAndConditionsModal();
+                      } else {
+                        // Allow unchecking
+                        setState(() {
+                          _agreeToTerms = false;
+                        });
+                      }
                     },
               activeColor: AppTheme.primaryColor,
             ),
-            Expanded(
+            const Expanded(
               child: Text(
-                'I agree to the Terms and Conditions and Privacy Policy',
-                style: Theme.of(context).textTheme.bodySmall,
+                'I agree to the Terms and Conditions',
+                style: TextStyle(fontSize: 13, color: Colors.black87),
               ),
             ),
           ],
