@@ -27,6 +27,8 @@ class _PaymentPageState extends State<PaymentPage> {
   Map<String, dynamic>? _selectedPaymentMethod;
   bool _isProcessing = false;
   String? _errorMessage;
+  String? _currentLinkId;
+  bool _isVerifying = false;
 
   @override
   Widget build(BuildContext context) {
@@ -208,12 +210,22 @@ class _PaymentPageState extends State<PaymentPage> {
     });
 
     try {
+      // For Web, we want the success URL to be the current site URL
+      String? successUrl;
+      String? cancelUrl;
+      
+      if (kIsWeb) {
+        final currentUrl = Uri.base.origin;
+        successUrl = '$currentUrl/#/customer-dashboard?status=success';
+        cancelUrl = '$currentUrl/#/customer-dashboard?status=cancelled';
+      }
+
       // Create payment link
       final result = await PayMongoService.createPaymentLink(
         amount: widget.amount,
         description: widget.description,
-        returnUrl: 'yangchow://payment/success',
-        cancelUrl: 'yangchow://payment/cancel',
+        returnUrl: successUrl,
+        cancelUrl: cancelUrl,
         metadata: {
           ...?widget.metadata,
           'payment_method': _selectedPaymentMethod!['type'],
@@ -222,6 +234,7 @@ class _PaymentPageState extends State<PaymentPage> {
       );
 
       if (result['success']) {
+        _currentLinkId = result['linkId'];
         if (kIsWeb) {
           // For web, launch URL in new tab
           await _launchPaymentUrl(result['checkoutUrl']);
@@ -272,62 +285,100 @@ class _PaymentPageState extends State<PaymentPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment in Progress'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            const Text(
-              'Payment page opened in new tab.\nComplete the payment and return here.',
-              textAlign: TextAlign.center,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Payment in Progress'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isVerifying)
+                const CircularProgressIndicator()
+              else
+                const Icon(Icons.launch, size: 48, color: AppTheme.primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                _isVerifying 
+                  ? 'Verifying your payment...' 
+                  : 'Payment page opened in new tab.\nComplete the payment and return here.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'After payment completion, click "Verify Payment" below.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _isProcessing = false;
+                });
+              },
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'After payment completion, click "Payment Completed" below.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ElevatedButton(
+              onPressed: _isVerifying ? null : () async {
+                setDialogState(() => _isVerifying = true);
+                final success = await _verifyPayment();
+                setDialogState(() => _isVerifying = false);
+                
+                if (success) {
+                  if (mounted) Navigator.of(context).pop();
+                } else {
+                  // Show mini error or just keep dialog open
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payment not yet detected. Please complete payment first.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Verify Payment'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              setState(() {
-                _isProcessing = false;
-              });
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _simulatePaymentSuccess();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Payment Completed'),
-          ),
-        ],
       ),
     );
   }
 
-  void _simulatePaymentSuccess() {
-    // For web testing, simulate successful payment
+  Future<bool> _verifyPayment() async {
+    if (_currentLinkId == null) return false;
+
+    try {
+      final result = await PayMongoService.retrievePaymentLink(_currentLinkId!);
+      if (result['success'] && result['isPaid']) {
+        _onPaymentSuccess();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error verifying payment: $e');
+    }
+    return false;
+  }
+
+  void _onPaymentSuccess() {
     widget.onPaymentComplete?.call(true, {
       'status': 'success',
       'amount': widget.amount,
       'payment_method': _selectedPaymentMethod!['type'],
+      'link_id': _currentLinkId,
     });
-    Navigator.of(context).pop(true);
+    
+    if (mounted) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
+    }
   }
 
   Future<void> _openPaymentWebView(String checkoutUrl) async {
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PaymentWebView(

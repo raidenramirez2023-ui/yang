@@ -17,11 +17,15 @@ class PayMongoService {
   static Future<Map<String, dynamic>> createPaymentLink({
     required double amount,
     required String description,
-    required String returnUrl,
-    required String cancelUrl,
+    String? returnUrl,
+    String? cancelUrl,
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      // Use provided URLs or default to deep links (handled by PaymentPage for Web)
+      final successUrl = returnUrl ?? 'yangchow://payment/success';
+      final failedUrl = cancelUrl ?? 'yangchow://payment/cancel';
+
       final response = await http.post(
         Uri.parse('$_baseUrl/links'),
         headers: {
@@ -35,16 +39,16 @@ class PayMongoService {
               'description': description,
               'remarks': 'Payment for Yang Chow Restaurant',
               'redirect': {
-                'success': returnUrl,
-                'failed': cancelUrl,
+                'success': successUrl,
+                'failed': failedUrl,
               },
               'billing': {
                 'name': 'Customer',
                 'email': 'customer@example.com',
-              'phone': '+639123456789',
+                'phone': '+639123456789',
               },
-               'metadata': metadata,
-              'payment_method_types': ['gcash', 'paymaya', 'card', 'bank_transfer'],
+              'metadata': metadata,
+              'payment_method_types': ['gcash', 'paymaya', 'card', 'bank_transfer', 'brankas', 'dob', 'dob_ubp', 'grab_pay'],
             },
           },
         }),
@@ -55,12 +59,50 @@ class PayMongoService {
         return {
           'success': true,
           'data': data['data'],
+          'linkId': data['data']['id'],
           'checkoutUrl': data['data']['attributes']['checkout_url'],
         };
       } else {
         return {
           'success': false,
           'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Payment link creation failed',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Retrieve payment link status
+  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/links/$linkId'),
+        headers: {
+          ..._headers,
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final status = data['data']['attributes']['status'];
+        final payments = data['data']['attributes']['payments'] as List;
+        
+        // A link is "paid" if its status is 'paid'
+        return {
+          'success': true,
+          'status': status,
+          'isPaid': status == 'paid',
+          'payments': payments,
+        };
+      } else {
+        return {
+          'success': false,
+          'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Status retrieval failed',
         };
       }
     } catch (e) {
@@ -244,6 +286,13 @@ class PayMongoService {
   // Get available payment methods
   static List<Map<String, dynamic>> getAvailablePaymentMethods() {
     return [
+      {
+        'id': 'qrph',
+        'name': 'QRPh',
+        'icon': 'assets/images/qrph_logo.png',
+        'type': 'qrph',
+        'description': 'Scan to Pay using GCash, Maya, etc.',
+      },
       {
         'id': 'gcash',
         'name': 'GCash',
