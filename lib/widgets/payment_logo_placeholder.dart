@@ -18,6 +18,10 @@ class PaymentLogoPlaceholder extends StatelessWidget {
     Color iconColor = color ?? Colors.grey.shade600;
 
     switch (paymentType) {
+      case 'qrph':
+        icon = Icons.qr_code_scanner;
+        iconColor = Colors.red.shade600;
+        break;
       case 'gcash':
         icon = Icons.account_balance_wallet;
         iconColor = Colors.blue.shade600;
