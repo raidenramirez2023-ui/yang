@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 // Temporary script to run database migration
 // Run this once in your app, then remove it
@@ -21,8 +22,8 @@ Future<void> runDatabaseMigration() async {
       '''
     });
     
-    print('Database migration completed successfully!');
+    debugPrint('Database migration completed successfully!');
   } catch (e) {
-    print('Migration error: $e');
+    debugPrint('Migration error: $e');
   }
 }

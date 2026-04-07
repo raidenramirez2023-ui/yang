@@ -1,5 +1,21 @@
 # QUICK START: Deploying Customer Improvements
 
+## 🏗️ Project Structure Overview
+
+After recent reorganization, the Yang Chow project has the following structure:
+
+```
+lib/pages/
+├── admin/              # Admin pages (8 files)
+├── staff/              # Staff pages (7 files)
+├── customer/           # Customer pages (6 files)
+└── *.dart              # Shared auth pages (4 files)
+```
+
+All customer-facing features are in `lib/pages/customer/` while database operations are in `lib/services/`.
+
+---
+
 ## 🚀 Step 1: Deploy Database Changes (5 minutes)
 
 ### Option A: Using Supabase Dashboard (Easiest)
@@ -7,7 +23,7 @@
 2. Select your Yang Chow project
 3. Click **SQL Editor** (left sidebar)
 4. Click **New Query**
-5. Open file: `reservations_enhancements.sql`
+5. Open file: `reservations_enhancements.sql` (in project root)
 6. Copy ALL content
 7. Paste into Supabase SQL editor
 8. Click **Run** button (⚡)

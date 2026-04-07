@@ -1380,12 +1380,12 @@ class _LandingPageState extends State<LandingPage> {
   Widget _buildSimpleFooter(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-      color: const Color(0xFF3E2723).withOpacity(0.9),
+      color: const Color(0xFF3E2723).withValues(alpha: 0.9),
       child: Center(
         child: Text(
           'Yang Chow Restaurant All Rights Reserved @ 2026',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
             fontSize: 12,
             fontWeight: FontWeight.w500,
             letterSpacing: 1,
@@ -1476,7 +1476,7 @@ class _HoverableNavButtonState extends State<_HoverableNavButton> {
             width: 2
           ),
           borderRadius: BorderRadius.circular(4),
-          color: _isHovered ? Colors.red.withOpacity(0.1) : Colors.transparent,
+          color: _isHovered ? Colors.red.withValues(alpha: 0.1) : Colors.transparent,
         ),
         child: InkWell(
           key: widget.key,

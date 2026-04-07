@@ -40,8 +40,8 @@ Your Yang Chow app now supports Google Sign-In for customer registration and log
 
 ### Step 3: Update Client ID in Code
 Replace the placeholder client ID in both files:
-- `lib/pages/login_page.dart` (line 19)
-- `lib/pages/customer_registration_page.dart` (line 22)
+- `lib/pages/login_page.dart` (line ~35)
+- `lib/pages/customer/customer_registration_page.dart` (line ~45)
 
 Change:
 ```dart

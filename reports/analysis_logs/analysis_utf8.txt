@@ -1,0 +1,49 @@
+﻿Analyzing yang...                                               
+
+   info - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\pages\admin_announcements_page.dart:5:8 - unnecessary_import
+   info - Unnecessary braces in a string interpolation - lib\pages\admin_announcements_page.dart:96:53 - unnecessary_brace_in_string_interps
+   info - Don't use 'BuildContext's across async gaps - lib\pages\admin_announcements_page.dart:339:33 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\pages\admin_chat_page.dart:75:7 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\pages\admin_chat_page.dart:95:28 - use_build_context_synchronously
+   info - The private field _eventTypeDistribution could be 'final' - lib\pages\admin_dashboard.dart:45:20 - prefer_final_fields
+   info - The private field _upcomingEvents could be 'final' - lib\pages\admin_dashboard.dart:55:30 - prefer_final_fields
+   info - The private field _ongoingEvents could be 'final' - lib\pages\admin_dashboard.dart:56:30 - prefer_final_fields
+   info - The private field _completedEventsToday could be 'final' - lib\pages\admin_dashboard.dart:57:30 - prefer_final_fields
+   info - The private field _eventsByDate could be 'final' - lib\pages\admin_dashboard.dart:77:43 - prefer_final_fields
+   info - The private field _conflictDates could be 'final' - lib\pages\admin_dashboard.dart:78:16 - prefer_final_fields
+   info - The private field _selectedYear could be 'final' - lib\pages\admin_dashboard.dart:92:10 - prefer_final_fields
+   info - Unnecessary use of multiple underscores - lib\pages\admin_dashboard.dart:2468:37 - unnecessary_underscores
+   info - Statements in an if should be enclosed in a block - lib\pages\admin_dashboard.dart:3425:7 - curly_braces_in_flow_control_structures
+   info - Constructors in '@immutable' classes should be declared as 'const' - lib\pages\admin_dashboard.dart:3743:3 - prefer_const_constructors_in_immutables
+   info - Constructors in '@immutable' classes should be declared as 'const' - lib\pages\admin_dashboard.dart:3930:3 - prefer_const_constructors_in_immutables
+   info - Don't use 'BuildContext's across async gaps - lib\pages\customer_chat_page.dart:115:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:54:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:68:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:78:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:80:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:92:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:102:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:104:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:118:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:129:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:140:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:154:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:178:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:194:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:209:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:223:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:237:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:252:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:293:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:308:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:319:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\chat_service.dart:330:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\recipe_service.dart:644:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\recipe_service.dart:670:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\recipe_service.dart:725:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\widgets\admin_chat_modal.dart:108:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\widgets\admin_chat_modal.dart:110:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\widgets\admin_chat_modal.dart:135:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - run_database_migration.dart:24:5 - avoid_print
+   info - Don't invoke 'print' in production code - run_database_migration.dart:26:5 - avoid_print
+

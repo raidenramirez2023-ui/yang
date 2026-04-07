@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipe_model.dart';
+import 'package:flutter/foundation.dart';
 
 class RecipeService {
   static final RecipeService _instance = RecipeService._internal();
@@ -642,7 +642,7 @@ class RecipeService {
 
       return Recipe.fromMap(recipeData);
     } catch (e) {
-      print('Error getting recipe: $e');
+      debugPrint('Error getting recipe: $e');
       return null;
     }
   }
@@ -668,7 +668,7 @@ class RecipeService {
 
       return ingredientsWithStatus;
     } catch (e) {
-      print('Error getting ingredients: $e');
+      debugPrint('Error getting ingredients: $e');
       return [];
     }
   }
@@ -723,7 +723,7 @@ class RecipeService {
 
       return ingredientsWithStatus;
     } catch (e) {
-      print('Error getting ingredients with inventory status: $e');
+      debugPrint('Error getting ingredients with inventory status: $e');
       return [];
     }
   }

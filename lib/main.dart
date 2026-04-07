@@ -7,16 +7,16 @@ import 'services/app_settings_service.dart';
 
 // Features
 import 'pages/login_page.dart';
-import 'pages/customer_registration_page.dart';
-import 'pages/staff_login_page.dart';
+import 'pages/customer/customer_registration_page.dart';
+import 'pages/staff/staff_login_page.dart';
 import 'pages/forgot_password_page.dart';
 import 'pages/landing_page.dart';
-import 'pages/customer_dashboard.dart';
-import 'pages/admin_main_page.dart';
-import 'pages/admin_reservations_page.dart';
-import 'pages/staff_dashboard.dart';
-import 'pages/pagsanjaninv_dashboard.dart';
-import 'pages/chef_dashboard.dart';
+import 'pages/customer/customer_dashboard.dart';
+import 'pages/admin/admin_main_page.dart';
+import 'pages/admin/admin_reservations_page.dart';
+import 'pages/staff/staff_dashboard.dart';
+import 'pages/admin/pagsanjaninv_dashboard.dart';
+import 'pages/staff/chef_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
