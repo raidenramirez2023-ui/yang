@@ -9,6 +9,9 @@ class ChatService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Sentinel string for unsent messages
+  static const String unsentMessageSentinel = '[UNSENT_MESSAGE]';
+
   // Stream for all conversations (for admin)
   Stream<List<Map<String, dynamic>>> getConversationsStream() {
     return _supabase
@@ -318,6 +321,20 @@ class ChatService {
       return true;
     } catch (e) {
       debugPrint('Error deleting message: $e');
+      return false;
+    }
+  }
+
+  // Unsend message (Soft delete)
+  Future<bool> unsendMessage(String messageId) async {
+    try {
+      await _supabase
+          .from('chat_messages')
+          .update({'message': unsentMessageSentinel})
+          .eq('id', messageId);
+      return true;
+    } catch (e) {
+      debugPrint('Error unsending message: $e');
       return false;
     }
   }
