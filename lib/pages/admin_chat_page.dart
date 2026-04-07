@@ -27,6 +27,10 @@ class _AdminChatPageState extends State<AdminChatPage> {
   void initState() {
     super.initState();
     _initializeChat();
+    // Add listener to update button state when text changes
+    _messageController.addListener(() {
+      setState(() {}); // Trigger rebuild when text changes
+    });
   }
 
   Future<void> _initializeChat() async {
@@ -722,7 +726,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: _isSending ? null : _sendMessage,
+              onPressed: () {
+                if (!_isSending && _selectedConversation != null) {
+                  _sendMessage();
+                }
+              },
               icon: _isSending
                   ? const SizedBox(
                       width: 20,

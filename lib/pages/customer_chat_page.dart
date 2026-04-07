@@ -24,6 +24,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
   void initState() {
     super.initState();
     _initializeChat();
+    // Add listener to update button state when text changes
+    _messageController.addListener(() {
+      setState(() {}); // Trigger rebuild when text changes
+    });
   }
 
   Future<void> _initializeChat() async {
@@ -632,9 +636,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     ],
             ),
             child: IconButton(
-              onPressed: _isSending || _messageController.text.trim().isEmpty
-                  ? null
-                  : _sendMessage,
+              onPressed: () {
+                if (!_isSending && _messageController.text.trim().isNotEmpty) {
+                  _sendMessage();
+                }
+              },
               icon: _isSending
                   ? SizedBox(
                       width: 20,
