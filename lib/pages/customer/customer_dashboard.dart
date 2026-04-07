@@ -262,7 +262,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   }
 
-<<<<<<< HEAD:lib/pages/customer_dashboard.dart
   String _getUserDisplayName() {
     final metadata = Supabase.instance.client.auth.currentUser?.userMetadata;
     if (metadata != null) {
@@ -276,9 +275,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     }
     return 'User';
   }
-=======
-
->>>>>>> c209af5783b2cb09e217f2be3b8331c28ff6c4ec:lib/pages/customer/customer_dashboard.dart
 
   @override
 
@@ -1975,12 +1971,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     children: [
 
                       Text(
-<<<<<<< HEAD:lib/pages/customer_dashboard.dart
                         'Welcome to Yang Chow, ${_getUserDisplayName()}!',
-=======
-
-                        'Welcome to Yang Chow, ${Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ?? Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.replaceAll('User', '') ?? 'User'}!',
->>>>>>> c209af5783b2cb09e217f2be3b8331c28ff6c4ec:lib/pages/customer/customer_dashboard.dart
 
 
 
@@ -3979,19 +3970,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   Widget _buildProfileSection() {
 
     final currentUser = Supabase.instance.client.auth.currentUser;
-<<<<<<< HEAD:lib/pages/customer_dashboard.dart
     final name = _getUserDisplayName();
-=======
-
-    final name =
-
-        currentUser?.userMetadata?['full_name']?.replaceAll('User', '') ??
-
-        currentUser?.userMetadata?['name']?.replaceAll('User', '') ??
-
-        'Customer';
-
->>>>>>> c209af5783b2cb09e217f2be3b8331c28ff6c4ec:lib/pages/customer/customer_dashboard.dart
     final email = currentUser?.email ?? 'Not provided';
 
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
