@@ -99,7 +99,7 @@ class RecipeService {
     'Century Egg': {
       'menu_item_name': 'Century Egg',
       'ingredients': [
-        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Groceries'},
         {'name': 'Ginger', 'quantity': 20.0, 'unit': 'gram', 'category': 'Fresh'},
         {'name': 'Soy Sauce', 'quantity': 30.0, 'unit': 'ml', 'category': 'Sauces'},
       ],
@@ -108,7 +108,7 @@ class RecipeService {
       'menu_item_name': 'Jelly Fish Century Egg',
       'ingredients': [
         {'name': 'Jelly Fish', 'quantity': 200.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Groceries'},
         {'name': 'Soy Sauce', 'quantity': 60.0, 'unit': 'ml', 'category': 'Sauces'},
       ],
     },
@@ -526,7 +526,7 @@ class RecipeService {
       'menu_item_name': 'Century Egg Congee',
       'ingredients': [
         {'name': 'Rice', 'quantity': 200.0, 'unit': 'gram', 'category': 'Groceries'},
-        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Century Egg', 'quantity': 2.0, 'unit': 'pcs', 'category': 'Groceries'},
         {'name': 'Ginger', 'quantity': 40.0, 'unit': 'gram', 'category': 'Fresh'},
       ],
     },
@@ -678,10 +678,11 @@ class RecipeService {
     if (recipe == null) return [];
 
     try {
-      // Get all inventory items
+      // Get all inventory items for pagsanjaninv
       final inventoryItems = await Supabase.instance.client
           .from('inventory')
           .select('*')
+          .eq('created_by', 'pagsanjaninv@gmail.com')
           .order('name');
 
       final ingredientsWithStatus = <Map<String, dynamic>>[];
@@ -704,10 +705,10 @@ class RecipeService {
 
         // Create ingredient data with inventory status
         final ingredientData = {
-          'name': ingredient.name,
+          'name': matchingInventoryItem?['name'] ?? ingredient.name,
           'required_quantity': ingredient.quantity,
-          'unit': ingredient.unit,
-          'category': ingredient.category,
+          'unit': matchingInventoryItem?['unit'] ?? ingredient.unit,
+          'category': matchingInventoryItem?['category'] ?? ingredient.category,
           'inventory_quantity': matchingInventoryItem?['quantity'] ?? 0,
           'inventory_unit': matchingInventoryItem?['unit'] ?? 'pcs',
           'stock_status': _calculateStockStatus(
@@ -725,6 +726,52 @@ class RecipeService {
     } catch (e) {
       debugPrint('Error getting ingredients with inventory status: $e');
       return [];
+    }
+  }
+
+  Future<void> deductIngredientsFromInventory(String menuItemName, int orderQuantity) async {
+    final recipe = await getRecipeForMenuItem(menuItemName);
+    if (recipe == null) return;
+
+    try {
+      // Get all inventory items managed by pagsanjaninv
+      final inventoryItems = await Supabase.instance.client
+          .from('inventory')
+          .select('*')
+          .eq('created_by', 'pagsanjaninv@gmail.com');
+
+      for (var ingredient in recipe.ingredients) {
+        // Find matching inventory item
+        Map<String, dynamic>? matchingItem;
+        for (var item in inventoryItems) {
+          final inventoryName = item['name']?.toString().toLowerCase() ?? '';
+          final ingredientName = ingredient.name.toLowerCase();
+          
+          if (inventoryName.contains(ingredientName) || 
+              ingredientName.contains(inventoryName)) {
+            matchingItem = item;
+            break;
+          }
+        }
+
+        if (matchingItem != null) {
+          final int currentQty = (matchingItem['quantity'] as num?)?.toInt() ?? 0;
+          // Calculate deduction - using ceil() to ensure we account for whole units
+          final int deduction = (ingredient.quantity * orderQuantity).ceil();
+          final int newQty = (currentQty - deduction).clamp(0, 999999).toInt();
+
+          await Supabase.instance.client
+              .from('inventory')
+              .update({'quantity': newQty})
+              .eq('id', matchingItem['id']);
+          
+          debugPrint('Auto-Inventory: Deducted $deduction units of "${matchingItem['name']}" for "$menuItemName". New stock: $newQty');
+        } else {
+          debugPrint('Auto-Inventory: No matching inventory item found for ingredient "${ingredient.name}"');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error during inventory deduction: $e');
     }
   }
 

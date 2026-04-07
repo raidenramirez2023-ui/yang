@@ -1880,6 +1880,15 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           .toList();
 
       await supabase.from('order_items').insert(itemRows);
+
+      // Trigger automatic inventory deduction for each item ordered
+      // We run these sequentially to avoid race conditions on the same ingredient stock
+      for (final cartItem in cartSnapshot) {
+        await RecipeService().deductIngredientsFromInventory(
+          cartItem.item.name,
+          cartItem.quantity,
+        );
+      }
     } catch (e) {
       debugPrint('Supabase Error: $e');
       // Non-blocking: show a warning but don't block the receipt
