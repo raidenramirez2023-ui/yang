@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
@@ -51,7 +52,7 @@ class ChatService {
       });
       return true;
     } catch (e) {
-      print('Error sending message: $e');
+      debugPrint('Error sending message: $e');
       return false;
     }
   }
@@ -65,7 +66,7 @@ class ChatService {
                         currentUser.userMetadata?['name'] ?? 
                         currentUser.email?.split('@')[0] ?? 'Customer';
 
-    print('Customer sending message: $message');
+    debugPrint('Customer sending message: $message');
     
     final result = await sendMessage(
       customerEmail: currentUser.email!,
@@ -75,9 +76,9 @@ class ChatService {
     );
 
     if (result) {
-      print('Customer message sent successfully');
+      debugPrint('Customer message sent successfully');
     } else {
-      print('Failed to send customer message');
+      debugPrint('Failed to send customer message');
     }
     
     return result;
@@ -89,7 +90,7 @@ class ChatService {
     required String customerName,
     required String message,
   }) async {
-    print('Admin sending message to $customerEmail: $message');
+    debugPrint('Admin sending message to $customerEmail: $message');
     
     final result = await sendMessage(
       customerEmail: customerEmail,
@@ -99,9 +100,9 @@ class ChatService {
     );
 
     if (result) {
-      print('Admin message sent successfully');
+      debugPrint('Admin message sent successfully');
     } else {
-      print('Failed to send admin message');
+      debugPrint('Failed to send admin message');
     }
     
     return result;
@@ -115,7 +116,7 @@ class ChatService {
       );
       return true;
     } catch (e) {
-      print('Error marking messages as read: $e');
+      debugPrint('Error marking messages as read: $e');
       return false;
     }
   }
@@ -126,7 +127,7 @@ class ChatService {
       await _supabase.from('chat_messages').update({'is_read': true}).eq('customer_email', customerEmail).eq('is_from_customer', false);
       return true;
     } catch (e) {
-      print('Error marking admin messages as read: $e');
+      debugPrint('Error marking admin messages as read: $e');
       return false;
     }
   }
@@ -137,7 +138,7 @@ class ChatService {
       await _supabase.from('chat_messages').update({'is_read': true}).eq('customer_email', customerEmail).eq('is_from_customer', true);
       return true;
     } catch (e) {
-      print('Error marking customer messages as read: $e');
+      debugPrint('Error marking customer messages as read: $e');
       return false;
     }
   }
@@ -151,7 +152,7 @@ class ChatService {
       });
       return response as String?;
     } catch (e) {
-      print('Error creating chat session: $e');
+      debugPrint('Error creating chat session: $e');
       return null;
     }
   }
@@ -175,7 +176,7 @@ class ChatService {
           .eq('is_read', false);
       return response.length;
     } catch (e) {
-      print('Error getting unread count: $e');
+      debugPrint('Error getting unread count: $e');
       return 0;
     }
   }
@@ -191,7 +192,7 @@ class ChatService {
           .eq('is_read', false);
       return response.length;
     } catch (e) {
-      print('Error getting unread admin messages count: $e');
+      debugPrint('Error getting unread admin messages count: $e');
       return 0;
     }
   }
@@ -206,7 +207,7 @@ class ChatService {
           .eq('is_read', false);
       return response.length;
     } catch (e) {
-      print('Error getting total unread count: $e');
+      debugPrint('Error getting total unread count: $e');
       return 0;
     }
   }
@@ -220,7 +221,7 @@ class ChatService {
           .eq('customer_email', customerEmail);
       return true;
     } catch (e) {
-      print('Error closing chat session: $e');
+      debugPrint('Error closing chat session: $e');
       return false;
     }
   }
@@ -234,7 +235,7 @@ class ChatService {
           .eq('customer_email', customerEmail);
       return true;
     } catch (e) {
-      print('Error archiving chat session: $e');
+      debugPrint('Error archiving chat session: $e');
       return false;
     }
   }
@@ -249,7 +250,7 @@ class ChatService {
           .order('created_at', ascending: true);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('Error getting chat history: $e');
+      debugPrint('Error getting chat history: $e');
       return [];
     }
   }
@@ -290,7 +291,7 @@ class ChatService {
           .single();
       return response['role'] == 'admin';
     } catch (e) {
-      print('Error checking admin status: $e');
+      debugPrint('Error checking admin status: $e');
       return false;
     }
   }
@@ -305,7 +306,7 @@ class ChatService {
           .maybeSingle();
       return response;
     } catch (e) {
-      print('Error getting customer info: $e');
+      debugPrint('Error getting customer info: $e');
       return null;
     }
   }
@@ -316,7 +317,7 @@ class ChatService {
       await _supabase.from('chat_messages').delete().eq('id', messageId);
       return true;
     } catch (e) {
-      print('Error deleting message: $e');
+      debugPrint('Error deleting message: $e');
       return false;
     }
   }
@@ -327,7 +328,7 @@ class ChatService {
       await _supabase.from('chat_messages').delete().eq('customer_email', customerEmail);
       return true;
     } catch (e) {
-      print('Error clearing conversation: $e');
+      debugPrint('Error clearing conversation: $e');
       return false;
     }
   }

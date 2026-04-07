@@ -15,13 +15,15 @@ class _AdminChatModalState extends State<AdminChatModal> {
   final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   Stream<List<Map<String, dynamic>>>? _conversationsStream;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
   Map<String, dynamic>? _selectedConversation;
   List<Map<String, dynamic>> _conversations = [];
+  // ignore: unused_field
   List<Map<String, dynamic>> _messages = [];
-  bool _isLoading = true;
+  // ignore: unused_field
+  bool _isLoading = false;
   bool _isSending = false;
   bool _isMinimized = false;
   bool _isClosed = false;
@@ -30,9 +32,6 @@ class _AdminChatModalState extends State<AdminChatModal> {
   Offset _position = const Offset(0, 0);
   bool _isDragging = false;
   bool _positionInitialized = false;
-
-  // Mobile-specific properties
-  bool get _isMobile => !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
 
   @override
   void initState() {
@@ -54,7 +53,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
 
     // Set up stream for conversations and listen for updates
     _conversationsStream = _chatService.getConversationsStream();
-    
+
     // Listen to stream updates in real-time
     _conversationsStream?.listen((conversations) {
       if (mounted) {
@@ -63,7 +62,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
         });
       }
     });
-    
+
     setState(() => _isLoading = false);
   }
 
@@ -74,7 +73,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
     });
 
     final customerEmail = conversation['customer_email'];
-    
+
     // Set up stream for messages in this conversation
     _messagesStream = _chatService.getMessagesStream(customerEmail);
 
@@ -85,17 +84,18 @@ class _AdminChatModalState extends State<AdminChatModal> {
   Future<void> _markMessagesAsReadInDatabase(String customerEmail) async {
     try {
       // Call the function and get the new unread count
-      final newCount = await Supabase.instance.client.rpc('mark_conversation_as_read', params: {
-        'p_customer_email': customerEmail,
-      });
-      
+      final newCount = await Supabase.instance.client.rpc(
+        'mark_conversation_as_read',
+        params: {'p_customer_email': customerEmail},
+      );
+
       // Update the local conversations list to trigger immediate UI update
       setState(() {
         if (_selectedConversation != null) {
           // Update the selected conversation's unread count
           _selectedConversation!['unread_customer_count'] = newCount;
         }
-        
+
         // Update the conversations list
         _conversations = _conversations.map((conv) {
           if (conv['customer_email'] == customerEmail) {
@@ -104,17 +104,19 @@ class _AdminChatModalState extends State<AdminChatModal> {
           return conv;
         }).toList();
       });
-      
-      print('Messages marked as read, new count: $newCount');
+
+      debugPrint('Messages marked as read, new count: $newCount');
     } catch (e) {
-      print('Error marking conversation as read in database: $e');
+      debugPrint('Error marking conversation as read in database: $e');
     }
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || 
-        _isSending || 
-        _selectedConversation == null) return;
+    if (_messageController.text.trim().isEmpty ||
+        _isSending ||
+        _selectedConversation == null) {
+      return;
+    }
 
     final customerEmail = _selectedConversation!['customer_email'];
     final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
@@ -130,6 +132,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
       _messageController.clear();
       _scrollToBottom();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error sending message: $e'),
@@ -153,15 +156,19 @@ class _AdminChatModalState extends State<AdminChatModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
-    
+    final isMobile =
+        !ResponsiveUtils.isDesktop(context) &&
+        !ResponsiveUtils.isTablet(context);
+
     // Show floating chat button on all devices
     return _buildFloatingChatButton(isMobile);
   }
 
   Widget _buildFloatingChatButton(bool isMobile) {
     final totalUnread = _conversations.fold<int>(
-      0, (sum, conv) => sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0)
+      0,
+      (sum, conv) =>
+          sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0),
     );
 
     if (isMobile) {
@@ -207,7 +214,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   ),
                 ),
               ),
-            
+
             // Floating chat button
             _buildChatButton(totalUnread),
           ],
@@ -229,12 +236,17 @@ class _AdminChatModalState extends State<AdminChatModal> {
       final modalWidth = _isMinimized ? 300.0 : 400.0;
       // Calculate modal height to fit within viewport with safe margins
       final maxModalHeight = screenSize.height - 120; // Leave 120px for margins
-      final modalHeight = _isMinimized ? 60.0 : (maxModalHeight.clamp(400.0, 550.0));
+      final modalHeight = _isMinimized
+          ? 60.0
+          : (maxModalHeight.clamp(400.0, 550.0));
 
       // Initialize position on first build
       if (!_positionInitialized) {
         // Calculate safe initial position that ensures modal fits in viewport
-        final safeInitialY = (screenSize.height - modalHeight - 80).clamp(50.0, 200.0);
+        final safeInitialY = (screenSize.height - modalHeight - 80).clamp(
+          50.0,
+          200.0,
+        );
         _position = Offset(
           screenSize.width - modalWidth - 20, // Start from right
           safeInitialY, // Start from top with safe margin
@@ -244,12 +256,15 @@ class _AdminChatModalState extends State<AdminChatModal> {
 
       // Ensure modal stays within screen bounds with safe margins
       final maxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
-      final maxY = (screenSize.height - modalHeight - 40).clamp(0.0, double.infinity);
-      
+      final maxY = (screenSize.height - modalHeight - 40).clamp(
+        0.0,
+        double.infinity,
+      );
+
       // Ensure minimum is not greater than maximum
       final minY = 50.0;
       final safeMaxY = maxY > minY ? maxY : minY;
-      
+
       final constrainedPosition = Offset(
         _position.dx.clamp(0.0, maxX),
         _position.dy.clamp(minY, safeMaxY),
@@ -276,7 +291,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   ),
                 ],
                 border: Border.all(
-                  color: _isDragging ? AppTheme.primaryColor : Colors.grey.shade300,
+                  color: _isDragging
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade300,
                   width: _isDragging ? 2 : 1,
                 ),
               ),
@@ -293,14 +310,12 @@ class _AdminChatModalState extends State<AdminChatModal> {
                         });
                       },
                       onPanUpdate: (details) {
-                        if (_position.dx != null && _position.dy != null) {
-                          setState(() {
-                            _position = Offset(
-                              (_position.dx ?? 0) + details.delta.dx,
-                              (_position.dy ?? 0) + details.delta.dy,
-                            );
-                          });
-                        }
+                        setState(() {
+                          _position = Offset(
+                            _position.dx + details.delta.dx,
+                            _position.dy + details.delta.dy,
+                          );
+                        });
                       },
                       onPanEnd: (details) {
                         setState(() {
@@ -400,7 +415,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
 
   Widget _buildHeader(bool isMobile) {
     final totalUnread = _conversations.fold<int>(
-      0, (sum, conv) => sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0)
+      0,
+      (sum, conv) =>
+          sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0),
     );
 
     final headerWidget = Container(
@@ -416,23 +433,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
       child: Row(
         children: [
           if (!isMobile && _isDragging)
-            Icon(
-              Icons.drag_indicator,
-              color: Colors.white,
-              size: 12,
-            ),
+            Icon(Icons.drag_indicator, color: Colors.white, size: 12),
           if (!isMobile && !_isDragging)
-            Icon(
-              Icons.support_agent,
-              color: Colors.white,
-              size: 14,
-            ),
+            Icon(Icons.support_agent, color: Colors.white, size: 14),
           if (isMobile)
-            Icon(
-              Icons.support_agent,
-              color: Colors.white,
-              size: 14,
-            ),
+            Icon(Icons.support_agent, color: Colors.white, size: 14),
           const SizedBox(width: 2),
           Expanded(
             child: Column(
@@ -492,11 +497,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
           if (!isMobile) const SizedBox(width: 1),
           GestureDetector(
             onTap: () => setState(() => _isClosed = true),
-            child: const Icon(
-              Icons.close,
-              color: Colors.white,
-              size: 12,
-            ),
+            child: const Icon(Icons.close, color: Colors.white, size: 12),
           ),
         ],
       ),
@@ -511,14 +512,12 @@ class _AdminChatModalState extends State<AdminChatModal> {
           });
         },
         onPanUpdate: (details) {
-          if (_position.dx != null && _position.dy != null) {
-            setState(() {
-              _position = Offset(
-                (_position.dx ?? 0) + details.delta.dx,
-                (_position.dy ?? 0) + details.delta.dy,
-              );
-            });
-          }
+          setState(() {
+            _position = Offset(
+              _position.dx + details.delta.dx,
+              _position.dy + details.delta.dy,
+            );
+          });
         },
         onPanEnd: (details) {
           setState(() {
@@ -537,7 +536,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
       stream: _conversationsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+          return Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
         }
 
         if (snapshot.hasError) {
@@ -550,7 +551,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
         }
 
         final conversations = snapshot.data ?? [];
-        
+
         // Update the conversations list for badge counting
         _conversations = conversations;
 
@@ -559,7 +560,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey.shade400),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 48,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No active conversations',
@@ -581,9 +586,12 @@ class _AdminChatModalState extends State<AdminChatModal> {
             final conversation = conversations[index];
             final customerName = conversation['customer_name'] ?? 'Customer';
             final customerEmail = conversation['customer_email'];
-            final unreadCount = (conversation['unread_customer_count'] as num?)?.toInt() ?? 0;
+            final unreadCount =
+                (conversation['unread_customer_count'] as num?)?.toInt() ?? 0;
             final lastMessageTime = conversation['last_message_at'] != null
-                ? ChatService.formatMessageTime(DateTime.parse(conversation['last_message_at']))
+                ? ChatService.formatMessageTime(
+                    DateTime.parse(conversation['last_message_at']),
+                  )
                 : '';
 
             return Card(
@@ -599,10 +607,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 ),
                 subtitle: Text(
                   customerEmail,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -704,7 +709,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
             stream: _messagesStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppTheme.primaryColor,
+                  ),
+                );
               }
 
               if (snapshot.hasError) {
@@ -717,7 +726,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
               }
 
               final messages = snapshot.data ?? [];
-              
+
               // Filter messages for this conversation (client-side filtering)
               final filteredMessages = messages.where((message) {
                 return message['customer_email'] == customerEmail;
@@ -728,7 +737,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No messages yet',
@@ -751,7 +764,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   final message = filteredMessages[index];
                   final isFromCustomer = message['is_from_customer'] ?? true;
                   final messageText = message['message'] ?? '';
-                  final timestamp = DateTime.parse(message['created_at']).toLocal();
+                  final timestamp = DateTime.parse(
+                    message['created_at'],
+                  ).toLocal();
                   final timeStr = ChatService.formatMessageTime(timestamp);
 
                   return _buildMessageBubble(
@@ -805,7 +820,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : const Icon(Icons.send, color: Colors.white),
@@ -821,7 +838,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: isFromCustomer ? MainAxisAlignment.start : MainAxisAlignment.end,
+        mainAxisAlignment: isFromCustomer
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
         children: [
           if (!isFromCustomer) const SizedBox(width: 40),
           Flexible(
@@ -831,7 +850,9 @@ class _AdminChatModalState extends State<AdminChatModal> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isFromCustomer ? Colors.grey.shade200 : AppTheme.primaryColor,
+                color: isFromCustomer
+                    ? Colors.grey.shade200
+                    : AppTheme.primaryColor,
                 borderRadius: BorderRadius.circular(20).copyWith(
                   bottomLeft: Radius.circular(isFromCustomer ? 4 : 20),
                   bottomRight: Radius.circular(isFromCustomer ? 20 : 4),
@@ -851,8 +872,8 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   Text(
                     time,
                     style: TextStyle(
-                      color: isFromCustomer 
-                          ? Colors.grey.shade600 
+                      color: isFromCustomer
+                          ? Colors.grey.shade600
                           : Colors.white.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),

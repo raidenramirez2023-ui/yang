@@ -15,7 +15,6 @@ class CustomerChatPage extends StatefulWidget {
 class _CustomerChatPageState extends State<CustomerChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  List<Map<String, dynamic>> _messages = [];
   bool _isLoading = false;
   bool _isSending = false;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
@@ -45,7 +44,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         .order('created_at', ascending: true);
 
     debugPrint('Chat stream set up for: ${currentUser.email}');
-    
+
     setState(() => _isLoading = false);
 
     // Mark messages as read when they're loaded
@@ -57,12 +56,17 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     if (currentUser == null) return;
 
     try {
-      await Supabase.instance.client.rpc('get_or_create_chat_session', params: {
-        'p_customer_email': currentUser.email!,
-        'p_customer_name': currentUser.userMetadata?['full_name'] ?? 
-                          currentUser.userMetadata?['name'] ?? 
-                          currentUser.email?.split('@')[0] ?? 'Customer'
-      });
+      await Supabase.instance.client.rpc(
+        'get_or_create_chat_session',
+        params: {
+          'p_customer_email': currentUser.email!,
+          'p_customer_name':
+              currentUser.userMetadata?['full_name'] ??
+              currentUser.userMetadata?['name'] ??
+              currentUser.email?.split('@')[0] ??
+              'Customer',
+        },
+      );
     } catch (e) {
       debugPrint('Error creating chat session: $e');
     }
@@ -94,9 +98,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     try {
       await Supabase.instance.client.from('chat_messages').insert({
         'customer_email': currentUser.email!,
-        'customer_name': currentUser.userMetadata?['full_name'] ?? 
-                        currentUser.userMetadata?['name'] ?? 
-                        currentUser.email?.split('@')[0] ?? 'Customer',
+        'customer_name':
+            currentUser.userMetadata?['full_name'] ??
+            currentUser.userMetadata?['name'] ??
+            currentUser.email?.split('@')[0] ??
+            'Customer',
         'message': _messageController.text.trim(),
         'is_from_customer': true,
         'is_read': false,
@@ -106,6 +112,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
       _scrollToBottom();
     } catch (e) {
       debugPrint('Error sending message: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to send message'),
@@ -134,7 +141,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA), // Professional business background
+      backgroundColor: const Color(
+        0xFFF5F7FA,
+      ), // Professional business background
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFFFFF),
         foregroundColor: Colors.black,
@@ -207,14 +216,21 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             stream: _messagesStream,
             builder: (context, snapshot) {
               if (snapshot.hasData) {
-                final unreadAdminMessages = snapshot.data!.where((msg) => 
-                  msg['is_from_customer'] == false && msg['is_read'] == false
-                ).length;
-                
+                final unreadAdminMessages = snapshot.data!
+                    .where(
+                      (msg) =>
+                          msg['is_from_customer'] == false &&
+                          msg['is_read'] == false,
+                    )
+                    .length;
+
                 if (unreadAdminMessages > 0) {
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE74C3C), // Professional red
                       borderRadius: BorderRadius.circular(10),
@@ -257,29 +273,39 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFFF5F7FA),
-                    const Color(0xFFECF0F1),
-                  ],
+                  colors: [const Color(0xFFF5F7FA), const Color(0xFFECF0F1)],
                 ),
               ),
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF2C3E50)))
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF2C3E50),
+                      ),
+                    )
                   : StreamBuilder<List<Map<String, dynamic>>>(
                       stream: _messagesStream,
                       builder: (context, snapshot) {
-                        debugPrint('StreamBuilder state: ${snapshot.connectionState}');
+                        debugPrint(
+                          'StreamBuilder state: ${snapshot.connectionState}',
+                        );
                         debugPrint('Has error: ${snapshot.hasError}');
                         debugPrint('Has data: ${snapshot.hasData}');
                         if (snapshot.hasData) {
-                          debugPrint('Messages count: ${snapshot.data?.length}');
+                          debugPrint(
+                            'Messages count: ${snapshot.data?.length}',
+                          );
                         }
                         if (snapshot.hasError) {
                           debugPrint('Stream error: ${snapshot.error}');
                         }
 
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(color: Color(0xFF2C3E50)));
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF2C3E50),
+                            ),
+                          );
                         }
 
                         if (snapshot.hasError) {
@@ -287,7 +313,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Colors.grey.shade400,
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Error loading messages',
@@ -305,7 +335,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                 const SizedBox(height: 8),
                                 Text(
                                   'Error: ${snapshot.error}',
-                                  style: TextStyle(color: const Color(0xFFE74C3C), fontSize: 12),
+                                  style: TextStyle(
+                                    color: const Color(0xFFE74C3C),
+                                    fontSize: 12,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -329,7 +362,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
 
                         return ListView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 16,
+                          ),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
                             final message = messages[index];
@@ -435,7 +471,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: isFromCustomer ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isFromCustomer
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           if (!isFromCustomer) ...[
             // Support agent avatar
@@ -463,23 +501,32 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment: isFromCustomer ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isFromCustomer
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Container(
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
                     minWidth: 60,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: isFromCustomer 
+                    color: isFromCustomer
                         ? const Color(0xFF2C3E50) // Professional dark blue
                         : const Color(0xFFFFFFFF), // White for support messages
                     borderRadius: BorderRadius.circular(18).copyWith(
-                      bottomLeft: isFromCustomer ? const Radius.circular(18) : const Radius.circular(4),
-                      bottomRight: isFromCustomer ? const Radius.circular(4) : const Radius.circular(18),
+                      bottomLeft: isFromCustomer
+                          ? const Radius.circular(18)
+                          : const Radius.circular(4),
+                      bottomRight: isFromCustomer
+                          ? const Radius.circular(4)
+                          : const Radius.circular(18),
                     ),
-                    border: !isFromCustomer 
+                    border: !isFromCustomer
                         ? Border.all(color: const Color(0xFFECF0F1), width: 1)
                         : null,
                     boxShadow: [
@@ -493,9 +540,13 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   child: Text(
                     messageText,
                     style: TextStyle(
-                      color: isFromCustomer ? Colors.white : const Color(0xFF2C3E50),
+                      color: isFromCustomer
+                          ? Colors.white
+                          : const Color(0xFF2C3E50),
                       fontSize: 15,
-                      fontWeight: isFromCustomer ? FontWeight.w500 : FontWeight.w400,
+                      fontWeight: isFromCustomer
+                          ? FontWeight.w500
+                          : FontWeight.w400,
                     ),
                   ),
                 ),
@@ -534,11 +585,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 18,
-              ),
+              child: const Icon(Icons.person, color: Colors.white, size: 18),
             ),
           ],
         ],
@@ -551,9 +598,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: const BoxDecoration(
         color: Color(0xFFFFFFFF),
-        border: Border(
-          top: BorderSide(color: Color(0xFFECF0F1), width: 1),
-        ),
+        border: Border(top: BorderSide(color: Color(0xFFECF0F1), width: 1)),
         boxShadow: [
           BoxShadow(
             color: Color(0xFF000000),
@@ -584,7 +629,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               ),
             ),
           ),
-          
+
           // Message input field
           Expanded(
             child: Container(
@@ -601,11 +646,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 decoration: const InputDecoration(
                   hintText: 'Type your message...',
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  hintStyle: TextStyle(
-                    color: Color(0xFF95A5A6),
-                    fontSize: 15,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
+                  hintStyle: TextStyle(color: Color(0xFF95A5A6), fontSize: 15),
                 ),
                 maxLines: 5,
                 minLines: 1,
@@ -614,9 +659,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               ),
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // Send button
           Container(
             decoration: BoxDecoration(
@@ -648,11 +693,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                         ),
                       ),
                     )
-                  : const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                  : const Icon(Icons.send, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -708,7 +749,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 ],
               ),
               const SizedBox(height: 20),
-              
+
               // Title
               const Text(
                 'Chat Support',
@@ -719,24 +760,23 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              
+
               // Subtitle
               Text(
                 'How can we help you today?',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 24),
-              
+
               // Help categories
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -768,14 +808,19 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Response time indicator
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -798,7 +843,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              
+
               // Action button
               SizedBox(
                 width: double.infinity,
@@ -815,10 +860,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   ),
                   child: const Text(
                     'Got it',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -842,11 +884,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             color: AppTheme.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: AppTheme.primaryColor,
-            size: 20,
-          ),
+          child: Icon(icon, color: AppTheme.primaryColor, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -864,10 +902,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               const SizedBox(height: 2),
               Text(
                 description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
             ],
           ),
