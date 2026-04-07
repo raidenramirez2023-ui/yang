@@ -640,6 +640,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               ),
               child: TextField(
                 controller: _messageController,
+                onChanged: (text) {
+                  setState(() {});
+                },
                 decoration: const InputDecoration(
                   hintText: 'Type your message...',
                   border: InputBorder.none,
@@ -662,11 +665,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           // Send button
           Container(
             decoration: BoxDecoration(
-              color: _isSending || _messageController.text.trim().isEmpty
+              color: _isSending
                   ? const Color(0xFFECF0F1)
                   : const Color(0xFF2C3E50),
               shape: BoxShape.circle,
-              boxShadow: _isSending || _messageController.text.trim().isEmpty
+              boxShadow: _isSending
                   ? null
                   : [
                       BoxShadow(
@@ -677,9 +680,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     ],
             ),
             child: IconButton(
-              onPressed: _isSending || _messageController.text.trim().isEmpty
-                  ? null
-                  : _sendMessage,
+              mouseCursor: SystemMouseCursors.click,
+              onPressed: _isSending ? null : _sendMessage,
               icon: _isSending
                   ? SizedBox(
                       width: 20,
