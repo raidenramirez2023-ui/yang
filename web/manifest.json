@@ -1,11 +1,11 @@
 {
-    "name": "yang_chow",
-    "short_name": "yang_chow",
-    "start_url": ".",
+    "name": "Yang Chow Restaurant",
+    "short_name": "Yang Chow",
+    "start_url": "/",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Yang Chow Restaurant - Order food online at yc-pagsanjan.site",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

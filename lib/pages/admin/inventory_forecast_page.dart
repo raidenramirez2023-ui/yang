@@ -83,7 +83,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         final itemName = transaction['item_name'] as String;
         uniqueItems.add(itemName);
       }
-      
+
       setState(() {
         itemNames = ['All', ...uniqueItems.toList()..sort()];
       });
@@ -124,15 +124,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     for (var transaction in transactions) {
       final itemName = transaction['item_name'] as String;
       final inventoryItem = inventoryMap[itemName];
-      
+
       // Only include if item exists in inventory
       if (inventoryItem == null) {
         continue;
       }
-      
+
       final currentStock = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
       final unit = transaction['unit'] as String? ?? 'pcs';
-      final requestQuantity = (transaction['quantity_needed'] as num?)?.toInt() ?? 0;
+      final requestQuantity =
+          (transaction['quantity_needed'] as num?)?.toInt() ?? 0;
       final priority = transaction['priority'] as String? ?? 'Medium';
 
       forecast.add({
@@ -193,7 +194,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
   List<FlSpot> _getChartData(List<Map<String, dynamic>> forecast) {
     if (forecast.isEmpty) return [];
-    
+
     // Group requests by day of week and sum quantities
     final Map<int, double> dailyTotals = {
       1: 0.0, // Monday
@@ -204,7 +205,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       6: 0.0, // Saturday
       7: 0.0, // Sunday
     };
-    
+
     for (var item in forecast) {
       final date = DateTime.parse(item['createdAt'] as String);
       final dayOfWeek = date.weekday; // 1 = Monday, 7 = Sunday
@@ -220,12 +221,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     });
   }
 
-  List<BarChartGroupData> _getTopItemsData(List<Map<String, dynamic>> forecast) {
+  List<BarChartGroupData> _getTopItemsData(
+    List<Map<String, dynamic>> forecast,
+  ) {
     if (forecast.isEmpty) return [];
-    
+
     // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
-    
+
     for (var item in forecast) {
       final itemName = item['name'] as String;
       final quantity = (item['requestQuantity'] as num).toDouble();
@@ -235,9 +238,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     // Sort by quantity (descending) and take top 10
     final sortedItems = itemTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     final topItems = sortedItems.take(10).toList();
-    
+
     // Convert to BarChartGroupData
     return List.generate(topItems.length, (index) {
       final item = topItems[index];
@@ -275,17 +278,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         child: const Center(
           child: Text(
             'No data available for chart',
-            style: TextStyle(
-              color: AppTheme.mediumGrey,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
           ),
         ),
       );
     }
 
     final barGroups = _getTopItemsData(forecast);
-    
+
     // Get item names for labels
     final Map<String, double> itemTotals = {};
     for (var item in forecast) {
@@ -317,7 +317,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         children: [
           Row(
             children: [
-              const Icon(Icons.bar_chart, color: AppTheme.primaryColor, size: 24),
+              const Icon(
+                Icons.bar_chart,
+                color: AppTheme.primaryColor,
+                size: 24,
+              ),
               const SizedBox(width: 12),
               const Text(
                 'Top Requested Items',
@@ -332,10 +336,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           const SizedBox(height: 8),
           const Text(
             'Most Requested Ingredients in Kitchen',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.mediumGrey,
-            ),
+            style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -343,8 +344,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: barGroups.isNotEmpty 
-                    ? barGroups.map((g) => g.barRods.first.toY).reduce((a, b) => a > b ? a : b) * 1.2
+                maxY: barGroups.isNotEmpty
+                    ? barGroups
+                              .map((g) => g.barRods.first.toY)
+                              .reduce((a, b) => a > b ? a : b) *
+                          1.2
                     : 100,
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
@@ -387,8 +391,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         final index = value.toInt();
                         if (index >= 0 && index < topItems.length) {
                           final itemName = topItems[index].key;
-                          final displayName = itemName.length > 8 
-                              ? '${itemName.substring(0, 8)}...' 
+                          final displayName = itemName.length > 8
+                              ? '${itemName.substring(0, 8)}...'
                               : itemName;
                           return Text(
                             displayName,
@@ -404,12 +408,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       },
                     ),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(
                   show: true,
-                  border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                  ),
                 ),
                 barGroups: barGroups,
                 gridData: const FlGridData(show: false),
@@ -441,10 +451,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         child: const Center(
           child: Text(
             'No data available for chart',
-            style: TextStyle(
-              color: AppTheme.mediumGrey,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
           ),
         ),
       );
@@ -472,7 +479,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         children: [
           Row(
             children: [
-              const Icon(Icons.show_chart, color: AppTheme.primaryColor, size: 24),
+              const Icon(
+                Icons.show_chart,
+                color: AppTheme.primaryColor,
+                size: 24,
+              ),
               const SizedBox(width: 12),
               const Text(
                 'Quantity Request by Day of Week',
@@ -487,10 +498,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           const SizedBox(height: 8),
           const Text(
             'Kitchen Requests',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.mediumGrey,
-            ),
+            style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -539,7 +547,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         final dayIndex = value.toInt();
-                        final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        final dayNames = [
+                          'Mon',
+                          'Tue',
+                          'Wed',
+                          'Thu',
+                          'Fri',
+                          'Sat',
+                          'Sun',
+                        ];
                         if (dayIndex >= 0 && dayIndex < dayNames.length) {
                           return Text(
                             dayNames[dayIndex],
@@ -554,12 +570,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       },
                     ),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 borderData: FlBorderData(
                   show: true,
-                  border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                  ),
                 ),
                 lineBarsData: [
                   LineChartBarData(
@@ -584,8 +606,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -690,14 +710,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
                   final forecast = snapshot.data ?? [];
                   var filteredForecast = forecast;
-                  
+
                   // Apply category filter first
                   if (_selectedCategory != 'All') {
                     filteredForecast = filteredForecast
                         .where((item) => item['category'] == _selectedCategory)
                         .toList();
                   }
-                  
+
                   // Apply item name filter second
                   if (_selectedItemName != 'All') {
                     filteredForecast = filteredForecast
@@ -744,9 +764,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         children: [
                           // Bar Chart Card
                           _buildBarChartCard(filteredForecast),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Line Chart Card
                           _buildLineChartCard(filteredForecast),
                         ],
@@ -818,11 +838,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
                   checkmarkColor: AppTheme.primaryColor,
                   labelStyle: TextStyle(
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.darkGrey,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : AppTheme.darkGrey,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   side: BorderSide(
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.lightGrey,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : AppTheme.lightGrey,
                   ),
                 ),
               );
@@ -850,7 +874,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           initialValue: _selectedCategory,
           decoration: InputDecoration(
             labelText: 'Select Category',
-            prefixIcon: const Icon(Icons.category, color: AppTheme.primaryColor),
+            prefixIcon: const Icon(
+              Icons.category,
+              color: AppTheme.primaryColor,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.lightGrey),
@@ -890,7 +917,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           initialValue: _selectedItemName,
           decoration: InputDecoration(
             labelText: 'Select Item',
-            prefixIcon: const Icon(Icons.inventory, color: AppTheme.primaryColor),
+            prefixIcon: const Icon(
+              Icons.inventory,
+              color: AppTheme.primaryColor,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AppTheme.lightGrey),
@@ -918,10 +948,7 @@ class _ForecastCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final int periodDays;
 
-  const _ForecastCard({
-    required this.item,
-    required this.periodDays,
-  });
+  const _ForecastCard({required this.item, required this.periodDays});
 
   @override
   Widget build(BuildContext context) {
