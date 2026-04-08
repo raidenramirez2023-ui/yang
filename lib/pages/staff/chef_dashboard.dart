@@ -45,15 +45,14 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .listen((rows) {
-      if (!mounted) return;
+          if (!mounted) return;
 
-      // Count orders whose kitchen status is Pending (not yet tracked = Pending)
-      _refreshPendingCount(rows);
-    });
+          // Count orders whose kitchen status is Pending (not yet tracked = Pending)
+          _refreshPendingCount(rows);
+        });
   }
 
-  Future<void> _refreshPendingCount(
-      List<Map<String, dynamic>> orders) async {
+  Future<void> _refreshPendingCount(List<Map<String, dynamic>> orders) async {
     try {
       int pending = 0;
       for (final o in orders) {
@@ -71,17 +70,23 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.notifications_active,
-                    color: Colors.white, size: 20),
+                const Icon(
+                  Icons.notifications_active,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
-                Text('$pending new order${pending == 1 ? '' : 's'} in the kitchen!'),
+                Text(
+                  '$pending new order${pending == 1 ? '' : 's'} in the kitchen!',
+                ),
               ],
             ),
             backgroundColor: AppTheme.primaryColor,
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       } else {
@@ -89,7 +94,6 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       }
     } catch (_) {}
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -151,39 +155,44 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           const SizedBox(width: 14),
           Expanded(
             child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'KITCHEN',
-                style: TextStyle(
-                  color: Color(0xFF1E293B),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'KITCHEN',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-              Text(
-                'Yang Chow System',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+                Text(
+                  'Yang Chow System',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
           const SizedBox(width: 8),
           // clock
           StreamBuilder<DateTime>(
             stream: Stream.periodic(
-                const Duration(seconds: 1), (_) => DateTime.now()),
+              const Duration(seconds: 1),
+              (_) => DateTime.now(),
+            ),
             builder: (context, snap) {
               final now = snap.data ?? DateTime.now();
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(12),
@@ -226,7 +235,11 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 color: Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.logout, color: Color(0xFF64748B), size: 20),
+              child: const Icon(
+                Icons.logout,
+                color: Color(0xFF64748B),
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -258,9 +271,11 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                _pageController.animateToPage(i,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut);
+                _pageController.animateToPage(
+                  i,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
                 setState(() => _currentTab = i);
               },
               child: Container(
@@ -271,9 +286,13 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Icon(icon,
-                            color: selected ? AppTheme.primaryColor : const Color(0xFF64748B),
-                            size: 24),
+                        Icon(
+                          icon,
+                          color: selected
+                              ? AppTheme.primaryColor
+                              : const Color(0xFF64748B),
+                          size: 24,
+                        ),
                         if (hasBadge)
                           Positioned(
                             top: -2,
@@ -281,14 +300,16 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
-                                  color: AppTheme.primaryColor,
-                                  shape: BoxShape.circle),
+                                color: AppTheme.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
                               child: Text(
                                 '$_pendingOrderCount',
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold),
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -298,9 +319,13 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                     Text(
                       label,
                       style: TextStyle(
-                        color: selected ? AppTheme.primaryColor : const Color(0xFF64748B),
+                        color: selected
+                            ? AppTheme.primaryColor
+                            : const Color(0xFF64748B),
                         fontSize: 11,
-                        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -321,25 +346,31 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Logout', style: TextStyle(color: Color(0xFF1E293B))),
-        content: const Text('Are you sure you want to logout?',
-            style: TextStyle(color: Color(0xFF64748B))),
+        content: const Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(color: Color(0xFF64748B)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () async {
               Navigator.pop(ctx);
               await Supabase.instance.client.auth.signOut();
-              if (mounted) Navigator.pushReplacementNamed(context, '/staff-login');
+              if (mounted)
+                Navigator.pushReplacementNamed(context, '/staff-login');
             },
             child: const Text('Logout'),
           ),
@@ -403,7 +434,8 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor));
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
         }
         final rawOrders = snap.data ?? [];
 
@@ -432,8 +464,9 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
         final grouped = <String, List<Map<String, dynamic>>>{};
         for (final s in ['Pending', 'Preparing']) {
           grouped[s] = orders
-              .where((o) =>
-                  (_kitchenStatus[o['id'].toString()] ?? 'Pending') == s)
+              .where(
+                (o) => (_kitchenStatus[o['id'].toString()] ?? 'Pending') == s,
+              )
               .toList();
         }
 
@@ -445,7 +478,11 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
               return GridView.builder(
                 padding: const EdgeInsets.all(8),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: constraints.maxWidth > 1000 ? 5 : (constraints.maxWidth > 750 ? 4 : (constraints.maxWidth > 500 ? 3 : 2)),
+                  crossAxisCount: constraints.maxWidth > 1000
+                      ? 5
+                      : (constraints.maxWidth > 750
+                            ? 4
+                            : (constraints.maxWidth > 500 ? 3 : 2)),
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
                   childAspectRatio: constraints.maxWidth > 750 ? 0.75 : 0.85,
@@ -471,16 +508,17 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
                 for (final status in ['Pending', 'Preparing']) ...[
                   if ((grouped[status] ?? []).isNotEmpty) ...[
                     _buildStatusHeader(status),
-                    ...grouped[status]!
-                        .map((o) => _KitchenOrderCard(
-                              order: o,
-                              kitchenStatus:
-                                  _kitchenStatus[o['id'].toString()] ?? 'Pending',
-                              onStatusChanged: (ns) =>
-                                  _updateStatus(o['id'].toString(), ns),
-                              statusOrder: _statusOrder,
-                              statusColors: _statusColors,
-                            )),
+                    ...grouped[status]!.map(
+                      (o) => _KitchenOrderCard(
+                        order: o,
+                        kitchenStatus:
+                            _kitchenStatus[o['id'].toString()] ?? 'Pending',
+                        onStatusChanged: (ns) =>
+                            _updateStatus(o['id'].toString(), ns),
+                        statusOrder: _statusOrder,
+                        statusColors: _statusColors,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ],
@@ -499,10 +537,10 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
       child: Row(
         children: [
           Container(
-              width: 10,
-              height: 10,
-              decoration:
-                  BoxDecoration(color: color, shape: BoxShape.circle)),
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 8),
           Text(
             status.toUpperCase(),
@@ -565,7 +603,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           .from('order_items')
           .select('item_name, quantity, unit_price')
           .eq('order_id', widget.order['id'].toString());
-      if (mounted) setState(() => _items = List<Map<String, dynamic>>.from(rows));
+      if (mounted)
+        setState(() => _items = List<Map<String, dynamic>>.from(rows));
     } catch (_) {}
   }
 
@@ -585,8 +624,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
         : null;
     final elapsedStr = elapsed != null
         ? elapsed.inMinutes < 1
-            ? 'Just now'
-            : '${elapsed.inMinutes} min ago'
+              ? 'Just now'
+              : '${elapsed.inMinutes} min ago'
         : '';
 
     final currentIdx = widget.statusOrder.indexOf(status);
@@ -594,7 +633,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
         ? widget.statusOrder[currentIdx + 1]
         : null;
 
-    final isUrgent = elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
+    final isUrgent =
+        elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -621,15 +661,18 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.06),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: [
                 // Order badge
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(20),
@@ -648,23 +691,34 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(customer,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Color(0xFF1E293B),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14)),
+                      Text(
+                        customer,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF1E293B),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
                       Row(
                         children: [
-                          Text(timeStr,
-                              style: const TextStyle(
-                                  color: Color(0xFF64748B), fontSize: 12)),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
                           if (_items.isNotEmpty) ...[
                             const SizedBox(width: 4),
-                            const Text('•',
-                                style: TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11)),
+                            const Text(
+                              '•',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -672,15 +726,24 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ],
-                          if (widget.order['table_number']?.toString().isNotEmpty == true) ...[
+                          if (widget.order['table_number']
+                                  ?.toString()
+                                  .isNotEmpty ==
+                              true) ...[
                             const SizedBox(width: 4),
-                            const Text('•',
-                                style: TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11)),
+                            const Text(
+                              '•',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -688,15 +751,21 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ],
                           if (widget.order['number_of_guests'] != null) ...[
                             const SizedBox(width: 4),
-                            const Text('•',
-                                style: TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11)),
+                            const Text(
+                              '•',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -704,7 +773,9 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 11),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                ),
                               ),
                             ),
                           ],
@@ -717,13 +788,18 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                   Container(
                     margin: const EdgeInsets.only(left: 4),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 3),
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.red.shade700.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.warning_amber_rounded,
-                        color: Colors.white, size: 12),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
                   ),
                 const SizedBox(width: 4),
                 Flexible(
@@ -740,25 +816,33 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 ? Colors.red.shade400
                                 : const Color(0xFF64748B),
                             fontSize: 10,
-                            fontWeight: isUrgent ? FontWeight.w700 : FontWeight.w400,
+                            fontWeight: isUrgent
+                                ? FontWeight.w700
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
                       Container(
                         margin: const EdgeInsets.only(top: 4),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
-                          border:
-                              Border.all(color: color.withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: color.withValues(alpha: 0.5),
+                          ),
                         ),
-                        child: Text(status,
-                            style: TextStyle(
-                                color: color,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700)),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -775,45 +859,50 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (_items.isEmpty)
-                    const Text('Loading items…',
-                        style:
-                            TextStyle(color: Color(0xFF64748B), fontSize: 12))
+                    const Text(
+                      'Loading items…',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    )
                   else
-                    ..._items.map((item) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 22,
-                                height: 22,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '×${item['quantity']}',
-                                  style: TextStyle(
-                                      color: color,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 10),
+                    ..._items.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '×${item['quantity']}',
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 10,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  item['item_name']?.toString() ?? '—',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Color(0xFF1E293B),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item['item_name']?.toString() ?? '—',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ],
-                          ),
-                        )),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                   // note field
                   if ((widget.order['note']?.toString() ?? '').isNotEmpty) ...[
@@ -824,12 +913,16 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                         color: Colors.amber.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: Colors.amber.withValues(alpha: 0.3)),
+                          color: Colors.amber.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.note_alt_outlined,
-                              color: Colors.amber, size: 14),
+                          const Icon(
+                            Icons.note_alt_outlined,
+                            color: Colors.amber,
+                            size: 14,
+                          ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -837,7 +930,9 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                  color: Colors.amber, fontSize: 11),
+                                color: Colors.amber,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ],
@@ -859,24 +954,28 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     child: SizedBox(
                       height: 40,
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            widget.onStatusChanged(nextStatus),
+                        onPressed: () => widget.onStatusChanged(nextStatus),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: nextStatus == 'Done'
                               ? AppTheme.successGreen
                               : widget.statusColors[nextStatus] ??
-                                  AppTheme.primaryColor,
+                                    AppTheme.primaryColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 12),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
                         ),
                         icon: Icon(_nextStatusIcon(nextStatus), size: 16),
-                        label: Text(nextStatus == 'Done'
-                            ? '✓ READY'
-                            : nextStatus.toUpperCase()),
+                        label: Text(
+                          nextStatus == 'Done'
+                              ? '✓ READY'
+                              : nextStatus.toUpperCase(),
+                        ),
                       ),
                     ),
                   ),
@@ -887,13 +986,15 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     width: 44,
                     child: OutlinedButton(
                       onPressed: () => widget.onStatusChanged(
-                          widget.statusOrder[currentIdx - 1]),
+                        widget.statusOrder[currentIdx - 1],
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF94A3B8),
                         side: const BorderSide(color: Color(0xFFF1F5F9)),
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       child: const Icon(Icons.undo_rounded, size: 16),
                     ),
@@ -934,12 +1035,16 @@ class _FinishedOrdersTab extends StatelessWidget {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor));
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
         }
         final orders = snap.data ?? [];
         if (orders.isEmpty) {
           return _buildEmptyState(
-              Icons.hourglass_empty, 'No finished orders yet', '');
+            Icons.hourglass_empty,
+            'No finished orders yet',
+            '',
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -987,7 +1092,8 @@ class _FinishedOrderCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: AppTheme.successGreen.withValues(alpha: 0.15)),
+          color: AppTheme.successGreen.withValues(alpha: 0.15),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -1002,14 +1108,17 @@ class _FinishedOrderCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: AppTheme.successGreen.withValues(alpha: 0.06),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.successGreen,
                     borderRadius: BorderRadius.circular(20),
@@ -1028,37 +1137,61 @@ class _FinishedOrderCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(customer,
-                          style: const TextStyle(
-                              color: Color(0xFF1E293B),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
-                      Text(timeStr,
-                          style: const TextStyle(
-                              color: Color(0xFF64748B), fontSize: 11)),
-                      if (order['table_number']?.toString().isNotEmpty == true || order['number_of_guests'] != null) ...[
+                      Text(
+                        customer,
+                        style: const TextStyle(
+                          color: Color(0xFF1E293B),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        timeStr,
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                        ),
+                      ),
+                      if (order['table_number']?.toString().isNotEmpty ==
+                              true ||
+                          order['number_of_guests'] != null) ...[
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            if (order['table_number']?.toString().isNotEmpty == true) ...[
-                              const Icon(Icons.table_restaurant, size: 12, color: Color(0xFF64748B)),
+                            if (order['table_number']?.toString().isNotEmpty ==
+                                true) ...[
+                              const Icon(
+                                Icons.table_restaurant,
+                                size: 12,
+                                color: Color(0xFF64748B),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'Table ${order['table_number']}',
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 10),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
-                            if (order['table_number']?.toString().isNotEmpty == true && order['number_of_guests'] != null) ...[
+                            if (order['table_number']?.toString().isNotEmpty ==
+                                    true &&
+                                order['number_of_guests'] != null) ...[
                               const SizedBox(width: 8),
                             ],
                             if (order['number_of_guests'] != null) ...[
-                              const Icon(Icons.people, size: 12, color: Color(0xFF64748B)),
+                              const Icon(
+                                Icons.people,
+                                size: 12,
+                                color: Color(0xFF64748B),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${order['number_of_guests']} ${order['number_of_guests'] == 1 ? 'guest' : 'guests'}',
                                 style: const TextStyle(
-                                    color: Color(0xFF64748B), fontSize: 10),
+                                  color: Color(0xFF64748B),
+                                  fontSize: 10,
+                                ),
                               ),
                             ],
                           ],
@@ -1073,17 +1206,21 @@ class _FinishedOrderCard extends StatelessWidget {
                     Text(
                       '₱${NumberFormat('#,##0.00').format(total)}',
                       style: const TextStyle(
-                          color: AppTheme.successGreen,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13),
+                        color: AppTheme.successGreen,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 2),
-                    Text('SERVED',
-                        style: TextStyle(
-                            color: AppTheme.successGreen.withValues(alpha: 0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5)),
+                    Text(
+                      'SERVED',
+                      style: TextStyle(
+                        color: AppTheme.successGreen.withValues(alpha: 0.7),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1112,15 +1249,13 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   final _noteCtrl = TextEditingController();
   final _unitCtrl = TextEditingController();
   String _selectedUnit = '';
-  String _selectedPriority = 'Normal';
+  String _selectedPriority = 'Low';
   bool _submitting = false;
 
-  static const _priorities = ['Low', 'Normal', 'High', 'Urgent'];
+  static const _priorities = ['Low', 'Urgent'];
 
   static const _priorityColors = {
     'Low': Color(0xFFFFA726),
-    'Normal': Color(0xFF2196F3),
-    'High': Color(0xFF4CAF50),
     'Urgent': Color(0xFFE53935),
   };
 
@@ -1133,6 +1268,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   List<String> _availableItems = [];
   Map<String, String> _itemUnits = {}; // Map to store item -> unit mapping
   Map<String, int> _itemStocks = {}; // Map to store item -> available quantity
+  Map<String, int> _kitchenStocks = {}; // Map to store item -> current kitchen quantity
   List<String> _suggestions = []; // Auto-complete suggestions
   bool _showSuggestions = false;
 
@@ -1152,7 +1288,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
   void _onItemChanged() {
     final itemName = _itemCtrl.text.trim();
-    
+
     // Auto-update unit if exact match found
     if (_itemUnits.containsKey(itemName)) {
       setState(() {
@@ -1162,7 +1298,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     } else {
       _resetUnit();
     }
-    
+
     // Update suggestions for auto-complete
     if (itemName.isEmpty) {
       setState(() {
@@ -1174,7 +1310,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           .where((item) => item.toLowerCase().contains(itemName.toLowerCase()))
           .take(5) // Limit to 5 suggestions
           .toList();
-      
+
       setState(() {
         _suggestions = matches;
         _showSuggestions = matches.isNotEmpty && !matches.contains(itemName);
@@ -1194,21 +1330,33 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
   Future<void> _loadAvailableItems() async {
     try {
+      // 1. Fetch main inventory
       final items = await Supabase.instance.client
           .from('inventory')
           .select('name, unit, quantity')
           .order('name');
-      
+
+      // 2. Fetch kitchen inventory to know what items are low/out in kitchen
+      final kitchenItems = await Supabase.instance.client
+          .from('kitchen_inventory')
+          .select('name, quantity');
+
       if (mounted) {
         setState(() {
           _availableItems = items.map((i) => i['name'].toString()).toList();
           _itemUnits = {
             for (var item in items)
-              item['name'].toString(): item['unit']?.toString() ?? 'pcs'
+              item['name'].toString(): item['unit']?.toString() ?? 'pcs',
           };
           _itemStocks = {
             for (var item in items)
-              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0
+              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0,
+          };
+          
+          // Map kitchen stocks
+          _kitchenStocks = {
+            for (var item in kitchenItems)
+              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0,
           };
         });
       }
@@ -1244,7 +1392,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     if (!_availableItems.contains(itemName)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('"$itemName" is not available in inventory. Please select from available items.'),
+          content: Text(
+            '"$itemName" is not available in inventory. Please select from available items.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1266,7 +1416,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     if (qty > availableStock) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Cannot request $qty $itemName. Only $availableStock ${_itemUnits[itemName] ?? 'pcs'} available in inventory.'),
+          content: Text(
+            'Cannot request $qty $itemName. Only $availableStock ${_itemUnits[itemName] ?? 'pcs'} available in inventory.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1275,8 +1427,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
     setState(() => _submitting = true);
     try {
-      final chef =
-          Supabase.instance.client.auth.currentUser?.email ?? 'chef';
+      final chef = Supabase.instance.client.auth.currentUser?.email ?? 'chef';
       await Supabase.instance.client.from('kitchen_requests').insert({
         'item_name': itemName,
         'quantity_needed': qty,
@@ -1297,18 +1448,27 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           _selectedPriority = 'Normal';
           _submitting = false;
         });
-        
+
         // Show success dialog with redirect option
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             backgroundColor: Colors.white,
             title: const Row(
               children: [
-                Icon(Icons.check_circle, color: AppTheme.successGreen, size: 24),
+                Icon(
+                  Icons.check_circle,
+                  color: AppTheme.successGreen,
+                  size: 24,
+                ),
                 SizedBox(width: 12),
-                Text('Request Submitted!', style: TextStyle(color: AppTheme.darkGrey)),
+                Text(
+                  'Request Submitted!',
+                  style: TextStyle(color: AppTheme.darkGrey),
+                ),
               ],
             ),
             content: const Text(
@@ -1318,7 +1478,10 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close', style: TextStyle(color: AppTheme.mediumGrey)),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(color: AppTheme.mediumGrey),
+                ),
               ),
             ],
           ),
@@ -1328,10 +1491,108 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
       if (mounted) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _requestAllItems() => _runBulkRequest(
+        title: 'All available items',
+        filter: (name, mainQty, kitchenQty) => mainQty > 0,
+        note: 'Bulk request (Restock all)',
+      );
+
+  Future<void> _requestAllOutOfStock() => _runBulkRequest(
+        title: 'Only out-of-stock items',
+        filter: (name, mainQty, kitchenQty) => mainQty > 0 && kitchenQty <= 0,
+        note: 'Bulk request (Kitchen is OUT)',
+      );
+
+  Future<void> _requestAllLowStock() => _runBulkRequest(
+        title: 'Only low-stock items',
+        filter: (name, mainQty, kitchenQty) =>
+            mainQty > 0 && kitchenQty >= 1 && kitchenQty <= 10,
+        note: 'Bulk request (Kitchen is LOW)',
+      );
+
+  Future<void> _runBulkRequest({
+    required String title,
+    required bool Function(String name, int mainQty, int kitchenQty) filter,
+    required String note,
+  }) async {
+    setState(() => _submitting = true);
+    
+    try {
+      // 0. Refresh data first to ensure we use the latest stock levels
+      await _loadAvailableItems();
+      
+      if (_availableItems.isEmpty) {
+        setState(() => _submitting = false);
+        return;
+      }
+      // 1. Get existing pending requests to avoid duplicates
+      final pendingRequests = await Supabase.instance.client
+          .from('kitchen_requests')
+          .select('item_name')
+          .eq('status', 'Pending');
+
+      final pendingNames =
+          (pendingRequests as List).map((r) => r['item_name'].toString()).toSet();
+
+      // 2. Identify items to request based on condition
+      final itemsToRequest = _availableItems.where((name) {
+        final mainStock = _itemStocks[name] ?? 0;
+        final kitchenStock = _kitchenStocks[name] ?? 0;
+        return filter(name, mainStock, kitchenStock) &&
+            !pendingNames.contains(name);
+      }).toList();
+
+      if (itemsToRequest.isEmpty) {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No items for "$title" need to be requested.'),
+              backgroundColor: AppTheme.infoBlue,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 3. Create requests for each item (full available stock)
+      final chef = Supabase.instance.client.auth.currentUser?.email ?? 'chef';
+      final requests = itemsToRequest.map((name) {
+        final stock = _itemStocks[name] ?? 0;
+        return {
+          'item_name': name,
+          'quantity_needed': stock,
+          'unit': _itemUnits[name] ?? 'pcs',
+          'priority': 'Normal',
+          'note': note,
+          'requested_by': chef,
+          'status': 'Pending',
+          'created_at': DateTime.now().toIso8601String(),
+        };
+      }).toList();
+
+      await Supabase.instance.client.from('kitchen_requests').insert(requests);
+
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Successfully requested ${requests.length} items!'),
+            backgroundColor: AppTheme.successGreen,
           ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -1362,18 +1623,48 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.add_shopping_cart,
-                        color: AppTheme.primaryColor, size: 22),
-                    SizedBox(width: 10),
-                    Text(
-                      'Request Ingredients',
-                      style: TextStyle(
-                        color: Color(0xFF1E293B),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.add_shopping_cart,
+                          color: AppTheme.primaryColor,
+                          size: 22,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Request Ingredients',
+                          style: TextStyle(
+                            color: Color(0xFF1E293B),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _bulkBtn(
+                          onPressed: _requestAllItems,
+                          label: 'Request ALL',
+                          icon: Icons.auto_awesome,
+                        ),
+                        _bulkBtn(
+                          onPressed: _requestAllOutOfStock,
+                          label: 'OUT of Stock',
+                          icon: Icons.remove_circle_outline,
+                          color: AppTheme.errorRed,
+                        ),
+                        _bulkBtn(
+                          onPressed: _requestAllLowStock,
+                          label: 'LOW Stock',
+                          icon: Icons.warning_amber_rounded,
+                          color: AppTheme.warningOrange,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1383,7 +1674,11 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _lightField(_itemCtrl, 'Item Name', Icons.inventory_2_outlined),
+                    _lightField(
+                      _itemCtrl,
+                      'Item Name',
+                      Icons.inventory_2_outlined,
+                    ),
                     if (_showSuggestions && _suggestions.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(top: 4),
@@ -1408,11 +1703,16 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                               onTap: () => _selectSuggestion(suggestion),
                               child: Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border(
                                     bottom: BorderSide(
-                                      color: const Color(0xFFE5E7EB).withValues(alpha: 0.5),
+                                      color: const Color(
+                                        0xFFE5E7EB,
+                                      ).withValues(alpha: 0.5),
                                     ),
                                   ),
                                 ),
@@ -1420,7 +1720,8 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             suggestion,
@@ -1433,8 +1734,11 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                           Text(
                                             'Available: $stock $unit',
                                             style: TextStyle(
-                                              color: stock == 0 ? AppTheme.errorRed : 
-                                                     stock < 10 ? AppTheme.warningOrange : AppTheme.successGreen,
+                                              color: stock == 0
+                                                  ? AppTheme.errorRed
+                                                  : stock < 10
+                                                  ? AppTheme.warningOrange
+                                                  : AppTheme.successGreen,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -1443,9 +1747,14 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                        color: AppTheme.primaryColor.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -1477,12 +1786,13 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _lightField(
-                            _qtyCtrl, 
-                            'Quantity', 
+                            _qtyCtrl,
+                            'Quantity',
                             Icons.numbers,
                             isNumber: true,
-                            suffixText: _itemStocks.containsKey(_itemCtrl.text.trim()) 
-                                ? 'Max: ${_itemStocks[_itemCtrl.text.trim()]}' 
+                            suffixText:
+                                _itemStocks.containsKey(_itemCtrl.text.trim())
+                                ? 'Max: ${_itemStocks[_itemCtrl.text.trim()]}'
                                 : null,
                             onChanged: (val) {
                               final currentItem = _itemCtrl.text.trim();
@@ -1491,12 +1801,14 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                 final parsed = int.tryParse(val);
                                 if (parsed != null && parsed > maxStock) {
                                   _qtyCtrl.text = maxStock.toString();
-                                  _qtyCtrl.selection = TextSelection.fromPosition(
+                                  _qtyCtrl
+                                      .selection = TextSelection.fromPosition(
                                     TextPosition(offset: _qtyCtrl.text.length),
                                   );
                                 } else if (parsed != null && parsed < 1) {
                                   _qtyCtrl.text = '1';
-                                  _qtyCtrl.selection = TextSelection.fromPosition(
+                                  _qtyCtrl
+                                      .selection = TextSelection.fromPosition(
                                     TextPosition(offset: _qtyCtrl.text.length),
                                   );
                                 }
@@ -1532,25 +1844,23 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 const SizedBox(height: 12),
 
                 // Priority
-                const Text('Priority',
-                    style: TextStyle(
-                        color: Color(0xFF64748B), fontSize: 12)),
+                const Text(
+                  'Priority',
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: _priorities.map((p) {
                     final selected = _selectedPriority == p;
-                    final color =
-                        _priorityColors[p] ?? AppTheme.infoBlue;
+                    final color = _priorityColors[p] ?? AppTheme.infoBlue;
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: InkWell(
-                          onTap: () =>
-                              setState(() => _selectedPriority = p),
+                          onTap: () => setState(() => _selectedPriority = p),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: selected
                                   ? color.withValues(alpha: 0.1)
@@ -1566,8 +1876,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                               p,
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color:
-                                    selected ? color : const Color(0xFF64748B),
+                                color: selected
+                                    ? color
+                                    : const Color(0xFF64748B),
                                 fontSize: 12,
                                 fontWeight: selected
                                     ? FontWeight.w800
@@ -1583,8 +1894,12 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 const SizedBox(height: 12),
 
                 // Note
-                _lightField(_noteCtrl, 'Note (optional)', Icons.note_alt_outlined,
-                    maxLines: 2),
+                _lightField(
+                  _noteCtrl,
+                  'Note (optional)',
+                  Icons.note_alt_outlined,
+                  maxLines: 2,
+                ),
                 const SizedBox(height: 18),
 
                 // Submit button
@@ -1597,20 +1912,26 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       textStyle: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                     icon: _submitting
                         ? const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                         : const Icon(Icons.send_rounded, size: 18),
-                    label: Text(_submitting
-                        ? 'Submitting…'
-                        : 'Send Request to Inventory'),
+                    label: Text(
+                      _submitting ? 'Submitting…' : 'Send Request to Inventory',
+                    ),
                   ),
                 ),
               ],
@@ -1639,29 +1960,65 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             builder: (context, snap) {
               if (!snap.hasData) {
                 return const Center(
-                    child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child:
-                      CircularProgressIndicator(color: AppTheme.primaryColor),
-                ));
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                );
               }
               final requests = snap.data!;
               if (requests.isEmpty) {
-                return _buildEmptyState(Icons.inbox_outlined,
-                    'No requests yet', 'Submit a request above.');
+                return _buildEmptyState(
+                  Icons.inbox_outlined,
+                  'No requests yet',
+                  'Submit a request above.',
+                );
               }
               return Column(
                 children: requests
-                    .map((r) => _RequestHistoryCard(
-                          request: r,
-                          statusColors: _statusColors,
-                          priorityColors: _priorityColors,
-                        ))
+                    .map(
+                      (r) => _RequestHistoryCard(
+                        request: r,
+                        statusColors: _statusColors,
+                        priorityColors: _priorityColors,
+                      ),
+                    )
                     .toList(),
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _bulkBtn({
+    required VoidCallback onPressed,
+    required String label,
+    required IconData icon,
+    Color color = AppTheme.primaryColor,
+  }) {
+    return TextButton.icon(
+      onPressed: _submitting ? null : onPressed,
+      icon: Icon(icon, size: 14, color: _submitting ? Colors.grey : color),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: _submitting ? Colors.grey : color,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+        backgroundColor: color.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        side: BorderSide(color: color.withValues(alpha: 0.2)),
       ),
     );
   }
@@ -1681,38 +2038,49 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
       readOnly: readOnly,
-      onChanged: isNumber ? (value) {
-        // Filter out non-numeric characters
-        final filteredValue = value.replaceAll(RegExp(r'[^0-9]'), '');
-        if (filteredValue != value) {
-          ctrl.value = TextEditingValue(
-            text: filteredValue,
-            selection: TextSelection.collapsed(offset: filteredValue.length),
-          );
-        }
-        if (onChanged != null) onChanged(filteredValue);
-      } : onChanged,
-      style: const TextStyle(
-          color: Color(0xFF1E293B), 
-          fontSize: 13,
-      ),
+      onChanged: isNumber
+          ? (value) {
+              // Filter out non-numeric characters
+              final filteredValue = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (filteredValue != value) {
+                ctrl.value = TextEditingValue(
+                  text: filteredValue,
+                  selection: TextSelection.collapsed(
+                    offset: filteredValue.length,
+                  ),
+                );
+              }
+              if (onChanged != null) onChanged(filteredValue);
+            }
+          : onChanged,
+      style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 18),
         suffixText: suffixText,
-        suffixStyle: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w800),
+        suffixStyle: const TextStyle(
+          color: AppTheme.primaryColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
         filled: true,
         fillColor: const Color(0xFFF1F5F9),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppTheme.primaryColor,
+            width: 1.5,
+          ),
         ),
       ),
     );
@@ -1769,23 +2137,29 @@ class _RequestHistoryCard extends StatelessWidget {
                     Text(
                       request['item_name']?.toString() ?? '—',
                       style: const TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14),
+                        color: Color(0xFF1E293B),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: priorityColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(priority,
-                          style: TextStyle(
-                              color: priorityColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700)),
+                      child: Text(
+                        priority,
+                        style: TextStyle(
+                          color: priorityColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1793,7 +2167,9 @@ class _RequestHistoryCard extends StatelessWidget {
                 Text(
                   '${request['quantity_needed']} ${request['unit']}  •  $timeStr',
                   style: const TextStyle(
-                      color: Color(0xFF64748B), fontSize: 12),
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
                 ),
                 if ((request['note']?.toString() ?? '').isNotEmpty)
                   Padding(
@@ -1801,29 +2177,29 @@ class _RequestHistoryCard extends StatelessWidget {
                     child: Text(
                       request['note'].toString(),
                       style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic),
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
               ],
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: statusColor.withValues(alpha: 0.5)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.5)),
             ),
             child: Text(
               status,
               style: TextStyle(
-                  color: statusColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700),
+                color: statusColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -1848,21 +2224,21 @@ class _StockViewTabState extends State<_StockViewTab> {
 
   String _getStockStatus(int quantity) {
     if (quantity == 0) return 'OUT OF STOCK';
-    if (quantity < 10) return 'LOW STOCK';
+    if (quantity <= 10) return 'LOW STOCK'; // Include 10 in Low Stock
     if (quantity < 50) return 'NORMAL';
     return 'HIGH STOCK';
   }
 
   Color _getStatusColor(int quantity) {
     if (quantity == 0) return AppTheme.errorRed;
-    if (quantity < 10) return AppTheme.warningOrange;
+    if (quantity <= 10) return AppTheme.warningOrange; // Include 10 in Low Stock
     if (quantity < 50) return AppTheme.infoBlue;
     return AppTheme.successGreen;
   }
 
   IconData _getStockStatusIcon(int quantity) {
     if (quantity == 0) return Icons.remove_circle;
-    if (quantity < 10) return Icons.warning_amber_rounded;
+    if (quantity <= 10) return Icons.warning_amber_rounded; // Include 10 in Low Stock
     if (quantity < 50) return Icons.inventory_2_rounded;
     return Icons.check_circle;
   }
@@ -1880,7 +2256,11 @@ class _StockViewTabState extends State<_StockViewTab> {
             decoration: InputDecoration(
               hintText: 'Search ingredients…',
               hintStyle: const TextStyle(color: Color(0xFF64748B)),
-              prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor, size: 20),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppTheme.primaryColor,
+                size: 20,
+              ),
               filled: true,
               fillColor: Colors.white,
               isDense: true,
@@ -1894,7 +2274,10 @@ class _StockViewTabState extends State<_StockViewTab> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppTheme.primaryColor,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
@@ -1903,17 +2286,22 @@ class _StockViewTabState extends State<_StockViewTab> {
         // Stock summary chips
         StreamBuilder<List<Map<String, dynamic>>>(
           stream: Supabase.instance.client
-              .from('inventory')
+              .from('kitchen_inventory')
               .stream(primaryKey: ['id']),
           builder: (context, snap) {
             final items = snap.data ?? [];
             int out = 0, low = 0, ok = 0, high = 0;
             for (final i in items) {
               final qty = (i['quantity'] as num?)?.toInt() ?? 0;
-              if (qty == 0) { out++; }
-              else if (qty < 10) { low++; }
-              else if (qty < 50) { ok++; }
-              else { high++; }
+              if (qty == 0) {
+                out++;
+              } else if (qty <= 10) { // Changed < 10 to <= 10
+                low++;
+              } else if (qty < 50) {
+                ok++;
+              } else {
+                high++;
+              }
             }
 
             if (out > 0 && snap.hasData) {
@@ -1924,33 +2312,53 @@ class _StockViewTabState extends State<_StockViewTab> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  _summaryChip('OUT OF STOCK', out.toString(),
-                      AppTheme.errorRed,
-                      isSelected: _selectedFilter == 'OUT OF STOCK',
-                      onTap: () => setState(() {
-                        _selectedFilter = _selectedFilter == 'OUT OF STOCK' ? null : 'OUT OF STOCK';
-                      })),
+                  _summaryChip(
+                    'OUT OF STOCK',
+                    out.toString(),
+                    AppTheme.errorRed,
+                    isSelected: _selectedFilter == 'OUT OF STOCK',
+                    onTap: () => setState(() {
+                      _selectedFilter = _selectedFilter == 'OUT OF STOCK'
+                          ? null
+                          : 'OUT OF STOCK';
+                    }),
+                  ),
                   const SizedBox(width: 8),
-                  _summaryChip('LOW STOCK', low.toString(),
-                      AppTheme.warningOrange,
-                      isSelected: _selectedFilter == 'LOW STOCK',
-                      onTap: () => setState(() {
-                        _selectedFilter = _selectedFilter == 'LOW STOCK' ? null : 'LOW STOCK';
-                      })),
+                  _summaryChip(
+                    'LOW STOCK',
+                    low.toString(),
+                    AppTheme.warningOrange,
+                    isSelected: _selectedFilter == 'LOW STOCK',
+                    onTap: () => setState(() {
+                      _selectedFilter = _selectedFilter == 'LOW STOCK'
+                          ? null
+                          : 'LOW STOCK';
+                    }),
+                  ),
                   const SizedBox(width: 8),
-                  _summaryChip('NORMAL', ok.toString(),
-                      AppTheme.infoBlue,
-                      isSelected: _selectedFilter == 'NORMAL',
-                      onTap: () => setState(() {
-                        _selectedFilter = _selectedFilter == 'NORMAL' ? null : 'NORMAL';
-                      })),
+                  _summaryChip(
+                    'NORMAL',
+                    ok.toString(),
+                    AppTheme.infoBlue,
+                    isSelected: _selectedFilter == 'NORMAL',
+                    onTap: () => setState(() {
+                      _selectedFilter = _selectedFilter == 'NORMAL'
+                          ? null
+                          : 'NORMAL';
+                    }),
+                  ),
                   const SizedBox(width: 8),
-                  _summaryChip('HIGH STOCK', high.toString(),
-                      AppTheme.successGreen,
-                      isSelected: _selectedFilter == 'HIGH STOCK',
-                      onTap: () => setState(() {
-                        _selectedFilter = _selectedFilter == 'HIGH STOCK' ? null : 'HIGH STOCK';
-                      })),
+                  _summaryChip(
+                    'HIGH STOCK',
+                    high.toString(),
+                    AppTheme.successGreen,
+                    isSelected: _selectedFilter == 'HIGH STOCK',
+                    onTap: () => setState(() {
+                      _selectedFilter = _selectedFilter == 'HIGH STOCK'
+                          ? null
+                          : 'HIGH STOCK';
+                    }),
+                  ),
                 ],
               ),
             );
@@ -1961,14 +2369,16 @@ class _StockViewTabState extends State<_StockViewTab> {
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
             stream: Supabase.instance.client
-                .from('inventory')
+                .from('kitchen_inventory')
                 .stream(primaryKey: ['id'])
                 .order('quantity', ascending: true),
             builder: (context, snap) {
               if (!snap.hasData) {
                 return const Center(
-                    child: CircularProgressIndicator(
-                        color: AppTheme.primaryColor));
+                  child: CircularProgressIndicator(
+                    color: AppTheme.primaryColor,
+                  ),
+                );
               }
               var items = snap.data!;
               final hasItems = items.isNotEmpty;
@@ -1976,20 +2386,24 @@ class _StockViewTabState extends State<_StockViewTab> {
                 // Apply search filter
                 final name = (i['name'] ?? '').toString().toLowerCase();
                 final matchesSearch = _search.isEmpty || name.contains(_search);
-                
+
                 // Apply status filter
                 final qty = (i['quantity'] as num?)?.toInt() ?? 0;
                 final status = _getStockStatus(qty);
-                final matchesStatus = _selectedFilter == null || status == _selectedFilter;
-                
+                final matchesStatus =
+                    _selectedFilter == null || status == _selectedFilter;
+
                 return matchesSearch && matchesStatus;
               }).toList();
-              
+
               if (!hasItems) {
-                return _buildEmptyState(Icons.inventory_2_outlined,
-                    'No items in inventory', 'Add items in Pagsanjaninv dashboard first');
+                return _buildEmptyState(
+                  Icons.inventory_2_outlined,
+                  'No items in kitchen stock',
+                  'Request items from inventory first',
+                );
               }
-              
+
               if (filteredItems.isEmpty) {
                 String message = 'No items found';
                 String subtitle = 'Try adjusting your search';
@@ -2000,98 +2414,108 @@ class _StockViewTabState extends State<_StockViewTab> {
                 } else if (_selectedFilter == null && _search.isNotEmpty) {
                   subtitle = 'No items matching "$_search"';
                 }
-                return _buildEmptyState(Icons.inventory_2_outlined, message, subtitle);
+                return _buildEmptyState(
+                  Icons.inventory_2_outlined,
+                  message,
+                  subtitle,
+                );
               }
               return LayoutBuilder(
                 builder: (ctx, constraints) {
-                  final cols = constraints.maxWidth > 600 ? 6 : constraints.maxWidth > 400 ? 3 : 2;
+                  final cols = constraints.maxWidth > 600
+                      ? 6
+                      : constraints.maxWidth > 400
+                      ? 3
+                      : 2;
                   return GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate:
-                    SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.05,
-                ),
-                itemCount: filteredItems.length,
-                itemBuilder: (_, i) {
-                  final item = filteredItems[i];
-                  final qty =
-                      (item['quantity'] as num?)?.toInt() ?? 0;
-                  final color = _getStatusColor(qty);
-                  final label = _getStockStatus(qty);
-                  final icon = _getStockStatusIcon(qty);
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: const Color(0xFFE5E7EB)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: cols,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.05,
                     ),
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(icon, color: color, size: 22),
-                        const SizedBox(height: 6),
-                        Text(
-                          item['name']?.toString() ?? '—',
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    itemCount: filteredItems.length,
+                    itemBuilder: (_, i) {
+                      final item = filteredItems[i];
+                      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                      final color = _getStatusColor(qty);
+                      final label = _getStockStatus(qty);
+                      final icon = _getStockStatusIcon(qty);
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          item['category']?.toString() ?? '—',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '$qty ${item['unit'] ?? ''}',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(label,
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(icon, color: color, size: 22),
+                            const SizedBox(height: 6),
+                            Text(
+                              item['name']?.toString() ?? '—',
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF1E293B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item['category']?.toString() ?? '—',
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$qty ${item['unit'] ?? ''}',
                               style: TextStyle(
+                                color: color,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                label,
+                                style: TextStyle(
                                   color: color,
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w800)),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
+                      );
+                    },
                   );
                 },
               );
@@ -2102,7 +2526,13 @@ class _StockViewTabState extends State<_StockViewTab> {
     );
   }
 
-  Widget _summaryChip(String label, String count, Color color, {bool isSelected = false, VoidCallback? onTap}) {
+  Widget _summaryChip(
+    String label,
+    String count,
+    Color color, {
+    bool isSelected = false,
+    VoidCallback? onTap,
+  }) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -2118,16 +2548,24 @@ class _StockViewTabState extends State<_StockViewTab> {
           ),
           child: Column(
             children: [
-              Text(count,
-                  style: TextStyle(
-                      color: isSelected ? Colors.white : color,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18)),
-              Text(label,
-                  style: TextStyle(
-                      color: isSelected ? Colors.white.withValues(alpha: 0.9) : color.withValues(alpha: 0.8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                count,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : color,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : color.withValues(alpha: 0.8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ),
@@ -2157,15 +2595,20 @@ Widget _buildEmptyState(IconData icon, String title, String subtitle) {
       children: [
         Icon(icon, size: 64, color: const Color(0xFFCBD5E1)),
         const SizedBox(height: 16),
-        Text(title,
-            style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 18,
-                fontWeight: FontWeight.w700)),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         if (subtitle.isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(subtitle,
-              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+          Text(
+            subtitle,
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+          ),
         ],
       ],
     ),

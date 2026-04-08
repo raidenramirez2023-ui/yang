@@ -468,87 +468,32 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
+
   Future<void> _handleRequestAction(String requestId, String newStatus) async {
     try {
-      // First, get the request details to know what item to update
-      final request = await _supabase
-          .from('kitchen_requests')
-          .select()
-          .eq('id', requestId)
-          .single();
-      
-      // Update the request status
-      await _supabase
-          .from('kitchen_requests')
-          .update({'status': newStatus})
-          .eq('id', requestId);
-      
       if (newStatus == 'Approved') {
-        // Find the inventory item and reduce its quantity
-        final itemName = request['item_name']?.toString();
-        final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
+        final request = await _supabase
+            .from('kitchen_requests')
+            .select()
+            .eq('id', requestId)
+            .single();
         
-        if (itemName != null && quantityNeeded > 0) {
-          // Find the inventory item by name
-          final inventoryItems = await _supabase
-              .from('inventory')
-              .select('id, quantity')
-              .ilike('name', '%$itemName%')
-              .limit(1);
-          
-          if (inventoryItems.isNotEmpty) {
-            final inventoryItem = inventoryItems.first;
-            final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
-            final newQuantity = currentQuantity - quantityNeeded;
-            
-            // Update the inventory quantity
-            await _supabase
-                .from('inventory')
-                .update({'quantity': newQuantity})
-                .eq('id', inventoryItem['id']);
-            
-            // Create stock transaction record for forecasting
-            await _supabase
-                .from('stock_transactions')
-                .insert({
-                  'item_name': itemName,
-                  'quantity': quantityNeeded,
-                  'transaction_type': 'outgoing',
-                  'purpose': 'Kitchen request approved',
-                  'requested_by': request['requested_by'],
-                  'processed_by': _supabase.auth.currentUser?.email,
-                  'created_at': DateTime.now().toIso8601String(),
-                });
-            
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Request approved! $quantityNeeded $itemName removed from inventory.'),
-                  backgroundColor: AppTheme.successGreen,
-                ),
-              );
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Request approved but item not found in inventory.'),
-                  backgroundColor: AppTheme.warningOrange,
-                ),
-              );
-            }
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Request approved but invalid item data.'),
-                backgroundColor: AppTheme.warningOrange,
-              ),
-            );
-          }
+        await _approveRequestCore(request);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Request approved and stock transferred to kitchen!'),
+              backgroundColor: AppTheme.successGreen,
+            ),
+          );
         }
       } else {
+        await _supabase
+            .from('kitchen_requests')
+            .update({'status': newStatus})
+            .eq('id', requestId);
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -559,17 +504,125 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         }
       }
       
-      // Refresh dashboard data
       _loadDashboardData();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.errorRed),
+        );
+      }
+    }
+  }
+
+  Future<void> _approveRequestCore(Map<String, dynamic> request) async {
+    final itemName = request['item_name']?.toString();
+    final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
+
+    if (itemName != null && quantityNeeded > 0) {
+      final inventoryItems = await _supabase
+          .from('inventory')
+          .select('id, quantity')
+          .ilike('name', '%$itemName%')
+          .limit(1);
+
+      if (inventoryItems.isNotEmpty) {
+        final inventoryItem = inventoryItems.first;
+        final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
+        
+        // Safety: Only transfer what is actually available in main inventory
+        final transferQty = quantityNeeded > currentQuantity ? currentQuantity : quantityNeeded;
+        final newQuantity = currentQuantity - transferQty;
+
+        await _supabase
+            .from('inventory')
+            .update({'quantity': newQuantity})
+            .eq('id', inventoryItem['id']);
+
+        final fullInventoryItem = await _supabase
+            .from('inventory')
+            .select('name, category, unit')
+            .eq('id', inventoryItem['id'])
+            .single();
+
+        final kitchenItem = await _supabase
+            .from('kitchen_inventory')
+            .select()
+            .eq('name', fullInventoryItem['name'])
+            .maybeSingle();
+
+        if (kitchenItem != null) {
+          final currentKitchenQty = (kitchenItem['quantity'] as num?)?.toInt() ?? 0;
+          await _supabase
+              .from('kitchen_inventory')
+              .update({'quantity': currentKitchenQty + transferQty})
+              .eq('id', kitchenItem['id']);
+        } else {
+          await _supabase.from('kitchen_inventory').insert({
+            'name': fullInventoryItem['name'],
+            'category': fullInventoryItem['category'],
+            'unit': fullInventoryItem['unit'],
+            'quantity': transferQty,
+          });
+        }
+
+        await _supabase.from('stock_transactions').insert({
+          'item_name': itemName,
+          'quantity': transferQty,
+          'transaction_type': 'outgoing',
+          'purpose': 'Kitchen request approved (Amount served: $transferQty)',
+          'requested_by': request['requested_by'],
+          'processed_by': _supabase.auth.currentUser?.email,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+
+        await _supabase
+            .from('kitchen_requests')
+            .update({'status': 'Approved'})
+            .eq('id', request['id']);
+      }
+    }
+  }
+
+  Future<void> _approveAllRequests() async {
+    setState(() => _isLoading = true);
+    try {
+      final pendingRequests = await _supabase
+          .from('kitchen_requests')
+          .select()
+          .eq('status', 'Pending');
+      
+      if (pendingRequests.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No pending requests to approve.')),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      for (var request in pendingRequests) {
+        await _approveRequestCore(request);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppTheme.errorRed,
+            content: Text('Approved ${pendingRequests.length} requests successfully!'),
+            backgroundColor: AppTheme.successGreen,
           ),
         );
       }
+      
+      _loadDashboardData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bulk Error: $e'), backgroundColor: AppTheme.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -982,22 +1035,44 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            const Text(
-              'Kitchen Stock Requests',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Manage stock requests from the kitchen team',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.mediumGrey,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Kitchen Stock Requests',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.darkGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Manage stock requests from the kitchen team',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.mediumGrey,
+                      ),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _approveAllRequests,
+                  icon: const Icon(Icons.done_all, size: 18),
+                  label: const Text('Approve All', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.successGreen,
+                    foregroundColor: AppTheme.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
