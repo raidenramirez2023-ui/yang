@@ -24,6 +24,7 @@ class _LandingPageState extends State<LandingPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingSession = true;
   int? _selectedMonth; // null means "Show All" or "Latest"
+  bool _showScrollToTop = false;
   
   // Real-time announcements stream
   Stream<List<Map<String, dynamic>>> _announcementsStream = const Stream.empty();
@@ -39,7 +40,33 @@ class _LandingPageState extends State<LandingPage> {
         .eq('is_active', true)
         .order('created_at', ascending: false);
     
+    // Add scroll listener
+    _scrollController.addListener(_scrollListener);
+    
     _checkAndRedirectUser();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.offset >= MediaQuery.of(context).size.height * 0.5) {
+      if (!_showScrollToTop) {
+        setState(() {
+          _showScrollToTop = true;
+        });
+      }
+    } else {
+      if (_showScrollToTop) {
+        setState(() {
+          _showScrollToTop = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkAndRedirectUser() async {
@@ -109,6 +136,54 @@ class _LandingPageState extends State<LandingPage> {
     }
   }
 
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Widget _buildScrollToTopButton() {
+    return Positioned(
+      bottom: 30,
+      right: 30,
+      child: AnimatedOpacity(
+        opacity: _showScrollToTop ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: _showScrollToTop
+            ? Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: _scrollToTop,
+                    child: const Icon(
+                      Icons.keyboard_arrow_up_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+  }
+
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
@@ -152,6 +227,7 @@ class _LandingPageState extends State<LandingPage> {
             ),
           ),
           _buildTopNavigationBar(context),
+          _buildScrollToTopButton(),
         ],
       ),
     );
