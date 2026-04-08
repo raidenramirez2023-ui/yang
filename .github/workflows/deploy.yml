@@ -2,9 +2,9 @@ name: Deploy to Hostinger
 
 on:
   push:
-    branches: [ main, master, 'feature/**' ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build-and-deploy:
@@ -27,6 +27,7 @@ jobs:
         flutter build web --release --base-href=/
         
     - name: Deploy to Hostinger via FTP
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_HOST }}
