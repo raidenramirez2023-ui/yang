@@ -27,24 +27,15 @@ jobs:
         flutter build web --release --web-renderer=canvaskit --base-href=/
         
     - name: Deploy to Hostinger via FTP
-      env:
-        FTP_HOST: ${{ secrets.FTP_HOST }}
-        FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-        FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-      run: |
-        # Install FTP client
-        sudo apt-get update
-        sudo apt-get install -y lftp
-        
-        # Deploy using lftp directly
-        lftp -c "
-          set ftp:ssl-allow no
-          set ftp:passive-mode on
-          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_HOST }}
-          cd public_html
-          mirror --reverse --delete --verbose build/web/ .
-          quit
-        "
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: build/web/
+        server-dir: public_html/
+        protocol: ftp
+        port: 21
         
     - name: Notify deployment success
       if: success()
