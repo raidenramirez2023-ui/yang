@@ -40,7 +40,7 @@ jobs:
         dry-run: false
         protocol: ftp
         port: 21
-        timeout: 300000
+        timeout: 600000
         security: loose
         
     - name: Notify deployment success
