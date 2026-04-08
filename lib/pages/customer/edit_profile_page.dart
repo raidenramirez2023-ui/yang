@@ -19,6 +19,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _phoneNumberController = TextEditingController();
   String _initialFirstName = '';
   String _initialLastName = '';
+  String _initialPhone = '';
 
   bool _isSaving = false;
   XFile? _pickedFile;
@@ -42,13 +43,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _loadUserData() {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    
+
     String firstName = user.userMetadata?['firstname'] ?? '';
     String lastName = user.userMetadata?['lastname'] ?? '';
-    
+
     // Fallback if data is missing or user has legacy full_name
     if (firstName.isEmpty && lastName.isEmpty) {
-      String fullName = user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? '';
+      String fullName =
+          user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? '';
       if (fullName.isNotEmpty) {
         final parts = fullName.split(' ');
         firstName = parts.first;
@@ -64,6 +66,59 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _initialLastName = lastName;
     _emailController.text = user.email ?? '';
     _phoneNumberController.text = user.userMetadata?['phone'] ?? '';
+    _initialPhone = user.userMetadata?['phone'] ?? '';
+  }
+
+  bool _isValidName(String name) {
+    if (name.length < 2 || name.length > 50) return false;
+    if (RegExp(r"[\s\-'’]{2,}").hasMatch(name)) return false;
+    if (RegExp(r"^[\s\-'’]|[\s\-'’]$").hasMatch(name)) return false;
+    if (RegExp(r"(.)\1{2,}", caseSensitive: false).hasMatch(name)) return false;
+    return RegExp(r"^[\p{L}\p{M}\s\-'’]+$", unicode: true).hasMatch(name);
+  }
+
+  String _formatToTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.toLowerCase().replaceAllMapped(
+      RegExp(r"(^|[\s\-'’])(\p{L}\p{M}*)", unicode: true),
+      (Match m) => '${m[1]}${m[2]!.toUpperCase()}',
+    );
+  }
+
+  bool _isValidPhoneNumber(String phone) {
+    return phone.length == 11 &&
+        phone.startsWith('09') &&
+        RegExp(r'^[0-9]+$').hasMatch(phone);
+  }
+
+  Future<bool> _confirmPhoneNumberChange(
+    String previousPhone,
+    String currentPhone,
+  ) async {
+    if (previousPhone == currentPhone) return true;
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Phone Number Changed'),
+            content: Text(
+              previousPhone.isEmpty
+                  ? 'You added a new phone number. Do you want to save it?'
+                  : 'You want to change your phone number from $previousPhone to $currentPhone. Do you want to save this update?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Confirm'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _pickImage() async {
@@ -89,12 +144,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: AppTheme.primaryColor),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: AppTheme.primaryColor,
+                ),
                 title: const Text('Upload Image'),
                 onTap: () => Navigator.of(context).pop(ImageSource.gallery),
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryColor),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: AppTheme.primaryColor,
+                ),
                 title: const Text('Take Photo'),
                 onTap: () => Navigator.of(context).pop(ImageSource.camera),
               ),
@@ -107,10 +168,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     if (source != null) {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: source,
-        imageQuality: 80,
-      );
+      final picked = await picker.pickImage(source: source, imageQuality: 80);
       if (picked != null) {
         final bytes = await picked.readAsBytes();
         setState(() {
@@ -128,8 +186,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (user == null) return;
 
     final currentAvatarUrl = user.userMetadata?['avatar_url'] as String?;
-    final hasNoExistingPhoto = currentAvatarUrl == null || currentAvatarUrl.isEmpty;
-    
+    final hasNoExistingPhoto =
+        currentAvatarUrl == null || currentAvatarUrl.isEmpty;
+
     if (hasNoExistingPhoto && _pickedFile == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -143,7 +202,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -152,10 +213,95 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final currentFirstName = _firstNameController.text.trim();
     final currentLastName = _lastNameController.text.trim();
+    final currentPhone = _phoneNumberController.text.trim();
+    final formattedFirstName = _formatToTitleCase(currentFirstName);
+    final formattedLastName = _formatToTitleCase(currentLastName);
     final hasImageChanged = _pickedFile != null;
-    final hasNameChanged = currentFirstName != _initialFirstName || currentLastName != _initialLastName;
+    final hasNameChanged =
+        formattedFirstName != _initialFirstName ||
+        formattedLastName != _initialLastName;
+    final hasPhoneChanged = currentPhone != _initialPhone;
 
-    if (!hasImageChanged && !hasNameChanged) {
+    if (formattedFirstName.isEmpty || !_isValidName(formattedFirstName)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Please enter a valid first name.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    if (formattedLastName.isEmpty || !_isValidName(formattedLastName)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Please enter a valid last name.'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidPhoneNumber(currentPhone)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Text(
+                'Please enter a valid phone number (11 digits, starting with 09).',
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
+    }
+
+    _firstNameController.text = formattedFirstName;
+    _lastNameController.text = formattedLastName;
+
+    if (hasPhoneChanged) {
+      final confirmed = await _confirmPhoneNumberChange(
+        _initialPhone,
+        currentPhone,
+      );
+      if (!confirmed) return;
+    }
+
+    if (!hasImageChanged && !hasNameChanged && !hasPhoneChanged) {
       if (mounted) Navigator.of(context).pop();
       return;
     }
@@ -173,7 +319,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final filePath = fileName;
 
         // Upload to 'avatars' bucket (Rethrows error if bucket is missing)
-        await Supabase.instance.client.storage.from('avatars').uploadBinary(
+        await Supabase.instance.client.storage
+            .from('avatars')
+            .uploadBinary(
               filePath,
               _pickedFileBytes!,
               fileOptions: const FileOptions(upsert: true),
@@ -195,6 +343,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             'firstname': firstName,
             'lastname': lastName,
             'avatar_url': avatarUrl,
+            'phone': currentPhone,
             // Keep full_name for backward compatibility if needed
             'full_name': '$firstName $lastName'.trim(),
             'name': '$firstName $lastName'.trim(),
@@ -203,9 +352,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       // ── 3. Update public users table ────────────────────────────────────
-      await Supabase.instance.client.from('users').update({
-        'avatar_url': avatarUrl,
-      }).eq('email', user.email ?? '');
+      await Supabase.instance.client
+          .from('users')
+          .update({
+            'firstname': firstName,
+            'lastname': lastName,
+            'phone': currentPhone,
+            'avatar_url': avatarUrl,
+          })
+          .eq('email', user.email ?? '');
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -219,7 +374,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -235,7 +392,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           content: Text('Error saving profile: $e'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -248,8 +407,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
     final avatarUrl = user?.userMetadata?['avatar_url'] as String?;
-    final initial =
-        _firstNameController.text.isNotEmpty ? _firstNameController.text[0].toUpperCase() : 'U';
+    final initial = _firstNameController.text.isNotEmpty
+        ? _firstNameController.text[0].toUpperCase()
+        : 'U';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FF),
@@ -304,29 +464,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               _pickedFileBytes!,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
-                                  Center(child: Text(initial, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color(0xFF1D1B1E)))),
-                            )
-                          : (avatarUrl != null && avatarUrl.isNotEmpty)
-                              ? Image.network(
-                                  avatarUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Center(child: Text(initial, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Color(0xFF1D1B1E)))),
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-                                  },
-                                )
-                              : Center(
-                                  child: Text(
-                                    initial,
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1D1B1E),
+                                  Center(
+                                    child: Text(
+                                      initial,
+                                      style: const TextStyle(
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1D1B1E),
+                                      ),
                                     ),
                                   ),
+                            )
+                          : (avatarUrl != null && avatarUrl.isNotEmpty)
+                          ? Image.network(
+                              avatarUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Center(
+                                    child: Text(
+                                      initial,
+                                      style: const TextStyle(
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1D1B1E),
+                                      ),
+                                    ),
+                                  ),
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    );
+                                  },
+                            )
+                          : Center(
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1D1B1E),
                                 ),
+                              ),
+                            ),
                     ),
 
                     // Camera badge
@@ -364,7 +547,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
 
-
               const SizedBox(height: 32),
 
               // ── First Name ──────────────────────────────────────────────
@@ -377,8 +559,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   hint: 'Enter your first name',
                   suffixIcon: Icons.person_outline_rounded,
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'First name is required' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'First name is required'
+                    : null,
               ),
 
               const SizedBox(height: 20),
@@ -393,8 +576,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   hint: 'Enter your last name',
                   suffixIcon: Icons.person_outline_rounded,
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Last name is required' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Last name is required'
+                    : null,
               ),
 
               const SizedBox(height: 20),
@@ -409,6 +593,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   hint: 'Enter your phone number',
                   suffixIcon: Icons.phone_outlined,
                 ),
+                validator: (v) {
+                  final value = v?.trim() ?? '';
+                  if (value.isEmpty) return 'Phone number is required';
+                  if (!_isValidPhoneNumber(value)) {
+                    return 'Phone number must be 11 digits and start with 09';
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 20),
@@ -429,19 +621,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
               const SizedBox(height: 20),
 
-
-
-
-
               const SizedBox(height: 36),
-
-
             ],
           ),
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32, top: 12),
+        padding: const EdgeInsets.only(
+          left: 24,
+          right: 24,
+          bottom: 32,
+          top: 12,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFF9F9FF),
           boxShadow: [
