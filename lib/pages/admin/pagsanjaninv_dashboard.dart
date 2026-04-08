@@ -4,7 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/staff/inventory_management.dart';
-import 'package:yang_chow/pages/staff/inventory_forecast_page.dart';
+import 'package:yang_chow/pages/admin/admin_forecast_page.dart';
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
 
 class PagsanjaninvDashboardPage extends StatefulWidget {
@@ -162,7 +162,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       _buildDashboardPage(),
       _buildKitchenRequestsPage(),
       const InventoryPage(),
-      const InventoryForecastPage(),
+      const AdminForecastPage(),
       const InventoryRoomPage(),
     ];
   }

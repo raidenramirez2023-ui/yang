@@ -1,0 +1,88 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+        
+    - name: Get Flutter dependencies
+      run: flutter pub get
+      
+    - name: Build Flutter web app
+      run: |
+        flutter build web --release --web-renderer canvaskit --base-href=/
+        
+    - name: Setup FTP credentials
+      env:
+        FTP_HOST: ${{ secrets.FTP_HOST }}
+        FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+        FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      run: |
+        echo "FTP credentials configured"
+        
+    - name: Deploy to Hostinger via FTP
+      env:
+        FTP_HOST: ${{ secrets.FTP_HOST }}
+        FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+        FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      run: |
+        # Install lftp for FTP deployment
+        sudo apt-get update
+        sudo apt-get install -y lftp
+        
+        # Create deployment script
+        cat > deploy.sh << 'EOF'
+        #!/bin/bash
+        
+        # FTP Settings
+        HOST="$FTP_HOST"
+        USER="$FTP_USERNAME"
+        PASS="$FTP_PASSWORD"
+        
+        # Local build directory
+        LOCAL_DIR="build/web"
+        
+        # Remote directory (usually public_html or www)
+        REMOTE_DIR="public_html"
+        
+        echo "Starting deployment to Hostinger..."
+        echo "Host: $HOST"
+        echo "Local: $LOCAL_DIR"
+        echo "Remote: $REMOTE_DIR"
+        
+        # Deploy using lftp
+        lftp -c "
+          set ftp:ssl-allow no
+          set ftp:passive-mode on
+          open ftp://$USER:$PASS@$HOST
+          cd $REMOTE_DIR
+          mirror --reverse --delete --verbose $LOCAL_DIR .
+          quit
+        "
+        
+        echo "Deployment completed!"
+        EOF
+        
+        chmod +x deploy.sh
+        ./deploy.sh
+        
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo " deployment to Hostinger completed successfully!"
+        echo "Your app is now live at yc-pagsanjan.site"

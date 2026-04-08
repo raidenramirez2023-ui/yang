@@ -4,21 +4,21 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-class InventoryForecastPage extends StatefulWidget {
-  const InventoryForecastPage({super.key});
+class AdminForecastPage extends StatefulWidget {
+  const AdminForecastPage({super.key});
 
   @override
-  State<InventoryForecastPage> createState() => _InventoryForecastPageState();
+  State<AdminForecastPage> createState() => _AdminForecastPageState();
 }
 
-class _InventoryForecastPageState extends State<InventoryForecastPage>
+class _AdminForecastPageState extends State<AdminForecastPage>
     with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   String _selectedPeriod = '7days';
   String _selectedCategory = 'All';
   String _selectedItemName = 'All';
-  bool _showChart = true; // Toggle between chart and list
+  bool _showChart = true;
   late Future<List<Map<String, dynamic>>> _forecastFuture;
 
   final List<String> periods = ['7days', '30days', '90days'];
@@ -57,13 +57,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
   Future<List<Map<String, dynamic>>> _getForecastData() async {
     try {
-      // Get current inventory
       final inventoryResponse = await Supabase.instance.client
           .from('inventory')
           .select()
           .order('name');
 
-      // Get approved kitchen requests for selected period
       final days = _getDaysFromPeriod(_selectedPeriod);
       final cutoffDate = DateTime.now().subtract(Duration(days: days));
 
@@ -77,7 +75,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       final inventory = inventoryResponse;
       final transactions = transactionsResponse;
 
-      // Update item names list for filtering
       final Set<String> uniqueItems = <String>{};
       for (var transaction in transactions) {
         final itemName = transaction['item_name'] as String;
@@ -114,18 +111,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   ) {
     List<Map<String, dynamic>> forecast = [];
 
-    // Create a map of inventory items for quick lookup
     final Map<String, Map<String, dynamic>> inventoryMap = {};
     for (var item in inventory) {
       inventoryMap[item['name'] as String] = item;
     }
 
-    // Create a separate forecast entry for each approved kitchen request
     for (var transaction in transactions) {
       final itemName = transaction['item_name'] as String;
       final inventoryItem = inventoryMap[itemName];
       
-      // Only include if item exists in inventory
       if (inventoryItem == null) {
         continue;
       }
@@ -151,11 +145,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       });
     }
 
-    // Sort by creation date (newest first) - same as Kitchen Stock Requests queuing
     forecast.sort((a, b) {
       final dateA = DateTime.parse(a['createdAt'] as String);
       final dateB = DateTime.parse(b['createdAt'] as String);
-      return dateB.compareTo(dateA); // Newest first
+      return dateB.compareTo(dateA);
     });
 
     return forecast;
@@ -194,27 +187,25 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   List<FlSpot> _getChartData(List<Map<String, dynamic>> forecast) {
     if (forecast.isEmpty) return [];
     
-    // Group requests by day of week and sum quantities
     final Map<int, double> dailyTotals = {
-      1: 0.0, // Monday
-      2: 0.0, // Tuesday
-      3: 0.0, // Wednesday
-      4: 0.0, // Thursday
-      5: 0.0, // Friday
-      6: 0.0, // Saturday
-      7: 0.0, // Sunday
+      1: 0.0,
+      2: 0.0,
+      3: 0.0,
+      4: 0.0,
+      5: 0.0,
+      6: 0.0,
+      7: 0.0,
     };
     
     for (var item in forecast) {
       final date = DateTime.parse(item['createdAt'] as String);
-      final dayOfWeek = date.weekday; // 1 = Monday, 7 = Sunday
+      final dayOfWeek = date.weekday;
       final quantity = (item['requestQuantity'] as num).toDouble();
       dailyTotals[dayOfWeek] = (dailyTotals[dayOfWeek] ?? 0) + quantity;
     }
 
-    // Convert to list of FlSpot with proper day indices
     return List.generate(7, (index) {
-      final dayOfWeek = index + 1; // 1-7 for Monday-Sunday
+      final dayOfWeek = index + 1;
       final totalQuantity = dailyTotals[dayOfWeek] ?? 0;
       return FlSpot(index.toDouble(), totalQuantity);
     });
@@ -223,7 +214,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   List<BarChartGroupData> _getTopItemsData(List<Map<String, dynamic>> forecast) {
     if (forecast.isEmpty) return [];
     
-    // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
     
     for (var item in forecast) {
@@ -232,13 +222,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
     }
 
-    // Sort by quantity (descending) and take top 10
     final sortedItems = itemTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     
     final topItems = sortedItems.take(10).toList();
     
-    // Convert to BarChartGroupData
     return List.generate(topItems.length, (index) {
       final item = topItems[index];
       return BarChartGroupData(
@@ -286,7 +274,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     final barGroups = _getTopItemsData(forecast);
     
-    // Get item names for labels
     final Map<String, double> itemTotals = {};
     for (var item in forecast) {
       final itemName = item['name'] as String;
@@ -584,39 +571,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: AppTheme.white,
-        title: const Text('Inventory Forecast'),
-        actions: [
-          IconButton(
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Forecast',
-          ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _showChart = !_showChart;
-                _forecastFuture = _getForecastData();
-              });
-            },
-            icon: Icon(_showChart ? Icons.list : Icons.show_chart),
-            tooltip: _showChart ? 'Show List' : 'Show Chart',
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF1F5F9),
       body: FadeTransition(
         opacity: _fadeIn,
         child: Column(
           children: [
-            // Controls Section
             Container(
               margin: EdgeInsets.all(
                 ResponsiveUtils.isMobile(context) ? 8 : 16,
@@ -666,7 +628,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               ),
             ),
 
-            // Main Content Area
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _forecastFuture,
@@ -691,14 +652,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   final forecast = snapshot.data ?? [];
                   var filteredForecast = forecast;
                   
-                  // Apply category filter first
                   if (_selectedCategory != 'All') {
                     filteredForecast = filteredForecast
                         .where((item) => item['category'] == _selectedCategory)
                         .toList();
                   }
                   
-                  // Apply item name filter second
                   if (_selectedItemName != 'All') {
                     filteredForecast = filteredForecast
                         .where((item) => item['name'] == _selectedItemName)
@@ -737,24 +696,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     );
                   }
 
-                  // Show Chart View
                   if (_showChart) {
                     return SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Bar Chart Card
                           _buildBarChartCard(filteredForecast),
-                          
                           const SizedBox(height: 16),
-                          
-                          // Line Chart Card
                           _buildLineChartCard(filteredForecast),
                         ],
                       ),
                     );
                   }
 
-                  // Show List View
                   return ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: filteredForecast.length,
@@ -812,7 +765,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   label: Text(_getPeriodLabel(period)),
                   selected: isSelected,
                   onSelected: (selected) {
-                    setState(() => _selectedPeriod = period);
+                    setState(() {
+                      _selectedPeriod = period;
+                      _forecastFuture = _getForecastData();
+                    });
                   },
                   backgroundColor: AppTheme.white,
                   selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
@@ -949,7 +905,6 @@ class _ForecastCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with risk indicator
           Row(
             children: [
               Expanded(
@@ -1006,7 +961,6 @@ class _ForecastCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Stock Information Grid
           ResponsiveUtils.isMobile(context)
               ? Column(
                   children: [

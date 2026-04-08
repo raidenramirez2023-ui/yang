@@ -11,6 +11,7 @@ import 'package:yang_chow/pages/admin/admin_dashboard.dart';
 import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
 import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
 import 'package:yang_chow/pages/admin/admin_chat_page.dart';
+import 'package:yang_chow/pages/admin/admin_forecast_page.dart';
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:intl/intl.dart';
@@ -43,6 +44,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Dashboard',
     'Sales Reports',
     'Inventory',
+    'Forecasting',
     'Reservations',
     'User Management',
     'Announcements',
@@ -53,6 +55,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     Icons.dashboard,
     Icons.analytics,
     Icons.inventory_2,
+    Icons.trending_up,
     Icons.event_available,
     Icons.people,
     Icons.campaign,
@@ -63,6 +66,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const AdminDashboardPage(),
     const SalesReportPage(),
     const InventoryPage(),
+    const AdminForecastPage(),
     const AdminReservationsPage(),
     const UserManagementPage(),
     const AdminAnnouncementsPage(),
