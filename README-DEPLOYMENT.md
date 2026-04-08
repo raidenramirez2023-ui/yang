@@ -1,4 +1,5 @@
 # Yang Chow Restaurant - Deployment Guide
+Last Updated: April 8, 2026 - Deployment fix testing
 
 ## Domain: yc-pagsanjan.site
 
