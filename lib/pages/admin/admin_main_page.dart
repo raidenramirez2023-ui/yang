@@ -24,6 +24,8 @@ import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
 
 import 'package:yang_chow/pages/admin/admin_chat_page.dart';
 
+import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
+
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
@@ -88,6 +90,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Inventory',
 
+    'Inventory Forecast',
+
     'Reservations',
 
     'User Management',
@@ -108,6 +112,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.inventory_2,
 
+    Icons.trending_up,
+
     Icons.event_available,
 
     Icons.people,
@@ -127,6 +133,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const SalesReportPage(),
 
     const InventoryPage(),
+
+    const InventoryForecastPage(),
 
     const AdminReservationsPage(),
 
