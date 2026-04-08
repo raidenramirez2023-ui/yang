@@ -13,7 +13,7 @@ flutter pub get
 
 # Build for production
 Write-Host "Building Flutter web app for production..." -ForegroundColor Yellow
-flutter build web --release --web-renderer canvaskit --base-href=/
+flutter build web --release --web-renderer=canvaskit --base-href=/
 
 # Create deployment package
 Write-Host "Creating deployment package..." -ForegroundColor Yellow

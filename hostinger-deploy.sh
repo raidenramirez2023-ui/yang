@@ -15,7 +15,7 @@ flutter pub get
 
 # Build for production
 echo "Building Flutter web app for production..."
-flutter build web --release --web-renderer canvaskit --base-href=/
+flutter build web --release --web-renderer=canvaskit --base-href=/
 
 # Create deployment package
 echo "Creating deployment package..."
