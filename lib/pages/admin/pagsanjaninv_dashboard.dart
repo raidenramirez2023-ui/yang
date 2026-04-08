@@ -10,7 +10,7 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
-import 'package:yang_chow/pages/staff/inventory_forecast_page.dart';
+import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
 
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
 
