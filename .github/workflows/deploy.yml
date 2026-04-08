@@ -37,6 +37,7 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
         server-dir: public_html/
+        dry-run: false
         protocol: ftp
         port: 21
         timeout: 300000
