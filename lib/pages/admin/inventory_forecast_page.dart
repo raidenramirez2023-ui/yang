@@ -21,7 +21,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   bool _showChart = true; // Toggle between chart and list
   late Future<List<Map<String, dynamic>>> _forecastFuture;
 
-  final List<String> periods = ['7days', '30days', '90days'];
+  final List<String> periods = ['7days', '31days', '90days'];
   final List<String> categories = [
     'All',
     'Fresh',
