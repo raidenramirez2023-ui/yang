@@ -678,11 +678,10 @@ class RecipeService {
     if (recipe == null) return [];
 
     try {
-      // Get all inventory items for pagsanjaninv
+      // Get all items from kitchen_inventory
       final inventoryItems = await Supabase.instance.client
-          .from('inventory')
+          .from('kitchen_inventory')
           .select('*')
-          .eq('created_by', 'pagsanjaninv@gmail.com')
           .order('name');
 
       final ingredientsWithStatus = <Map<String, dynamic>>[];
@@ -734,11 +733,10 @@ class RecipeService {
     if (recipe == null) return;
 
     try {
-      // Get all inventory items managed by pagsanjaninv
+      // Get all items from kitchen_inventory
       final inventoryItems = await Supabase.instance.client
-          .from('inventory')
-          .select('*')
-          .eq('created_by', 'pagsanjaninv@gmail.com');
+          .from('kitchen_inventory')
+          .select('*');
 
       for (var ingredient in recipe.ingredients) {
         // Find matching inventory item
@@ -761,7 +759,7 @@ class RecipeService {
           final int newQty = (currentQty - deduction).clamp(0, 999999).toInt();
 
           await Supabase.instance.client
-              .from('inventory')
+              .from('kitchen_inventory')
               .update({'quantity': newQty})
               .eq('id', matchingItem['id']);
           
