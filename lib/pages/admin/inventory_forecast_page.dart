@@ -335,7 +335,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           ),
           const SizedBox(height: 8),
           const Text(
-            'Most Requested Ingredients in Kitchen',
+            'Most Requested Ingredients sa Lutuan',
             style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
           ),
           const SizedBox(height: 24),
