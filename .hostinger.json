@@ -1,0 +1,45 @@
+{
+  "name": "yang-chow-restaurant",
+  "version": "1.0.0",
+  "description": "Yang Chow Restaurant - Flutter Web App for yc-pagsanjan.site",
+  "main": "index.html",
+  "scripts": {
+    "build": "flutter build web --release --web-renderer canvaskit --base-href=/",
+    "serve": "flutter run -d web-server --web-port 8080",
+    "clean": "flutter clean"
+  },
+  "build": {
+    "command": "flutter build web --release --web-renderer canvaskit --base-href=/",
+    "output": "build/web",
+    "environment": "production"
+  },
+  "deployment": {
+    "type": "static",
+    "files": [
+      "build/web/**/*",
+      "web/manifest.json",
+      "web/favicon.png"
+    ],
+    "headers": {
+      "**/*.js": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "**/*.css": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "**/*.png": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "**/*.json": {
+        "Cache-Control": "public, max-age=86400"
+      },
+      "index.html": {
+        "Cache-Control": "no-cache"
+      }
+    }
+  },
+  "environment_variables": {
+    "FLUTTER_WEB": "true",
+    "FLUTTER_BASE_HREF": "/"
+  }
+}
