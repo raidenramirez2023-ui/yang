@@ -198,7 +198,7 @@ class _LandingPageState extends State<LandingPage> {
                                 'assets/images/logo.jpg',
                                 height: 32,
                                 errorBuilder: (context, error, stackTrace) => 
-                                    const Icon(Icons.restaurant_rounded, color: Color(0xFF3E2723), size: 20),
+                                    const Icon(Icons.restaurant_rounded, color: Colors.white, size: 20),
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -206,7 +206,7 @@ class _LandingPageState extends State<LandingPage> {
                               child: const Text(
                                 'YANG CHOW',
                                 style: TextStyle(
-                                  color: Color(0xFF3E2723),
+                                  color: Colors.white,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 4,
                                   fontSize: 18,
@@ -251,7 +251,7 @@ class _LandingPageState extends State<LandingPage> {
                       const SizedBox(width: 8),
                       IconButton(
                         key: const Key('nav_menu_btn'),
-                        icon: const Icon(Icons.menu_rounded, color: Colors.black),
+                        icon: const Icon(Icons.menu_rounded, color: Colors.white),
                         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                       ),
                     ],
