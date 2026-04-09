@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'shared_pos_widget.dart';
 
 class PaymentPanel extends StatefulWidget {
@@ -106,6 +109,239 @@ class _PaymentPanelState extends State<PaymentPanel>
     if (v == null) return _entered;
     if (_entered.endsWith('.')) return '${_fmt.format(v)}.';
     return _fmt.format(v);
+  }
+
+  Future<void> _printReceipt() async {
+    // Create receipt PDF
+    final pdf = pw.Document();
+    
+    final receiptData = await _generateReceiptPDF();
+    
+    // Print or download the PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => receiptData,
+      name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+
+    // Complete the transaction after printing
+    _ctrl.reverse().then((_) {
+      widget.onComplete(
+        widget.customerName,
+        widget.note,
+        _method,
+        _paid,
+        _change,
+        _selectedCashier,
+        _selectedServer,
+      );
+    });
+  }
+
+  Future<Uint8List> _generateReceiptPDF() async {
+    final pdf = pw.Document();
+    
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        margin: const pw.EdgeInsets.all(10),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              // Header - matching visual layout
+              pw.Text('CEAZAR GABRIEL\'S RESTAURANT', 
+                style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+              pw.Text('YANG CHOW', 
+                style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Owned & optd by:', style: pw.TextStyle(fontSize: 12)),
+              pw.Text('Ceazar Gabriel R.  Areza', style: pw.TextStyle(fontSize: 12)),
+              pw.Text('Areza Town Center Mall brgy. Biñan', style: pw.TextStyle(fontSize: 12)),
+              pw.Text('Pagsanjan Laguna', style: pw.TextStyle(fontSize: 12)),
+              pw.SizedBox(height: 16),
+              
+              // Order info - matching visual layout
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Table #: 32', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text('No. of Guest:  ${widget.cart.isNotEmpty ? "1" : "2"}', style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Text('Term. No.  1', style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('WALK-IN', style: pw.TextStyle(fontSize: 12)),
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Cashr: ${_selectedCashier.length > 15 ? _selectedCashier.substring(0, 15) + "..." : _selectedCashier}', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text('Server: ${_selectedServer}', style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.Divider(),
+              pw.SizedBox(height: 3),
+              
+              // Items header - matching visual layout
+              pw.Row(
+                children: [
+                  pw.SizedBox(
+                    width: 50,
+                    child: pw.Text('Qty', 
+                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Expanded(
+                    child: pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 6),
+                      child: pw.Text('Description(s)', 
+                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ),
+                  pw.SizedBox(
+                    width: 110,
+                    child: pw.Text('Price', 
+                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                      textAlign: pw.TextAlign.right),
+                  ),
+                ],
+              ),
+              pw.Divider(),
+              pw.SizedBox(height: 3),
+              
+              // Category
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('DINE IN', style: pw.TextStyle(fontSize: 12)),
+              ),
+              
+              // Items - matching visual layout with proper quantity formatting
+              ...widget.cart.map((item) => pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.SizedBox(
+                      width: 50,
+                      child: pw.Text('  ${item.quantity.toStringAsFixed(2)}', 
+                        style: pw.TextStyle(fontSize: 12)),
+                    ),
+                    pw.Expanded(
+                      child: pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 6),
+                        child: pw.Text(item.item.name.toUpperCase(), 
+                          style: pw.TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                    pw.SizedBox(
+                      width: 110,
+                      child: pw.Text(_fmt.format(item.item.price * item.quantity), 
+                        style: pw.TextStyle(fontSize: 12),
+                        textAlign: pw.TextAlign.right),
+                    ),
+                  ],
+                ),
+              )),
+              
+              pw.SizedBox(height: 3),
+              pw.Text('----------------------------${widget.cart.length} Item(s)-----------------------------',
+                style: pw.TextStyle(fontSize: 12), textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 6),
+              
+              // Totals - matching visual layout
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('  Sub Total', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text(_fmt.format(widget.cart.fold(0.0, (s, i) => s + i.item.price * i.quantity)), 
+                    style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL', 
+                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(_fmt.format(_total), 
+                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+              pw.SizedBox(height: 16),
+              
+              // Payment - matching visual layout
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Tendered:', style: pw.TextStyle(fontSize: 12)),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('  ${_method.toUpperCase()}', 
+                    style: pw.TextStyle(fontSize: 12)),
+                  pw.Text(_fmt.format(_paid), style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Change:', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text(_fmt.format(_change), style: pw.TextStyle(fontSize: 12)),
+                ],
+              ),
+              pw.SizedBox(height: 3),
+              pw.Divider(),
+              pw.SizedBox(height: 24),
+              
+              // Timestamp - matching visual layout
+              pw.Text('${DateTime.now().month.toString().padLeft(2, '0')}/'
+                      '${DateTime.now().day.toString().padLeft(2, '0')}/'
+                      '${DateTime.now().year} '
+                      '${DateTime.now().hour.toString().padLeft(2, '0')}:'
+                      '${DateTime.now().minute.toString().padLeft(2, '0')}:'
+                      '${DateTime.now().second.toString().padLeft(2, '0')}',
+                style: pw.TextStyle(fontSize: 12)),
+              pw.SizedBox(height: 20),
+              
+              // Name and Address
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Name: _________________________________________', 
+                  style: pw.TextStyle(fontSize: 12)),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Address: ______________________________________', 
+                  style: pw.TextStyle(fontSize: 12)),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('         ______________________________________', 
+                  style: pw.TextStyle(fontSize: 12)),
+              ),
+              pw.SizedBox(height: 12),
+              
+              // Official receipt text
+              pw.Align(
+                alignment: pw.Alignment.center,
+                child: pw.Text('This serves as an official receipt.',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    
+    return pdf.save();
   }
 
   void _tap(String key) {
@@ -806,21 +1042,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           child: SizedBox(
             height: 60,
             child: ElevatedButton(
-              onPressed: _canComplete
-                  ? () {
-                      _ctrl.reverse().then((_) {
-                        widget.onComplete(
-                          widget.customerName,
-                          widget.note,
-                          _method,
-                          _paid,
-                          _change,
-                          _selectedCashier,
-                          _selectedServer,
-                        );
-                      });
-                    }
-                  : null,
+              onPressed: _canComplete ? _printReceipt : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _indigo,
                 foregroundColor: Colors.white,
@@ -834,11 +1056,11 @@ class _PaymentPanelState extends State<PaymentPanel>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Complete Transaction',
+                    'Print Receipt',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SizedBox(width: 10),
-                  Icon(Icons.check_circle_outline, size: 20),
+                  Icon(Icons.print, size: 20),
                 ],
               ),
             ),

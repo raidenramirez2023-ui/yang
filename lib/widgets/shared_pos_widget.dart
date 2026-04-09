@@ -471,6 +471,21 @@ class ReceiptTemplate extends StatelessWidget {
                 maxLines: 1,
               ),
             ),
+            const SizedBox(height: 12),
+            
+            // ===== OFFICIAL RECEIPT TEXT =====
+            const Align(
+              alignment: Alignment.center,
+              child: Text(
+                'This serves as an official receipt.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         ),

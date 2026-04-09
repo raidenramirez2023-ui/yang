@@ -13,6 +13,7 @@ class CustomerRegistrationPage extends StatefulWidget {
 }
 
 class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -30,6 +31,18 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   @override
   void initState() {
     super.initState();
+    
+    // Add listener to password field to trigger confirm password validation
+    passwordController.addListener(() {
+      if (confirmPasswordController.text.isNotEmpty) {
+        _formKey.currentState?.validate();
+      }
+    });
+    
+    // Add listener to confirm password field to trigger validation
+    confirmPasswordController.addListener(() {
+      _formKey.currentState?.validate();
+    });
   }
 
   @override
@@ -59,6 +72,75 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     return RegExp(r"^[\p{L}\p{M}\s\-'’]+$", unicode: true).hasMatch(name);
   }
 
+  String? _validateFirstName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your First Name';
+    }
+    if (!_isValidName(value)) {
+      return 'Please enter a valid First Name (2-50 chars, letters/spaces/hyphens/apostrophes only)';
+    }
+    return null;
+  }
+
+  String? _validateLastName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your Last Name';
+    }
+    if (!_isValidName(value)) {
+      return 'Please enter a valid Last Name (2-50 chars, letters/spaces/hyphens/apostrophes only)';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your Phone Number';
+    }
+    if (value.length != 11 || !value.startsWith('09') || !RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'Please enter a valid phone number (11 digits, starting with 09)';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your Email Address';
+    }
+    final lowercaseEmail = value.toLowerCase();
+    if (value != lowercaseEmail || 
+        !(value.endsWith('@gmail.com') ||
+          value.endsWith('@hotmail.com') ||
+          value.endsWith('@outlook.com'))) {
+      return 'Please enter a valid Email Address';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your Password';
+    }
+    final hasUppercase = value.contains(RegExp(r'[A-Z]'));
+    final hasLowercase = value.contains(RegExp(r'[a-z]'));
+    final hasDigits = value.contains(RegExp(r'[0-9]'));
+    final hasSpecialCharacters = value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+
+    if (value.length < 8 || !hasUppercase || !hasLowercase || !hasDigits || !hasSpecialCharacters) {
+      return 'Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your Password';
+    }
+    if (passwordController.text.isNotEmpty && value != passwordController.text) {
+      return 'Confirm password does not match the password you entered';
+    }
+    return null;
+  }
+
   String _formatToTitleCase(String text) {
     if (text.isEmpty) return text;
     return text.toLowerCase().replaceAllMapped(
@@ -68,97 +150,9 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   }
 
   Future<void> handleRegistration() async {
-    String rawFirstName = firstNameController.text.trim();
-    String rawLastName = lastNameController.text.trim();
-    String phone = phoneController.text.trim();
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
-    String confirmPassword = confirmPasswordController.text.trim();
-
-    // Formatting names to title case
-    String firstName = _formatToTitleCase(rawFirstName);
-    String lastName = _formatToTitleCase(rawLastName);
-
-    // Update controllers to show title case (optional, but good for validation before insert below, though inserting works too)
-    // Actually we will just pass formatted ones to insert
-
-    // Validation
-    if (firstName.isEmpty ||
-        lastName.isEmpty ||
-        phone.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      _showSnackBar(
-        "Please fill in all fields",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
-      return;
-    }
-
-    if (!_isValidName(firstName)) {
-      _showSnackBar(
-        "Please enter a valid First Name (2-50 chars, letters/spaces/hyphens/apostrophes only)",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
-      return;
-    }
-
-    if (!_isValidName(lastName)) {
-      _showSnackBar(
-        "Please enter a valid Last Name (2-50 chars, letters/spaces/hyphens/apostrophes only)",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
-      return;
-    }
-
-    if (phone.length != 11 || !phone.startsWith('09') || !RegExp(r'^[0-9]+$').hasMatch(phone)) {
-      _showSnackBar(
-        "Please enter a valid phone number (11 digits, starting with 09)",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
-      return;
-    }
-
-    final lowercaseEmail = email.toLowerCase();
-    if (email != lowercaseEmail || 
-        !(email.endsWith('@gmail.com') ||
-          email.endsWith('@hotmail.com') ||
-          email.endsWith('@outlook.com'))) {
-      _showSnackBar(
-        "Please enter a valid Email Address",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
-      return;
-    }
-
-    // Password validation
-    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
-    final hasLowercase = password.contains(RegExp(r'[a-z]'));
-    final hasDigits = password.contains(RegExp(r'[0-9]'));
-    final hasSpecialCharacters = password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
-
-    if (password.length < 8 || !hasUppercase || !hasLowercase || !hasDigits || !hasSpecialCharacters) {
-      _showSnackBar(
-        "Password must be at least 8 characters long, contain an uppercase letter, lowercase letter, number, and special character",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
-      return;
-    }
-
-    if (password != confirmPassword) {
-      _showSnackBar(
-        "Passwords do not match",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
-      return;
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      return; // Form validation will show inline errors
     }
 
     if (!_agreeToTerms) {
@@ -170,6 +164,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       return;
     }
 
+    String rawFirstName = firstNameController.text.trim();
+    String rawLastName = lastNameController.text.trim();
+    String phone = phoneController.text.trim();
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
+
+    // Formatting names to title case
+    String firstName = _formatToTitleCase(rawFirstName);
+    String lastName = _formatToTitleCase(rawLastName);
+
     setState(() => _isLoading = true);
 
     try {
@@ -179,12 +184,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       
       final existingUsers = await Supabase.instance.client
           .from('users')
-          .select('firstname, lastname, email');
+          .select('firstname, lastname, email, phone');
           
       for (var user in existingUsers) {
         final existingFirstName = user['firstname']?.toString() ?? '';
         final existingLastName = user['lastname']?.toString() ?? '';
         final existingEmail = user['email']?.toString() ?? '';
+        final existingPhone = user['phone']?.toString() ?? '';
         final normalizedExistingFirstName = existingFirstName.replaceAll(' ', '').toLowerCase();
         final normalizedExistingLastName = existingLastName.replaceAll(' ', '').toLowerCase();
         
@@ -216,6 +222,19 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           }
           return;
         }
+        
+        // Check for phone duplication
+        if (existingPhone == phone) {
+          _showSnackBar(
+            "This Phone Number is already registered. Please use a different phone number.",
+            Colors.red.shade700,
+            Icons.error_outline,
+          );
+          if (mounted) {
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
       }
 
       // Create user in Supabase Auth
@@ -226,36 +245,31 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       );
 
       if (authResponse.user != null) {
-        // Insert user into users table
+        // Insert user into users table with is_approved = false
         await Supabase.instance.client.from('users').insert({
           'email': email,
           'firstname': firstName,
           'lastname': lastName,
           'phone': phone,
           'role': 'customer',
+          'is_approved': false, // Requires admin approval
         });
-
-        // Immediately sign in to activate the account
-        await Supabase.instance.client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
 
         debugPrint('=== CUSTOMER CREATED VIA AUTH ===');
         debugPrint('User ID: ${authResponse.user!.id}');
         debugPrint('Email: $email');
         debugPrint('Name: $firstName $lastName');
-        debugPrint('SUCCESS: Customer account ready');
+        debugPrint('STATUS: Pending admin approval');
 
         _showSnackBar(
-          "Registration successful! Account is now ready to use.",
+          "Registration successful! Your account is now pending admin approval. You will be notified once approved.",
           Colors.green.shade700,
           Icons.check_circle_outline,
         );
 
-        // Navigate to customer dashboard after successful registration
+        // Navigate back to login page after successful registration
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/customer-dashboard');
+          Navigator.of(context).pop();
         }
       }
     } on AuthException catch (e) {
@@ -477,7 +491,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   constraints: const BoxConstraints(maxWidth: 450),
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
-                    child: _buildRegistrationForm(),
+                    child: Form(
+                      key: _formKey,
+                      child: _buildRegistrationForm(),
+                    ),
                   ),
                 ),
               ),
@@ -543,7 +560,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                       ),
                       const SizedBox(height: 30),
                       // Mobile Registration Form
-                      _buildMobileRegistrationForm(),
+                      Form(
+                        key: _formKey,
+                        child: _buildMobileRegistrationForm(),
+                      ),
                     ],
                   ),
                 ),
@@ -570,9 +590,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: firstNameController,
           enabled: !_isLoading,
+          validator: _validateFirstName,
           decoration: InputDecoration(
             hintText: 'Enter your first name',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -609,9 +630,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: lastNameController,
           enabled: !_isLoading,
+          validator: _validateLastName,
           decoration: InputDecoration(
             hintText: 'Enter your last name',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -648,9 +670,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: phoneController,
           enabled: !_isLoading,
+          validator: _validatePhone,
           keyboardType: TextInputType.phone,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -692,10 +715,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
           enabled: !_isLoading,
+          validator: _validateEmail,
           decoration: InputDecoration(
             hintText: 'Enter your email',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -732,10 +756,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: passwordController,
           obscureText: !_isPasswordVisible,
           enabled: !_isLoading,
+          validator: _validatePassword,
           decoration: InputDecoration(
             hintText: 'Create a password',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -789,10 +814,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: confirmPasswordController,
           obscureText: !_isConfirmPasswordVisible,
           enabled: !_isLoading,
+          validator: _validateConfirmPassword,
           decoration: InputDecoration(
             hintText: 'Confirm your password',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -964,9 +990,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // First Name Field
         Text('First Name', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: firstNameController,
           enabled: !_isLoading,
+          validator: _validateFirstName,
           decoration: InputDecoration(
             hintText: 'Enter your first name',
             prefixIcon: const Icon(Icons.person_outline),
@@ -980,9 +1007,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Last Name Field
         Text('Last Name', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: lastNameController,
           enabled: !_isLoading,
+          validator: _validateLastName,
           decoration: InputDecoration(
             hintText: 'Enter your last name',
             prefixIcon: const Icon(Icons.person_outline),
@@ -996,9 +1024,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Phone Number Field
         Text('Phone Number', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: phoneController,
           enabled: !_isLoading,
+          validator: _validatePhone,
           keyboardType: TextInputType.phone,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
@@ -1017,10 +1046,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Email Field
         Text('Email Address', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
           enabled: !_isLoading,
+          validator: _validateEmail,
           decoration: InputDecoration(
             hintText: 'Enter your email',
             prefixIcon: const Icon(Icons.email_outlined),
@@ -1034,10 +1064,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Password Field
         Text('Password', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: passwordController,
           obscureText: !_isPasswordVisible,
           enabled: !_isLoading,
+          validator: _validatePassword,
           decoration: InputDecoration(
             hintText: 'Create a password',
             prefixIcon: const Icon(Icons.lock_outline),
@@ -1063,10 +1094,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         // Confirm Password Field
         Text('Confirm Password', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: confirmPasswordController,
           obscureText: !_isConfirmPasswordVisible,
           enabled: !_isLoading,
+          validator: _validateConfirmPassword,
           decoration: InputDecoration(
             hintText: 'Confirm your password',
             prefixIcon: const Icon(Icons.lock_outline),
