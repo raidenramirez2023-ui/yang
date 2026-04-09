@@ -20,6 +20,8 @@ import 'package:yang_chow/pages/admin/admin_dashboard.dart';
 
 import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
 
+import 'package:yang_chow/pages/admin/admin_customer_approval_page.dart';
+
 import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
 
 import 'package:yang_chow/pages/admin/admin_chat_page.dart';
@@ -51,6 +53,7 @@ class AdminMainPage extends StatefulWidget {
 class _AdminMainPageState extends State<AdminMainPage> {
 
   int _selectedIndex = 0;
+  int _pendingCustomerCount = 0;
 
 
 
@@ -61,6 +64,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     super.initState();
 
     _checkUserRole();
+
+    _loadPendingCustomerCount();
 
   }
 
@@ -82,6 +87,84 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
+  Future<void> _loadPendingCustomerCount() async {
+
+    try {
+
+      final supabase = Supabase.instance.client;
+
+      final response = await supabase
+
+          .from('users')
+
+          .select('*')
+
+          .eq('role', 'customer')
+
+          .eq('is_approved', false)
+
+          .filter('rejection_reason', 'is', null)
+
+          .not('email', 'is', null)
+
+          .not('firstname', 'is', null)
+
+          .not('lastname', 'is', null);
+
+      debugPrint('Supabase response for pending customers: $response');
+      debugPrint('Response type: ${response.runtimeType}');
+      debugPrint('Response length: ${(response as List).length}');
+      
+      // Print first few customers to see what's being counted
+      if (response != null && response is List) {
+        final customers = response as List;
+        for (int i = 0; i < customers.length && i < 3; i++) {
+          final customer = customers[i];
+          debugPrint('Customer $i: ${customer['email']} - approved: ${customer['is_approved']} - rejection: ${customer['rejection_reason']}');
+        }
+      }
+
+      if (mounted && response != null) {
+
+        // Filter out incomplete customer records
+        final validCustomers = (response as List).where((customer) =>
+          customer['email'] != null && customer['email'].toString().trim().isNotEmpty &&
+          customer['firstname'] != null && customer['firstname'].toString().trim().isNotEmpty &&
+          customer['lastname'] != null && customer['lastname'].toString().trim().isNotEmpty
+        ).toList();
+
+        debugPrint('Valid pending customers count: ${validCustomers.length}');
+
+        setState(() {
+
+          _pendingCustomerCount = validCustomers.length;
+
+        });
+
+      }
+
+    } catch (e) {
+
+      debugPrint('Error loading pending customer count: $e');
+
+      // Set to 0 on error to prevent crashes
+
+      if (mounted) {
+
+        setState(() {
+
+          _pendingCustomerCount = 0;
+
+        });
+
+      }
+
+    }
+
+  }
+
+
+
   static const List<String> _pageTitles = [
 
     'Dashboard',
@@ -93,6 +176,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Inventory Forecast',
 
     'Reservations',
+
+    'Customer Approvals',
 
     'User Management',
 
@@ -116,6 +201,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.event_available,
 
+    Icons.person_add,
+
     Icons.people,
 
     Icons.campaign,
@@ -137,6 +224,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const InventoryForecastPage(),
 
     const AdminReservationsPage(),
+
+    const AdminCustomerApprovalPage(),
 
     const UserManagementPage(),
 
@@ -364,7 +453,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                       borderRadius: BorderRadius.circular(12),
 
-                      onTap: () => setState(() => _selectedIndex = index),
+                      onTap: () {
+                        setState(() => _selectedIndex = index);
+                        // Refresh count when switching to Customer Approvals
+                        if (_pageTitles[index] == 'Customer Approvals') {
+                          _loadPendingCustomerCount();
+                        }
+                      },
 
                       child: Container(
 
@@ -396,27 +491,65 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             const SizedBox(width: 12),
 
-                            Text(
+                            Expanded(
 
-                              _pageTitles[index],
+                              child: Text(
 
-                              style: TextStyle(
+                                _pageTitles[index],
 
-                                fontWeight: isSelected
+                                style: TextStyle(
 
-                                    ? FontWeight.w600
+                                  fontWeight: isSelected
 
-                                    : FontWeight.w500,
+                                      ? FontWeight.w600
 
-                                color: isSelected
+                                      : FontWeight.w500,
 
-                                    ? Colors.white
+                                  color: isSelected
 
-                                    : const Color(0xFF64748B),
+                                      ? Colors.white
+
+                                      : const Color(0xFF64748B),
+
+                                ),
 
                               ),
 
                             ),
+
+                            // Add badge for Customer Approvals
+
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
+
+                              Container(
+
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.red,
+
+                                  borderRadius: BorderRadius.circular(10),
+
+                                ),
+
+                                child: Text(
+
+                                  '${_pendingCustomerCount ?? 0}',
+
+                                  style: const TextStyle(
+
+                                    color: Colors.white,
+
+                                    fontSize: 11,
+
+                                    fontWeight: FontWeight.bold,
+
+                                  ),
+
+                                ),
+
+                              ),
 
                           ],
 
@@ -874,6 +1007,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       onTap: () {
 
                         setState(() => _selectedIndex = index);
+                        // Refresh count when switching to Customer Approvals
+                        if (_pageTitles[index] == 'Customer Approvals') {
+                          _loadPendingCustomerCount();
+                        }
 
                         Navigator.pop(context);
 
@@ -909,27 +1046,65 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             const SizedBox(width: 12),
 
-                            Text(
+                            Expanded(
 
-                              _pageTitles[index],
+                              child: Text(
 
-                              style: TextStyle(
+                                _pageTitles[index],
 
-                                fontWeight: isSelected
+                                style: TextStyle(
 
-                                    ? FontWeight.w600
+                                  fontWeight: isSelected
 
-                                    : FontWeight.w500,
+                                      ? FontWeight.w600
 
-                                color: isSelected
+                                      : FontWeight.w500,
 
-                                    ? Colors.white
+                                  color: isSelected
 
-                                    : const Color(0xFF64748B),
+                                      ? Colors.white
+
+                                      : const Color(0xFF64748B),
+
+                                ),
 
                               ),
 
                             ),
+
+                            // Add badge for Customer Approvals
+
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
+
+                              Container(
+
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.red,
+
+                                  borderRadius: BorderRadius.circular(10),
+
+                                ),
+
+                                child: Text(
+
+                                  '${_pendingCustomerCount ?? 0}',
+
+                                  style: const TextStyle(
+
+                                    color: Colors.white,
+
+                                    fontSize: 11,
+
+                                    fontWeight: FontWeight.bold,
+
+                                  ),
+
+                                ),
+
+                              ),
 
                           ],
 
