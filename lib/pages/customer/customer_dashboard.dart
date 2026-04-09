@@ -6573,8 +6573,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-    double reservationFee =
-
+    // Reservation fee: ₱500 base + ₱50 per guest
+    final double reservationFee =
         500.0 + (50.0 * (reservation['number_of_guests'] ?? 1));
 
 
