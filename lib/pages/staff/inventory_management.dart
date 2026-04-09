@@ -565,6 +565,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  
   String _getStockStatus(int quantity) {
     if (quantity == 0) return 'OUT OF STOCK';
     if (quantity < 10) return 'LOW STOCK';
