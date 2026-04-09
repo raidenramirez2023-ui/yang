@@ -742,7 +742,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             onPressed: () async {
               Navigator.pop(context);
               final success = await ChatService().unsendMessage(messageId);
-              if (!success && mounted) {
+              if (!success) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Failed to unsend message'),
