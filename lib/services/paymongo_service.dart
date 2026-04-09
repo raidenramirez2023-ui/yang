@@ -262,7 +262,7 @@ class PayMongoService {
 
               'amount': (amount * 100).round(), // Convert to cents
 
-              'currency': currency.toLowerCase(),
+              'currency': currency.toUpperCase(),
 
               'payment_method_allowed': ['gcash', 'paymaya', 'card', 'bank_transfer'],
 
@@ -327,89 +327,49 @@ class PayMongoService {
 
 
   // Attach payment method to payment intent
-
   static Future<Map<String, dynamic>> attachPaymentMethod({
-
     required String paymentIntentId,
-
     required String paymentMethodId,
-
     required String clientKey,
-
+    String? returnUrl,
   }) async {
-
     try {
-
       final response = await http.post(
-
         Uri.parse('$_baseUrl/payment_intents/$paymentIntentId/attach'),
-
         headers: {
-
           ..._headers,
-
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
         },
-
         body: jsonEncode({
-
           'data': {
-
             'attributes': {
-
               'payment_method': paymentMethodId,
-
               'client_key': clientKey,
-
+              if (returnUrl != null) 'return_url': returnUrl,
             },
-
           },
-
         }),
-
       );
 
-
-
       if (response.statusCode == 200) {
-
         final data = jsonDecode(response.body);
-
         return {
-
           'success': true,
-
           'data': data['data'],
-
           'status': data['data']['attributes']['status'],
-
         };
-
       } else {
-
         return {
-
           'success': false,
-
           'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Payment method attachment failed',
-
         };
-
       }
-
     } catch (e) {
-
       return {
-
         'success': false,
-
         'error': 'Network error: ${e.toString()}',
-
       };
-
     }
-
   }
 
 

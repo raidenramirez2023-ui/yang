@@ -405,111 +405,162 @@ class _PaymentPageState extends State<PaymentPage> {
 
 
   Future<void> _processPayment() async {
-
     if (_selectedPaymentMethod == null) return;
-
-
-
     setState(() {
-
       _isProcessing = true;
-
       _errorMessage = null;
-
     });
 
+    final methodType = _selectedPaymentMethod!['type'] as String;
 
+    // GCash and Maya use the direct Payment Intent flow
+    if (methodType == 'gcash' || methodType == 'paymaya') {
+      await _processEWalletPayment(methodType);
+    } else {
+      await _processPaymentLink();
+    }
+  }
 
+  // ── E-Wallet (GCash / Maya) ─────────────────────────────────────────────────
+  Future<void> _processEWalletPayment(String type) async {
     try {
+      final returnUrl = kIsWeb
+          ? '${Uri.base.origin}/#/customer-dashboard?status=success'
+          : 'yangchow://payment/success';
 
-      // For Web, we want the success URL to be the current site URL
-
-      String? successUrl;
-
-      String? cancelUrl;
-
-      
-
-      if (kIsWeb) {
-
-        final currentUrl = Uri.base.origin;
-
-        successUrl = '$currentUrl/#/customer-dashboard?status=success';
-
-        cancelUrl = '$currentUrl/#/customer-dashboard?status=cancelled';
-
-      }
-
-
-
-      // Create payment link
-
-      final result = await PayMongoService.createPaymentLink(
-
+      // 1. Create Payment Intent
+      final intentResult = await PayMongoService.createPaymentIntent(
         amount: widget.amount,
-
-        description: widget.description,
-
-        returnUrl: successUrl,
-
-        cancelUrl: cancelUrl,
-
+        currency: 'PHP',
         metadata: {
-
-          ...?widget.metadata,
-
-          'payment_method': _selectedPaymentMethod!['type'],
-
+          // PayMongo requires all metadata values to be flat strings
+          if (widget.metadata != null)
+            ...widget.metadata!.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+          'payment_method': type,
           'reference_number': PayMongoService.generateReferenceNumber(),
-
         },
-
       );
 
-
-
-      if (result['success']) {
-
-        _currentLinkId = result['linkId'];
-
-        if (kIsWeb) {
-
-          // For web, launch URL in new tab
-
-          await _launchPaymentUrl(result['checkoutUrl']);
-
-        } else {
-
-          // For mobile/desktop, use WebView
-
-          await _openPaymentWebView(result['checkoutUrl']);
-
-        }
-
-      } else {
-
+      if (!intentResult['success']) {
         setState(() {
-
-          _errorMessage = result['error'];
-
+          _errorMessage = intentResult['error'];
           _isProcessing = false;
-
         });
-
+        return;
       }
 
+      final paymentIntentId = intentResult['data']['id'];
+      final clientKey = intentResult['clientKey'];
+
+      // 2. Create Payment Method
+      final methodResult = await PayMongoService.createPaymentMethod(
+        type: type,
+        details: {},
+      );
+
+      if (!methodResult['success']) {
+        setState(() {
+          _errorMessage = methodResult['error'];
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      final paymentMethodId = methodResult['paymentMethodId'];
+
+      // 3. Attach Payment Method → gets redirect URL
+      final attachResult = await PayMongoService.attachPaymentMethod(
+        paymentIntentId: paymentIntentId,
+        paymentMethodId: paymentMethodId,
+        clientKey: clientKey,
+        returnUrl: returnUrl,
+      );
+
+      if (!attachResult['success']) {
+        setState(() {
+          _errorMessage = attachResult['error'];
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      final status = attachResult['data']['attributes']['status'];
+
+      if (status == 'awaiting_next_action') {
+        // 4. Redirect user to GCash / Maya
+        final redirectUrl = attachResult['data']['attributes']
+            ['next_action']?['redirect']?['url'] as String?;
+
+        if (redirectUrl != null) {
+          _currentLinkId = paymentIntentId; // reuse for verification
+          await _launchPaymentUrl(redirectUrl);
+        } else {
+          setState(() {
+            _errorMessage = 'Could not get ${type == 'gcash' ? 'GCash' : 'Maya'} redirect URL.';
+            _isProcessing = false;
+          });
+        }
+      } else if (status == 'succeeded') {
+        _onPaymentSuccess();
+      } else {
+        setState(() {
+          _errorMessage = 'Unexpected payment status: $status';
+          _isProcessing = false;
+        });
+      }
     } catch (e) {
-
       setState(() {
-
-        _errorMessage = 'Payment processing failed: ${e.toString()}';
-
+        _errorMessage = 'Payment failed: ${e.toString()}';
         _isProcessing = false;
-
       });
-
     }
+  }
 
+  // ── Payment Link (QRPh, Card, Bank Transfer) ────────────────────────────────
+  Future<void> _processPaymentLink() async {
+    try {
+      String? successUrl;
+      String? cancelUrl;
+
+      if (kIsWeb) {
+        final currentUrl = Uri.base.origin;
+        successUrl = '$currentUrl/#/customer-dashboard?status=success';
+        cancelUrl = '$currentUrl/#/customer-dashboard?status=cancelled';
+      }
+
+      final result = await PayMongoService.createPaymentLink(
+        amount: widget.amount,
+        description: widget.description,
+        returnUrl: successUrl,
+        cancelUrl: cancelUrl,
+        metadata: {
+          // PayMongo requires all metadata values to be flat strings
+          if (widget.metadata != null)
+            ...widget.metadata!.map((k, v) => MapEntry(k, v?.toString() ?? '')),
+          'payment_method': _selectedPaymentMethod!['type'],
+          'reference_number': PayMongoService.generateReferenceNumber(),
+        },
+      );
+
+      if (result['success']) {
+        _currentLinkId = result['linkId'];
+        if (kIsWeb) {
+          await _launchPaymentUrl(result['checkoutUrl']);
+        } else {
+          await _openPaymentWebView(result['checkoutUrl']);
+        }
+      } else {
+        setState(() {
+          _errorMessage = result['error'];
+          _isProcessing = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Payment processing failed: ${e.toString()}';
+        _isProcessing = false;
+      });
+    }
   }
 
 
