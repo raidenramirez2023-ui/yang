@@ -100,7 +100,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
         ),
       );
     } finally {
-      setState(() => _isSending = false);
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 
@@ -819,7 +821,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
             onPressed: () async {
               Navigator.pop(context);
               final success = await ChatService().unsendMessage(messageId);
-              if (!success && mounted) {
+              if (!success) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Failed to unsend message'),
