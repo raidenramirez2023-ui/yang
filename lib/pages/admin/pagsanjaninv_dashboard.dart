@@ -936,186 +936,148 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   }
 
-
-
-
-
   Future<void> _handleRequestAction(String requestId, String newStatus) async {
-
     try {
-
       if (newStatus == 'Approved') {
-
         final request = await _supabase
-
             .from('kitchen_requests')
-
             .select()
-
             .eq('id', requestId)
-
             .single();
 
-        
+        // Check stock availability before approving
+        final itemName = request['item_name']?.toString();
+        final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
 
-        await _approveRequestCore(request);
+        if (itemName != null) {
+          if (quantityNeeded == 0) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cannot approve: Requested quantity is 0.'),
+                  backgroundColor: AppTheme.errorRed,
+                ),
+              );
+            }
+            return; // Don't proceed with approval if quantity is 0
+          }
 
-        
+          final inventoryItems = await _supabase
+              .from('inventory')
+              .select('id, quantity')
+              .ilike('name', '%$itemName%')
+              .limit(1);
 
-        if (mounted) {
-
-          ScaffoldMessenger.of(context).showSnackBar(
-
-            const SnackBar(
-
-              content: Text('Request approved and stock transferred to kitchen!'),
-
-              backgroundColor: AppTheme.successGreen,
-
-            ),
-
-          );
-
+          if (inventoryItems.isNotEmpty) {
+            final inventoryItem = inventoryItems.first;
+            final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
+            
+            if (currentQuantity >= quantityNeeded) {
+              // Sufficient stock - proceed with approval
+              await _approveRequestCore(request);
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Request approved and stock transferred to kitchen!'),
+                    backgroundColor: AppTheme.successGreen,
+                  ),
+                );
+              }
+            } else {
+              // Insufficient stock - show warning and keep request pending
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Cannot approve: Insufficient stock. Only $currentQuantity available, $quantityNeeded needed.'),
+                    backgroundColor: AppTheme.errorRed,
+                  ),
+                );
+              }
+              return; // Don't proceed with approval
+            }
+          } else {
+            // Item not found in inventory
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cannot approve: Item not found in inventory.'),
+                  backgroundColor: AppTheme.errorRed,
+                ),
+              );
+            }
+            return; // Don't proceed with approval
+          }
         }
-
       } else {
-
         await _supabase
-
             .from('kitchen_requests')
-
             .update({'status': newStatus})
-
             .eq('id', requestId);
-
         
-
         if (mounted) {
-
           ScaffoldMessenger.of(context).showSnackBar(
-
             const SnackBar(
-
               content: Text('Request rejected.'),
-
               backgroundColor: AppTheme.errorRed,
-
             ),
-
           );
-
         }
-
       }
-
       
-
       _loadDashboardData();
-
     } catch (e) {
-
       if (mounted) {
-
         ScaffoldMessenger.of(context).showSnackBar(
-
           SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.errorRed),
-
         );
-
       }
-
     }
-
   }
 
-
-
   Future<void> _approveRequestCore(Map<String, dynamic> request) async {
-
     final itemName = request['item_name']?.toString();
-
     final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
 
-
-
     if (itemName != null && quantityNeeded > 0) {
-
       final inventoryItems = await _supabase
-
           .from('inventory')
-
           .select('id, quantity')
-
           .ilike('name', '%$itemName%')
-
           .limit(1);
 
-
-
       if (inventoryItems.isNotEmpty) {
-
         final inventoryItem = inventoryItems.first;
-
         final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
-
         
-
         // Safety: Only transfer what is actually available in main inventory
-
         final transferQty = quantityNeeded > currentQuantity ? currentQuantity : quantityNeeded;
-
         final newQuantity = currentQuantity - transferQty;
 
-
-
         await _supabase
-
             .from('inventory')
-
             .update({'quantity': newQuantity})
-
             .eq('id', inventoryItem['id']);
 
-
-
         final fullInventoryItem = await _supabase
-
             .from('inventory')
-
             .select('name, category, unit')
-
             .eq('id', inventoryItem['id'])
-
             .single();
 
-
-
         final kitchenItem = await _supabase
-
             .from('kitchen_inventory')
-
             .select()
-
             .eq('name', fullInventoryItem['name'])
-
             .maybeSingle();
 
-
-
         if (kitchenItem != null) {
-
           final currentKitchenQty = (kitchenItem['quantity'] as num?)?.toInt() ?? 0;
-
           await _supabase
-
               .from('kitchen_inventory')
-
               .update({'quantity': currentKitchenQty + transferQty})
-
               .eq('id', kitchenItem['id']);
-
         } else {
-
           await _supabase.from('kitchen_inventory').insert({
 
             'name': fullInventoryItem['name'],
@@ -1204,9 +1166,74 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
+      int approvedCount = 0;
+
+      int outOfStockCount = 0;
+
+
+
       for (var request in pendingRequests) {
 
-        await _approveRequestCore(request);
+        final itemName = request['item_name']?.toString();
+
+        final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
+
+
+
+        if (itemName != null) {
+          if (quantityNeeded == 0) {
+            // Count zero quantity requests as out of stock
+            outOfStockCount++;
+            continue;
+          }
+
+          // Check stock availability in pagsanjaninv inventory
+
+          final inventoryItems = await _supabase
+
+              .from('inventory')
+
+              .select('id, quantity')
+
+              .ilike('name', '%$itemName%')
+
+              .limit(1);
+
+
+
+          if (inventoryItems.isNotEmpty) {
+
+            final inventoryItem = inventoryItems.first;
+
+            final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
+
+
+
+            // Only approve if there's sufficient stock
+
+            if (currentQuantity >= quantityNeeded) {
+
+              await _approveRequestCore(request);
+
+              approvedCount++;
+
+            } else {
+
+              // Keep request in pending state if out of stock
+
+              outOfStockCount++;
+
+            }
+
+          } else {
+
+            // Keep request in pending state if item not found in inventory
+
+            outOfStockCount++;
+
+          }
+
+        }
 
       }
 
@@ -1214,13 +1241,41 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       if (mounted) {
 
+        String message;
+
+        Color backgroundColor;
+
+
+
+        if (approvedCount > 0 && outOfStockCount > 0) {
+
+          message = 'Approved $approvedCount requests successfully! $outOfStockCount requests remain pending due to insufficient stock.';
+
+          backgroundColor = AppTheme.warningOrange;
+
+        } else if (approvedCount > 0) {
+
+          message = 'Approved $approvedCount requests successfully!';
+
+          backgroundColor = AppTheme.successGreen;
+
+        } else {
+
+          message = 'No requests approved. All $outOfStockCount requests remain pending due to insufficient stock.';
+
+          backgroundColor = AppTheme.errorRed;
+
+        }
+
+
+
         ScaffoldMessenger.of(context).showSnackBar(
 
           SnackBar(
 
-            content: Text('Approved ${pendingRequests.length} requests successfully!'),
+            content: Text(message),
 
-            backgroundColor: AppTheme.successGreen,
+            backgroundColor: backgroundColor,
 
           ),
 
@@ -1228,7 +1283,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       }
 
-      
+
 
       _loadDashboardData();
 
@@ -1252,6 +1307,56 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   }
 
+
+
+  Future<void> _rejectAllRequests() async {
+
+    setState(() => _isLoading = true);
+    
+    try {
+      final pendingRequests = await _supabase
+          .from('kitchen_requests')
+          .select('id, item_name')
+          .eq('status', 'Pending');
+      
+      if (pendingRequests.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No pending requests to reject.')),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Reject all pending requests
+      for (var request in pendingRequests) {
+        await _supabase
+            .from('kitchen_requests')
+            .update({'status': 'Rejected'})
+            .eq('id', request['id']);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Rejected ${pendingRequests.length} requests successfully!'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      
+      _loadDashboardData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bulk Error: $e'), backgroundColor: AppTheme.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
 
   @override
@@ -2120,30 +2225,36 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 ),
 
-                ElevatedButton.icon(
-
-                  onPressed: _isLoading ? null : _approveAllRequests,
-
-                  icon: const Icon(Icons.done_all, size: 18),
-
-                  label: const Text('Approve All', style: TextStyle(fontWeight: FontWeight.bold)),
-
-                  style: ElevatedButton.styleFrom(
-
-                    backgroundColor: AppTheme.successGreen,
-
-                    foregroundColor: AppTheme.white,
-
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-
-                    shape: RoundedRectangleBorder(
-
-                      borderRadius: BorderRadius.circular(8),
-
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _approveAllRequests,
+                      icon: const Icon(Icons.done_all, size: 18),
+                      label: const Text('Approve All', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.successGreen,
+                        foregroundColor: AppTheme.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
-
-                  ),
-
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _rejectAllRequests,
+                      icon: const Icon(Icons.cancel_outlined, size: 18),
+                      label: const Text('Reject All', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.errorRed,
+                        foregroundColor: AppTheme.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
               ],
@@ -2152,7 +2263,56 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             const SizedBox(height: 24),
 
-
+            // Request Counter
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _supabase
+                  .from('kitchen_requests')
+                  .stream(primaryKey: ['id'])
+                  .eq('status', 'Pending'),
+              builder: (context, snapshot) {
+                final pendingCount = snapshot.data?.length ?? 0;
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.pending_actions, color: AppTheme.primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Total Pending Requests: $pendingCount',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (pendingCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warningOrange,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$pendingCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
 
             // All Requests Container
 

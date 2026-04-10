@@ -2142,15 +2142,25 @@ class _StockViewTabState extends State<_StockViewTab> {
 
       if (mounted) {
         setState(() {
-          _availableItems = items.map((i) => i['name'].toString()).toList();
+          // Combine items from both main inventory and kitchen inventory
+          final allItemNames = <String>{};
+          
+          // Add items from main inventory
           for (var item in items) {
             final name = item['name'].toString();
+            allItemNames.add(name);
             _itemUnits[name] = item['unit']?.toString() ?? 'pcs';
             _itemStocks[name] = (item['quantity'] as num?)?.toInt() ?? 0;
           }
+          
+          // Add items from kitchen inventory (including ones not in main inventory)
           for (var item in kitchenItems) {
-            _kitchenStocks[item['name'].toString()] = (item['quantity'] as num?)?.toInt() ?? 0;
+            final name = item['name'].toString();
+            allItemNames.add(name);
+            _kitchenStocks[name] = (item['quantity'] as num?)?.toInt() ?? 0;
           }
+          
+          _availableItems = allItemNames.toList();
         });
       }
     } catch (_) {}
@@ -2164,14 +2174,14 @@ class _StockViewTabState extends State<_StockViewTab> {
 
   Future<void> _requestAllOutOfStock() => _runBulkRequest(
         title: 'Only out-of-stock items',
-        filter: (name, mainQty, kitchenQty) => mainQty > 0 && kitchenQty <= 0,
+        filter: (name, mainQty, kitchenQty) => kitchenQty <= 0,
         note: 'Bulk request (Kitchen is OUT)',
       );
 
   Future<void> _requestAllLowStock() => _runBulkRequest(
         title: 'Only low-stock items',
         filter: (name, mainQty, kitchenQty) =>
-            mainQty > 0 && kitchenQty >= 1 && kitchenQty <= 10,
+            kitchenQty >= 1 && kitchenQty <= 10,
         note: 'Bulk request (Kitchen is LOW)',
       );
 
@@ -2217,11 +2227,27 @@ class _StockViewTabState extends State<_StockViewTab> {
       final chef = Supabase.instance.client.auth.currentUser?.email ?? 'chef';
       final requests = itemsToRequest.map((name) {
         final stock = _itemStocks[name] ?? 0;
+        final kitchenStock = _kitchenStocks[name] ?? 0;
+        
+        // Calculate 40% of total stock (rounded to nearest integer, minimum 1)
+        final requestedQuantity = (stock * 0.4).round();
+        final quantityNeeded = requestedQuantity > 0 ? requestedQuantity : 1;
+        
+        // Set priority based on kitchen stock status
+        String priority;
+        if (kitchenStock <= 0) {
+          priority = 'Urgent';  // Out of Stock -> Urgent
+        } else if (kitchenStock <= 10) {
+          priority = 'High';    // Low Stock -> High
+        } else {
+          priority = 'Normal';
+        }
+
         return {
           'item_name': name,
-          'quantity_needed': stock,
+          'quantity_needed': quantityNeeded,
           'unit': _itemUnits[name] ?? 'pcs',
-          'priority': 'Normal',
+          'priority': priority,
           'note': note,
           'requested_by': chef,
           'status': 'Pending',

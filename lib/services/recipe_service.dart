@@ -754,8 +754,8 @@ class RecipeService {
 
         if (matchingItem != null) {
           final int currentQty = (matchingItem['quantity'] as num?)?.toInt() ?? 0;
-          // Calculate deduction - using ceil() to ensure we account for whole units
-          final int deduction = (ingredient.quantity * orderQuantity).ceil();
+          // Calculate deduction - always deduct only 1 unit per ingredient, regardless of order quantity
+          final int deduction = 1;
           final int newQty = (currentQty - deduction).clamp(0, 999999).toInt();
 
           await Supabase.instance.client
@@ -763,7 +763,7 @@ class RecipeService {
               .update({'quantity': newQty})
               .eq('id', matchingItem['id']);
           
-          debugPrint('Auto-Inventory: Deducted $deduction units of "${matchingItem['name']}" for "$menuItemName". New stock: $newQty');
+          debugPrint('Auto-Inventory: Deducted $deduction unit of "${matchingItem['name']}" for "$menuItemName" (ordered: $orderQuantity). New stock: $newQty');
         } else {
           debugPrint('Auto-Inventory: No matching inventory item found for ingredient "${ingredient.name}"');
         }
