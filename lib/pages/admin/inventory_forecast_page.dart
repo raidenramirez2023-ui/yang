@@ -17,15 +17,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   late Animation<double> _fadeIn;
   String _selectedCategory = 'All';
   String _selectedTimeFilter = 'Daily'; // New time filter for Daily/Weekly/Monthly
-  String _selectedDayFilter = 'Monday'; // Secondary filter for Daily (Monday-Sunday)
-  String _selectedWeekFilter = 'Week 1'; // Secondary filter for Weekly (Week 1-4)
+  String _selectedDailyMonth = 'January'; // Month for Daily filtering
+  String _selectedDailyDay = '1'; // Day for Daily filtering (1-31)
+  String _selectedWeeklyMonth = 'January'; // Month for Weekly filtering
+  String _selectedWeekFilter = 'Week 1'; // Week number for Weekly filtering (Week 1-4)
   String _selectedMonthFilter = 'January'; // Secondary filter for Monthly (January-April)
   String _selectedYearFilter = DateTime.now().year.toString(); // Secondary filter for Annually
   bool _showChart = true; // Toggle between chart and list
   late Future<List<Map<String, dynamic>>> _forecastFuture;
 
   final List<String> timeFilters = ['Daily', 'Weekly', 'Monthly', 'Annually'];
-  final List<String> dayFilters = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  final List<String> dayFilters = List.generate(31, (index) => (index + 1).toString()); // Days 1-31 for Daily filtering
   final List<String> weekFilters = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
   final List<String> monthFilters = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   final List<String> yearFilters = List.generate(2031 - DateTime.now().year + 1, (index) => (DateTime.now().year + index).toString());
@@ -187,12 +189,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       
       switch (_selectedTimeFilter) {
         case 'Daily':
-          // Filter for selected day of week in current month between 10:00 AM and 8:00 PM
-          final selectedDayIndex = _getDayIndex(_selectedDayFilter);
-          final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
+          // Filter for specific date (month + day) in current year between 10:00 AM and 8:00 PM
+          final selectedMonthIndex = _getMonthIndex(_selectedDailyMonth);
+          final selectedDay = int.parse(_selectedDailyDay);
           if (createdAt.year == now.year &&
               createdAt.month == selectedMonthIndex &&
-              createdAt.weekday == selectedDayIndex &&
+              createdAt.day == selectedDay &&
               createdAt.hour >= 10 &&
               createdAt.hour < 20) {
             filteredData.add(item);
@@ -200,9 +202,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           break;
           
         case 'Weekly':
-          // Filter for selected week of current month (April)
+          // Filter for selected week of specific month in current year
           final selectedWeekNumber = int.parse(_selectedWeekFilter.split(' ')[1]);
-          final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
+          final selectedMonthIndex = _getMonthIndex(_selectedWeeklyMonth);
           if (_isInSelectedWeekOfMonth(createdAt, selectedWeekNumber, selectedMonthIndex, now.year)) {
             filteredData.add(item);
           }
@@ -309,9 +311,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   String _getFilterSuffix() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return ' - $_selectedDayFilter';
+        return ' - $_selectedDailyMonth $_selectedDailyDay';
       case 'Weekly':
-        return ' - $_selectedWeekFilter';
+        return ' - $_selectedWeeklyMonth $_selectedWeekFilter';
       case 'Monthly':
         return ' - $_selectedMonthFilter';
       case 'Annually':
@@ -781,68 +783,146 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   Widget _buildSecondaryFilterDropdown() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: DropdownButtonFormField<String>(
-            value: _selectedDayFilter,
-            decoration: InputDecoration(
-              labelText: 'Day',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.lightGrey),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Month dropdown for Daily
+            Container(
+              constraints: const BoxConstraints(maxWidth: 110),
+              child: DropdownButtonFormField<String>(
+                value: _selectedDailyMonth,
+                decoration: InputDecoration(
+                  labelText: 'Month',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.lightGrey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor),
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                items: monthFilters.map((month) {
+                  return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 11)));
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedDailyMonth = value;
+                      _forecastFuture = _getForecastData();
+                    });
+                  }
+                },
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
-              ),
-              filled: true,
-              fillColor: AppTheme.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            items: dayFilters.map((day) {
-              return DropdownMenuItem(value: day, child: Text(day, style: const TextStyle(fontSize: 12)));
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedDayFilter = value;
-                  _forecastFuture = _getForecastData();
-                });
-              }
-            },
-          ),
+            const SizedBox(width: 4),
+            // Day dropdown for Daily
+            Container(
+              constraints: const BoxConstraints(maxWidth: 90),
+              child: DropdownButtonFormField<String>(
+                value: _selectedDailyDay,
+                decoration: InputDecoration(
+                  labelText: 'Day',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.lightGrey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor),
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                items: dayFilters.map((day) {
+                  return DropdownMenuItem(value: day, child: Text(day, style: const TextStyle(fontSize: 11)));
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedDailyDay = value;
+                      _forecastFuture = _getForecastData();
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
         );
       case 'Weekly':
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: DropdownButtonFormField<String>(
-            value: _selectedWeekFilter,
-            decoration: InputDecoration(
-              labelText: 'Week',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.lightGrey),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Month dropdown for Weekly
+            Container(
+              constraints: const BoxConstraints(maxWidth: 110),
+              child: DropdownButtonFormField<String>(
+                value: _selectedWeeklyMonth,
+                decoration: InputDecoration(
+                  labelText: 'Month',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.lightGrey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor),
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                items: monthFilters.map((month) {
+                  return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 11)));
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedWeeklyMonth = value;
+                      _forecastFuture = _getForecastData();
+                    });
+                  }
+                },
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
-              ),
-              filled: true,
-              fillColor: AppTheme.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            items: weekFilters.map((week) {
-              return DropdownMenuItem(value: week, child: Text(week, style: const TextStyle(fontSize: 12)));
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedWeekFilter = value;
-                  _forecastFuture = _getForecastData();
-                });
-              }
-            },
-          ),
+            const SizedBox(width: 4),
+            // Week dropdown for Weekly
+            Container(
+              constraints: const BoxConstraints(maxWidth: 90),
+              child: DropdownButtonFormField<String>(
+                value: _selectedWeekFilter,
+                decoration: InputDecoration(
+                  labelText: 'Week',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.lightGrey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor),
+                  ),
+                  filled: true,
+                  fillColor: AppTheme.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                items: weekFilters.map((week) {
+                  return DropdownMenuItem(value: week, child: Text(week, style: const TextStyle(fontSize: 11)));
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedWeekFilter = value;
+                      _forecastFuture = _getForecastData();
+                    });
+                  }
+                },
+              ),
+            ),
+          ],
         );
       case 'Monthly':
         return Container(
