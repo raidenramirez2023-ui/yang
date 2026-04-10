@@ -15,21 +15,20 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeIn;
-  String _selectedPeriod = '7days';
   String _selectedCategory = 'All';
-  String _selectedItemName = 'All';
   String _selectedTimeFilter = 'Daily'; // New time filter for Daily/Weekly/Monthly
   String _selectedDayFilter = 'Monday'; // Secondary filter for Daily (Monday-Sunday)
   String _selectedWeekFilter = 'Week 1'; // Secondary filter for Weekly (Week 1-4)
   String _selectedMonthFilter = 'January'; // Secondary filter for Monthly (January-April)
+  String _selectedYearFilter = DateTime.now().year.toString(); // Secondary filter for Annually
   bool _showChart = true; // Toggle between chart and list
   late Future<List<Map<String, dynamic>>> _forecastFuture;
 
-  final List<String> periods = ['7days', '31days', '90days'];
-  final List<String> timeFilters = ['Daily', 'Weekly', 'Monthly'];
+  final List<String> timeFilters = ['Daily', 'Weekly', 'Monthly', 'Annually'];
   final List<String> dayFilters = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   final List<String> weekFilters = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-  final List<String> monthFilters = ['January', 'February', 'March', 'April'];
+  final List<String> monthFilters = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  final List<String> yearFilters = List.generate(2031 - DateTime.now().year + 1, (index) => (DateTime.now().year + index).toString());
   final List<String> categories = [
     'All',
     'Fresh',
@@ -43,7 +42,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     'Packaging',
     'Janitorial',
   ];
-  List<String> itemNames = ['All'];
 
   @override
   void initState() {
@@ -71,9 +69,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           .select()
           .order('name');
 
-      // Get approved kitchen requests for selected period
-      final days = _getDaysFromPeriod(_selectedPeriod);
-      final cutoffDate = DateTime.now().subtract(Duration(days: days));
+      // Get approved kitchen requests for the last 90 days
+      final cutoffDate = DateTime.now().subtract(const Duration(days: 90));
 
       final transactionsResponse = await Supabase.instance.client
           .from('kitchen_requests')
@@ -85,40 +82,16 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       final inventory = inventoryResponse;
       final transactions = transactionsResponse;
 
-      // Update item names list for filtering
-      final Set<String> uniqueItems = <String>{};
-      for (var transaction in transactions) {
-        final itemName = transaction['item_name'] as String;
-        uniqueItems.add(itemName);
-      }
 
-      setState(() {
-        itemNames = ['All', ...uniqueItems.toList()..sort()];
-      });
-
-      return _calculateForecast(inventory, transactions, days);
+      return _calculateForecast(inventory, transactions);
     } catch (e) {
       return [];
-    }
-  }
-
-  int _getDaysFromPeriod(String period) {
-    switch (period) {
-      case '7days':
-        return 7;
-      case '30days':
-        return 30;
-      case '90days':
-        return 90;
-      default:
-        return 7;
     }
   }
 
   List<Map<String, dynamic>> _calculateForecast(
     List<Map<String, dynamic>> inventory,
     List<Map<String, dynamic>> transactions,
-    int periodDays,
   ) {
     List<Map<String, dynamic>> forecast = [];
 
@@ -200,35 +173,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     }
   }
 
-  List<FlSpot> _getChartData(List<Map<String, dynamic>> forecast) {
-    if (forecast.isEmpty) return [];
-
-    // Group requests by day of week and sum quantities
-    final Map<int, double> dailyTotals = {
-      1: 0.0, // Monday
-      2: 0.0, // Tuesday
-      3: 0.0, // Wednesday
-      4: 0.0, // Thursday
-      5: 0.0, // Friday
-      6: 0.0, // Saturday
-      7: 0.0, // Sunday
-    };
-
-    for (var item in forecast) {
-      final date = DateTime.parse(item['createdAt'] as String);
-      final dayOfWeek = date.weekday; // 1 = Monday, 7 = Sunday
-      final quantity = (item['requestQuantity'] as num).toDouble();
-      dailyTotals[dayOfWeek] = (dailyTotals[dayOfWeek] ?? 0) + quantity;
-    }
-
-    // Convert to list of FlSpot with proper day indices
-    return List.generate(7, (index) {
-      final dayOfWeek = index + 1; // 1-7 for Monday-Sunday
-      final totalQuantity = dailyTotals[dayOfWeek] ?? 0;
-      return FlSpot(index.toDouble(), totalQuantity);
-    });
-  }
-
+  
   List<Map<String, dynamic>> _filterDataByTime(
     List<Map<String, dynamic>> forecast,
   ) {
@@ -270,6 +215,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             filteredData.add(item);
           }
           break;
+          
+        case 'Annually':
+          // Filter for selected year
+          final selectedYear = int.parse(_selectedYearFilter);
+          if (createdAt.year == selectedYear) {
+            filteredData.add(item);
+          }
+          break;
       }
     }
 
@@ -295,25 +248,19 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       case 'February': return 2;
       case 'March': return 3;
       case 'April': return 4;
+      case 'May': return 5;
+      case 'June': return 6;
+      case 'July': return 7;
+      case 'August': return 8;
+      case 'September': return 9;
+      case 'October': return 10;
+      case 'November': return 11;
+      case 'December': return 12;
       default: return 1;
     }
   }
 
-  bool _isInSelectedWeek(DateTime date, int weekNumber, DateTime now) {
-    // Get the first day of the current month
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    
-    // Calculate the start and end of the selected week
-    final weekStart = firstDayOfMonth.add(Duration(days: (weekNumber - 1) * 7));
-    final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
-    
-    // Check if the date is within the selected week of the current month
-    return date.year == now.year &&
-           date.month == now.month &&
-           date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
-           date.isBefore(weekEnd.add(const Duration(days: 1)));
-  }
-
+  
   bool _isInSelectedWeekOfMonth(DateTime date, int weekNumber, int monthIndex, int year) {
     // Get first day of selected month
     final firstDayOfMonth = DateTime(year, monthIndex, 1);
@@ -337,6 +284,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return 550; // Max Y for Weekly (500 + buffer)
       case 'Monthly':
         return 2400; // Max Y for Monthly (2200 + buffer)
+      case 'Annually':
+        return 30000; // Max Y for Annually (28000 + buffer)
       default:
         return 100; // Default max Y
     }
@@ -350,6 +299,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return 50; // Interval for Weekly (0,50,100,150,200,250,300,350,400,450,500)
       case 'Monthly':
         return 200; // Interval for Monthly (0,200,400,600,800,1000,1200,1400,1600,1800,2000,2200)
+      case 'Annually':
+        return 2000; // Interval for Annually (0,2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000)
       default:
         return 20; // Default interval
     }
@@ -363,18 +314,23 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return ' - $_selectedWeekFilter';
       case 'Monthly':
         return ' - $_selectedMonthFilter';
+      case 'Annually':
+        return ' - $_selectedYearFilter';
       default:
         return '';
     }
   }
 
-  List<BarChartGroupData> _getTopItemsData(
+  Map<String, dynamic> _getTopItemsData(
     List<Map<String, dynamic>> forecast,
   ) {
     // Apply time-based filtering first
     final timeFilteredData = _filterDataByTime(forecast);
     
-    if (timeFilteredData.isEmpty) return [];
+    if (timeFilteredData.isEmpty) return {
+      'barGroups': <BarChartGroupData>[],
+      'topItems': <MapEntry<String, double>>[]
+    };
 
     // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
@@ -392,7 +348,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final topItems = sortedItems.take(10).toList();
 
     // Convert to BarChartGroupData
-    return List.generate(topItems.length, (index) {
+    final barGroups = List.generate(topItems.length, (index) {
       final item = topItems[index];
       return BarChartGroupData(
         x: index,
@@ -406,6 +362,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         ],
       );
     });
+
+    return {
+      'barGroups': barGroups,
+      'topItems': topItems,
+    };
   }
 
   Widget _buildBarChartCard(List<Map<String, dynamic>> forecast) {
@@ -434,19 +395,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       );
     }
 
-    final barGroups = _getTopItemsData(forecast);
-
-    // Get item names for labels using the same time-filtered data
-    final timeFilteredData = _filterDataByTime(forecast);
-    final Map<String, double> itemTotals = {};
-    for (var item in timeFilteredData) {
-      final itemName = item['name'] as String;
-      final quantity = (item['requestQuantity'] as num).toDouble();
-      itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
-    }
-    final sortedItems = itemTotals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final topItems = sortedItems.take(10).toList();
+    final chartData = _getTopItemsData(forecast);
+    final barGroups = chartData['barGroups'] as List<BarChartGroupData>;
+    final topItems = chartData['topItems'] as List<MapEntry<String, double>>;
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -635,20 +586,9 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 ],
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  ResponsiveUtils.isMobile(context)
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildCategorySelector(),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _buildCategorySelector(),
-                          ],
-                        ),
+                  _buildCategorySelector(),
                 ],
               ),
             ),
@@ -738,7 +678,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       final item = filteredForecast[index];
                       return _ForecastCard(
                         item: item,
-                        periodDays: _getDaysFromPeriod(_selectedPeriod),
                       );
                     },
                   );
@@ -795,58 +734,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  Widget _buildTimeFilterSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Time Filter',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.darkGrey,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: timeFilters.map((filter) {
-              final isSelected = _selectedTimeFilter == filter;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(filter),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedTimeFilter = filter;
-                      _forecastFuture = _getForecastData();
-                    });
-                  },
-                  backgroundColor: AppTheme.white,
-                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                  checkmarkColor: AppTheme.primaryColor,
-                  labelStyle: TextStyle(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.darkGrey,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.lightGrey,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
+  
   Widget _buildCompactTimeFilterSelector() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -988,6 +876,38 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             },
           ),
         );
+      case 'Annually':
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: DropdownButtonFormField<String>(
+            value: _selectedYearFilter,
+            decoration: InputDecoration(
+              labelText: 'Year',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+              filled: true,
+              fillColor: AppTheme.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: yearFilters.map((year) {
+              return DropdownMenuItem(value: year, child: Text(year, style: const TextStyle(fontSize: 12)));
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedYearFilter = value;
+                  _forecastFuture = _getForecastData();
+                });
+              }
+            },
+          ),
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -997,9 +917,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
 class _ForecastCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  final int periodDays;
 
-  const _ForecastCard({required this.item, required this.periodDays});
+  const _ForecastCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
