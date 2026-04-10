@@ -116,16 +116,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
       debugPrint('Response length: ${(response as List).length}');
       
       // Print first few customers to see what's being counted
-      if (response != null && response is List) {
-        final customers = response as List;
-        for (int i = 0; i < customers.length && i < 3; i++) {
-          final customer = customers[i];
-          debugPrint('Customer $i: ${customer['email']} - approved: ${customer['is_approved']} - rejection: ${customer['rejection_reason']}');
-        }
+      final customers = response as List;
+      for (int i = 0; i < customers.length && i < 3; i++) {
+        final customer = customers[i];
+        debugPrint('Customer $i: ${customer['email']} - approved: ${customer['is_approved']} - rejection: ${customer['rejection_reason']}');
       }
 
-      if (mounted && response != null) {
-
+      if (mounted) {
         // Filter out incomplete customer records
         final validCustomers = (response as List).where((customer) =>
           customer['email'] != null && customer['email'].toString().trim().isNotEmpty &&
@@ -136,11 +133,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
         debugPrint('Valid pending customers count: ${validCustomers.length}');
 
         setState(() {
-
           _pendingCustomerCount = validCustomers.length;
-
         });
-
       }
 
     } catch (e) {
@@ -519,7 +513,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
 
                               Container(
 
@@ -535,7 +529,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '${_pendingCustomerCount ?? 0}',
+                                  '$_pendingCustomerCount',
 
                                   style: const TextStyle(
 
@@ -1074,7 +1068,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
 
                               Container(
 
@@ -1090,7 +1084,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '${_pendingCustomerCount ?? 0}',
+                                  '$_pendingCustomerCount',
 
                                   style: const TextStyle(
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-import 'package:yang_chow/utils/responsive_utils.dart';
+
 
 class AdminCustomerApprovalPage extends StatefulWidget {
   const AdminCustomerApprovalPage({super.key});
@@ -217,7 +217,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
+
     final filteredPending = _filterCustomers(_pendingCustomers);
     final filteredApproved = _filterCustomers(_approvedCustomers);
 
@@ -331,8 +331,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
 
   Widget _buildCustomerCard(Map<String, dynamic> customer, bool isPending) {
     // Add null safety checks - more flexible validation
-    if (customer == null || 
-        customer['created_at'] == null || customer['created_at'].toString().isEmpty ||
+    if (customer['created_at'] == null || customer['created_at'].toString().isEmpty ||
         customer['firstname'] == null || customer['firstname'].toString().trim().isEmpty ||
         customer['lastname'] == null || customer['lastname'].toString().trim().isEmpty ||
         customer['email'] == null || customer['email'].toString().trim().isEmpty) {

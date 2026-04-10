@@ -169,7 +169,6 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     String phone = phoneController.text.trim();
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
-    String confirmPassword = confirmPasswordController.text.trim();
 
     // Formatting names to title case
     String firstName = _formatToTitleCase(rawFirstName);

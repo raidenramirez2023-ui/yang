@@ -112,8 +112,7 @@ class _PaymentPanelState extends State<PaymentPanel>
   }
 
   Future<void> _printReceipt() async {
-    // Create receipt PDF
-    final pdf = pw.Document();
+
     
     final receiptData = await _generateReceiptPDF();
     
@@ -180,8 +179,8 @@ class _PaymentPanelState extends State<PaymentPanel>
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Cashr: ${_selectedCashier.length > 15 ? _selectedCashier.substring(0, 15) + "..." : _selectedCashier}', style: pw.TextStyle(fontSize: 12)),
-                  pw.Text('Server: ${_selectedServer}', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text('Cashr: ${_selectedCashier.length > 15 ? "${_selectedCashier.substring(0, 15)}..." : _selectedCashier}', style: pw.TextStyle(fontSize: 12)),
+                  pw.Text('Server: $_selectedServer', style: pw.TextStyle(fontSize: 12)),
                 ],
               ),
               pw.Divider(),
