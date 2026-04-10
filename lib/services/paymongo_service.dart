@@ -345,6 +345,7 @@ class PayMongoService {
             'attributes': {
               'payment_method': paymentMethodId,
               'client_key': clientKey,
+              // ignore: use_null_aware_elements
               if (returnUrl != null) 'return_url': returnUrl,
             },
           },

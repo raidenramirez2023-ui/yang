@@ -125,7 +125,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   // ── Header ───────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
-      height: 70,
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -135,8 +135,8 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         children: [
           // System Logo
           Container(
-            width: 40,
-            height: 40,
+            width: 28,
+            height: 28,
             decoration: const BoxDecoration(
               color: AppTheme.primaryColor,
               shape: BoxShape.circle,
@@ -147,36 +147,21 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 22,
+                  fontSize: 16,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'KITCHEN',
-                  style: TextStyle(
-                    color: Color(0xFF1E293B),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                Text(
-                  'Yang Chow System',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'KITCHEN',
+              style: TextStyle(
+                color: Color(0xFF1E293B),
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -190,26 +175,17 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
               final now = snap.data ?? DateTime.now();
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: 10,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      DateFormat('h:mm:ss a').format(now),
-                      style: const TextStyle(
-                        color: Color(0xFF1E293B),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
                     Text(
                       DateFormat('EEE, MMM d').format(now).toUpperCase(),
                       style: const TextStyle(
@@ -217,6 +193,16 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('h:mm:ss a').format(now),
+                      style: const TextStyle(
+                        color: Color(0xFF1E293B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ],
@@ -230,16 +216,16 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             borderRadius: BorderRadius.circular(8),
             onTap: _confirmLogout,
             child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.logout,
-                color: Color(0xFF64748B),
-                size: 20,
-              ),
+               padding: const EdgeInsets.all(6),
+               decoration: BoxDecoration(
+                 color: const Color(0xFFF1F5F9),
+                 borderRadius: BorderRadius.circular(8),
+               ),
+               child: const Icon(
+                 Icons.logout,
+                 color: Color(0xFF64748B),
+                 size: 18,
+               ),
             ),
           ),
         ],
@@ -257,7 +243,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     ];
 
     return Container(
-      height: 72,
+      height: 48,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
@@ -291,14 +277,14 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                           color: selected
                               ? AppTheme.primaryColor
                               : const Color(0xFF64748B),
-                          size: 24,
+                          size: 18,
                         ),
                         if (hasBadge)
                           Positioned(
                             top: -2,
                             right: -6,
                             child: Container(
-                              padding: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.all(3),
                               decoration: const BoxDecoration(
                                 color: AppTheme.primaryColor,
                                 shape: BoxShape.circle,
@@ -315,14 +301,14 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       label,
                       style: TextStyle(
                         color: selected
                             ? AppTheme.primaryColor
                             : const Color(0xFF64748B),
-                        fontSize: 11,
+                        fontSize: 9,
                         fontWeight: selected
                             ? FontWeight.bold
                             : FontWeight.w500,
@@ -369,8 +355,9 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             onPressed: () async {
               Navigator.pop(ctx);
               await Supabase.instance.client.auth.signOut();
-              if (mounted)
+              if (mounted) {
                 Navigator.pushReplacementNamed(context, '/staff-login');
+              }
             },
             child: const Text('Logout'),
           ),
@@ -472,89 +459,52 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 600;
-            if (isWide) {
-              // Two-column grid for tablets/wide screens
-              return GridView.builder(
-                padding: const EdgeInsets.all(8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: constraints.maxWidth > 1000
-                      ? 5
-                      : (constraints.maxWidth > 750
-                            ? 4
-                            : (constraints.maxWidth > 500 ? 3 : 2)),
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: constraints.maxWidth > 750 ? 0.75 : 0.85,
-                ),
-                itemCount: orders.length,
-                itemBuilder: (_, i) {
-                  final o = orders[i];
-                  return _KitchenOrderCard(
-                    order: o,
-                    kitchenStatus:
-                        _kitchenStatus[o['id'].toString()] ?? 'Pending',
-                    onStatusChanged: (ns) =>
-                        _updateStatus(o['id'].toString(), ns),
-                    statusOrder: _statusOrder,
-                    statusColors: _statusColors,
-                  );
-                },
-              );
+            // Determine columns based on screen width
+            int cols = 5;
+            if (constraints.maxWidth < 600) {
+              cols = 2;
+            } else if (constraints.maxWidth < 900) {
+              cols = 3;
+            } else if (constraints.maxWidth < 1100) {
+              cols = 4;
             }
-            return ListView(
+
+            return GridView.builder(
               padding: const EdgeInsets.all(16),
-              children: [
-                for (final status in ['Pending', 'Preparing']) ...[
-                  if ((grouped[status] ?? []).isNotEmpty) ...[
-                    _buildStatusHeader(status),
-                    ...grouped[status]!.map(
-                      (o) => _KitchenOrderCard(
-                        order: o,
-                        kitchenStatus:
-                            _kitchenStatus[o['id'].toString()] ?? 'Pending',
-                        onStatusChanged: (ns) =>
-                            _updateStatus(o['id'].toString(), ns),
-                        statusOrder: _statusOrder,
-                        statusColors: _statusColors,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ],
-              ],
+              physics: const AlwaysScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.05, // Restored squat aspect ratio ensuring exactly 2 rows fit fully
+              ),
+              itemCount: orders.length,
+              itemBuilder: (_, i) {
+                final o = orders[i];
+                return FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: 330,
+                    height: 330 / 1.05,
+                child: _KitchenOrderCard(
+                  order: o,
+                  kitchenStatus: _kitchenStatus[o['id'].toString()] ?? 'Pending',
+                  onStatusChanged: (ns) => _updateStatus(o['id'].toString(), ns),
+                  statusOrder: _statusOrder,
+                  statusColors: _statusColors,
+                ),
+              ),
             );
+          },
+        );
           },
         );
       },
     );
   }
 
-  Widget _buildStatusHeader(String status) {
-    final color = _statusColors[status] ?? AppTheme.mediumGrey;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }
 
 // ── Order Card ───────────────────────────────────────────
@@ -603,8 +553,9 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           .from('order_items')
           .select('item_name, quantity, unit_price')
           .eq('order_id', widget.order['id'].toString());
-      if (mounted)
+      if (mounted) {
         setState(() => _items = List<Map<String, dynamic>>.from(rows));
+      }
     } catch (_) {}
   }
 
@@ -636,8 +587,104 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
     final isUrgent =
         elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+  void showOrderDetails(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final size = MediaQuery.of(ctx).size;
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Center(
+            child: Container(
+              width: size.width * 0.40,
+              height: size.height * 0.80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: widget.statusColors[widget.kitchenStatus]?.withValues(alpha: 0.08) ?? Colors.grey.shade100,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      border: const Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Order ${_formatOrderId(widget.order)}',
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1E293B)),
+                        ),
+                        InkWell(
+                          onTap: () => Navigator.pop(ctx),
+                          borderRadius: BorderRadius.circular(20),
+                          child: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _items.length,
+                      separatorBuilder: (context, index) => const Divider(height: 16, color: Color(0xFFE5E7EB)),
+                      itemBuilder: (ctx, i) {
+                        final item = _items[i];
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'x${item['quantity'] ?? 1}',
+                                style: TextStyle(
+                                  color: Colors.orange.shade800,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item['item_name']?.toString() ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+    return GestureDetector(
+      onTap: () => showOrderDetails(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1005,7 +1052,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           ),
         ],
       ),
-    );
+    ),
+   );
   }
 
   IconData _nextStatusIcon(String status) {
@@ -1268,7 +1316,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   List<String> _availableItems = [];
   Map<String, String> _itemUnits = {}; // Map to store item -> unit mapping
   Map<String, int> _itemStocks = {}; // Map to store item -> available quantity
-  Map<String, int> _kitchenStocks = {}; // Map to store item -> current kitchen quantity
+
   List<String> _suggestions = []; // Auto-complete suggestions
   bool _showSuggestions = false;
 
@@ -1336,10 +1384,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           .select('name, unit, quantity')
           .order('name');
 
-      // 2. Fetch kitchen inventory to know what items are low/out in kitchen
-      final kitchenItems = await Supabase.instance.client
-          .from('kitchen_inventory')
-          .select('name, quantity');
+
 
       if (mounted) {
         setState(() {
@@ -1350,12 +1395,6 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           };
           _itemStocks = {
             for (var item in items)
-              item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0,
-          };
-          
-          // Map kitchen stocks
-          _kitchenStocks = {
-            for (var item in kitchenItems)
               item['name'].toString(): (item['quantity'] as num?)?.toInt() ?? 0,
           };
         });
@@ -1497,106 +1536,9 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     }
   }
 
-  Future<void> _requestAllItems() => _runBulkRequest(
-        title: 'All available items',
-        filter: (name, mainQty, kitchenQty) => mainQty > 0,
-        note: 'Bulk request (Restock all)',
-      );
 
-  Future<void> _requestAllOutOfStock() => _runBulkRequest(
-        title: 'Only out-of-stock items',
-        filter: (name, mainQty, kitchenQty) => mainQty > 0 && kitchenQty <= 0,
-        note: 'Bulk request (Kitchen is OUT)',
-      );
 
-  Future<void> _requestAllLowStock() => _runBulkRequest(
-        title: 'Only low-stock items',
-        filter: (name, mainQty, kitchenQty) =>
-            mainQty > 0 && kitchenQty >= 1 && kitchenQty <= 10,
-        note: 'Bulk request (Kitchen is LOW)',
-      );
 
-  Future<void> _runBulkRequest({
-    required String title,
-    required bool Function(String name, int mainQty, int kitchenQty) filter,
-    required String note,
-  }) async {
-    setState(() => _submitting = true);
-    
-    try {
-      // 0. Refresh data first to ensure we use the latest stock levels
-      await _loadAvailableItems();
-      
-      if (_availableItems.isEmpty) {
-        setState(() => _submitting = false);
-        return;
-      }
-      // 1. Get existing pending requests to avoid duplicates
-      final pendingRequests = await Supabase.instance.client
-          .from('kitchen_requests')
-          .select('item_name')
-          .eq('status', 'Pending');
-
-      final pendingNames =
-          (pendingRequests as List).map((r) => r['item_name'].toString()).toSet();
-
-      // 2. Identify items to request based on condition
-      final itemsToRequest = _availableItems.where((name) {
-        final mainStock = _itemStocks[name] ?? 0;
-        final kitchenStock = _kitchenStocks[name] ?? 0;
-        return filter(name, mainStock, kitchenStock) &&
-            !pendingNames.contains(name);
-      }).toList();
-
-      if (itemsToRequest.isEmpty) {
-        if (mounted) {
-          setState(() => _submitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No items for "$title" need to be requested.'),
-              backgroundColor: AppTheme.infoBlue,
-            ),
-          );
-        }
-        return;
-      }
-
-      // 3. Create requests for each item (full available stock)
-      final chef = Supabase.instance.client.auth.currentUser?.email ?? 'chef';
-      final requests = itemsToRequest.map((name) {
-        final stock = _itemStocks[name] ?? 0;
-        return {
-          'item_name': name,
-          'quantity_needed': stock,
-          'unit': _itemUnits[name] ?? 'pcs',
-          'priority': 'Normal',
-          'note': note,
-          'requested_by': chef,
-          'status': 'Pending',
-          'created_at': DateTime.now().toIso8601String(),
-        };
-      }).toList();
-
-      await Supabase.instance.client.from('kitchen_requests').insert(requests);
-
-      if (mounted) {
-        setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully requested ${requests.length} items!'),
-            backgroundColor: AppTheme.successGreen,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _submitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1644,28 +1586,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                         ),
                       ],
                     ),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        _bulkBtn(
-                          onPressed: _requestAllItems,
-                          label: 'Request ALL',
-                          icon: Icons.auto_awesome,
-                        ),
-                        _bulkBtn(
-                          onPressed: _requestAllOutOfStock,
-                          label: 'OUT of Stock',
-                          icon: Icons.remove_circle_outline,
-                          color: AppTheme.errorRed,
-                        ),
-                        _bulkBtn(
-                          onPressed: _requestAllLowStock,
-                          label: 'LOW Stock',
-                          icon: Icons.warning_amber_rounded,
-                          color: AppTheme.warningOrange,
-                        ),
-                      ],
-                    ),
+
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1994,34 +1915,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     );
   }
 
-  Widget _bulkBtn({
-    required VoidCallback onPressed,
-    required String label,
-    required IconData icon,
-    Color color = AppTheme.primaryColor,
-  }) {
-    return TextButton.icon(
-      onPressed: _submitting ? null : onPressed,
-      icon: Icon(icon, size: 14, color: _submitting ? Colors.grey : color),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: _submitting ? Colors.grey : color,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-        backgroundColor: color.withValues(alpha: 0.08),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        side: BorderSide(color: color.withValues(alpha: 0.2)),
-      ),
-    );
-  }
+
 
   Widget _lightField(
     TextEditingController ctrl,
@@ -2222,307 +2116,561 @@ class _StockViewTabState extends State<_StockViewTab> {
   String _search = '';
   String? _selectedFilter;
 
+  // ── Bulk Request State (Imported for seamless layout) ──
+  bool _submitting = false;
+  List<String> _availableItems = [];
+  final Map<String, String> _itemUnits = {}; 
+  final Map<String, int> _itemStocks = {};
+  final Map<String, int> _kitchenStocks = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableItems();
+  }
+
+  // ── Duplicate Request Logic for Local Access ──
+  Future<void> _loadAvailableItems() async {
+    try {
+      final items = await Supabase.instance.client
+          .from('inventory')
+          .select('name, unit, quantity')
+          .order('name');
+      final kitchenItems = await Supabase.instance.client
+          .from('kitchen_inventory')
+          .select('name, quantity');
+
+      if (mounted) {
+        setState(() {
+          _availableItems = items.map((i) => i['name'].toString()).toList();
+          for (var item in items) {
+            final name = item['name'].toString();
+            _itemUnits[name] = item['unit']?.toString() ?? 'pcs';
+            _itemStocks[name] = (item['quantity'] as num?)?.toInt() ?? 0;
+          }
+          for (var item in kitchenItems) {
+            _kitchenStocks[item['name'].toString()] = (item['quantity'] as num?)?.toInt() ?? 0;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _requestAllItems() => _runBulkRequest(
+        title: 'All available items',
+        filter: (name, mainQty, kitchenQty) => mainQty > 0,
+        note: 'Bulk request (Restock all)',
+      );
+
+  Future<void> _requestAllOutOfStock() => _runBulkRequest(
+        title: 'Only out-of-stock items',
+        filter: (name, mainQty, kitchenQty) => mainQty > 0 && kitchenQty <= 0,
+        note: 'Bulk request (Kitchen is OUT)',
+      );
+
+  Future<void> _requestAllLowStock() => _runBulkRequest(
+        title: 'Only low-stock items',
+        filter: (name, mainQty, kitchenQty) =>
+            mainQty > 0 && kitchenQty >= 1 && kitchenQty <= 10,
+        note: 'Bulk request (Kitchen is LOW)',
+      );
+
+  Future<void> _runBulkRequest({
+    required String title,
+    required bool Function(String name, int mainQty, int kitchenQty) filter,
+    required String note,
+  }) async {
+    setState(() => _submitting = true);
+    try {
+      await _loadAvailableItems();
+      if (_availableItems.isEmpty) {
+        setState(() => _submitting = false);
+        return;
+      }
+      final pendingRequests = await Supabase.instance.client
+          .from('kitchen_requests')
+          .select('item_name')
+          .eq('status', 'Pending');
+      final pendingNames =
+          (pendingRequests as List).map((r) => r['item_name'].toString()).toSet();
+
+      final itemsToRequest = _availableItems.where((name) {
+        final mainStock = _itemStocks[name] ?? 0;
+        final kitchenStock = _kitchenStocks[name] ?? 0;
+        return filter(name, mainStock, kitchenStock) &&
+            !pendingNames.contains(name);
+      }).toList();
+
+      if (itemsToRequest.isEmpty) {
+        if (mounted) {
+          setState(() => _submitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No items for "$title" need to be requested.'),
+              backgroundColor: AppTheme.infoBlue,
+            ),
+          );
+        }
+        return;
+      }
+
+      final chef = Supabase.instance.client.auth.currentUser?.email ?? 'chef';
+      final requests = itemsToRequest.map((name) {
+        final stock = _itemStocks[name] ?? 0;
+        return {
+          'item_name': name,
+          'quantity_needed': stock,
+          'unit': _itemUnits[name] ?? 'pcs',
+          'priority': 'Normal',
+          'note': note,
+          'requested_by': chef,
+          'status': 'Pending',
+          'created_at': DateTime.now().toIso8601String(),
+        };
+      }).toList();
+
+      await Supabase.instance.client.from('kitchen_requests').insert(requests);
+
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully requested ${requests.length} items!'),
+            backgroundColor: AppTheme.successGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   String _getStockStatus(int quantity) {
     if (quantity == 0) return 'OUT OF STOCK';
-    if (quantity <= 10) return 'LOW STOCK'; // Include 10 in Low Stock
+    if (quantity <= 10) return 'LOW STOCK'; 
     if (quantity < 50) return 'NORMAL';
     return 'HIGH STOCK';
   }
 
   Color _getStatusColor(int quantity) {
     if (quantity == 0) return AppTheme.errorRed;
-    if (quantity <= 10) return AppTheme.warningOrange; // Include 10 in Low Stock
+    if (quantity <= 10) return AppTheme.warningOrange; 
     if (quantity < 50) return AppTheme.infoBlue;
     return AppTheme.successGreen;
   }
 
   IconData _getStockStatusIcon(int quantity) {
     if (quantity == 0) return Icons.remove_circle;
-    if (quantity <= 10) return Icons.warning_amber_rounded; // Include 10 in Low Stock
+    if (quantity <= 10) return Icons.warning_amber_rounded; 
     if (quantity < 50) return Icons.inventory_2_rounded;
     return Icons.check_circle;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Search
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            onChanged: (v) => setState(() => _search = v.toLowerCase()),
-            style: const TextStyle(color: Color(0xFF1E293B), fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Search ingredients…',
-              hintStyle: const TextStyle(color: Color(0xFF64748B)),
-              prefixIcon: const Icon(
-                Icons.search,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
-                  color: AppTheme.primaryColor,
-                  width: 1.5,
+        // ── LEFT SIDE: GRID (75%) ──
+        Expanded(
+          flex: 3, // 75%
+          child: Column(
+            children: [
+              // Search
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: TextField(
+                  onChanged: (v) => setState(() => _search = v.toLowerCase()),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search ingredients…',
+                    hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppTheme.primaryColor,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
                 ),
               ),
+
+              // Grid
+              Expanded(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: Supabase.instance.client
+                      .from('kitchen_inventory')
+                      .stream(primaryKey: ['id'])
+                      .order('quantity', ascending: true),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryColor,
+                        ),
+                      );
+                    }
+                    var items = snap.data!;
+                    final hasItems = items.isNotEmpty;
+                    final filteredItems = items.where((i) {
+                      // Apply search filter
+                      final name = (i['name'] ?? '').toString().toLowerCase();
+                      final matchesSearch = _search.isEmpty || name.contains(_search);
+
+                      // Apply status filter
+                      final qty = (i['quantity'] as num?)?.toInt() ?? 0;
+                      final status = _getStockStatus(qty);
+                      final matchesStatus =
+                          _selectedFilter == null || status == _selectedFilter;
+
+                      return matchesSearch && matchesStatus;
+                    }).toList();
+
+                    if (!hasItems) {
+                      return _buildEmptyState(
+                        Icons.inventory_2_outlined,
+                        'No items in kitchen stock',
+                        'Request items from inventory first',
+                      );
+                    }
+
+                    if (filteredItems.isEmpty) {
+                      String message = 'No items found';
+                      String subtitle = 'Try adjusting your search';
+                      if (_selectedFilter != null && _search.isEmpty) {
+                        subtitle = 'No items with $_selectedFilter status';
+                      } else if (_selectedFilter != null && _search.isNotEmpty) {
+                        subtitle = 'No $_selectedFilter items matching "$_search"';
+                      } else if (_selectedFilter == null && _search.isNotEmpty) {
+                        subtitle = 'No items matching "$_search"';
+                      }
+                      return _buildEmptyState(
+                        Icons.inventory_2_outlined,
+                        message,
+                        subtitle,
+                      );
+                    }
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 220,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.05,
+                      ),
+                      itemCount: filteredItems.length,
+                      itemBuilder: (_, i) {
+                        final item = filteredItems[i];
+                        final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                        final color = _getStatusColor(qty);
+                        final label = _getStockStatus(qty);
+                        final icon = _getStockStatusIcon(qty);
+                        return FittedBox(
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: 180,
+                            height: 180 / 1.05,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE5E7EB)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(icon, color: color, size: 22),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    item['name']?.toString() ?? '—',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item['category']?.toString() ?? '—',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$qty ${item['unit'] ?? ''}',
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: color,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ── RIGHT SIDE: SIDEBAR (25%) ──
+        Expanded(
+          flex: 1, // 25%
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border(left: BorderSide(color: Color(0xFFE5E7EB))),
+            ),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: Supabase.instance.client
+                  .from('kitchen_inventory')
+                  .stream(primaryKey: ['id']),
+              builder: (context, snap) {
+                final items = snap.data ?? [];
+                int out = 0, low = 0, ok = 0, high = 0;
+                for (final i in items) {
+                  final qty = (i['quantity'] as num?)?.toInt() ?? 0;
+                  if (qty == 0) {
+                    out++;
+                  } else if (qty <= 10) {
+                    low++;
+                  } else if (qty < 50) {
+                    ok++;
+                  } else {
+                    high++;
+                  }
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // QUICK REQUESTS (TOP 50%)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'QUICK REQUESTS',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF1E293B),
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _bulkBtn(
+                              onPressed: _requestAllItems,
+                              label: 'Request ALL',
+                              icon: Icons.auto_awesome,
+                            ),
+                            const SizedBox(height: 10),
+                            _bulkBtn(
+                              onPressed: _requestAllOutOfStock,
+                              label: 'OUT of Stock',
+                              icon: Icons.remove_circle_outline,
+                              color: AppTheme.errorRed,
+                            ),
+                            const SizedBox(height: 10),
+                            _bulkBtn(
+                              onPressed: _requestAllLowStock,
+                              label: 'LOW Stock',
+                              icon: Icons.warning_amber_rounded,
+                              color: AppTheme.warningOrange,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Divider(color: Color(0xFFE5E7EB)),
+                      ),
+
+                      // STOCK SUMMARY (BOTTOM 50%)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'STOCK SUMMARY',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF1E293B),
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  _summaryChip(
+                                    'OUT OF STOCK',
+                                    out.toString(),
+                                    AppTheme.errorRed,
+                                    isSelected: _selectedFilter == 'OUT OF STOCK',
+                                    onTap: () => setState(() {
+                                      _selectedFilter = _selectedFilter == 'OUT OF STOCK' 
+                                          ? null 
+                                          : 'OUT OF STOCK';
+                                    }),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _summaryChip(
+                                    'LOW STOCK',
+                                    low.toString(),
+                                    AppTheme.warningOrange,
+                                    isSelected: _selectedFilter == 'LOW STOCK',
+                                    onTap: () => setState(() {
+                                      _selectedFilter = _selectedFilter == 'LOW STOCK' 
+                                          ? null 
+                                          : 'LOW STOCK';
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  _summaryChip(
+                                    'NORMAL',
+                                    ok.toString(),
+                                    AppTheme.infoBlue,
+                                    isSelected: _selectedFilter == 'NORMAL',
+                                    onTap: () => setState(() {
+                                      _selectedFilter = _selectedFilter == 'NORMAL' 
+                                          ? null 
+                                          : 'NORMAL';
+                                    }),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _summaryChip(
+                                    'HIGH STOCK',
+                                    high.toString(),
+                                    AppTheme.successGreen,
+                                    isSelected: _selectedFilter == 'HIGH STOCK',
+                                    onTap: () => setState(() {
+                                      _selectedFilter = _selectedFilter == 'HIGH STOCK' 
+                                          ? null 
+                                          : 'HIGH STOCK';
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
+      ],
+    );
+  }
 
-        // Stock summary chips
-        StreamBuilder<List<Map<String, dynamic>>>(
-          stream: Supabase.instance.client
-              .from('kitchen_inventory')
-              .stream(primaryKey: ['id']),
-          builder: (context, snap) {
-            final items = snap.data ?? [];
-            int out = 0, low = 0, ok = 0, high = 0;
-            for (final i in items) {
-              final qty = (i['quantity'] as num?)?.toInt() ?? 0;
-              if (qty == 0) {
-                out++;
-              } else if (qty <= 10) { // Changed < 10 to <= 10
-                low++;
-              } else if (qty < 50) {
-                ok++;
-              } else {
-                high++;
-              }
-            }
-
-            if (out > 0 && snap.hasData) {
-              // Alert is shown through the red OUT OF STOCK chip above
-            }
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  _summaryChip(
-                    'OUT OF STOCK',
-                    out.toString(),
-                    AppTheme.errorRed,
-                    isSelected: _selectedFilter == 'OUT OF STOCK',
-                    onTap: () => setState(() {
-                      _selectedFilter = _selectedFilter == 'OUT OF STOCK'
-                          ? null
-                          : 'OUT OF STOCK';
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  _summaryChip(
-                    'LOW STOCK',
-                    low.toString(),
-                    AppTheme.warningOrange,
-                    isSelected: _selectedFilter == 'LOW STOCK',
-                    onTap: () => setState(() {
-                      _selectedFilter = _selectedFilter == 'LOW STOCK'
-                          ? null
-                          : 'LOW STOCK';
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  _summaryChip(
-                    'NORMAL',
-                    ok.toString(),
-                    AppTheme.infoBlue,
-                    isSelected: _selectedFilter == 'NORMAL',
-                    onTap: () => setState(() {
-                      _selectedFilter = _selectedFilter == 'NORMAL'
-                          ? null
-                          : 'NORMAL';
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  _summaryChip(
-                    'HIGH STOCK',
-                    high.toString(),
-                    AppTheme.successGreen,
-                    isSelected: _selectedFilter == 'HIGH STOCK',
-                    onTap: () => setState(() {
-                      _selectedFilter = _selectedFilter == 'HIGH STOCK'
-                          ? null
-                          : 'HIGH STOCK';
-                    }),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-
-        // Grid
-        Expanded(
-          child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: Supabase.instance.client
-                .from('kitchen_inventory')
-                .stream(primaryKey: ['id'])
-                .order('quantity', ascending: true),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryColor,
-                  ),
-                );
-              }
-              var items = snap.data!;
-              final hasItems = items.isNotEmpty;
-              final filteredItems = items.where((i) {
-                // Apply search filter
-                final name = (i['name'] ?? '').toString().toLowerCase();
-                final matchesSearch = _search.isEmpty || name.contains(_search);
-
-                // Apply status filter
-                final qty = (i['quantity'] as num?)?.toInt() ?? 0;
-                final status = _getStockStatus(qty);
-                final matchesStatus =
-                    _selectedFilter == null || status == _selectedFilter;
-
-                return matchesSearch && matchesStatus;
-              }).toList();
-
-              if (!hasItems) {
-                return _buildEmptyState(
-                  Icons.inventory_2_outlined,
-                  'No items in kitchen stock',
-                  'Request items from inventory first',
-                );
-              }
-
-              if (filteredItems.isEmpty) {
-                String message = 'No items found';
-                String subtitle = 'Try adjusting your search';
-                if (_selectedFilter != null && _search.isEmpty) {
-                  subtitle = 'No items with $_selectedFilter status';
-                } else if (_selectedFilter != null && _search.isNotEmpty) {
-                  subtitle = 'No $_selectedFilter items matching "$_search"';
-                } else if (_selectedFilter == null && _search.isNotEmpty) {
-                  subtitle = 'No items matching "$_search"';
-                }
-                return _buildEmptyState(
-                  Icons.inventory_2_outlined,
-                  message,
-                  subtitle,
-                );
-              }
-              return LayoutBuilder(
-                builder: (ctx, constraints) {
-                  final cols = constraints.maxWidth > 600
-                      ? 6
-                      : constraints.maxWidth > 400
-                      ? 3
-                      : 2;
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cols,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 1.05,
-                    ),
-                    itemCount: filteredItems.length,
-                    itemBuilder: (_, i) {
-                      final item = filteredItems[i];
-                      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                      final color = _getStatusColor(qty);
-                      final label = _getStockStatus(qty);
-                      final icon = _getStockStatusIcon(qty);
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(icon, color: color, size: 22),
-                            const SizedBox(height: 6),
-                            Text(
-                              item['name']?.toString() ?? '—',
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF1E293B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item['category']?.toString() ?? '—',
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$qty ${item['unit'] ?? ''}',
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                label,
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
+  Widget _bulkBtn({
+    required VoidCallback onPressed,
+    required String label,
+    required IconData icon,
+    Color color = AppTheme.primaryColor,
+  }) {
+    return Expanded(
+      child: TextButton.icon(
+        onPressed: _submitting ? null : onPressed,
+        icon: Icon(icon, size: 18, color: _submitting ? Colors.grey : color),
+        label: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: _submitting ? Colors.grey : color,
           ),
         ),
-      ],
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          backgroundColor: color.withValues(alpha: 0.08),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          side: BorderSide(color: color.withValues(alpha: 0.2), width: 1),
+        ),
+      ),
     );
   }
 
@@ -2537,33 +2685,37 @@ class _StockViewTabState extends State<_StockViewTab> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? color : color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected ? color : color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? color : color.withValues(alpha: 0.4),
+              color: isSelected ? color : color.withValues(alpha: 0.3),
               width: isSelected ? 2 : 1,
             ),
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 count,
                 style: TextStyle(
                   color: isSelected ? Colors.white : color,
                   fontWeight: FontWeight.w900,
-                  fontSize: 18,
+                  fontSize: 24,
                 ),
               ),
+              const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
                   color: isSelected
                       ? Colors.white.withValues(alpha: 0.9)
                       : color.withValues(alpha: 0.8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],

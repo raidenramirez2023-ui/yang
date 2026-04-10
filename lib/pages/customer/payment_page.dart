@@ -706,19 +706,18 @@ class _PaymentPageState extends State<PaymentPage> {
                 
 
                 if (success) {
-
-                  if (mounted) Navigator.of(context).pop();
-
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
                 } else {
-
                   // Show mini error or just keep dialog open
-
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-
-                    const SnackBar(content: Text('Payment not yet detected. Please complete payment first.')),
-
+                    const SnackBar(
+                      content: Text(
+                        'Payment not yet detected. Please complete payment first.',
+                      ),
+                    ),
                   );
-
                 }
 
               },
