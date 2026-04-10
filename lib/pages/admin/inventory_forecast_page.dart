@@ -18,10 +18,18 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   String _selectedPeriod = '7days';
   String _selectedCategory = 'All';
   String _selectedItemName = 'All';
+  String _selectedTimeFilter = 'Daily'; // New time filter for Daily/Weekly/Monthly
+  String _selectedDayFilter = 'Monday'; // Secondary filter for Daily (Monday-Sunday)
+  String _selectedWeekFilter = 'Week 1'; // Secondary filter for Weekly (Week 1-4)
+  String _selectedMonthFilter = 'January'; // Secondary filter for Monthly (January-April)
   bool _showChart = true; // Toggle between chart and list
   late Future<List<Map<String, dynamic>>> _forecastFuture;
 
   final List<String> periods = ['7days', '31days', '90days'];
+  final List<String> timeFilters = ['Daily', 'Weekly', 'Monthly'];
+  final List<String> dayFilters = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  final List<String> weekFilters = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  final List<String> monthFilters = ['January', 'February', 'March', 'April'];
   final List<String> categories = [
     'All',
     'Fresh',
@@ -221,15 +229,157 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     });
   }
 
-  List<BarChartGroupData> _getTopItemsData(
+  List<Map<String, dynamic>> _filterDataByTime(
     List<Map<String, dynamic>> forecast,
   ) {
     if (forecast.isEmpty) return [];
 
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> filteredData = [];
+
+    for (var item in forecast) {
+      final createdAt = DateTime.parse(item['createdAt'] as String);
+      
+      switch (_selectedTimeFilter) {
+        case 'Daily':
+          // Filter for selected day of week in current month between 10:00 AM and 8:00 PM
+          final selectedDayIndex = _getDayIndex(_selectedDayFilter);
+          final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
+          if (createdAt.year == now.year &&
+              createdAt.month == selectedMonthIndex &&
+              createdAt.weekday == selectedDayIndex &&
+              createdAt.hour >= 10 &&
+              createdAt.hour < 20) {
+            filteredData.add(item);
+          }
+          break;
+          
+        case 'Weekly':
+          // Filter for selected week of current month (April)
+          final selectedWeekNumber = int.parse(_selectedWeekFilter.split(' ')[1]);
+          final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
+          if (_isInSelectedWeekOfMonth(createdAt, selectedWeekNumber, selectedMonthIndex, now.year)) {
+            filteredData.add(item);
+          }
+          break;
+          
+        case 'Monthly':
+          // Filter for selected month of current year
+          final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
+          if (createdAt.year == now.year && createdAt.month == selectedMonthIndex) {
+            filteredData.add(item);
+          }
+          break;
+      }
+    }
+
+    return filteredData;
+  }
+
+  int _getDayIndex(String dayName) {
+    switch (dayName) {
+      case 'Monday': return 1;
+      case 'Tuesday': return 2;
+      case 'Wednesday': return 3;
+      case 'Thursday': return 4;
+      case 'Friday': return 5;
+      case 'Saturday': return 6;
+      case 'Sunday': return 7;
+      default: return 1;
+    }
+  }
+
+  int _getMonthIndex(String monthName) {
+    switch (monthName) {
+      case 'January': return 1;
+      case 'February': return 2;
+      case 'March': return 3;
+      case 'April': return 4;
+      default: return 1;
+    }
+  }
+
+  bool _isInSelectedWeek(DateTime date, int weekNumber, DateTime now) {
+    // Get the first day of the current month
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    
+    // Calculate the start and end of the selected week
+    final weekStart = firstDayOfMonth.add(Duration(days: (weekNumber - 1) * 7));
+    final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    
+    // Check if the date is within the selected week of the current month
+    return date.year == now.year &&
+           date.month == now.month &&
+           date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+           date.isBefore(weekEnd.add(const Duration(days: 1)));
+  }
+
+  bool _isInSelectedWeekOfMonth(DateTime date, int weekNumber, int monthIndex, int year) {
+    // Get first day of selected month
+    final firstDayOfMonth = DateTime(year, monthIndex, 1);
+    
+    // Calculate start and end of the selected week within the specified month
+    final weekStart = firstDayOfMonth.add(Duration(days: (weekNumber - 1) * 7));
+    final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    
+    // Check if the date is within the selected week of the specified month
+    return date.year == year &&
+           date.month == monthIndex &&
+           date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+           date.isBefore(weekEnd.add(const Duration(days: 1)));
+  }
+
+  double _getBarChartMaxY() {
+    switch (_selectedTimeFilter) {
+      case 'Daily':
+        return 275; // Max Y for Daily (250 + buffer)
+      case 'Weekly':
+        return 550; // Max Y for Weekly (500 + buffer)
+      case 'Monthly':
+        return 2400; // Max Y for Monthly (2200 + buffer)
+      default:
+        return 100; // Default max Y
+    }
+  }
+
+  double _getBarChartInterval() {
+    switch (_selectedTimeFilter) {
+      case 'Daily':
+        return 25; // Interval for Daily (0,25,50,75,100,125,150,175,200,225,250)
+      case 'Weekly':
+        return 50; // Interval for Weekly (0,50,100,150,200,250,300,350,400,450,500)
+      case 'Monthly':
+        return 200; // Interval for Monthly (0,200,400,600,800,1000,1200,1400,1600,1800,2000,2200)
+      default:
+        return 20; // Default interval
+    }
+  }
+
+  String _getFilterSuffix() {
+    switch (_selectedTimeFilter) {
+      case 'Daily':
+        return ' - $_selectedDayFilter';
+      case 'Weekly':
+        return ' - $_selectedWeekFilter';
+      case 'Monthly':
+        return ' - $_selectedMonthFilter';
+      default:
+        return '';
+    }
+  }
+
+  List<BarChartGroupData> _getTopItemsData(
+    List<Map<String, dynamic>> forecast,
+  ) {
+    // Apply time-based filtering first
+    final timeFilteredData = _filterDataByTime(forecast);
+    
+    if (timeFilteredData.isEmpty) return [];
+
     // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
 
-    for (var item in forecast) {
+    for (var item in timeFilteredData) {
       final itemName = item['name'] as String;
       final quantity = (item['requestQuantity'] as num).toDouble();
       itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
@@ -286,9 +436,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     final barGroups = _getTopItemsData(forecast);
 
-    // Get item names for labels
+    // Get item names for labels using the same time-filtered data
+    final timeFilteredData = _filterDataByTime(forecast);
     final Map<String, double> itemTotals = {};
-    for (var item in forecast) {
+    for (var item in timeFilteredData) {
       final itemName = item['name'] as String;
       final quantity = (item['requestQuantity'] as num).toDouble();
       itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
@@ -316,40 +467,41 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(
-                Icons.bar_chart,
-                color: AppTheme.primaryColor,
-                size: 24,
+              Row(
+                children: [
+                  const Icon(
+                    Icons.bar_chart,
+                    color: AppTheme.primaryColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Top Requested Items - $_selectedTimeFilter${_getFilterSuffix()}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Top Requested Items',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
-                ),
-              ),
+              _buildCompactTimeFilterSelector(),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Most Requested Ingredients sa Lutuan',
-            style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
+          Text(
+            'Most Requested Ingredients in Kitchen ($_selectedTimeFilter${_getFilterSuffix()})',
+            style: const TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
           ),
           const SizedBox(height: 24),
           SizedBox(
-            height: 250,
+            height: 400,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
-                maxY: barGroups.isNotEmpty
-                    ? barGroups
-                              .map((g) => g.barRods.first.toY)
-                              .reduce((a, b) => a > b ? a : b) *
-                          1.2
-                    : 100,
+                maxY: _getBarChartMaxY(),
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipColor: (_) => AppTheme.darkGrey,
@@ -370,7 +522,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: 20,
+                      interval: _getBarChartInterval(),
                       reservedSize: 50,
                       getTitlesWidget: (value, meta) {
                         return Text(
@@ -431,180 +583,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  Widget _buildLineChartCard(List<Map<String, dynamic>> forecast) {
-    if (forecast.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.darkGrey.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Text(
-            'No data available for chart',
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
-          ),
-        ),
-      );
-    }
-
-    final spots = _getChartData(forecast);
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.show_chart,
-                color: AppTheme.primaryColor,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Quantity Request by Day of Week',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Kitchen Requests',
-            style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: 20,
-                  verticalInterval: 1,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: AppTheme.lightGrey.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: AppTheme.lightGrey.withValues(alpha: 0.3),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 10,
-                      reservedSize: 50,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: AppTheme.mediumGrey,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        final dayIndex = value.toInt();
-                        final dayNames = [
-                          'Mon',
-                          'Tue',
-                          'Wed',
-                          'Thu',
-                          'Fri',
-                          'Sat',
-                          'Sun',
-                        ];
-                        if (dayIndex >= 0 && dayIndex < dayNames.length) {
-                          return Text(
-                            dayNames[dayIndex],
-                            style: const TextStyle(
-                              color: AppTheme.mediumGrey,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(
-                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: AppTheme.primaryColor,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
-                minY: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -613,6 +591,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
+        automaticallyImplyLeading: false,
         title: const Text('Inventory Forecast'),
         actions: [
           IconButton(
@@ -661,25 +640,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildPeriodSelector(),
-                            const SizedBox(height: 16),
                             _buildCategorySelector(),
-                            const SizedBox(height: 16),
-                            _buildItemNameSelector(),
                           ],
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(child: _buildPeriodSelector()),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildCategorySelector()),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            _buildItemNameSelector(),
+                            _buildCategorySelector(),
                           ],
                         ),
                 ],
@@ -718,12 +685,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         .toList();
                   }
 
-                  // Apply item name filter second
-                  if (_selectedItemName != 'All') {
-                    filteredForecast = filteredForecast
-                        .where((item) => item['name'] == _selectedItemName)
-                        .toList();
-                  }
 
                   if (filteredForecast.isEmpty) {
                     return Center(
@@ -764,11 +725,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         children: [
                           // Bar Chart Card
                           _buildBarChartCard(filteredForecast),
-
-                          const SizedBox(height: 16),
-
-                          // Line Chart Card
-                          _buildLineChartCard(filteredForecast),
                         ],
                       ),
                     );
@@ -795,67 +751,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  String _getPeriodLabel(String period) {
-    switch (period) {
-      case '7days':
-        return 'Last 7 Days';
-      case '30days':
-        return 'Last 30 Days';
-      case '90days':
-        return 'Last 90 Days';
-      default:
-        return 'Last 7 Days';
-    }
-  }
-
-  Widget _buildPeriodSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Analysis Period',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.darkGrey,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: periods.map((period) {
-              final isSelected = _selectedPeriod == period;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(_getPeriodLabel(period)),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() => _selectedPeriod = period);
-                  },
-                  backgroundColor: AppTheme.white,
-                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                  checkmarkColor: AppTheme.primaryColor,
-                  labelStyle: TextStyle(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.darkGrey,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.lightGrey,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildCategorySelector() {
     return Column(
@@ -900,12 +795,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
-  Widget _buildItemNameSelector() {
+  Widget _buildTimeFilterSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Item Name Filter',
+          'Time Filter',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -913,35 +808,191 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedItemName,
-          decoration: InputDecoration(
-            labelText: 'Select Item',
-            prefixIcon: const Icon(
-              Icons.inventory,
-              color: AppTheme.primaryColor,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.lightGrey),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.primaryColor),
-            ),
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: timeFilters.map((filter) {
+              final isSelected = _selectedTimeFilter == filter;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(filter),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedTimeFilter = filter;
+                      _forecastFuture = _getForecastData();
+                    });
+                  },
+                  backgroundColor: AppTheme.white,
+                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  checkmarkColor: AppTheme.primaryColor,
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : AppTheme.darkGrey,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : AppTheme.lightGrey,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-          items: itemNames.map((itemName) {
-            return DropdownMenuItem(value: itemName, child: Text(itemName));
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => _selectedItemName = value);
-          },
         ),
       ],
     );
   }
+
+  Widget _buildCompactTimeFilterSelector() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Primary Time Filter Dropdown
+        Container(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: DropdownButtonFormField<String>(
+            value: _selectedTimeFilter,
+            decoration: InputDecoration(
+              labelText: 'Period',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+              filled: true,
+              fillColor: AppTheme.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: timeFilters.map((filter) {
+              return DropdownMenuItem(value: filter, child: Text(filter, style: const TextStyle(fontSize: 12)));
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedTimeFilter = value;
+                  _forecastFuture = _getForecastData();
+                });
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Secondary Filter Dropdown
+        _buildSecondaryFilterDropdown(),
+      ],
+    );
+  }
+
+  Widget _buildSecondaryFilterDropdown() {
+    switch (_selectedTimeFilter) {
+      case 'Daily':
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: DropdownButtonFormField<String>(
+            value: _selectedDayFilter,
+            decoration: InputDecoration(
+              labelText: 'Day',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+              filled: true,
+              fillColor: AppTheme.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: dayFilters.map((day) {
+              return DropdownMenuItem(value: day, child: Text(day, style: const TextStyle(fontSize: 12)));
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedDayFilter = value;
+                  _forecastFuture = _getForecastData();
+                });
+              }
+            },
+          ),
+        );
+      case 'Weekly':
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: DropdownButtonFormField<String>(
+            value: _selectedWeekFilter,
+            decoration: InputDecoration(
+              labelText: 'Week',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+              filled: true,
+              fillColor: AppTheme.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: weekFilters.map((week) {
+              return DropdownMenuItem(value: week, child: Text(week, style: const TextStyle(fontSize: 12)));
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedWeekFilter = value;
+                  _forecastFuture = _getForecastData();
+                });
+              }
+            },
+          ),
+        );
+      case 'Monthly':
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: DropdownButtonFormField<String>(
+            value: _selectedMonthFilter,
+            decoration: InputDecoration(
+              labelText: 'Month',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+              filled: true,
+              fillColor: AppTheme.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: monthFilters.map((month) {
+              return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 12)));
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedMonthFilter = value;
+                  _forecastFuture = _getForecastData();
+                });
+              }
+            },
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
 }
 
 class _ForecastCard extends StatelessWidget {
