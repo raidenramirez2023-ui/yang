@@ -69,7 +69,7 @@ class PayMongoService {
 
             'attributes': {
 
-              'amount': (amount * 100).round(), // Convert to centavos
+              'amount': amount.round(), // Convert to centavos
 
               'payment_method_allowed': ['gcash', 'card', 'paymaya'],
 
@@ -365,7 +365,7 @@ class PayMongoService {
 
             'attributes': {
 
-              'amount': (amount * 100).round(),
+              'amount': amount.round(),
 
               'type': type,
 
@@ -398,6 +398,189 @@ class PayMongoService {
     } catch (e) {
 
       throw Exception('Source creation failed: $e');
+
+    }
+
+  }
+
+
+
+  static Future<Map<String, dynamic>> createPaymentLink({
+
+    required double amount,
+
+    required String description,
+
+    String? returnUrl,
+
+    String? cancelUrl,
+
+    Map<String, dynamic>? metadata,
+
+  }) async {
+
+    try {
+
+      final response = await http.post(
+
+        Uri.parse('$_baseUrl/links'),
+
+        headers: {
+
+          ..._headers,
+
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+
+        },
+
+        body: jsonEncode({
+
+          'data': {
+
+            'attributes': {
+
+              'amount': amount.round(),
+
+              'description': description,
+
+              'currency': 'PHP',
+
+              'metadata': metadata ?? {},
+
+            }
+
+          }
+
+        }),
+
+      );
+
+
+
+      if (response.statusCode == 200) {
+
+        final responseData = jsonDecode(response.body);
+        
+        // Extract the checkout URL from PayMongo response
+        final checkoutUrl = responseData['data']?['attributes']?['checkout_url'] ?? 
+                          responseData['data']?['attributes']?['url'];
+        
+        if (checkoutUrl == null) {
+          throw Exception('No checkout URL returned from PayMongo');
+        }
+        
+        return {
+          'success': true,
+          'checkoutUrl': checkoutUrl,
+          'data': responseData,
+        };
+
+      } else {
+
+        throw Exception('Failed to create payment link: ${response.body}');
+
+      }
+
+    } catch (e) {
+
+      throw Exception('Payment link creation failed: $e');
+
+    }
+
+  }
+
+
+
+  static Future<Map<String, dynamic>> createGCashPaymentLink({
+
+    required double amount,
+
+    required String description,
+
+    String? returnUrl,
+
+    String? cancelUrl,
+
+    Map<String, dynamic>? metadata,
+
+  }) async {
+
+    try {
+
+      final response = await http.post(
+
+        Uri.parse('$_baseUrl/sources'),
+
+        headers: {
+
+          ..._headers,
+
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+
+        },
+
+        body: jsonEncode({
+
+          'data': {
+
+            'attributes': {
+
+              'amount': amount.round(),
+
+              'type': 'gcash',
+
+              'currency': 'PHP',
+
+              'description': description,
+
+              'redirect': {
+
+                'success': returnUrl ?? 'https://yourapp.com/payment/success',
+
+                'failed': cancelUrl ?? 'https://yourapp.com/payment/failed',
+
+              },
+
+              'metadata': metadata ?? {},
+
+            }
+
+          }
+
+        }),
+
+      );
+
+
+
+      if (response.statusCode == 200) {
+
+        final responseData = jsonDecode(response.body);
+        
+        // Extract the redirect URL from PayMongo source response
+        final redirectUrl = responseData['data']?['attributes']?['redirect']?['checkout_url'] ?? 
+                          responseData['data']?['attributes']?['redirect']?['url'] ??
+                          responseData['data']?['attributes']?['url'];
+        
+        if (redirectUrl == null) {
+          throw Exception('No redirect URL returned from PayMongo');
+        }
+        
+        return {
+          'success': true,
+          'checkoutUrl': redirectUrl,
+          'data': responseData,
+        };
+
+      } else {
+
+        throw Exception('Failed to create GCash payment link: ${response.body}');
+
+      }
+
+    } catch (e) {
+
+      throw Exception('GCash payment link creation failed: $e');
 
     }
 

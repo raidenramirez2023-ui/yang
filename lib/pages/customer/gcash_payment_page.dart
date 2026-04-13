@@ -56,6 +56,8 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
         setState(() {
           _paymentUrl = paymentLink['checkoutUrl'];
         });
+        // Auto-redirect to GCash payment
+        await _launchGCashPayment();
       } else {
         throw Exception(paymentLink['error'] ?? 'Failed to create GCash payment');
       }
