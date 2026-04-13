@@ -4,7 +4,6 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/services/notification_service.dart';
-import 'package:yang_chow/services/pricing_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 
@@ -21,7 +20,6 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
   
   // Services
-  final PricingService _pricingService = PricingService();
   final ReservationService _reservationService = ReservationService();
 
   @override

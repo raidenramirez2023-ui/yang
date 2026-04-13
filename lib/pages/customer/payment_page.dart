@@ -431,6 +431,7 @@ class _PaymentPageState extends State<PaymentPage> {
       // 1. Create Payment Intent
       final intentResult = await PayMongoService.createPaymentIntent(
         amount: widget.amount,
+        description: widget.description,
         currency: 'PHP',
         metadata: {
           // PayMongo requires all metadata values to be flat strings
@@ -543,7 +544,7 @@ class _PaymentPageState extends State<PaymentPage> {
       );
 
       if (result['success'] == true) {
-        _currentLinkId = result['data']['id'] as String;
+        _currentLinkId = result['data']['data']['id'] as String;
         if (kIsWeb) {
           await _launchPaymentUrl(result['checkoutUrl'] as String);
         } else {
@@ -756,7 +757,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
       final result = await PayMongoService.retrievePaymentLink(_currentLinkId!);
 
-      if (result['success'] && result['isPaid']) {
+      if (result['success'] == true && result['isPaid'] == true) {
 
         _onPaymentSuccess();
 

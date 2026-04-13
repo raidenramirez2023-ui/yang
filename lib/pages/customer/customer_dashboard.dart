@@ -25,9 +25,10 @@ import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
-import 'package:yang_chow/services/email_notification_service.dart';
+
 
 import 'package:yang_chow/services/paymongo_service.dart';
+import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:intl/intl.dart';
 
@@ -52,16 +53,18 @@ class CustomerDashboardPage extends StatefulWidget {
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   int _selectedIndex = 0;
-
-
+  bool _isLoading = false;
+  final ReservationService _reservationService = ReservationService();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb
+        ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
+        : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
+  );
 
   List<Map<String, dynamic>> customerReservations = [];
-
-  bool _isLoading = false;
-
   Stream<List<Map<String, dynamic>>>? _notificationsStream;
-  String _activeMenuCategory = MenuService.categories.first;
-  late Map<String, List<MenuItem>> _menu;
+  String? _lastSeenNotificationId;
+
 
 
 
@@ -69,9 +72,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   late AppSettingsService _appSettings;
 
-  late ReservationService _reservationService;
 
-  late EmailNotificationService _emailService;
 
 
 
@@ -91,7 +92,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   bool _enableSpecialRequests = AppConstants.defaultEnableSpecialRequests;
 
-  String? _lastSeenNotificationId;
+
 
 
 
@@ -141,19 +142,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-  // Google Sign-In instance
 
-
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-
-    clientId: kIsWeb
-
-        ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
-
-        : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
-
-  );
 
 
 
@@ -164,12 +153,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     super.initState();
 
     _appSettings = AppSettingsService();
+    // Initialize configuration from app_settings
 
-    _reservationService = ReservationService();
 
-    _emailService = EmailNotificationService();
-    _menu = MenuService.getMenu();
-    _activeMenuCategory = MenuService.categories.first;
+
 
 
 
@@ -2630,40 +2617,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   }
 
-
-
-  String _formatLocalDateTime(String? dateTimeString) {
-
-    if (dateTimeString == null || dateTimeString.isEmpty) {
-
-      return 'Unknown time';
-
-    }
-
-
-
-    try {
-
-      DateTime utcTime = DateTime.parse(dateTimeString);
-
-
-
-      DateTime localTime = utcTime.toLocal();
-
-
-
-      return '${localTime.year.toString().padLeft(4, '0')}-${localTime.month.toString().padLeft(2, '0')}-${localTime.day.toString().padLeft(2, '0')} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}:${localTime.second.toString().padLeft(2, '0')}';
-
-    } catch (e) {
-
-      return 'Invalid time';
-
-    }
-
-  }
-
-
-
   Widget _buildReservationsSection() {
 
     return SingleChildScrollView(
@@ -3913,22 +3866,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
 
             _buildAccountMenuCard(
-
               icon: Icons.logout_rounded,
-
               title: 'Logout',
-
               subtitle: 'Securely exit your session',
-
               isDestructive: true,
-
               onTap: _showLogoutDialog,
-
             ),
 
 
 
             const SizedBox(height: 24),
+
+
 
           ],
 
@@ -4054,838 +4003,100 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
-    final needsDepositPayment = _reservationService.needsDepositPayment(reservation);
-    final pricingInfo = _reservationService.getReservationPricing(reservation);
-    final totalPrice = pricingInfo['totalPrice'] as double;
-    final depositAmount = pricingInfo['depositAmount'] as double;
-    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
-    final priceQuotationSent = reservation['price_quotation_sent'] == true;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    reservation['event_type'] ?? 'Reservation',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+  Widget _buildHomeMenuSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Our Menu',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E1E),
                 ),
-                _buildStatusChip(reservation['status']),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Date: ${reservation['event_date']}',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.people_alt_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Guests: ${reservation['number_of_guests']}',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            
-            // Pricing Information Section
-            if (priceQuotationSent && totalPrice > 0) ...[
-              const Divider(height: 24),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.monetization_on, size: 16, color: Colors.blue),
-                        SizedBox(width: 4),
-                        Text(
-                          'Pricing Details',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Total Price:'),
-                        Text(
-                          'PHP ${totalPrice.toStringAsFixed(2)}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Deposit (50%):'),
-                        Text(
-                          'PHP ${depositAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Remaining Balance:'),
-                        Text(
-                          'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedIndex = 3),
+                child: const Text('View All'),
               ),
             ],
-            
-            // Payment Status Section
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Payment Status',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    Text(
-                      _getPaymentStatusText(paymentStatus, priceQuotationSent),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: _getPaymentStatusColor(paymentStatus, priceQuotationSent),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Booked on ${reservation['created_at']?.toString().split('T')[0] ?? 'N/A'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade400,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Action Buttons
-            if (needsDepositPayment) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentDialog(reservation),
-                  icon: Icon(Icons.payment, size: 18),
-                  label: Text('Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ] else if (paymentStatus == 'deposit_paid') ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Deposit paid! Reservation confirmed.',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (!priceQuotationSent && reservation['status'] == 'pending') ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Awaiting price quotation from admin.',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getPaymentStatusText(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return 'AWAITING QUOTATION';
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return 'DEPOSIT DUE';
-      case 'deposit_paid':
-        return 'DEPOSIT PAID';
-      case 'fully_paid':
-        return 'FULLY PAID';
-      case 'refunded':
-        return 'REFUNDED';
-      default:
-        return paymentStatus.toUpperCase();
-    }
-  }
-
-  Color _getPaymentStatusColor(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return Colors.orange;
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return Colors.orange;
-      case 'deposit_paid':
-        return Colors.green;
-      case 'fully_paid':
-        return Colors.blue;
-      case 'refunded':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showPaymentDialog(Map<String, dynamic> reservation) {
-    final pricingInfo = _reservationService.getReservationPricing(reservation);
-    final depositAmount = pricingInfo['depositAmount'] as double;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.payment, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Pay Deposit'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Complete your reservation by paying the 50% deposit.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Deposit Amount:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'PHP ${depositAmount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Choose your preferred payment method:',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            
-            // GCash Option
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToGCashPayment(reservation, depositAmount);
-                },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
-                ),
-                label: Text('Pay with GCash'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            
-            // Other Payment Methods
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToPayMongoPayment(reservation, depositAmount);
-                },
-                icon: Icon(Icons.payment),
-                label: Text('Other Payment Methods'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'All payments are secure and processed by PayMongo.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
           ),
-        ],
-      ),
-    );
-  }
-
-
-
-  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
-    final needsDepositPayment = _reservationService.needsDepositPayment(reservation);
-    final pricingInfo = _reservationService.getReservationPricing(reservation);
-    final totalPrice = pricingInfo['totalPrice'] as double;
-    final depositAmount = pricingInfo['depositAmount'] as double;
-    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
-    final priceQuotationSent = reservation['price_quotation_sent'] == true;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    reservation['event_type'] ?? 'Reservation',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                _buildStatusChip(reservation['status']),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Date: ${reservation['event_date']}',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.people_alt_rounded,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Guests: ${reservation['number_of_guests']}',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            
-            // Pricing Information Section
-            if (priceQuotationSent && totalPrice > 0) ...[
-              const Divider(height: 24),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.monetization_on, size: 16, color: Colors.blue),
-                        SizedBox(width: 4),
-                        Text(
-                          'Pricing Details',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Total Price:'),
-                        Text(
-                          'PHP ${totalPrice.toStringAsFixed(2)}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Deposit (50%):'),
-                        Text(
-                          'PHP ${depositAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Remaining Balance:'),
-                        Text(
-                          'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            
-            // Payment Status Section
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Payment Status',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    Text(
-                      _getPaymentStatusText(paymentStatus, priceQuotationSent),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: _getPaymentStatusColor(paymentStatus, priceQuotationSent),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Booked on ${reservation['created_at']?.toString().split('T')[0] ?? 'N/A'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade400,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Action Buttons
-            if (needsDepositPayment) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentDialog(reservation),
-                  icon: Icon(Icons.payment, size: 18),
-                  label: Text('Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ] else if (paymentStatus == 'deposit_paid') ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Deposit paid! Reservation confirmed.',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (!priceQuotationSent && reservation['status'] == 'pending') ...[
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Awaiting price quotation from admin.',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
         ),
-      ),
-    );
-  }
-
-  String _getPaymentStatusText(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return 'AWAITING QUOTATION';
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return 'DEPOSIT DUE';
-      case 'deposit_paid':
-        return 'DEPOSIT PAID';
-      case 'fully_paid':
-        return 'FULLY PAID';
-      case 'refunded':
-        return 'REFUNDED';
-      default:
-        return paymentStatus.toUpperCase();
-    }
-  }
-
-  Color _getPaymentStatusColor(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return Colors.orange;
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return Colors.orange;
-      case 'deposit_paid':
-        return Colors.green;
-      case 'fully_paid':
-        return Colors.blue;
-      case 'refunded':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showPaymentDialog(Map<String, dynamic> reservation) {
-    final pricingInfo = _reservationService.getReservationPricing(reservation);
-    final depositAmount = pricingInfo['depositAmount'] as double;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.payment, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Pay Deposit'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Complete your reservation by paying the 50% deposit.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Deposit Amount:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'PHP ${depositAmount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Choose your preferred payment method:',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            
-            // GCash Option
-            Container(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToGCashPayment(reservation, depositAmount);
-                },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
-                ),
-                label: Text('Pay with GCash'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            
-            // Other Payment Methods
-            Container(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToPayMongoPayment(reservation, depositAmount);
-                },
-                icon: Icon(Icons.payment),
-                label: Text('Other Payment Methods'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'All payments are secure and processed by PayMongo.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: MenuService.categories.length,
+            itemBuilder: (context, index) {
+              final category = MenuService.categories[index];
+              return _buildMenuCategoryCard(category);
+            },
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMenuCategoryCard(String category) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedIndex = 3;
+        });
+      },
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFDAD6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.restaurant_menu, color: Color(0xFF1D1B1E), size: 20),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                category,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _proceedToGCashPayment(Map<String, dynamic> reservation, double depositAmount) async {
-    // Navigate directly to GCash payment page
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => GCashPaymentPage(
@@ -4901,11 +4112,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
+        builder: (context) => const AlertDialog(
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -4917,369 +4127,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ),
       );
 
-      // Create PayMongo payment link
       final paymentLink = await PayMongoService.createPaymentLink(
-        amount: depositAmount * 100, // Convert to cents
+        amount: depositAmount * 100,
         description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
-        returnUrl: 'https://yourapp.com/payment/success', // You need to configure this
         metadata: {
           'reservation_id': reservation['id'],
           'customer_email': reservation['customer_email'],
-          'event_type': reservation['event_type'],
-          'payment_type': 'deposit',
-        },
-      );
-
-      // Close loading dialog
-      Navigator.pop(context);
-
-      if (paymentLink != null && paymentLink['checkoutUrl'] != null) {
-        // Navigate to PayMongo payment page
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PayMongoPaymentPage(
-              paymentUrl: paymentLink['checkoutUrl'],
-              reservationId: reservation['id'],
-              depositAmount: depositAmount,
-              onPaymentSuccess: () {
-                _updateReservationPaymentStatus(reservation['id'], depositAmount);
-              },
-            ),
-          ),
-        );
-      } else {
-        _showErrorDialog('Failed to initialize payment. Please try again.');
-      }
-    } catch (e) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorDialog('Payment initialization failed: $e');
-    }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Payment Error'),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPaymentProcessingDialog(Map<String, dynamic> reservation, double depositAmount) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CircularProgressIndicator(strokeWidth: 3),
-            SizedBox(width: 16),
-            Text('Processing Payment'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Please wait while we process your payment...'),
-            SizedBox(height: 16),
-            LinearProgressIndicator(),
-          ],
-        ),
-      ),
-    );
-
-    // Simulate payment processing
-    Future.delayed(Duration(seconds: 3), () {
-      Navigator.pop(context); // Close processing dialog
-      
-      // Update payment status
-      _updateReservationPaymentStatus(reservation['id'], depositAmount);
-      
-      // Show success message
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 8),
-              Text('Payment Successful!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Your deposit of PHP ${depositAmount.toStringAsFixed(2)} has been successfully processed.'),
-              SizedBox(height: 16),
-              Text(
-                'Your reservation is now confirmed! You will receive a confirmation email shortly.',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _loadCustomerReservations(); // Refresh the list
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-              child: Text('Great!'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Future<void> _updateReservationPaymentStatus(String reservationId, double depositAmount) async {
-    try {
-      // Update payment status (this will automatically set status to pending_admin_approval)
-      await _reservationService.updatePaymentStatus(
-        reservationId: reservationId,
-        paymentStatus: 'deposit_paid',
-        paymentAmount: depositAmount,
-        paymentReference: 'PAY_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      
-      // Refresh the reservations list to show updated status
-      await _loadCustomerReservations();
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment successful! Awaiting admin approval.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error updating payment status: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating reservation: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
-
-
-  Widget _buildAccountMenuCard({
-
-    required IconData icon,
-
-    required String title,
-
-    String? subtitle,
-
-    required VoidCallback onTap,
-
-    bool isDestructive = false,
-
-  }) {
-
-    final color = isDestructive
-
-        ? const Color(0xFFBA1A1A)
-
-        : const Color(0xFF1D1B1E);
-
-    final iconBgColor = isDestructive
-
-        ? const Color(0xFFFFDAD6).withValues(alpha: 0.5)
-
-        : const Color(0xFFFFDAD6);
-
-
-
-    return Container(
-
-      margin: const EdgeInsets.only(bottom: 16),
-
-      decoration: BoxDecoration(
-
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(20),
-
-        boxShadow: [
-
-          BoxShadow(
-
-            color: Colors.black.withValues(alpha: 0.03),
-
-            blurRadius: 20,
-
-            offset: const Offset(0, 8),
-
-          ),
-
-        ],
-
-      ),
-
-      child: Material(
-
-        color: Colors.transparent,
-
-        child: InkWell(
-
-          onTap: onTap,
-
-          borderRadius: BorderRadius.circular(20),
-
-          child: Padding(
-
-            padding: const EdgeInsets.all(20),
-
-            child: Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-
-                    color: iconBgColor,
-
-                    borderRadius: BorderRadius.circular(16),
-
-                  ),
-
-                  child: Icon(icon, color: color, size: 24),
-
-                ),
-
-                const SizedBox(width: 20),
-
-                Expanded(
-
-                  child: Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-
-                      Text(
-
-                        title,
-
-                        style: TextStyle(
-
-                          fontSize: 16,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: color,
-
-                        ),
-
-                      ),
-
-                      if (subtitle != null) ...[
-
-                        const SizedBox(height: 4),
-
-                        Text(
-
-                          subtitle,
-
-                          style: TextStyle(
-
-                            fontSize: 13,
-
-                            color: Colors.grey.shade500,
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ],
-
-                  ),
-
-                ),
-
-                Icon(
-
-                  Icons.chevron_right_rounded,
-
-                  color: Colors.grey.shade400,
-
-                  size: 24,
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-        ),
-      ),
-    );
-  }
-
-  Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Initializing payment...'),
-            ],
-          ),
-        ),
-      );
-
-      // Create PayMongo payment link
-      final paymentLink = await PayMongoService.createPaymentLink(
-        amount: depositAmount * 100, // Convert to cents
-        description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
-        returnUrl: 'https://yourapp.com/payment/success', // You need to configure this
-        metadata: {
-          'reservation_id': reservation['id'],
-          'customer_email': reservation['customer_email'],
-          'event_type': reservation['event_type'],
-          'payment_type': 'deposit',
         },
       );
 
@@ -5287,7 +4140,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       Navigator.pop(context);
 
       if (paymentLink['checkoutUrl'] != null) {
-        if (!mounted) return;
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => PayMongoPaymentPage(
@@ -5301,11 +4153,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
           ),
         );
       } else {
-        _showErrorDialog('Failed to initialize payment. Please try again.');
+        _showErrorDialog('Failed to initialize payment.');
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // Close loading dialog
-      _showErrorDialog('Payment initialization failed: $e');
+      if (mounted) Navigator.pop(context);
+      _showErrorDialog('Payment failed: $e');
     }
   }
 
@@ -5313,234 +4165,535 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Payment Error'),
-          ],
-        ),
+        title: const Text('Error'),
         content: Text(message),
         actions: [
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('OK'),
+            child: const Text('OK'),
           ),
         ],
       ),
     );
   }
 
-
-
   Future<void> _updateReservationPaymentStatus(String reservationId, double depositAmount) async {
     try {
-      // Update payment status (this will automatically set status to pending_admin_approval)
       await _reservationService.updatePaymentStatus(
         reservationId: reservationId,
         paymentStatus: 'deposit_paid',
         paymentAmount: depositAmount,
-        paymentReference: 'PAY_${DateTime.now().millisecondsSinceEpoch}',
       );
-      
-      // Refresh the reservations list to show updated status
-      await _loadCustomerReservations();
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment successful! Awaiting admin approval.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      _loadCustomerReservations();
     } catch (e) {
-      debugPrint('Error updating payment status: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating reservation: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
+      debugPrint('Error: $e');
     }
   }
 
-
-
-  Widget _buildAccountMenuCard({
-
-    required IconData icon,
-
-    required String title,
-
-    String? subtitle,
-
-    required VoidCallback onTap,
-
-    bool isDestructive = false,
-
-  }) {
-
-    final color = isDestructive
-
-        ? const Color(0xFFBA1A1A)
-
-        : const Color(0xFF1D1B1E);
-
-    final iconBgColor = isDestructive
-
-        ? const Color(0xFFFFDAD6).withValues(alpha: 0.5)
-
-        : const Color(0xFFFFDAD6);
-
-
-
-    return Container(
-
-      margin: const EdgeInsets.only(bottom: 16),
-
-      decoration: BoxDecoration(
-
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(20),
-
-        boxShadow: [
-
-          BoxShadow(
-
-            color: Colors.black.withValues(alpha: 0.03),
-
-            blurRadius: 20,
-
-            offset: const Offset(0, 8),
-
-          ),
-
-        ],
-
-      ),
-
-      child: Material(
-
-        color: Colors.transparent,
-
-        child: InkWell(
-
-          onTap: onTap,
-
-          borderRadius: BorderRadius.circular(20),
-
-          child: Padding(
-
-            padding: const EdgeInsets.all(20),
-
-            child: Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-
-                    color: iconBgColor,
-
-                    borderRadius: BorderRadius.circular(16),
-
-                  ),
-
-                  child: Icon(icon, color: color, size: 24),
-
-                ),
-
-                const SizedBox(width: 20),
-
-                Expanded(
-
-                  child: Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-
-                      Text(
-
-                        title,
-
-                        style: TextStyle(
-
-                          fontSize: 16,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: color,
-
-                        ),
-
-                      ),
-
-                      if (subtitle != null) ...[
-
-                        const SizedBox(height: 4),
-
-                        Text(
-
-                          subtitle,
-
-                          style: TextStyle(
-
-                            fontSize: 13,
-
-                            color: Colors.grey.shade500,
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ],
-
-                  ),
-
-                ),
-
-                Icon(
-
-                  Icons.chevron_right_rounded,
-
-                  color: Colors.grey.shade400,
-
-                  size: 24,
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-        ),
-
-      ),
-
-    );
-
+  Future<void> _createReservationWithoutPayment(
+    dynamic currentUser,
+    String eventType,
+    String eventDate,
+    String startTime,
+    double durationHours,
+    int numberOfGuests,
+    String specialRequests,
+  ) async {
+    try {
+      await _reservationService.createReservation(
+        customerEmail: currentUser.email ?? '',
+        customerName: currentUser.userMetadata?['full_name'] ?? 'Customer',
+        eventType: eventType,
+        eventDate: eventDate,
+        startTime: startTime,
+        durationHours: durationHours,
+        numberOfGuests: numberOfGuests,
+        specialRequests: specialRequests,
+        customerPhone: null,
+        customerAddress: null,
+      );
+      
+      if (!mounted) return;
+      _loadCustomerReservations();
+      setState(() => _selectedIndex = 0);
+    } catch (e) {
+      _showErrorDialog('Failed to create reservation: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
+  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
+    final needsDepositPayment = _reservationService.needsDepositPayment(reservation);
+    final pricingInfo = _reservationService.getReservationPricing(reservation);
+    final totalPrice = pricingInfo['totalPrice'] as double;
+    final depositAmount = pricingInfo['depositAmount'] as double;
+    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
+    final priceQuotationSent = reservation['price_quotation_sent'] == true;
 
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    reservation['event_type'] ?? 'Reservation',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                _buildStatusChip(reservation['status'] ?? 'pending'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Date: ${reservation['event_date']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.people_alt_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Guests: ${reservation['number_of_guests']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            
+            if (priceQuotationSent && totalPrice > 0) ...[
+              const Divider(height: 24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.monetization_on, size: 16, color: Colors.blue),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Pricing Details',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Price:'),
+                        Text(
+                          'PHP ${totalPrice.toStringAsFixed(2)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Deposit (50%):'),
+                        Text(
+                          'PHP ${depositAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Remaining Balance:'),
+                        Text(
+                          'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payment Status',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    Text(
+                      _getPaymentStatusText(paymentStatus, priceQuotationSent),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _getPaymentStatusColor(paymentStatus, priceQuotationSent),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Booked on ${_formatLocalDateTime(reservation['created_at'])}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade400,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+            
+            if (needsDepositPayment) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showPaymentDialog(reservation),
+                  icon: const Icon(Icons.payment, size: 18),
+                  label: Text('Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ] else if (paymentStatus == 'deposit_paid') ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Deposit paid! Awaiting admin approval.',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (!priceQuotationSent && (reservation['status'] == 'pending' || reservation['status'] == 'pending_quotation')) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Awaiting price quotation from admin.',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getPaymentStatusText(String status, bool isQuoted) {
+    if (!isQuoted) return 'AWAITING QUOTATION';
+    switch (status) {
+      case 'deposit_paid': return 'DEPOSIT PAID';
+      case 'paid': return 'FULLY PAID';
+      case 'unpaid': return 'DEPOSIT DUE';
+      case 'refunded': return 'REFUNDED';
+      default: return status.toUpperCase();
+    }
+  }
+
+  Color _getPaymentStatusColor(String status, bool isQuoted) {
+    if (!isQuoted) return Colors.orange;
+    switch (status) {
+      case 'deposit_paid': return Colors.green;
+      case 'paid': return Colors.blue;
+      case 'unpaid': return Colors.orange;
+      case 'refunded': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  void _showPaymentDialog(Map<String, dynamic> reservation) {
+    final pricingInfo = _reservationService.getReservationPricing(reservation);
+    final depositAmount = pricingInfo['depositAmount'] as double;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.payment, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Pay Deposit'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Complete your reservation by paying the 50% deposit.',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Deposit Amount:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'PHP ${depositAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Choose your preferred payment method:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _proceedToGCashPayment(reservation, depositAmount);
+                },
+                icon: const Icon(Icons.account_balance_wallet),
+                label: const Text('Pay with GCash'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _proceedToPayMongoPayment(reservation, depositAmount);
+                },
+                icon: const Icon(Icons.payment),
+                label: const Text('Other Payment Methods'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatLocalDateTime(dynamic dateTime) {
+    if (dateTime == null) return 'N/A';
+    try {
+      final dt = dateTime is String ? DateTime.parse(dateTime).toLocal() : (dateTime as DateTime).toLocal();
+      return "${dt.month}/${dt.day}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return dateTime.toString();
+    }
+  }
+
+  Widget _buildAccountMenuCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDestructive ? Colors.red.shade50 : Colors.grey.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDestructive ? Colors.red.shade600 : Colors.grey.shade700,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDestructive ? Colors.red.shade600 : const Color(0xFF1D1B1E),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildActivitySection() {
 
@@ -7163,7 +6316,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ],
           ),
           SizedBox(height: 16),
-          ...quotations.map((reservation) => _buildQuotationCard(reservation)).toList(),
+          ...quotations.map((reservation) => _buildQuotationCard(reservation)),
         ],
       ),
     );

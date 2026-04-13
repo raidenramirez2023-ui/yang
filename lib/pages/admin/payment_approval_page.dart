@@ -52,7 +52,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         reservationId: reservationId,
       );
 
-      if (success) {
+      if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment approved successfully!'),
@@ -60,7 +60,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           ),
         );
         _loadPendingPayments(); // Refresh list
-      } else {
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to approve payment'),
@@ -69,12 +69,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error approving payment: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error approving payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -128,7 +130,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         reason: reason,
       );
 
-      if (success) {
+      if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment rejected successfully!'),
@@ -136,7 +138,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           ),
         );
         _loadPendingPayments(); // Refresh list
-      } else {
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to reject payment'),
@@ -145,12 +147,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error rejecting payment: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error rejecting payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
