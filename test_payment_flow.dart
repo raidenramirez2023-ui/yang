@@ -44,7 +44,7 @@ class _PaymentFlowTestPageState extends State<PaymentFlowTestPage> {
         'total_price': 10000.00,
       };
 
-      final depositAmount = (reservation['total_price'] as double? ?? 0.0) * 0.5; // 50% deposit
+      final depositAmount = reservation['total_price'] * 0.5; // 50% deposit
 
       // Create PayMongo payment link (same as in customer_dashboard.dart)
       final paymentLink = await PayMongoService.createPaymentLink(
@@ -65,7 +65,7 @@ class _PaymentFlowTestPageState extends State<PaymentFlowTestPage> {
 ✅ PAYMENT LINK CREATED SUCCESSFULLY!
 
 📋 Payment Details:
-• Amount: PHP ${depositAmount.toStringAsFixed(2)}
+• Amount: PHP ${(depositAmount as double).toStringAsFixed(2)}
 • Description: ${paymentLink['data']['attributes']['description']}
 • Link ID: ${paymentLink['linkId']}
 
@@ -136,7 +136,7 @@ Error: $e
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(

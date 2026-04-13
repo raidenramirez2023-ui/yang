@@ -339,27 +339,22 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
         ),
         SizedBox(height: 12),
         
-        RadioGroup<bool>(
+        // Suggested Price Option
+        RadioListTile<bool>(
+          title: Text('Use Suggested Price'),
+          subtitle: Text(
+            'Based on ${widget.reservation['duration_hours']}h duration and ${widget.reservation['number_of_guests']} guests',
+          ),
+          value: false,
           groupValue: _useCustomPrice,
           onChanged: (value) {
             setState(() {
               _useCustomPrice = value!;
-              if (!_useCustomPrice) {
-                _priceController.text = _suggestedPrice.toStringAsFixed(2);
-              }
+              _priceController.text = _suggestedPrice.toStringAsFixed(2);
             });
           },
-          child: Column(
-            children: [
-              // Suggested Price Option
-              RadioListTile<bool>(
-                title: Text('Use Suggested Price'),
-                subtitle: Text(
-                  'Based on ${widget.reservation['duration_hours']}h duration and ${widget.reservation['number_of_guests']} guests',
-                ),
-                value: false,
-                contentPadding: EdgeInsets.zero,
-              ),
+          contentPadding: EdgeInsets.zero,
+        ),
         
         if (_suggestedPrice > 0) ...[
           Container(
@@ -388,15 +383,18 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
           SizedBox(height: 12),
         ],
         
-              // Custom Price Option
-              RadioListTile<bool>(
-                title: Text('Set Custom Price'),
-                subtitle: Text('Override the suggested price'),
-                value: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ],
-          ),
+        // Custom Price Option
+        RadioListTile<bool>(
+          title: Text('Set Custom Price'),
+          subtitle: Text('Override the suggested price'),
+          value: true,
+          groupValue: _useCustomPrice,
+          onChanged: (value) {
+            setState(() {
+              _useCustomPrice = value!;
+            });
+          },
+          contentPadding: EdgeInsets.zero,
         ),
         
         if (_useCustomPrice) ...[

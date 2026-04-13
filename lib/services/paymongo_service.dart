@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class PayMongoService {
 
@@ -28,50 +27,6 @@ class PayMongoService {
     return key;
   }
 
-  static String formatAmount(double amount) {
-    final format = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
-    return format.format(amount);
-  }
-
-  static String generateReferenceNumber() {
-    final now = DateTime.now();
-    final random = (1000 + (9999 - 1000) * (DateTime.now().millisecondsSinceEpoch % 1000 / 1000)).toInt();
-    return 'YANG-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-$random';
-  }
-
-  static List<Map<String, dynamic>> getAvailablePaymentMethods() {
-    return [
-      {
-        'id': 'gcash',
-        'type': 'gcash',
-        'name': 'GCash',
-        'description': 'Pay using your GCash e-wallet',
-        'icon': Icons.wallet,
-      },
-      {
-        'id': 'paymaya',
-        'type': 'paymaya',
-        'name': 'Maya',
-        'description': 'Pay using your Maya e-wallet',
-        'icon': Icons.wallet,
-      },
-      {
-        'id': 'card',
-        'type': 'card',
-        'name': 'Credit/Debit Card',
-        'description': 'Visa, Mastercard, or JCB',
-        'icon': Icons.credit_card,
-      },
-      {
-        'id': 'qrph',
-        'type': 'qrph',
-        'name': 'QRPh',
-        'description': 'Scan to pay using any banking app',
-        'icon': Icons.qr_code,
-      },
-    ];
-  }
-
 
 
   static const Map<String, String> _headers = {
@@ -84,15 +39,20 @@ class PayMongoService {
 
 
 
-  static Future<Map<String, dynamic>> createPaymentIntent({
+  static Future<Map<String, String>> createPaymentIntent({
+
     required double amount,
-    String? description,
-    String currency = 'PHP',
+
+    required String description,
+
     Map<String, dynamic>? metadata,
   }) async {
     try {
+
       final response = await http.post(
+
         Uri.parse('$_baseUrl/payment_intents'),
+
         headers: {
           ..._headers,
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
@@ -100,47 +60,63 @@ class PayMongoService {
         body: jsonEncode({
           'data': {
             'attributes': {
-              'amount': (amount * 100).round(), // Convert to centavos
-              'payment_method_allowed': ['gcash', 'card', 'paymaya', 'dob', 'qrph'],
-              'description': description ?? 'Yang Restaurant Order',
+
+              'amount': amount.round(), // Convert to centavos
+
+              'payment_method_allowed': ['gcash', 'card', 'paymaya'],
+
+              'description': description,
+
               'statement_descriptor': 'YANG RESTAURANT',
-              'currency': currency,
+
+              'currency': 'PHP',
+
               'metadata': metadata ?? {},
+
             }
+
           }
+
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        final clientKey = data['data']['attributes']['client_key'];
+
+        final paymentIntentId = data['data']['id'];
+
+        
+
         return {
-          'success': true,
-          'data': data['data'],
-          'paymentIntentId': data['data']['id'],
-          'clientKey': data['data']['attributes']['client_key'],
+
+          'client_key': clientKey,
+
+          'payment_intent_id': paymentIntentId,
+
         };
       } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['errors']?[0]?['detail'] ?? 'Unknown error';
-        return {
-          'success': false,
-          'error': 'Failed to create payment intent: $errorMessage',
-        };
+
+        throw Exception('Failed to create payment intent: ${response.body}');
+
       }
     } catch (e) {
-      return {
-        'success': false,
-        'error': 'Payment intent creation failed: $e',
-      };
+
+      throw Exception('Payment intent creation failed: $e');
+
     }
   }
 
 
 
   static Future<Map<String, dynamic>> retrievePaymentIntent(String paymentIntentId) async {
+
     try {
       final response = await http.get(
+
         Uri.parse('$_baseUrl/payment_intents/$paymentIntentId'),
+
         headers: {
           ..._headers,
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
@@ -148,140 +124,21 @@ class PayMongoService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'],
-          'status': data['data']['attributes']['status'],
-        };
+
+        return jsonDecode(response.body);
+
       } else {
-        return {'success': false, 'error': 'Failed to retrieve intent'};
+
+        throw Exception('Failed to retrieve payment intent: ${response.body}');
+
       }
+
     } catch (e) {
-      return {'success': false, 'error': e.toString()};
+
+      throw Exception('Payment intent retrieval failed: $e');
+
     }
-  }
 
-  static Future<Map<String, dynamic>> createPaymentMethod({
-    required String type,
-    Map<String, dynamic>? details,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment_methods'),
-        headers: {
-          ..._headers,
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-        },
-        body: jsonEncode({
-          'data': {
-            'attributes': {
-              'type': type,
-              'details': ?details,
-            }
-          }
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'],
-          'paymentMethodId': data['data']['id'],
-        };
-      } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['errors']?[0]?['detail'] ?? 'Unknown error';
-        return {
-          'success': false,
-          'error': 'Failed to create payment method: $errorMessage',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': 'Payment method creation failed: $e',
-      };
-    }
-  }
-
-  static Future<Map<String, dynamic>> attachPaymentMethod({
-    required String paymentIntentId,
-    required String paymentMethodId,
-    required String clientKey,
-    String? returnUrl,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment_intents/$paymentIntentId/attach'),
-        headers: {
-          ..._headers,
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-        },
-        body: jsonEncode({
-          'data': {
-            'attributes': {
-              'payment_method': paymentMethodId,
-              'client_key': clientKey,
-              'return_url': ?returnUrl,
-            }
-          }
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'],
-        };
-      } else {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['errors']?[0]?['detail'] ?? 'Unknown error';
-        return {
-          'success': false,
-          'error': 'Failed to attach payment method: $errorMessage',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': 'Payment method attachment failed: $e',
-      };
-    }
-  }
-
-  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/links/$linkId'),
-        headers: {
-          ..._headers,
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final payments = data['data']['attributes']['payments'] as List;
-        bool isPaid = false;
-        if (payments.isNotEmpty) {
-          isPaid = payments.any((p) => p['attributes']['status'] == 'paid');
-        }
-
-        return {
-          'success': true,
-          'data': data['data'],
-          'status': data['data']['attributes']['status'],
-          'isPaid': isPaid || data['data']['attributes']['status'] == 'paid',
-        };
-      } else {
-        return {'success': false, 'error': 'Failed to retrieve payment link'};
-      }
-    } catch (e) {
-      return {'success': false, 'error': e.toString()};
-    }
   }
 
 
@@ -409,7 +266,6 @@ class PayMongoService {
       return false;
 
     }
-
   }
 
 
@@ -452,7 +308,23 @@ class PayMongoService {
 
   }
 
+  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/links/$linkId'),
+        headers: {
+          ..._headers,
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+        },
+      );
 
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final payments = data['data']['attributes']['payments'] as List;
+        bool isPaid = false;
+        if (payments.isNotEmpty) {
+          isPaid = payments.any((p) => p['attributes']['status'] == 'paid');
+        }
 
   static Future<Map<String, dynamic>> createSource({
 
@@ -462,7 +334,9 @@ class PayMongoService {
 
     required Map<String, dynamic> redirect,
 
-    Map<String, dynamic>? metadata,
+    required String url,
+
+    required List<String> events,
 
   }) async {
 
@@ -510,13 +384,13 @@ class PayMongoService {
 
         return jsonDecode(response.body);
 
-      } else {
+    }
 
         throw Exception('Failed to create source: ${response.body}');
 
       }
 
-    } catch (e) {
+      
 
       throw Exception('Source creation failed: $e');
 
@@ -550,7 +424,7 @@ class PayMongoService {
 
           ..._headers,
 
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_publicKey:'))}',
 
         },
 

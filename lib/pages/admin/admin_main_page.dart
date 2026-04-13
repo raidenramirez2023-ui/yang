@@ -60,6 +60,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
   int _pendingPaymentCount = 0;
   int _pendingReservationCount = 0;
 
+  late AnimationController _controller;
+  late Animation<double> _fadeIn;
+  late Timer? _realtimeTimer;
   late Timer? _countRefreshTimer;
 
 
@@ -184,7 +187,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       final supabase = Supabase.instance.client;
 
       // Check if reservations table exists and has the required columns
-      await supabase
+      final response = await supabase
 
           .from('reservations')
 
@@ -248,7 +251,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
       final supabase = Supabase.instance.client;
       
       // Check if reservations table exists and get count of pending/new reservations
-      await supabase
+      final response = await supabase
           .from('reservations')
           .select('id')
           .eq('is_archived', false)
@@ -667,7 +670,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
 
                               Container(
 
@@ -683,7 +686,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '$_pendingCustomerCount',
+                                  '${_pendingCustomerCount ?? 0}',
 
                                   style: const TextStyle(
 
@@ -700,7 +703,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                               ),
 
                             // Add badge for Reservations
-                            if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
+                            if (_pageTitles[index] == 'Reservations' && (_pendingReservationCount ?? 0) > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
@@ -708,7 +711,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '$_pendingReservationCount',
+                                  '${_pendingReservationCount ?? 0}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
@@ -718,7 +721,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                               ),
 
                             // Add badge for Payment Approvals
-                            if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
+                            if (_pageTitles[index] == 'Payment Approvals' && (_pendingPaymentCount ?? 0) > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
@@ -726,7 +729,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '$_pendingPaymentCount',
+                                  '${_pendingPaymentCount ?? 0}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
@@ -1276,7 +1279,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
 
                               Container(
 
@@ -1292,7 +1295,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '$_pendingCustomerCount',
+                                  '${_pendingCustomerCount ?? 0}',
 
                                   style: const TextStyle(
 
@@ -1309,7 +1312,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                               ),
 
                             // Add badge for Reservations
-                            if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
+                            if (_pageTitles[index] == 'Reservations' && (_pendingReservationCount ?? 0) > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
@@ -1317,7 +1320,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '$_pendingReservationCount',
+                                  '${_pendingReservationCount ?? 0}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,
@@ -1327,7 +1330,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                               ),
 
                             // Add badge for Payment Approvals
-                            if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
+                            if (_pageTitles[index] == 'Payment Approvals' && (_pendingPaymentCount ?? 0) > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
@@ -1335,7 +1338,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '$_pendingPaymentCount',
+                                  '${_pendingPaymentCount ?? 0}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 11,

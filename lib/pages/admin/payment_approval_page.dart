@@ -53,7 +53,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       );
 
       if (success) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment approved successfully!'),
@@ -62,7 +61,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
         _loadPendingPayments(); // Refresh list
       } else {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to approve payment'),
@@ -71,7 +69,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error approving payment: $e'),
@@ -132,7 +129,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       );
 
       if (success) {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment rejected successfully!'),
@@ -141,7 +137,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
         _loadPendingPayments(); // Refresh list
       } else {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to reject payment'),
@@ -150,7 +145,6 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error rejecting payment: $e'),

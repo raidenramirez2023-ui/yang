@@ -62,8 +62,8 @@ class PricingService {
       final totalPrice = basePrice + guestPremium;
       
       debugPrint('Pricing calculation:');
-      debugPrint('Duration: ${durationHours}h × $baseRate × ${durationMultiplier.toStringAsFixed(2)} = ${basePrice.toStringAsFixed(2)}');
-      debugPrint('Guests: $numberOfGuests × $_ratePerGuest × ${guestMultiplier.toStringAsFixed(2)} = ${guestPremium.toStringAsFixed(2)}');
+      debugPrint('Duration: ${durationHours}h × ${baseRate} × ${durationMultiplier.toStringAsFixed(2)} = ${basePrice.toStringAsFixed(2)}');
+      debugPrint('Guests: ${numberOfGuests} × ${_ratePerGuest} × ${guestMultiplier.toStringAsFixed(2)} = ${guestPremium.toStringAsFixed(2)}');
       debugPrint('Total: ${totalPrice.toStringAsFixed(2)}');
       
       return totalPrice;
