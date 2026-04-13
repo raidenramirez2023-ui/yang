@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'lib/services/add_menu_ingredients_to_inventory.dart';
 
@@ -8,21 +9,21 @@ void main() async {
     anonKey: 'YOUR_SUPABASE_ANON_KEY',
   );
 
-  print('Testing Menu Ingredients Import...\n');
+  debugPrint('Testing Menu Ingredients Import...\n');
 
   try {
     final importer = MenuIngredientsImporter();
 
     // First show what will be imported
-    print('=== Checking for Missing Ingredients ===');
+    debugPrint('=== Checking for Missing Ingredients ===');
     await importer.showMissingIngredients();
 
     // Then perform the import
-    print('\n=== Starting Import ===');
+    debugPrint('\n=== Starting Import ===');
     await importer.addAllMenuIngredientsToInventory();
 
-    print('\n=== Import Completed Successfully! ===');
+    debugPrint('\n=== Import Completed Successfully! ===');
   } catch (e) {
-    print('Import failed: $e');
+    debugPrint('Import failed: $e');
   }
 }
