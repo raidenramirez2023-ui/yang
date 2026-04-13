@@ -75,6 +75,10 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
   }
 
   bool get _isPriceValid {
+    if (_useCustomPrice) {
+      return _currentPrice > 0; // Only check if price is greater than 0 for custom price
+    }
+    
     return _currentPrice > 0 && 
            _pricingService.isPriceReasonable(
              durationHours: widget.reservation['duration_hours'] as int? ?? 0,
@@ -84,10 +88,17 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
   }
 
   String? _getPriceValidationError() {
+    // When using custom price, only validate that the price is greater than 0
+    if (_useCustomPrice) {
+      if (_currentPrice <= 0) return 'Price must be greater than 0';
+      return null; // Skip all other validations for custom price
+    }
+    
+    // For suggested price, use full validation
     final validation = _pricingService.validatePricingParams(
       durationHours: widget.reservation['duration_hours'] as int? ?? 0,
       numberOfGuests: widget.reservation['number_of_guests'] as int? ?? 0,
-      customBaseRate: _useCustomPrice ? _currentPrice : null,
+      customBaseRate: null,
     );
     
     if (validation != null) return validation;
