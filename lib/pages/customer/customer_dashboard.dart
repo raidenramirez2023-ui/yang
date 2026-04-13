@@ -17,18 +17,14 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/login_page.dart';
 
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
-
 import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
 import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
-
 import 'package:yang_chow/services/app_settings_service.dart';
-
 import 'package:yang_chow/services/reservation_service.dart';
-
 import 'package:yang_chow/services/email_notification_service.dart';
 
 import 'package:yang_chow/services/paymongo_service.dart';
@@ -64,6 +60,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
   bool _isLoading = false;
 
   Stream<List<Map<String, dynamic>>>? _notificationsStream;
+  String _activeMenuCategory = MenuService.categories.first;
+  late Map<String, List<MenuItem>> _menu;
 
 
 
@@ -170,6 +168,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     _reservationService = ReservationService();
 
     _emailService = EmailNotificationService();
+    _menu = MenuService.getMenu();
+    _activeMenuCategory = MenuService.categories.first;
 
 
 
@@ -1106,19 +1106,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               ...List.generate(6, (index) {
 
                 final icons = [
-
                   Icons.home_rounded,
-
                   Icons.event_available_rounded,
-
                   Icons.chat_bubble_rounded,
 
                   Icons.monetization_on_rounded,
 
                   Icons.assignment_rounded,
-
                   Icons.person_rounded,
-
                 ];
 
 
@@ -1500,39 +1495,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
                 children: [
-
                   Expanded(
-
                     child: _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-
                   ),
-
-
-
                   Expanded(
-
                     child: _buildMobileNavItem(
-
                       1,
-
                       Icons.event_available_rounded,
-
                       'Reserve',
-
                     ),
-
                   ),
-
-
-
                   Expanded(
-
                     child: _buildMobileNavItem(2, Icons.chat_bubble_rounded, 'Chat'),
-
                   ),
-
-
-
                   Expanded(
 
                     child: _buildMobileNavItem(3, Icons.monetization_on_rounded, 'Quotations'),
@@ -1546,15 +1521,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     child: _buildMobileNavItem(4, Icons.assignment_rounded, 'Activity'),
 
                   ),
-
-
-
                   Expanded(
 
                     child: _buildMobileNavItem(5, Icons.person_rounded, 'Account'),
 
                   ),
-
                 ],
 
               ),
@@ -1802,27 +1773,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   Widget _buildContent() {
-
     switch (_selectedIndex) {
-
       case 0:
-
         return _buildHomeSection();
-
-
-
       case 1:
-
         return _buildReservationsSection();
-
-
-
       case 2:
-
-        return const CustomerChatPage();
-
-
-
+        return CustomerChatPage();
       case 3:
 
         return _buildQuotationsSection();
@@ -1838,15 +1795,56 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       case 5:
 
         return _buildProfileSection();
-
-
-
       default:
-
         return _buildHomeSection();
-
     }
+  }
 
+  Widget _buildQuickActionButton({
+    required VoidCallback onTap,
+    required IconData icon,
+    required String label,
+    required bool isPrimary,
+  }) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: isPrimary ? AppTheme.primaryColor : Colors.white,
+        border: isPrimary ? null : Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  color: isPrimary ? Colors.white : Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isPrimary ? Colors.white : Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
 
@@ -2058,337 +2056,61 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-          // Quick Actions
-
-          Container(
-
-            padding: const EdgeInsets.all(24),
-
-
-
-            decoration: BoxDecoration(
-
-              color: Colors.white,
-
-
-
-              borderRadius: BorderRadius.circular(12),
-
-
-
-              boxShadow: [
-
-                BoxShadow(
-
-                  color: Colors.black.withValues(alpha: 0.1),
-
-
-
-                  blurRadius: 4,
-
-
-
-                  offset: const Offset(0, 2),
-
-                ),
-
-              ],
-
-            ),
-
-
-
-            child: Column(
-
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
-              children: [
-
-                const Text(
-
-                  'Quick Actions',
-
-
-
-                  style: TextStyle(
-
-                    fontSize: 18,
-
-
-
-                    fontWeight: FontWeight.bold,
-
-
-
-                    color: Color(0xFF1E1E1E),
-
-                  ),
-
-                ),
-
-
-
-                const SizedBox(height: 20),
-
-
-
-                Row(
-
-                  children: [
-
-                    Expanded(
-
-                      child: Container(
-
-                        height: 48,
-
-
-
-                        decoration: BoxDecoration(
-
-                          color: AppTheme.primaryColor,
-
-
-
-                          borderRadius: BorderRadius.circular(8),
-
-                        ),
-
-
-
-                        child: Material(
-
-                          color: Colors.transparent,
-
-
-
-                          child: InkWell(
-
-                            onTap: () {
-
-                              setState(() {
-
-                                _selectedIndex = 1;
-
-                              });
-
-                            },
-
-
-
-                            borderRadius: BorderRadius.circular(8),
-
-
-
-                            child: const Center(
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-
-
-
-                                children: [
-
-                                  Icon(
-
-                                    Icons.add,
-
-                                    color: Colors.white,
-
-                                    size: 20,
-
-                                  ),
-
-
-
-                                  SizedBox(width: 8),
-
-
-
-                                  Flexible(
-
-                                    child: Text(
-
-                                      'Make a New Reservation',
-
-
-
-                                      style: TextStyle(
-
-                                        color: Colors.white,
-
-
-
-                                        fontWeight: FontWeight.w600,
-
-
-
-                                        fontSize: 14,
-
-                                      ),
-
-
-
-                                      overflow: TextOverflow.ellipsis,
-
-                                    ),
-
-                                  ),
-
-                                ],
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ),
-
-                      ),
-
-                    ),
-
-
-
-                    const SizedBox(width: 16),
-
-
-
-                    Expanded(
-
-                      child: Container(
-
-                        height: 48,
-
-
-
-                        decoration: BoxDecoration(
-
-                          color: Colors.white,
-
-
-
-                          border: Border.all(color: Colors.grey.shade300),
-
-
-
-                          borderRadius: BorderRadius.circular(8),
-
-                        ),
-
-
-
-                        child: Material(
-
-                          color: Colors.transparent,
-
-
-
-                          child: InkWell(
-
-                            onTap: () {
-
-                              setState(() {
-
-                                _selectedIndex = 3;
-
-                              });
-
-                            },
-
-
-
-                            borderRadius: BorderRadius.circular(8),
-
-
-
-                            child: Center(
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-
-
-
-                                children: [
-
-                                  Icon(
-
-                                    Icons.person_outline,
-
-
-
-                                    color: Colors.grey.shade600,
-
-
-
-                                    size: 20,
-
-                                  ),
-
-
-
-                                  const SizedBox(width: 8),
-
-
-
-                                  Text(
-
-                                    'My Account',
-
-
-
-                                    style: TextStyle(
-
-                                      color: Colors.grey.shade600,
-
-
-
-                                      fontWeight: FontWeight.w600,
-
-
-
-                                      fontSize: 14,
-
-                                    ),
-
-                                  ),
-
-                                ],
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ),
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-
-
+          _buildHomeMenuSection(),
           const SizedBox(height: 24),
 
+          // Quick Actions
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E1E1E),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickActionButton(
+                        onTap: () => setState(() => _selectedIndex = 1),
+                        icon: Icons.add,
+                        label: 'Make a New Reservation',
+                        isPrimary: true,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildQuickActionButton(
+                        onTap: () => setState(() => _selectedIndex = 4),
+                        icon: Icons.person_outline,
+                        label: 'My Account',
+                        isPrimary: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-
-          // Recent Activity
+          const SizedBox(height: 24),
 
           Container(
 
@@ -4164,7 +3886,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                 await Navigator.of(context).push(
 
-                  MaterialPageRoute(builder: (_) => const EditProfilePage()),
+                  MaterialPageRoute(builder: (_) => EditProfilePage()),
 
                 );
 
@@ -4328,6 +4050,422 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     );
 
+  }
+
+
+
+  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
+    final needsDepositPayment = _reservationService.needsDepositPayment(reservation);
+    final pricingInfo = _reservationService.getReservationPricing(reservation);
+    final totalPrice = pricingInfo['totalPrice'] as double;
+    final depositAmount = pricingInfo['depositAmount'] as double;
+    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
+    final priceQuotationSent = reservation['price_quotation_sent'] == true;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    reservation['event_type'] ?? 'Reservation',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                _buildStatusChip(reservation['status']),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Date: ${reservation['event_date']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.people_alt_rounded,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Guests: ${reservation['number_of_guests']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+            
+            // Pricing Information Section
+            if (priceQuotationSent && totalPrice > 0) ...[
+              const Divider(height: 24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.monetization_on, size: 16, color: Colors.blue),
+                        SizedBox(width: 4),
+                        Text(
+                          'Pricing Details',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total Price:'),
+                        Text(
+                          'PHP ${totalPrice.toStringAsFixed(2)}',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Deposit (50%):'),
+                        Text(
+                          'PHP ${depositAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Remaining Balance:'),
+                        Text(
+                          'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Payment Status Section
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payment Status',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    Text(
+                      _getPaymentStatusText(paymentStatus, priceQuotationSent),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: _getPaymentStatusColor(paymentStatus, priceQuotationSent),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Booked on ${reservation['created_at']?.toString().split('T')[0] ?? 'N/A'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade400,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Action Buttons
+            if (needsDepositPayment) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showPaymentDialog(reservation),
+                  icon: Icon(Icons.payment, size: 18),
+                  label: Text('Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ] else if (paymentStatus == 'deposit_paid') ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Deposit paid! Reservation confirmed.',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (!priceQuotationSent && reservation['status'] == 'pending') ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Awaiting price quotation from admin.',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getPaymentStatusText(String paymentStatus, bool priceQuotationSent) {
+    if (!priceQuotationSent) return 'AWAITING QUOTATION';
+    
+    switch (paymentStatus) {
+      case 'unpaid':
+        return 'DEPOSIT DUE';
+      case 'deposit_paid':
+        return 'DEPOSIT PAID';
+      case 'fully_paid':
+        return 'FULLY PAID';
+      case 'refunded':
+        return 'REFUNDED';
+      default:
+        return paymentStatus.toUpperCase();
+    }
+  }
+
+  Color _getPaymentStatusColor(String paymentStatus, bool priceQuotationSent) {
+    if (!priceQuotationSent) return Colors.orange;
+    
+    switch (paymentStatus) {
+      case 'unpaid':
+        return Colors.orange;
+      case 'deposit_paid':
+        return Colors.green;
+      case 'fully_paid':
+        return Colors.blue;
+      case 'refunded':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showPaymentDialog(Map<String, dynamic> reservation) {
+    final pricingInfo = _reservationService.getReservationPricing(reservation);
+    final depositAmount = pricingInfo['depositAmount'] as double;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.payment, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Pay Deposit'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Complete your reservation by paying the 50% deposit.',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Deposit Amount:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'PHP ${depositAmount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Choose your preferred payment method:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            
+            // GCash Option
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _proceedToGCashPayment(reservation, depositAmount);
+                },
+                icon: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                ),
+                label: Text('Pay with GCash'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            
+            // Other Payment Methods
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _proceedToPayMongoPayment(reservation, depositAmount);
+                },
+                icon: Icon(Icons.payment),
+                label: Text('Other Payment Methods'),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'All payments are secure and processed by PayMongo.',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -4913,6 +5051,291 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       );
     });
   }
+
+  Future<void> _updateReservationPaymentStatus(String reservationId, double depositAmount) async {
+    try {
+      // Update payment status (this will automatically set status to pending_admin_approval)
+      await _reservationService.updatePaymentStatus(
+        reservationId: reservationId,
+        paymentStatus: 'deposit_paid',
+        paymentAmount: depositAmount,
+        paymentReference: 'PAY_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      
+      // Refresh the reservations list to show updated status
+      await _loadCustomerReservations();
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment successful! Awaiting admin approval.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating payment status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating reservation: $e'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+
+
+  Widget _buildAccountMenuCard({
+
+    required IconData icon,
+
+    required String title,
+
+    String? subtitle,
+
+    required VoidCallback onTap,
+
+    bool isDestructive = false,
+
+  }) {
+
+    final color = isDestructive
+
+        ? const Color(0xFFBA1A1A)
+
+        : const Color(0xFF1D1B1E);
+
+    final iconBgColor = isDestructive
+
+        ? const Color(0xFFFFDAD6).withValues(alpha: 0.5)
+
+        : const Color(0xFFFFDAD6);
+
+
+
+    return Container(
+
+      margin: const EdgeInsets.only(bottom: 16),
+
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(20),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color: Colors.black.withValues(alpha: 0.03),
+
+            blurRadius: 20,
+
+            offset: const Offset(0, 8),
+
+          ),
+
+        ],
+
+      ),
+
+      child: Material(
+
+        color: Colors.transparent,
+
+        child: InkWell(
+
+          onTap: onTap,
+
+          borderRadius: BorderRadius.circular(20),
+
+          child: Padding(
+
+            padding: const EdgeInsets.all(20),
+
+            child: Row(
+
+              children: [
+
+                Container(
+
+                  padding: const EdgeInsets.all(12),
+
+                  decoration: BoxDecoration(
+
+                    color: iconBgColor,
+
+                    borderRadius: BorderRadius.circular(16),
+
+                  ),
+
+                  child: Icon(icon, color: color, size: 24),
+
+                ),
+
+                const SizedBox(width: 20),
+
+                Expanded(
+
+                  child: Column(
+
+                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                    children: [
+
+                      Text(
+
+                        title,
+
+                        style: TextStyle(
+
+                          fontSize: 16,
+
+                          fontWeight: FontWeight.bold,
+
+                          color: color,
+
+                        ),
+
+                      ),
+
+                      if (subtitle != null) ...[
+
+                        const SizedBox(height: 4),
+
+                        Text(
+
+                          subtitle,
+
+                          style: TextStyle(
+
+                            fontSize: 13,
+
+                            color: Colors.grey.shade500,
+
+                          ),
+
+                        ),
+
+                      ],
+
+                    ],
+
+                  ),
+
+                ),
+
+                Icon(
+
+                  Icons.chevron_right_rounded,
+
+                  color: Colors.grey.shade400,
+
+                  size: 24,
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Initializing payment...'),
+            ],
+          ),
+        ),
+      );
+
+      // Create PayMongo payment link
+      final paymentLink = await PayMongoService.createPaymentLink(
+        amount: depositAmount * 100, // Convert to cents
+        description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
+        returnUrl: 'https://yourapp.com/payment/success', // You need to configure this
+        metadata: {
+          'reservation_id': reservation['id'],
+          'customer_email': reservation['customer_email'],
+          'event_type': reservation['event_type'],
+          'payment_type': 'deposit',
+        },
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      if (paymentLink['checkoutUrl'] != null) {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PayMongoPaymentPage(
+              paymentUrl: paymentLink['checkoutUrl'],
+              reservationId: reservation['id'],
+              depositAmount: depositAmount,
+              onPaymentSuccess: () {
+                _updateReservationPaymentStatus(reservation['id'], depositAmount);
+              },
+            ),
+          ),
+        );
+      } else {
+        _showErrorDialog('Failed to initialize payment. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading dialog
+      _showErrorDialog('Payment initialization failed: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Payment Error'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   Future<void> _updateReservationPaymentStatus(String reservationId, double depositAmount) async {
     try {
@@ -6298,7 +6721,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
   void _showSnackBar(String message, Color color) {
-
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
 
       SnackBar(
@@ -6638,320 +7061,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
               Expanded(child: Text('Error: ${e.toString()}')),
-
-            ],
-
-          ),
-
-
-
-          backgroundColor: Colors.red,
-
-
-
-          behavior: SnackBarBehavior.floating,
-
-        ),
-
-      );
-
-    }
-
-  }
-
-
-
-  Future<void> _createReservationWithoutPayment(
-
-    User currentUser,
-
-    String event,
-
-    String formattedDate,
-
-    String startTime,
-
-    num duration,
-
-    int guests,
-
-    String specialRequests,
-
-  ) async {
-
-    try {
-
-      // Save reservation to database with PENDING status
-
-      final result = await Supabase.instance.client
-
-          .from('reservations')
-
-          .insert({
-
-            'customer_email': currentUser.email,
-
-
-
-            'customer_name': currentUser.userMetadata?['name'] ?? 'Customer',
-
-
-
-            'event_type': event,
-
-
-
-            'event_date': formattedDate,
-
-
-
-            'start_time': startTime,
-
-
-
-            'duration_hours': duration.toInt(),
-
-
-
-            'number_of_guests': guests,
-
-
-
-            'special_requests': specialRequests.isNotEmpty
-
-                ? specialRequests
-
-                : null,
-
-
-
-            'status': 'pending', // Pending admin confirmation
-
-
-
-            'payment_status': 'unpaid', // No payment yet
-
-
-
-            'created_at': DateTime.now().toIso8601String(),
-
-          })
-
-          .select()
-
-          .single();
-
-
-
-      // Send notification to customer using email service
-
-      await _emailService.sendReservationConfirmation(
-
-        customerEmail: currentUser.email!,
-
-        customerName: currentUser.userMetadata?['name'] ?? 'Customer',
-
-        eventType: event,
-
-        eventDate: formattedDate,
-
-        startTime: startTime,
-
-        duration: duration.toDouble(),
-
-        guests: guests,
-
-      );
-
-
-
-      // Send notification to customer in-app
-
-      await NotificationService.sendNotification(
-
-        recipientEmail: currentUser.email,
-
-        actorName: 'System',
-
-        actionType: 'created',
-
-        reservationId: result['id'] ?? '',
-
-        eventType: event,
-
-        eventDate: formattedDate,
-
-        startTime: startTime,
-
-        guestCount: guests,
-
-      );
-
-
-
-      // Send notification to admins (with customer context)
-
-      await NotificationService.sendNotification(
-
-        isForAdmin: true,
-
-        actorName: currentUser.userMetadata?['name'] ?? 'Customer',
-
-        actionType: 'created',
-
-        reservationId: result['id'] ?? '',
-
-        eventType: event,
-
-        eventDate: formattedDate,
-
-        customerEmail: currentUser.email,
-
-        startTime: startTime,
-
-        guestCount: guests,
-
-      );
-
-
-
-      if (!mounted) return;
-
-
-
-      // Show success message
-
-
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(
-
-          content: const Row(
-
-            children: [
-
-              Icon(Icons.check_circle_outline, color: Colors.white),
-
-
-
-              SizedBox(width: 12),
-
-
-
-              Expanded(
-
-                child: Text(
-
-                  'Reservation submitted successfully! Waiting for admin confirmation.',
-
-                ),
-
-              ),
-
-            ],
-
-          ),
-
-
-
-          backgroundColor: Colors.green,
-
-
-
-          behavior: SnackBarBehavior.floating,
-
-
-
-          shape: const RoundedRectangleBorder(
-
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-
-          ),
-
-
-
-          margin: const EdgeInsets.all(16),
-
-
-
-          duration: const Duration(seconds: 4),
-
-        ),
-
-      );
-
-
-
-      // Clear form
-
-      _eventController.clear();
-
-      _dateController.clear();
-
-      _startTimeController.clear();
-
-      _durationController.clear();
-
-      _guestsController.clear();
-
-
-
-      setState(() {
-
-        _selectedEventType = null;
-
-        _selectedBaseDuration = null;
-
-        _addExtraTime = false;
-
-        _selectedExtraTime = null;
-
-      });
-
-
-
-      // Refresh reservations list
-
-
-
-      _loadCustomerReservations();
-
-
-
-      setState(() => _isLoading = false);
-
-    } catch (e) {
-
-      if (!mounted) return;
-
-
-
-      setState(() => _isLoading = false);
-
-
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(
-
-          content: Row(
-
-            children: [
-
-              const Icon(Icons.error_outline, color: Colors.white),
-
-
-
-              const SizedBox(width: 12),
-
-
-
-              Expanded(
-
-                child: Text('Error creating reservation: ${e.toString()}'),
-
-              ),
 
             ],
 

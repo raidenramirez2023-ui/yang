@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'shared_pos_widget.dart';
+import '../models/menu_item.dart';
 
 class OrderListPanel extends StatefulWidget {
   final List<CartItem> cart;

@@ -1,0 +1,68 @@
+﻿Analyzing yang...
+
+  error - lib\pages\customer\customer_dashboard.dart:1504:19 - The named parameter 'child' is required, but there's no corresponding argument. Try adding the required argument. - missing_required_argument
+  error - lib\pages\customer\customer_dashboard.dart:1505:19 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - lib\pages\customer\customer_dashboard.dart:1509:19 - The named parameter 'child' is required, but there's no corresponding argument. Try adding the required argument. - missing_required_argument
+  error - lib\pages\customer\customer_dashboard.dart:1510:19 - Too many positional arguments: 0 expected, but 2 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - lib\pages\customer\customer_dashboard.dart:7307:3 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:7308:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\services\paymongo_service.dart:31:20 - Undefined name 'NumberFormat'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+warning - lib\pages\admin\admin_main_page.dart:63:28 - The value of the field '_controller' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:64:26 - The value of the field '_fadeIn' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:65:15 - The value of the field '_realtimeTimer' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:190:13 - The value of the local variable 'response' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\pages\admin\admin_main_page.dart:254:13 - The value of the local variable 'response' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\pages\admin\admin_main_page.dart:673:102 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:673:105 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:689:60 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:689:63 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:706:99 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:706:102 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:714:63 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:714:66 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:724:100 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:724:103 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:732:59 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:732:62 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1282:102 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1282:105 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1298:60 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1298:63 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1315:99 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1315:102 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1323:63 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1323:66 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1333:100 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1333:103 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1341:59 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1341:62 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_reservations_page.dart:24:24 - The value of the field '_pricingService' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\customer\customer_dashboard.dart:18:8 - Unused import: 'package:yang_chow/pages/customer/payment_page.dart'. Try removing the import directive. - unused_import
+warning - lib\pages\customer\customer_dashboard.dart:1772:7 - This case is covered by the previous cases. Try removing the case clause, or restructuring the preceding patterns. - unreachable_switch_case
+warning - lib\pages\customer\customer_dashboard.dart:4500:23 - The operand can't be 'null', so the condition is always 'true'. Remove the condition. - unnecessary_null_comparison
+warning - lib\pages\customer\customer_dashboard.dart:4549:8 - The declaration '_showPaymentProcessingDialog' isn't referenced. Try removing the declaration of '_showPaymentProcessingDialog'. - unused_element
+   info - lib\pages\admin\payment_approval_page.dart:56:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:64:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:72:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:132:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:140:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:148:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4393:13 - Use a 'SizedBox' to add whitespace to a layout. Try using a 'SizedBox' rather than a 'Container'. - sized_box_for_whitespace
+   info - lib\pages\customer\customer_dashboard.dart:4420:13 - Use a 'SizedBox' to add whitespace to a layout. Try using a 'SizedBox' rather than a 'Container'. - sized_box_for_whitespace
+   info - lib\pages\customer\customer_dashboard.dart:4498:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4502:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4518:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4574:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4581:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:6759:80 - Unnecessary use of 'toList' in a spread. Try removing the invocation of 'toList'. - unnecessary_to_list_in_spreads
+   info - lib\services\paymongo_service.dart:179:15 - Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?'. - use_null_aware_elements
+   info - lib\services\paymongo_service.dart:226:15 - Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?'. - use_null_aware_elements
+   info - lib\services\pricing_service.dart:65:49 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\services\pricing_service.dart:66:27 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\services\pricing_service.dart:66:47 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\widgets\price_quotation_dialog.dart:349:11 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:350:11 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:391:11 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:392:11 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+64 issues found.

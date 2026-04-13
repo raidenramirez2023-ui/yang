@@ -1,0 +1,236 @@
+﻿Analyzing yang...
+
+  error - lib\pages\customer\customer_dashboard.dart:18:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:18:3 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:18:5 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:18:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:18:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:18:9 - Undefined class 'HEAD'. Try changing the name to the name of an existing class, or creating a class with the name 'HEAD'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:19:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:19:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:20:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:20:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:20:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:20:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:20:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:22:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:22:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:22:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:22:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:22:9 - Undefined class 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try changing the name to the name of an existing class, or creating a class with the name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:23:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:23:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:24:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:25:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:25:3 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:25:5 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:25:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:25:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:25:9 - Undefined class 'HEAD'. Try changing the name to the name of an existing class, or creating a class with the name 'HEAD'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:26:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:26:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:27:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:27:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:27:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:27:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:27:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:29:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:30:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:32:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:32:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:32:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:32:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:32:9 - Undefined class 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try changing the name to the name of an existing class, or creating a class with the name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:33:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:33:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:34:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:35:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:36:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:37:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:37:3 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:37:5 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:37:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:37:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:37:9 - Undefined class 'HEAD'. Try changing the name to the name of an existing class, or creating a class with the name 'HEAD'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:38:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:38:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:39:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:40:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:40:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:40:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:40:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:40:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:42:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:44:1 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:44:4 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:44:7 - Expected a method, getter, setter or operator declaration. This appears to be incomplete code. Try removing it or completing it. - expected_executable
+  error - lib\pages\customer\customer_dashboard.dart:44:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:44:9 - Undefined class 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try changing the name to the name of an existing class, or creating a class with the name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. - undefined_class
+  error - lib\pages\customer\customer_dashboard.dart:45:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:45:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:47:1 - Directives must appear before any declarations. Try moving the directive before any declarations. - directive_after_declaration
+  error - lib\pages\customer\customer_dashboard.dart:1119:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1119:3 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1119:5 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1119:9 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1119:9 - The name 'HEAD' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'HEAD'. - non_type_as_type_argument
+  error - lib\pages\customer\customer_dashboard.dart:1121:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1121:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1130:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1130:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1141:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1141:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1239:13 - Expected to find ')'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1239:13 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1239:13 - Expected to find '['. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1239:13 - Expected to find '}'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1536:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1536:1 - Too many positional arguments: 0 expected, but 2 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - lib\pages\customer\customer_dashboard.dart:1536:3 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1536:5 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1536:9 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1536:9 - The name 'HEAD' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'HEAD'. - non_type_as_type_argument
+  error - lib\pages\customer\customer_dashboard.dart:1537:21 - Expected to find ','. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1537:21 - Expected to find '['. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1538:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1538:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1538:4 - Missing selector such as '.identifier' or '[0]'. Try adding a selector. - missing_assignable_selector
+  error - lib\pages\customer\customer_dashboard.dart:1538:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1538:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1540:21 - Undefined name 'child'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1540:26 - Expected to find ')'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1545:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1545:1 - Too many positional arguments: 0 expected, but 2 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - lib\pages\customer\customer_dashboard.dart:1545:3 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1545:5 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1545:9 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1545:9 - The name 'HEAD' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'HEAD'. - non_type_as_type_argument
+  error - lib\pages\customer\customer_dashboard.dart:1546:21 - Expected to find ','. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1546:21 - Expected to find '['. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1547:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1547:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1547:4 - Missing selector such as '.identifier' or '[0]'. Try adding a selector. - missing_assignable_selector
+  error - lib\pages\customer\customer_dashboard.dart:1547:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1547:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1549:21 - Undefined name 'child'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1549:26 - Expected to find ')'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1559:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1559:1 - Too many positional arguments: 0 expected, but 1 found. Try removing the extra positional arguments, or specifying the name for named arguments. - extra_positional_arguments_could_be_named
+  error - lib\pages\customer\customer_dashboard.dart:1559:4 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1559:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1559:9 - Undefined name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1807:10 - The body might complete normally, causing 'null' to be returned, but the return type, 'Widget', is a potentially non-nullable type. Try adding either a return or a throw statement at the end. - body_might_complete_normally
+  error - lib\pages\customer\customer_dashboard.dart:1816:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1816:3 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1816:5 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1816:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1816:9 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1816:9 - The name 'HEAD' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'HEAD'. - non_type_as_type_argument
+  error - lib\pages\customer\customer_dashboard.dart:1817:9 - Expected to find '['. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1819:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1819:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1819:4 - Illegal assignment to non-assignable expression. - illegal_assignment_to_non_assignable
+  error - lib\pages\customer\customer_dashboard.dart:1819:4 - Missing selector such as '.identifier' or '[0]'. Try adding a selector. - missing_assignable_selector
+  error - lib\pages\customer\customer_dashboard.dart:1819:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:1819:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1821:9 - Unexpected text 'return'. Try removing the text. - unexpected_token
+  error - lib\pages\customer\customer_dashboard.dart:1833:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1833:4 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1833:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:1833:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:1833:9 - Undefined name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7177:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7177:3 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7177:5 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7177:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:7177:9 - Expected to find '>'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:7177:9 - The name 'HEAD' isn't a type, so it can't be used as a type argument. Try correcting the name to an existing type, or defining a type named 'HEAD'. - non_type_as_type_argument
+  error - lib\pages\customer\customer_dashboard.dart:7178:3 - Expected to find '['. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:7363:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7363:1 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:7363:4 - Illegal assignment to non-assignable expression. - illegal_assignment_to_non_assignable
+  error - lib\pages\customer\customer_dashboard.dart:7363:4 - Missing selector such as '.identifier' or '[0]'. Try adding a selector. - missing_assignable_selector
+  error - lib\pages\customer\customer_dashboard.dart:7363:4 - The '===' operator is not supported. - unsupported_operator
+  error - lib\pages\customer\customer_dashboard.dart:7363:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7364:1 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7364:4 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7364:7 - Expected an identifier. - missing_identifier
+  error - lib\pages\customer\customer_dashboard.dart:7364:9 - Expected to find ';'. - expected_token
+  error - lib\pages\customer\customer_dashboard.dart:7364:9 - Undefined name 'c3f0bcd85e85544d57002c1204f579bc0e1337d1'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib\pages\customer\payment_page.dart:251:46 - The method 'formatAmount' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'formatAmount'. - undefined_method
+  error - lib\pages\customer\payment_page.dart:432:50 - The named parameter 'description' is required, but there's no corresponding argument. Try adding the required argument. - missing_required_argument
+  error - lib\pages\customer\payment_page.dart:434:9 - The named parameter 'currency' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'currency'. - undefined_named_parameter
+  error - lib\pages\customer\payment_page.dart:440:47 - The method 'generateReferenceNumber' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'generateReferenceNumber'. - undefined_method
+  error - lib\pages\customer\payment_page.dart:444:12 - A negation operand must have a static type of 'bool'. Try changing the operand to the '!' operator. - non_bool_negation_expression
+  error - lib\pages\customer\payment_page.dart:452:51 - The method '[]' can't be unconditionally invoked because the receiver can be 'null'. Try making the call conditional (using '?.') or adding a null check to the target ('!'). - unchecked_use_of_nullable_value
+  error - lib\pages\customer\payment_page.dart:452:52 - The argument type 'String' can't be assigned to the parameter type 'int'.  - argument_type_not_assignable
+  error - lib\pages\customer\payment_page.dart:456:50 - The method 'createPaymentMethod' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'createPaymentMethod'. - undefined_method
+  error - lib\pages\customer\payment_page.dart:472:50 - The method 'attachPaymentMethod' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'attachPaymentMethod'. - undefined_method
+  error - lib\pages\customer\payment_page.dart:541:47 - The method 'generateReferenceNumber' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'generateReferenceNumber'. - undefined_method
+  error - lib\pages\customer\payment_page.dart:757:44 - The method 'retrievePaymentLink' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'retrievePaymentLink'. - undefined_method
+  error - lib\widgets\payment_method_selector.dart:33:44 - The method 'getAvailablePaymentMethods' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'getAvailablePaymentMethods'. - undefined_method
+  error - lib\widgets\payment_method_selector.dart:68:33 - The method 'formatAmount' isn't defined for the type 'PayMongoService'. Try correcting the name to the name of an existing method, or defining a method named 'formatAmount'. - undefined_method
+  error - test_gcash_payment.dart:152:45 - The property 'shade600' can't be accessed on the type 'MaterialColor' in a constant expression. - const_eval_property_access
+  error - test_payment_flow.dart:47:56 - The operator '*' can't be unconditionally invoked because the receiver can be 'null'. Try adding a null check to the target ('!'). - unchecked_use_of_nullable_value
+  error - test_payment_flow.dart:159:45 - The property 'shade600' can't be accessed on the type 'MaterialColor' in a constant expression. - const_eval_property_access
+  error - test_paymongo_api.dart:127:45 - The property 'shade600' can't be accessed on the type 'MaterialColor' in a constant expression. - const_eval_property_access
+  error - test_reservation_update.dart:164:45 - The property 'shade600' can't be accessed on the type 'MaterialColor' in a constant expression. - const_eval_property_access
+warning - lib\pages\admin\admin_dashboard.dart:9:8 - Unused import: 'package:yang_chow/pages/admin/payment_approval_page.dart'. Try removing the import directive. - unused_import
+warning - lib\pages\admin\admin_main_page.dart:63:28 - The value of the field '_controller' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:64:26 - The value of the field '_fadeIn' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:65:15 - The value of the field '_realtimeTimer' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\admin\admin_main_page.dart:190:13 - The value of the local variable 'response' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\pages\admin\admin_main_page.dart:254:13 - The value of the local variable 'response' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\pages\admin\admin_main_page.dart:673:102 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:673:105 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:689:60 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:689:63 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:706:99 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:706:102 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:714:63 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:714:66 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:724:100 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:724:103 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:732:59 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:732:62 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1282:102 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1282:105 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1298:60 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1298:63 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1315:99 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1315:102 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1323:63 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1323:66 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1333:100 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1333:103 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_main_page.dart:1341:59 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+warning - lib\pages\admin\admin_main_page.dart:1341:62 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\pages\admin\admin_reservations_page.dart:24:24 - The value of the field '_pricingService' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\pages\customer\customer_dashboard.dart:1:1 - The declaration '<unnamed>' isn't referenced. Try removing the declaration of '<unnamed>'. - unused_element
+warning - lib\pages\customer\customer_dashboard.dart:1825:7 - This case is covered by the previous cases. Try removing the case clause, or restructuring the preceding patterns. - unreachable_switch_case
+warning - lib\pages\customer\customer_dashboard.dart:4557:23 - The operand can't be 'null', so the condition is always 'true'. Remove the condition. - unnecessary_null_comparison
+warning - lib\pages\customer\customer_dashboard.dart:4606:8 - The declaration '_showPaymentProcessingDialog' isn't referenced. Try removing the declaration of '_showPaymentProcessingDialog'. - unused_element
+warning - lib\pages\customer\customer_dashboard.dart:7363:4 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+   info - lib\pages\admin\payment_approval_page.dart:56:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:64:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:72:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:132:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:140:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\admin\payment_approval_page.dart:148:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4450:13 - Use a 'SizedBox' to add whitespace to a layout. Try using a 'SizedBox' rather than a 'Container'. - sized_box_for_whitespace
+   info - lib\pages\customer\customer_dashboard.dart:4477:13 - Use a 'SizedBox' to add whitespace to a layout. Try using a 'SizedBox' rather than a 'Container'. - sized_box_for_whitespace
+   info - lib\pages\customer\customer_dashboard.dart:4555:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4559:28 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4575:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4631:21 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:4638:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib\pages\customer\customer_dashboard.dart:6816:80 - Unnecessary use of 'toList' in a spread. Try removing the invocation of 'toList'. - unnecessary_to_list_in_spreads
+   info - lib\services\pricing_service.dart:65:49 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\services\pricing_service.dart:66:27 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\services\pricing_service.dart:66:47 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib\widgets\price_quotation_dialog.dart:349:11 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:350:11 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:391:11 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\widgets\price_quotation_dialog.dart:392:11 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+232 issues found.

@@ -441,16 +441,16 @@ class _PaymentPageState extends State<PaymentPage> {
         },
       );
 
-      if (!intentResult['success']) {
+      if (intentResult['success'] != true) {
         setState(() {
-          _errorMessage = intentResult['error'];
+          _errorMessage = intentResult['error']?.toString() ?? 'Failed to create payment intent';
           _isProcessing = false;
         });
         return;
       }
 
-      final paymentIntentId = intentResult['data']['id'];
-      final clientKey = intentResult['clientKey'];
+      final paymentIntentId = intentResult['paymentIntentId'] as String;
+      final clientKey = intentResult['clientKey'] as String;
 
       // 2. Create Payment Method
       final methodResult = await PayMongoService.createPaymentMethod(
@@ -458,15 +458,15 @@ class _PaymentPageState extends State<PaymentPage> {
         details: {},
       );
 
-      if (!methodResult['success']) {
+      if (methodResult['success'] != true) {
         setState(() {
-          _errorMessage = methodResult['error'];
+          _errorMessage = methodResult['error']?.toString() ?? 'Failed to create payment method';
           _isProcessing = false;
         });
         return;
       }
 
-      final paymentMethodId = methodResult['paymentMethodId'];
+      final paymentMethodId = methodResult['paymentMethodId'] as String;
 
       // 3. Attach Payment Method → gets redirect URL
       final attachResult = await PayMongoService.attachPaymentMethod(
@@ -476,9 +476,9 @@ class _PaymentPageState extends State<PaymentPage> {
         returnUrl: returnUrl,
       );
 
-      if (!attachResult['success']) {
+      if (attachResult['success'] != true) {
         setState(() {
-          _errorMessage = attachResult['error'];
+          _errorMessage = attachResult['error']?.toString() ?? 'Failed to attach payment method';
           _isProcessing = false;
         });
         return;
@@ -542,16 +542,16 @@ class _PaymentPageState extends State<PaymentPage> {
         },
       );
 
-      if (result['success']) {
-        _currentLinkId = result['linkId'];
+      if (result['success'] == true) {
+        _currentLinkId = result['data']['id'] as String;
         if (kIsWeb) {
-          await _launchPaymentUrl(result['checkoutUrl']);
+          await _launchPaymentUrl(result['checkoutUrl'] as String);
         } else {
-          await _openPaymentWebView(result['checkoutUrl']);
+          await _openPaymentWebView(result['checkoutUrl'] as String);
         }
       } else {
         setState(() {
-          _errorMessage = result['error'];
+          _errorMessage = result['error']?.toString() ?? 'Failed to create payment link';
           _isProcessing = false;
         });
       }

@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'shared_pos_widget.dart';
+import '../models/menu_item.dart';
 
 class PaymentPanel extends StatefulWidget {
   final List<CartItem> cart;

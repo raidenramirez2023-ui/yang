@@ -46,9 +46,7 @@ class PayMongoService {
     required String description,
 
     Map<String, dynamic>? metadata,
-
   }) async {
-
     try {
 
       final response = await http.post(
@@ -56,17 +54,11 @@ class PayMongoService {
         Uri.parse('$_baseUrl/payment_intents'),
 
         headers: {
-
           ..._headers,
-
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
         },
-
         body: jsonEncode({
-
           'data': {
-
             'attributes': {
 
               'amount': amount.round(), // Convert to centavos
@@ -86,13 +78,9 @@ class PayMongoService {
           }
 
         }),
-
       );
 
-
-
       if (response.statusCode == 200) {
-
         final data = jsonDecode(response.body);
 
         final clientKey = data['data']['attributes']['client_key'];
@@ -108,19 +96,16 @@ class PayMongoService {
           'payment_intent_id': paymentIntentId,
 
         };
-
       } else {
 
         throw Exception('Failed to create payment intent: ${response.body}');
 
       }
-
     } catch (e) {
 
       throw Exception('Payment intent creation failed: $e');
 
     }
-
   }
 
 
@@ -128,22 +113,15 @@ class PayMongoService {
   static Future<Map<String, dynamic>> retrievePaymentIntent(String paymentIntentId) async {
 
     try {
-
       final response = await http.get(
 
         Uri.parse('$_baseUrl/payment_intents/$paymentIntentId'),
 
         headers: {
-
           ..._headers,
-
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
         },
-
       );
-
-
 
       if (response.statusCode == 200) {
 
@@ -288,7 +266,6 @@ class PayMongoService {
       return false;
 
     }
-
   }
 
 
@@ -331,7 +308,23 @@ class PayMongoService {
 
   }
 
+  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/links/$linkId'),
+        headers: {
+          ..._headers,
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+        },
+      );
 
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final payments = data['data']['attributes']['payments'] as List;
+        bool isPaid = false;
+        if (payments.isNotEmpty) {
+          isPaid = payments.any((p) => p['attributes']['status'] == 'paid');
+        }
 
   static Future<Map<String, dynamic>> createSource({
 
@@ -341,7 +334,9 @@ class PayMongoService {
 
     required Map<String, dynamic> redirect,
 
-    Map<String, dynamic>? metadata,
+    required String url,
+
+    required List<String> events,
 
   }) async {
 
@@ -389,13 +384,13 @@ class PayMongoService {
 
         return jsonDecode(response.body);
 
-      } else {
+    }
 
         throw Exception('Failed to create source: ${response.body}');
 
       }
 
-    } catch (e) {
+      
 
       throw Exception('Source creation failed: $e');
 
@@ -429,7 +424,7 @@ class PayMongoService {
 
           ..._headers,
 
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_publicKey:'))}',
 
         },
 

@@ -231,18 +231,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return filteredData;
   }
 
-  int _getDayIndex(String dayName) {
-    switch (dayName) {
-      case 'Monday': return 1;
-      case 'Tuesday': return 2;
-      case 'Wednesday': return 3;
-      case 'Thursday': return 4;
-      case 'Friday': return 5;
-      case 'Saturday': return 6;
-      case 'Sunday': return 7;
-      default: return 1;
-    }
-  }
 
   int _getMonthIndex(String monthName) {
     switch (monthName) {
@@ -329,10 +317,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     // Apply time-based filtering first
     final timeFilteredData = _filterDataByTime(forecast);
     
-    if (timeFilteredData.isEmpty) return {
-      'barGroups': <BarChartGroupData>[],
-      'topItems': <MapEntry<String, double>>[]
-    };
+    if (timeFilteredData.isEmpty) {
+      return {
+        'barGroups': <BarChartGroupData>[],
+        'topItems': <MapEntry<String, double>>[]
+      };
+    }
 
     // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
@@ -745,7 +735,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         Container(
           constraints: const BoxConstraints(maxWidth: 120),
           child: DropdownButtonFormField<String>(
-            value: _selectedTimeFilter,
+          initialValue: _selectedTimeFilter,
             decoration: InputDecoration(
               labelText: 'Period',
               border: OutlineInputBorder(
@@ -790,7 +780,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             Container(
               constraints: const BoxConstraints(maxWidth: 110),
               child: DropdownButtonFormField<String>(
-                value: _selectedDailyMonth,
+                initialValue: _selectedDailyMonth,
                 decoration: InputDecoration(
                   labelText: 'Month',
                   border: OutlineInputBorder(
@@ -823,7 +813,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             Container(
               constraints: const BoxConstraints(maxWidth: 90),
               child: DropdownButtonFormField<String>(
-                value: _selectedDailyDay,
+                initialValue: _selectedDailyDay,
                 decoration: InputDecoration(
                   labelText: 'Day',
                   border: OutlineInputBorder(
@@ -861,7 +851,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             Container(
               constraints: const BoxConstraints(maxWidth: 110),
               child: DropdownButtonFormField<String>(
-                value: _selectedWeeklyMonth,
+                initialValue: _selectedWeeklyMonth,
                 decoration: InputDecoration(
                   labelText: 'Month',
                   border: OutlineInputBorder(
@@ -894,7 +884,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             Container(
               constraints: const BoxConstraints(maxWidth: 90),
               child: DropdownButtonFormField<String>(
-                value: _selectedWeekFilter,
+                initialValue: _selectedWeekFilter,
                 decoration: InputDecoration(
                   labelText: 'Week',
                   border: OutlineInputBorder(
@@ -928,7 +918,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return Container(
           constraints: const BoxConstraints(maxWidth: 120),
           child: DropdownButtonFormField<String>(
-            value: _selectedMonthFilter,
+            initialValue: _selectedMonthFilter,
             decoration: InputDecoration(
               labelText: 'Month',
               border: OutlineInputBorder(
@@ -960,7 +950,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return Container(
           constraints: const BoxConstraints(maxWidth: 120),
           child: DropdownButtonFormField<String>(
-            value: _selectedYearFilter,
+            initialValue: _selectedYearFilter,
             decoration: InputDecoration(
               labelText: 'Year',
               border: OutlineInputBorder(
