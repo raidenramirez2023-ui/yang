@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,6 +29,8 @@ import 'package:yang_chow/pages/admin/admin_chat_page.dart';
 
 import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
 
+import 'package:yang_chow/pages/admin/payment_approval_page.dart';
+
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
@@ -54,6 +57,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   int _selectedIndex = 0;
   int _pendingCustomerCount = 0;
+  int _pendingPaymentCount = 0;
+  int _pendingReservationCount = 0;
+
+  late AnimationController _controller;
+  late Animation<double> _fadeIn;
+  late Timer? _realtimeTimer;
+  late Timer? _countRefreshTimer;
 
 
 
@@ -66,6 +76,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
     _checkUserRole();
 
     _loadPendingCustomerCount();
+
+    _loadPendingPaymentCount();
+
+    _loadPendingReservationCount();
+
+    // Start periodic refresh for counts (reduced frequency to prevent database issues)
+    _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      _loadPendingCustomerCount();
+      _loadPendingPaymentCount();
+      _loadPendingReservationCount();
+    });
 
   }
 
@@ -159,6 +180,118 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
+  Future<void> _loadPendingPaymentCount() async {
+
+    try {
+
+      final supabase = Supabase.instance.client;
+
+      // Check if reservations table exists and has the required columns
+      final response = await supabase
+
+          .from('reservations')
+
+          .select('id')
+
+          .eq('status', 'pending_admin_approval')
+
+          .eq('payment_status', 'deposit_paid')
+
+          .eq('is_archived', false)
+
+          .limit(1); // Just check if table works, limit to 1 for faster response
+
+      // If we get here, table exists, now get full count
+      final countResponse = await supabase
+
+          .from('reservations')
+
+          .select('id')
+
+          .eq('status', 'pending_admin_approval')
+
+          .eq('payment_status', 'deposit_paid')
+
+          .eq('is_archived', false);
+
+      debugPrint('Pending payments count: ${(countResponse as List).length}');
+
+      if (mounted) {
+
+        setState(() {
+
+          _pendingPaymentCount = (countResponse as List).length;
+
+        });
+
+      }
+
+    } catch (e) {
+
+      debugPrint('Error loading pending payment count: $e');
+
+      debugPrint('This might mean the SQL script hasn\'t been run yet or table doesn\'t exist');
+
+      if (mounted) {
+
+        setState(() {
+
+          _pendingPaymentCount = 0;
+
+        });
+
+      }
+
+    }
+
+  }
+
+  Future<void> _loadPendingReservationCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      
+      // Check if reservations table exists and get count of pending/new reservations
+      final response = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('is_archived', false)
+          .inFilter('status', ['pending', 'pending_admin_approval', 'confirmed'])
+          .limit(1); // Just check if table works
+
+      // If we get here, table exists, now get full count
+      final countResponse = await supabase
+          .from('reservations')
+          .select('id')
+          .eq('is_archived', false)
+          .inFilter('status', ['pending', 'pending_admin_approval', 'confirmed']);
+
+      debugPrint('Pending reservations count: ${(countResponse as List).length}');
+
+      if (mounted) {
+        setState(() {
+          _pendingReservationCount = (countResponse as List).length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading pending reservation count: $e');
+      debugPrint('This might mean the SQL script hasn\'t been run yet or table doesn\'t exist');
+      
+      if (mounted) {
+        setState(() {
+          _pendingReservationCount = 0;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _countRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+
+
   static const List<String> _pageTitles = [
 
     'Dashboard',
@@ -172,6 +305,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     'Reservations',
 
     'Customer Approvals',
+
+    'Payment Approvals',
 
     'User Management',
 
@@ -197,6 +332,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.person_add,
 
+    Icons.payment,
+
     Icons.people,
 
     Icons.campaign,
@@ -220,6 +357,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const AdminReservationsPage(),
 
     const AdminCustomerApprovalPage(),
+
+    const PaymentApprovalPage(),
 
     const UserManagementPage(),
 
@@ -453,6 +592,24 @@ class _AdminMainPageState extends State<AdminMainPage> {
                         if (_pageTitles[index] == 'Customer Approvals') {
                           _loadPendingCustomerCount();
                         }
+                        // Refresh count when switching to Payment Approvals
+                        if (_pageTitles[index] == 'Payment Approvals') {
+                          // Reset count to 0 when admin views payment approvals (mark as seen)
+                          if (mounted) {
+                            setState(() {
+                              _pendingPaymentCount = 0;
+                            });
+                          }
+                        }
+                        // Refresh count when switching to Reservations
+                        if (_pageTitles[index] == 'Reservations') {
+                          // Reset count to 0 when admin views reservations (mark as seen)
+                          if (mounted) {
+                            setState(() {
+                              _pendingReservationCount = 0;
+                            });
+                          }
+                        }
                       },
 
                       child: Container(
@@ -513,7 +670,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
 
                               Container(
 
@@ -529,7 +686,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '$_pendingCustomerCount',
+                                  '${_pendingCustomerCount ?? 0}',
 
                                   style: const TextStyle(
 
@@ -543,6 +700,42 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 ),
 
+                              ),
+
+                            // Add badge for Reservations
+                            if (_pageTitles[index] == 'Reservations' && (_pendingReservationCount ?? 0) > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_pendingReservationCount ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+
+                            // Add badge for Payment Approvals
+                            if (_pageTitles[index] == 'Payment Approvals' && (_pendingPaymentCount ?? 0) > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_pendingPaymentCount ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
 
                           ],
@@ -1005,6 +1198,24 @@ class _AdminMainPageState extends State<AdminMainPage> {
                         if (_pageTitles[index] == 'Customer Approvals') {
                           _loadPendingCustomerCount();
                         }
+                        // Refresh count when switching to Payment Approvals
+                        if (_pageTitles[index] == 'Payment Approvals') {
+                          // Reset count to 0 when admin views payment approvals (mark as seen)
+                          if (mounted) {
+                            setState(() {
+                              _pendingPaymentCount = 0;
+                            });
+                          }
+                        }
+                        // Refresh count when switching to Reservations
+                        if (_pageTitles[index] == 'Reservations') {
+                          // Reset count to 0 when admin views reservations (mark as seen)
+                          if (mounted) {
+                            setState(() {
+                              _pendingReservationCount = 0;
+                            });
+                          }
+                        }
 
                         Navigator.pop(context);
 
@@ -1068,7 +1279,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             // Add badge for Customer Approvals
 
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
+                            if (_pageTitles[index] == 'Customer Approvals' && (_pendingCustomerCount ?? 0) > 0)
 
                               Container(
 
@@ -1084,7 +1295,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 child: Text(
 
-                                  '$_pendingCustomerCount',
+                                  '${_pendingCustomerCount ?? 0}',
 
                                   style: const TextStyle(
 
@@ -1098,6 +1309,42 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                 ),
 
+                              ),
+
+                            // Add badge for Reservations
+                            if (_pageTitles[index] == 'Reservations' && (_pendingReservationCount ?? 0) > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_pendingReservationCount ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+
+                            // Add badge for Payment Approvals
+                            if (_pageTitles[index] == 'Payment Approvals' && (_pendingPaymentCount ?? 0) > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_pendingPaymentCount ?? 0}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
 
                           ],

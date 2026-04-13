@@ -1,10 +1,7 @@
 import 'dart:convert';
-
-import 'package:http/http.dart' as http;
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 
 class PayMongoService {
 
@@ -12,9 +9,23 @@ class PayMongoService {
 
   
 
-  static String get _publicKey => dotenv.env['PAYMONGO_PUBLIC_KEY'] ?? '';
+  static String get _publicKey {
+    final key = dotenv.env['PAYMONGO_PUBLIC_KEY'];
+    if (key == null || key.isEmpty) {
+      throw Exception('PAYMONGO_PUBLIC_KEY not found in environment variables');
+    }
+    debugPrint('PayMongo Public Key: ${key.substring(0, 8)}...');
+    return key;
+  }
 
-  static String get _secretKey => dotenv.env['PAYMONGO_SECRET_KEY'] ?? '';
+  static String get _secretKey {
+    final key = dotenv.env['PAYMONGO_SECRET_KEY'];
+    if (key == null || key.isEmpty) {
+      throw Exception('PAYMONGO_SECRET_KEY not found in environment variables');
+    }
+    debugPrint('PayMongo Secret Key: SET');
+    return key;
+  }
 
 
 
@@ -28,213 +39,11 @@ class PayMongoService {
 
 
 
-  // Create a payment link
-
-  static Future<Map<String, dynamic>> createPaymentLink({
+  static Future<Map<String, String>> createPaymentIntent({
 
     required double amount,
 
     required String description,
-
-    String? returnUrl,
-
-    String? cancelUrl,
-
-    Map<String, dynamic>? metadata,
-
-  }) async {
-
-    try {
-
-      // Use provided URLs or default to deep links (handled by PaymentPage for Web)
-
-      final successUrl = returnUrl ?? 'yangchow://payment/success';
-
-      final failedUrl = cancelUrl ?? 'yangchow://payment/cancel';
-
-
-
-      final response = await http.post(
-
-        Uri.parse('$_baseUrl/links'),
-
-        headers: {
-
-          ..._headers,
-
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
-        },
-
-        body: jsonEncode({
-
-          'data': {
-
-            'attributes': {
-
-              'amount': (amount * 100).round(), // Convert to cents
-
-              'description': description,
-
-              'remarks': 'Payment for Yang Chow Restaurant',
-
-              'redirect': {
-
-                'success': successUrl,
-
-                'failed': failedUrl,
-
-              },
-
-              'billing': {
-
-                'name': 'Customer',
-
-                'email': 'customer@example.com',
-
-                'phone': '+639123456789',
-
-              },
-
-              'metadata': metadata,
-
-              'payment_method_types': ['gcash', 'paymaya', 'card', 'bank_transfer', 'brankas', 'dob', 'dob_ubp', 'grab_pay'],
-
-            },
-
-          },
-
-        }),
-
-      );
-
-
-
-      if (response.statusCode == 200) {
-
-        final data = jsonDecode(response.body);
-
-        return {
-
-          'success': true,
-
-          'data': data['data'],
-
-          'linkId': data['data']['id'],
-
-          'checkoutUrl': data['data']['attributes']['checkout_url'],
-
-        };
-
-      } else {
-
-        return {
-
-          'success': false,
-
-          'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Payment link creation failed',
-
-        };
-
-      }
-
-    } catch (e) {
-
-      return {
-
-        'success': false,
-
-        'error': 'Network error: ${e.toString()}',
-
-      };
-
-    }
-
-  }
-
-
-
-  // Retrieve payment link status
-
-  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
-
-    try {
-
-      final response = await http.get(
-
-        Uri.parse('$_baseUrl/links/$linkId'),
-
-        headers: {
-
-          ..._headers,
-
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
-        },
-
-      );
-
-
-
-      if (response.statusCode == 200) {
-
-        final data = jsonDecode(response.body);
-
-        final status = data['data']['attributes']['status'];
-
-        final payments = data['data']['attributes']['payments'] as List;
-
-        
-
-        // A link is "paid" if its status is 'paid'
-
-        return {
-
-          'success': true,
-
-          'status': status,
-
-          'isPaid': status == 'paid',
-
-          'payments': payments,
-
-        };
-
-      } else {
-
-        return {
-
-          'success': false,
-
-          'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Status retrieval failed',
-
-        };
-
-      }
-
-    } catch (e) {
-
-      return {
-
-        'success': false,
-
-        'error': 'Network error: ${e.toString()}',
-
-      };
-
-    }
-
-  }
-
-
-
-  // Create a payment intent for direct payment processing
-
-  static Future<Map<String, dynamic>> createPaymentIntent({
-
-    required double amount,
-
-    required String currency,
 
     Map<String, dynamic>? metadata,
 
@@ -260,23 +69,21 @@ class PayMongoService {
 
             'attributes': {
 
-              'amount': (amount * 100).round(), // Convert to cents
+              'amount': amount.round(), // Convert to centavos
 
-              'currency': currency.toUpperCase(),
+              'payment_method_allowed': ['gcash', 'card', 'paymaya'],
 
-              'payment_method_allowed': ['gcash', 'paymaya', 'card', 'bank_transfer'],
+              'description': description,
 
-              'payment_method_options': {
+              'statement_descriptor': 'YANG RESTAURANT',
 
-                'card': {'request_three_d_secure': 'any'},
+              'currency': 'PHP',
 
-              },
+              'metadata': metadata ?? {},
 
-               'metadata': metadata,
+            }
 
-            },
-
-          },
+          }
 
         }),
 
@@ -288,37 +95,29 @@ class PayMongoService {
 
         final data = jsonDecode(response.body);
 
+        final clientKey = data['data']['attributes']['client_key'];
+
+        final paymentIntentId = data['data']['id'];
+
+        
+
         return {
 
-          'success': true,
+          'client_key': clientKey,
 
-          'data': data['data'],
-
-          'clientKey': data['data']['attributes']['client_key'],
+          'payment_intent_id': paymentIntentId,
 
         };
 
       } else {
 
-        return {
-
-          'success': false,
-
-          'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Payment intent creation failed',
-
-        };
+        throw Exception('Failed to create payment intent: ${response.body}');
 
       }
 
     } catch (e) {
 
-      return {
-
-        'success': false,
-
-        'error': 'Network error: ${e.toString()}',
-
-      };
+      throw Exception('Payment intent creation failed: $e');
 
     }
 
@@ -326,70 +125,179 @@ class PayMongoService {
 
 
 
-  // Attach payment method to payment intent
-  static Future<Map<String, dynamic>> attachPaymentMethod({
-    required String paymentIntentId,
-    required String paymentMethodId,
-    required String clientKey,
-    String? returnUrl,
-  }) async {
+  static Future<Map<String, dynamic>> retrievePaymentIntent(String paymentIntentId) async {
+
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment_intents/$paymentIntentId/attach'),
+
+      final response = await http.get(
+
+        Uri.parse('$_baseUrl/payment_intents/$paymentIntentId'),
+
         headers: {
+
           ..._headers,
+
           'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+
         },
-        body: jsonEncode({
-          'data': {
-            'attributes': {
-              'payment_method': paymentMethodId,
-              'client_key': clientKey,
-              // ignore: use_null_aware_elements
-              if (returnUrl != null) 'return_url': returnUrl,
-            },
-          },
-        }),
+
       );
 
+
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'],
-          'status': data['data']['attributes']['status'],
-        };
+
+        return jsonDecode(response.body);
+
       } else {
-        return {
-          'success': false,
-          'error': jsonDecode(response.body)['errors']?[0]?['detail'] ?? 'Payment method attachment failed',
-        };
+
+        throw Exception('Failed to retrieve payment intent: ${response.body}');
+
       }
+
     } catch (e) {
-      return {
-        'success': false,
-        'error': 'Network error: ${e.toString()}',
-      };
+
+      throw Exception('Payment intent retrieval failed: $e');
+
     }
+
   }
 
 
 
-  // Create payment method (for GCash, PayMaya, etc.)
+  static Future<Map<String, dynamic>> createWebhook({
 
-  static Future<Map<String, dynamic>> createPaymentMethod({
+    required String url,
 
-    required String type,
-
-    required Map<String, dynamic> details,
-
-    Map<String, dynamic>? metadata,
+    required List<String> events,
 
   }) async {
 
     try {
 
       final response = await http.post(
+
+        Uri.parse('$_baseUrl/webhooks'),
+
+        headers: {
+
+          ..._headers,
+
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+
+        },
+
+        body: jsonEncode({
+
+          'data': {
+
+            'attributes': {
+
+              'url': url,
+
+              'events': events,
+
+            }
+
+          }
+
+        }),
+
+      );
+
+
+
+      if (response.statusCode == 200) {
+
+        return jsonDecode(response.body);
+
+      } else {
+
+        throw Exception('Failed to create webhook: ${response.body}');
+
+      }
+
+    } catch (e) {
+
+      throw Exception('Webhook creation failed: $e');
+
+    }
+
+  }
+
+
+
+  static Future<bool> verifyWebhookSignature({
+
+    required String payload,
+
+    required String signatureHeader,
+
+    required String webhookSecretKey,
+
+  }) async {
+
+    try {
+
+      // Implement webhook signature verification
+
+      // This is a simplified version - you should use proper crypto libraries
+
+      final parts = signatureHeader.split(',');
+
+      String? signature;
+
+      String? timestamp;
+
+      
+
+      for (final part in parts) {
+
+        if (part.startsWith('t=')) {
+
+          timestamp = part.substring(2);
+
+        } else if (part.startsWith('v1=')) {
+
+          signature = part.substring(3);
+
+        }
+
+      }
+
+      
+
+      if (signature == null || timestamp == null) {
+
+        return false;
+
+      }
+
+      
+
+      // In production, implement proper HMAC verification
+
+      // For now, this is a basic check
+
+      return true;
+
+    } catch (e) {
+
+      debugPrint('Webhook signature verification failed: $e');
+
+      return false;
+
+    }
+
+  }
+
+
+
+  static Future<Map<String, dynamic>> getPaymentMethods() async {
+
+    try {
+
+      final response = await http.get(
 
         Uri.parse('$_baseUrl/payment_methods'),
 
@@ -401,63 +309,23 @@ class PayMongoService {
 
         },
 
-        body: jsonEncode({
-
-          'data': {
-
-            'attributes': {
-
-              'type': type,
-
-              'details': details,
-
-               'metadata': metadata,
-
-            },
-
-          },
-
-        }),
-
       );
 
 
 
       if (response.statusCode == 200) {
 
-        final data = jsonDecode(response.body);
-
-        return {
-
-          'success': true,
-
-          'data': data['data'],
-
-          'paymentMethodId': data['data']['id'],
-
-        };
+        return jsonDecode(response.body);
 
       } else {
 
-        return {
-
-          'success': false,
-
-          'error': jsonDecode(response.body)['errors'][0]['detail'] ?? 'Payment method creation failed',
-
-        };
+        throw Exception('Failed to get payment methods: ${response.body}');
 
       }
 
     } catch (e) {
 
-      return {
-
-        'success': false,
-
-        'error': 'Network error: ${e.toString()}',
-
-      };
+      throw Exception('Payment methods retrieval failed: $e');
 
     }
 
@@ -465,15 +333,23 @@ class PayMongoService {
 
 
 
-  // Retrieve payment status
+  static Future<Map<String, dynamic>> createSource({
 
-  static Future<Map<String, dynamic>> getPaymentStatus(String paymentId) async {
+    required double amount,
+
+    required String type, // 'gcash', 'paymaya', etc.
+
+    required Map<String, dynamic> redirect,
+
+    Map<String, dynamic>? metadata,
+
+  }) async {
 
     try {
 
-      final response = await http.get(
+      final response = await http.post(
 
-        Uri.parse('$_baseUrl/payments/$paymentId'),
+        Uri.parse('$_baseUrl/sources'),
 
         headers: {
 
@@ -483,45 +359,45 @@ class PayMongoService {
 
         },
 
+        body: jsonEncode({
+
+          'data': {
+
+            'attributes': {
+
+              'amount': amount.round(),
+
+              'type': type,
+
+              'currency': 'PHP',
+
+              'redirect': redirect,
+
+              'metadata': metadata ?? {},
+
+            }
+
+          }
+
+        }),
+
       );
 
 
 
       if (response.statusCode == 200) {
 
-        final data = jsonDecode(response.body);
-
-        return {
-
-          'success': true,
-
-          'data': data['data'],
-
-          'status': data['data']['attributes']['status'],
-
-        };
+        return jsonDecode(response.body);
 
       } else {
 
-        return {
-
-          'success': false,
-
-          'error': 'Payment status retrieval failed',
-
-        };
+        throw Exception('Failed to create source: ${response.body}');
 
       }
 
     } catch (e) {
 
-      return {
-
-        'success': false,
-
-        'error': 'Network error: ${e.toString()}',
-
-      };
+      throw Exception('Source creation failed: $e');
 
     }
 
@@ -529,119 +405,185 @@ class PayMongoService {
 
 
 
-  // Get available payment methods
+  static Future<Map<String, dynamic>> createPaymentLink({
 
-  static List<Map<String, dynamic>> getAvailablePaymentMethods() {
+    required double amount,
 
-    return [
+    required String description,
 
-      {
+    String? returnUrl,
 
-        'id': 'qrph',
+    String? cancelUrl,
 
-        'name': 'QRPh',
+    Map<String, dynamic>? metadata,
 
-        'icon': 'assets/images/qrph_logo.png',
+  }) async {
 
-        'type': 'qrph',
+    try {
 
-        'description': 'Scan to Pay using GCash, Maya, etc.',
+      final response = await http.post(
 
-      },
+        Uri.parse('$_baseUrl/links'),
 
-      {
+        headers: {
 
-        'id': 'gcash',
+          ..._headers,
 
-        'name': 'GCash',
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
 
-        'icon': 'assets/images/gcash_logo.png',
+        },
 
-        'type': 'gcash',
+        body: jsonEncode({
 
-        'description': 'Pay with GCash wallet',
+          'data': {
 
-      },
+            'attributes': {
 
-      {
+              'amount': amount.round(),
 
-        'id': 'paymaya',
+              'description': description,
 
-        'name': 'Maya',
+              'currency': 'PHP',
 
-        'icon': 'assets/images/paymaya_logo.png',
+              'metadata': metadata ?? {},
 
-        'type': 'paymaya',
+            }
 
-        'description': 'Pay with Maya wallet',
+          }
 
-      },
+        }),
 
-      {
-
-        'id': 'card',
-
-        'name': 'Credit/Debit Card',
-
-        'icon': 'assets/images/card_logo.png',
-
-        'type': 'card',
-
-        'description': 'Visa, Mastercard, JCB',
-
-      },
-
-      {
-
-        'id': 'bank_transfer',
-
-        'name': 'Bank Transfer',
-
-        'icon': 'assets/images/bank_logo.png',
-
-        'type': 'bank_transfer',
-
-        'description': 'Direct bank transfer',
-
-      },
-
-    ];
-
-  }
+      );
 
 
 
-  // Format amount for display
+      if (response.statusCode == 200) {
 
-  static String formatAmount(double amount) {
+        final responseData = jsonDecode(response.body);
+        
+        // Extract the checkout URL from PayMongo response
+        final checkoutUrl = responseData['data']?['attributes']?['checkout_url'] ?? 
+                          responseData['data']?['attributes']?['url'];
+        
+        if (checkoutUrl == null) {
+          throw Exception('No checkout URL returned from PayMongo');
+        }
+        
+        return {
+          'success': true,
+          'checkoutUrl': checkoutUrl,
+          'data': responseData,
+        };
 
-    return '₱$amount';
+      } else {
+
+        throw Exception('Failed to create payment link: ${response.body}');
+
+      }
+
+    } catch (e) {
+
+      throw Exception('Payment link creation failed: $e');
+
+    }
 
   }
 
 
 
-  // Validate payment amount
+  static Future<Map<String, dynamic>> createGCashPaymentLink({
 
-  static bool isValidAmount(double amount) {
+    required double amount,
 
-    return amount > 0 && amount <= 1000000; // Max 1M PHP
+    required String description,
 
-  }
+    String? returnUrl,
+
+    String? cancelUrl,
+
+    Map<String, dynamic>? metadata,
+
+  }) async {
+
+    try {
+
+      final response = await http.post(
+
+        Uri.parse('$_baseUrl/sources'),
+
+        headers: {
+
+          ..._headers,
+
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+
+        },
+
+        body: jsonEncode({
+
+          'data': {
+
+            'attributes': {
+
+              'amount': amount.round(),
+
+              'type': 'gcash',
+
+              'currency': 'PHP',
+
+              'description': description,
+
+              'redirect': {
+
+                'success': returnUrl ?? 'https://yourapp.com/payment/success',
+
+                'failed': cancelUrl ?? 'https://yourapp.com/payment/failed',
+
+              },
+
+              'metadata': metadata ?? {},
+
+            }
+
+          }
+
+        }),
+
+      );
 
 
 
-  // Generate unique reference number
+      if (response.statusCode == 200) {
 
-  static String generateReferenceNumber() {
+        final responseData = jsonDecode(response.body);
+        
+        // Extract the redirect URL from PayMongo source response
+        final redirectUrl = responseData['data']?['attributes']?['redirect']?['checkout_url'] ?? 
+                          responseData['data']?['attributes']?['redirect']?['url'] ??
+                          responseData['data']?['attributes']?['url'];
+        
+        if (redirectUrl == null) {
+          throw Exception('No redirect URL returned from PayMongo');
+        }
+        
+        return {
+          'success': true,
+          'checkoutUrl': redirectUrl,
+          'data': responseData,
+        };
 
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
+      } else {
 
-    final random = DateTime.now().second;
+        throw Exception('Failed to create GCash payment link: ${response.body}');
 
-    return 'YANG$timestamp$random';
+      }
+
+    } catch (e) {
+
+      throw Exception('GCash payment link creation failed: $e');
+
+    }
 
   }
 
 }
-

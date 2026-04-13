@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/services/pricing_service.dart';
 
 /// Service to manage reservation operations (create, cancel, reschedule, etc.)
 class ReservationService {
@@ -10,6 +11,7 @@ class ReservationService {
   static final AppSettingsService _appSettings = AppSettingsService();
   static final EmailNotificationService _emailService =
       EmailNotificationService();
+  static final PricingService _pricingService = PricingService();
 
   ReservationService._internal();
 
@@ -382,5 +384,315 @@ class ReservationService {
         .eq('customer_email', customerEmail)
         .order('event_date')
         .map((maps) => List<Map<String, dynamic>>.from(maps));
+  }
+
+  /// Set pricing for a reservation and send quotation
+  Future<bool> setReservationPricing({
+    required String reservationId,
+    required double totalPrice,
+    required double depositAmount,
+    required String customerEmail,
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required String startTime,
+    required int durationHours,
+    required int numberOfGuests,
+  }) async {
+    try {
+      final now = DateTime.now();
+
+      // Update reservation with pricing details
+      await _supabase
+          .from('reservations')
+          .update({
+            'total_price': totalPrice,
+            'deposit_amount': depositAmount,
+            'payment_status': 'unpaid',
+            'price_quotation_sent': true,
+            'price_quotation_sent_at': now.toIso8601String(),
+            'admin_set_price': true,
+            'updated_at': now.toIso8601String(),
+          })
+          .eq('id', reservationId);
+
+      // Send price quotation email
+      await _emailService.sendPriceQuotation(
+        customerEmail: customerEmail,
+        customerName: customerName,
+        eventType: eventType,
+        eventDate: eventDate,
+        startTime: startTime,
+        duration: durationHours.toDouble(),
+        guests: numberOfGuests,
+        totalPrice: totalPrice,
+        depositAmount: depositAmount,
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Error setting reservation pricing: $e');
+      throw Exception('Failed to set reservation pricing: $e');
+    }
+  }
+
+  /// Update reservation status
+  Future<bool> updateReservationStatus({
+    required String reservationId,
+    required String status,
+  }) async {
+    try {
+      await _supabase
+          .from('reservations')
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', reservationId);
+
+      return true;
+    } catch (e) {
+      debugPrint('Error updating reservation status: $e');
+      return false;
+    }
+  }
+
+  /// Update payment status for a reservation
+  Future<bool> updatePaymentStatus({
+    required String reservationId,
+    required String paymentStatus,
+    double? paymentAmount,
+    String? paymentReference,
+  }) async {
+    try {
+      final updates = <String, dynamic>{
+        'payment_status': paymentStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (paymentAmount != null) {
+        updates['deposit_amount'] = paymentAmount;
+        updates['payment_amount'] = paymentAmount;
+      }
+
+      if (paymentReference != null) {
+        updates['payment_reference'] = paymentReference;
+      }
+
+      // If deposit is paid, set reservation status to pending admin approval
+      if (paymentStatus == 'deposit_paid') {
+        updates['status'] = 'pending_admin_approval';
+      }
+
+      await _supabase
+          .from('reservations')
+          .update(updates)
+          .eq('id', reservationId);
+
+      // Get reservation details for notification
+      final reservation = await getReservation(reservationId);
+      if (reservation != null) {
+        // Send payment confirmation email
+        if (paymentStatus == 'deposit_paid') {
+          await _emailService.sendDepositPaymentConfirmation(
+            customerEmail: reservation['customer_email'],
+            customerName: reservation['customer_name'],
+            eventType: reservation['event_type'],
+            eventDate: reservation['event_date'],
+            depositAmount: paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
+          );
+        } else if (paymentStatus == 'fully_paid') {
+          await _emailService.sendFullPaymentConfirmation(
+            customerEmail: reservation['customer_email'],
+            customerName: reservation['customer_name'],
+            eventType: reservation['event_type'],
+            eventDate: reservation['event_date'],
+            totalAmount: paymentAmount ?? reservation['total_price'] ?? 0.0,
+          );
+        }
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Error updating payment status: $e');
+      throw Exception('Failed to update payment status: $e');
+    }
+  }
+
+  /// Get pricing breakdown for a reservation
+  Map<String, dynamic> getReservationPricing(Map<String, dynamic> reservation) {
+    final durationHours = reservation['duration_hours'] as int? ?? 0;
+    final numberOfGuests = reservation['number_of_guests'] as int? ?? 0;
+    final totalPrice = reservation['total_price'] as double? ?? 0.0;
+    final depositAmount = reservation['deposit_amount'] as double? ?? 0.0;
+    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
+
+    // Calculate suggested pricing if not set by admin
+    if (totalPrice == 0.0 && durationHours > 0 && numberOfGuests > 0) {
+      final suggestedPrice = _pricingService.calculateTotalPrice(
+        durationHours: durationHours,
+        numberOfGuests: numberOfGuests,
+      );
+      final suggestedDeposit = _pricingService.calculateDepositAmount(suggestedPrice);
+
+      return {
+        'totalPrice': suggestedPrice,
+        'depositAmount': suggestedDeposit,
+        'paymentStatus': paymentStatus,
+        'remainingBalance': suggestedPrice - suggestedDeposit,
+        'isPricingSet': false,
+        'pricingBreakdown': _pricingService.getPricingBreakdown(
+          durationHours: durationHours,
+          numberOfGuests: numberOfGuests,
+        ),
+      };
+    }
+
+    return {
+      'totalPrice': totalPrice,
+      'depositAmount': depositAmount,
+      'paymentStatus': paymentStatus,
+      'remainingBalance': totalPrice - depositAmount,
+      'isPricingSet': true,
+      'pricingBreakdown': _pricingService.getPricingBreakdown(
+        durationHours: durationHours,
+        numberOfGuests: numberOfGuests,
+        customBaseRate: _calculateBaseRate(totalPrice, durationHours, numberOfGuests),
+      ),
+    };
+  }
+
+  /// Calculate the effective base rate from total price
+  double _calculateBaseRate(double totalPrice, int durationHours, int numberOfGuests) {
+    if (durationHours == 0 || numberOfGuests == 0) return 500.0; // Default base rate
+    
+    // Use the pricing breakdown to reverse-calculate the base rate
+    final breakdown = _pricingService.getPricingBreakdown(
+      durationHours: durationHours,
+      numberOfGuests: numberOfGuests,
+    );
+    
+    final guestPremium = breakdown['guestPremium'] as double;
+    final durationMultiplier = breakdown['durationMultiplier'] as double;
+    
+    return (totalPrice - guestPremium) / (durationHours * durationMultiplier);
+  }
+
+  /// Check if reservation needs pricing
+  bool needsPricing(Map<String, dynamic> reservation) {
+    final totalPrice = reservation['total_price'] as double? ?? 0.0;
+    final adminSetPrice = reservation['admin_set_price'] as bool? ?? false;
+    final status = reservation['status'] as String? ?? 'pending';
+    
+    return status == 'pending' && !adminSetPrice && totalPrice == 0.0;
+  }
+
+  /// Check if reservation needs deposit payment
+  bool needsDepositPayment(Map<String, dynamic> reservation) {
+    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
+    final priceQuotationSent = reservation['price_quotation_sent'] as bool? ?? false;
+    final totalPrice = reservation['total_price'] as double? ?? 0.0;
+    
+    return priceQuotationSent && 
+           totalPrice > 0.0 && 
+           paymentStatus == 'unpaid';
+  }
+
+  /// Get reservations that need pricing (for admin dashboard)
+  Future<List<Map<String, dynamic>>> getReservationsNeedingPricing() async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('*')
+          .eq('status', 'pending')
+          .eq('admin_set_price', false)
+          .eq('is_archived', false)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching reservations needing pricing: $e');
+      return [];
+    }
+  }
+
+  /// Get reservations with pending payments
+  Future<List<Map<String, dynamic>>> getReservationsWithPendingPayments() async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('*')
+          .eq('price_quotation_sent', true)
+          .eq('payment_status', 'unpaid')
+          .neq('total_price', 0)
+          .eq('is_archived', false)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching reservations with pending payments: $e');
+      return [];
+    }
+  }
+
+  /// Get reservations pending admin approval
+  Future<List<Map<String, dynamic>>> getReservationsPendingApproval() async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('*')
+          .eq('status', 'pending_admin_approval')
+          .eq('payment_status', 'deposit_paid')
+          .eq('is_archived', false)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching reservations pending approval: $e');
+      return [];
+    }
+  }
+
+  /// Approve pending payment (admin action)
+  Future<bool> approvePendingPayment({
+    required String reservationId,
+  }) async {
+    try {
+      await _supabase
+          .from('reservations')
+          .update({
+            'status': 'confirmed',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', reservationId);
+
+      return true;
+    } catch (e) {
+      debugPrint('Error approving pending payment: $e');
+      return false;
+    }
+  }
+
+  /// Reject pending payment (admin action)
+  Future<bool> rejectPendingPayment({
+    required String reservationId,
+    String? reason,
+  }) async {
+    try {
+      await _supabase
+          .from('reservations')
+          .update({
+            'status': 'payment_rejected',
+            'payment_status': 'rejected',
+            'admin_notes': reason ?? 'Payment rejected by admin',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', reservationId);
+
+      return true;
+    } catch (e) {
+      debugPrint('Error rejecting pending payment: $e');
+      return false;
+    }
   }
 }
