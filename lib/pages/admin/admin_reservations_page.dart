@@ -4,6 +4,8 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/reservation_service.dart';
+import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   const AdminReservationsPage({super.key});
@@ -16,6 +18,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   List<Map<String, dynamic>> reservations = [];
   bool _isLoading = true;
   String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
+  
+  // Services
+  final ReservationService _reservationService = ReservationService();
 
   @override
   void initState() {
@@ -1346,22 +1351,38 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     String status = reservation['status'];
     String reservationId = reservation['id'];
     bool isArchived = reservation['is_archived'] == true;
+    final needsPricing = _reservationService.needsPricing(reservation);
+    final priceQuotationSent = reservation['price_quotation_sent'] == true;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!isArchived) ...[
           if (status == 'pending') ...[
-            IconButton(
-              onPressed: () => _showConfirmReservationDialog(reservation),
-              icon: Icon(
-                Icons.check, 
-                color: Colors.green,
-                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            // Pricing button - show if pricing is needed
+            if (needsPricing)
+              IconButton(
+                onPressed: () => _showPriceQuotationDialog(reservation),
+                icon: Icon(
+                  Icons.monetization_on, 
+                  color: Colors.purple,
+                  size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+                ),
+                tooltip: 'Set Price & Send Quotation',
+                iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
               ),
-              tooltip: 'Confirm',
-              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-            ),
+            // Confirm button - only show if pricing is done
+            if (priceQuotationSent)
+              IconButton(
+                onPressed: () => _showConfirmReservationDialog(reservation),
+                icon: Icon(
+                  Icons.check, 
+                  color: Colors.green,
+                  size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+                ),
+                tooltip: 'Confirm',
+                iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+              ),
             IconButton(
               onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
               icon: Icon(
@@ -1440,10 +1461,24 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
+  void _showPriceQuotationDialog(Map<String, dynamic> reservation) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PriceQuotationDialog(reservation: reservation),
+    ).then((result) {
+      if (result == true) {
+        _loadReservations(); // Refresh the list after sending quotation
+      }
+    });
+  }
+
   void _showViewReservationDialog(Map<String, dynamic> reservation) {
     final status = reservation['status'];
     final isPending = status == 'pending';
     final isMobile = ResponsiveUtils.isMobile(context);
+    final needsPricing = _reservationService.needsPricing(reservation);
+    final priceQuotationSent = reservation['price_quotation_sent'] == true;
 
     Widget buildDetailRow(String label, String value, {IconData? icon}) {
       return Padding(
@@ -1516,6 +1551,17 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 buildDetailRow('Table Number', reservation['table_number']?.toString() ?? 'Unassigned', icon: Icons.table_restaurant),
                 const SizedBox(height: 16),
                 buildDetailRow('Status', status?.toString().toUpperCase() ?? 'UNKNOWN', icon: Icons.info),
+                
+                // Pricing information
+                if (reservation['total_price'] != null && reservation['total_price'] > 0) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  buildDetailRow('Total Price', 'PHP ${(reservation['total_price'] as double).toStringAsFixed(2)}', icon: Icons.monetization_on),
+                  buildDetailRow('Deposit Required', 'PHP ${(reservation['deposit_amount'] as double).toStringAsFixed(2)}', icon: Icons.account_balance_wallet),
+                  buildDetailRow('Payment Status', (reservation['payment_status'] as String? ?? 'unpaid').toUpperCase(), icon: Icons.payment),
+                  buildDetailRow('Quotation Sent', reservation['price_quotation_sent'] == true ? 'Yes' : 'No', icon: Icons.email),
+                ],
               ],
             ),
           ),
@@ -1525,7 +1571,20 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (isPending)
+          if (isPending && needsPricing)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.monetization_on, size: 18),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _showPriceQuotationDialog(reservation);
+              },
+              label: const Text('Set Price'),
+            ),
+          if (isPending && priceQuotationSent)
             ElevatedButton.icon(
               icon: const Icon(Icons.check, size: 18),
               style: ElevatedButton.styleFrom(
