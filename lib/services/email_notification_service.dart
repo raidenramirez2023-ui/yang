@@ -441,4 +441,191 @@ $body
       debugPrint('Error updating email status: $e');
     }
   }
+
+  /// Send price quotation email
+  Future<bool> sendPriceQuotation({
+    required String customerEmail,
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required String startTime,
+    required double duration,
+    required int guests,
+    required double totalPrice,
+    required double depositAmount,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Price Quotation - Yang Chow Restaurant',
+      emailType: 'price_quotation',
+      body: _buildPriceQuotationBody(
+        customerName: customerName,
+        eventType: eventType,
+        eventDate: eventDate,
+        startTime: startTime,
+        duration: duration,
+        guests: guests,
+        totalPrice: totalPrice,
+        depositAmount: depositAmount,
+      ),
+    );
+  }
+
+  /// Send deposit payment confirmation email
+  Future<bool> sendDepositPaymentConfirmation({
+    required String customerEmail,
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required double depositAmount,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Deposit Payment Confirmed - Yang Chow Restaurant',
+      emailType: 'deposit_confirmation',
+      body: _buildDepositConfirmationBody(
+        customerName: customerName,
+        eventType: eventType,
+        eventDate: eventDate,
+        depositAmount: depositAmount,
+      ),
+    );
+  }
+
+  /// Send full payment confirmation email
+  Future<bool> sendFullPaymentConfirmation({
+    required String customerEmail,
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required double totalAmount,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Payment Confirmed - Yang Chow Restaurant',
+      emailType: 'full_payment_confirmation',
+      body: _buildFullPaymentConfirmationBody(
+        customerName: customerName,
+        eventType: eventType,
+        eventDate: eventDate,
+        totalAmount: totalAmount,
+      ),
+    );
+  }
+
+  /// Build price quotation email body
+  String _buildPriceQuotationBody({
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required String startTime,
+    required double duration,
+    required int guests,
+    required double totalPrice,
+    required double depositAmount,
+  }) {
+    return '''
+Dear $customerName,
+
+Thank you for your interest in hosting your $eventType at Yang Chow Restaurant!
+
+We are pleased to provide you with the following price quotation:
+
+EVENT DETAILS:
+- Event Type: $eventType
+- Date: $eventDate
+- Time: $startTime
+- Duration: ${duration.toInt()} hours
+- Number of Guests: $guests
+
+PRICING BREAKDOWN:
+- Total Price: PHP ${totalPrice.toStringAsFixed(2)}
+- Required Deposit (50%): PHP ${depositAmount.toStringAsFixed(2)}
+- Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}
+
+NEXT STEPS:
+To confirm your reservation, please pay the 50% deposit amount of PHP ${depositAmount.toStringAsFixed(2)}. 
+Once the deposit is received, your reservation will be confirmed and we will send you a confirmation email.
+
+Payment can be made through our secure payment system or by contacting our restaurant directly.
+
+Please note that reservations are subject to availability and confirmation is only guaranteed upon receipt of the deposit payment.
+
+If you have any questions or would like to modify your reservation details, please don't hesitate to contact us.
+
+We look forward to hosting your special event!
+
+Best regards,
+The Yang Chow Restaurant Team
+''';
+  }
+
+  /// Build deposit confirmation email body
+  String _buildDepositConfirmationBody({
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required double depositAmount,
+  }) {
+    return '''
+Dear $customerName,
+
+Great news! Your deposit payment has been successfully received.
+
+RESERVATION DETAILS:
+- Event Type: $eventType
+- Date: $eventDate
+- Deposit Paid: PHP ${depositAmount.toStringAsFixed(2)}
+
+YOUR RESERVATION IS NOW CONFIRMED!
+
+Your reservation is now confirmed and secured. We have reserved the date and time for your special event.
+
+REMAINING BALANCE:
+The remaining balance of PHP ${(depositAmount * 2 - depositAmount).toStringAsFixed(2)} is due on the day of the event.
+
+WHAT'S NEXT:
+- Our event coordinator will contact you closer to the event date to finalize details
+- If you need to make any changes to your reservation, please let us know at least 7 days in advance
+- We look forward to making your event memorable
+
+Thank you for choosing Yang Chow Restaurant for your special occasion!
+
+Best regards,
+The Yang Chow Restaurant Team
+''';
+  }
+
+  /// Build full payment confirmation email body
+  String _buildFullPaymentConfirmationBody({
+    required String customerName,
+    required String eventType,
+    required String eventDate,
+    required double totalAmount,
+  }) {
+    return '''
+Dear $customerName,
+
+Thank you for your payment! Your reservation is now fully paid.
+
+RESERVATION DETAILS:
+- Event Type: $eventType
+- Date: $eventDate
+- Total Amount Paid: PHP ${totalAmount.toStringAsFixed(2)}
+
+PAYMENT STATUS: PAID IN FULL
+
+Your reservation is completely secured and all payments have been received. No further payment is required.
+
+WHAT'S NEXT:
+- Our event coordinator will contact you closer to the event date to finalize all details
+- We are excited to host your special event and make it memorable
+- If you have any special requests or questions, please don't hesitate to reach out
+
+We appreciate your business and look forward to serving you!
+
+Best regards,
+The Yang Chow Restaurant Team
+''';
+  }
 }
