@@ -1,11 +1,16 @@
 name: Deploy to Hostinger
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    types: [closed]
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
 
 jobs:
   build-and-deploy:
@@ -44,7 +49,6 @@ jobs:
         echo "Build completed successfully!"
         
     - name: Deploy to Hostinger via FTP
-      if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_HOST }}
