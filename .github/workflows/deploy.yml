@@ -34,7 +34,7 @@ jobs:
         
     - name: Build Flutter web app
       run: |
-        flutter build web --release --base-href=/ --web-renderer canvaskit
+        flutter build web --release --base-href=/ --web-renderer html --csp
         
     - name: Check build output
       run: |
@@ -49,12 +49,14 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
-        server-dir: /
+        server-dir: /public_html/
         dry-run: false
-        protocol: ftp
+        protocol: ftps
         port: 21
         timeout: 600000
         security: loose
+        exclude: "*.log"
+        dangerous-clean-simulate: false
         
     - name: Notify deployment success
       if: success()
