@@ -346,7 +346,9 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
             'Based on ${widget.reservation['duration_hours']}h duration and ${widget.reservation['number_of_guests']} guests',
           ),
           value: false,
+          // ignore: deprecated_member_use
           groupValue: _useCustomPrice,
+          // ignore: deprecated_member_use
           onChanged: (value) {
             setState(() {
               _useCustomPrice = value!;
@@ -388,7 +390,9 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
           title: Text('Set Custom Price'),
           subtitle: Text('Override the suggested price'),
           value: true,
+          // ignore: deprecated_member_use
           groupValue: _useCustomPrice,
+          // ignore: deprecated_member_use
           onChanged: (value) {
             setState(() {
               _useCustomPrice = value!;

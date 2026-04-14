@@ -30,8 +30,6 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
 
   @override
   Widget build(BuildContext context) {
-    final paymentMethods = PayMongoService.getAvailablePaymentMethods();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -78,7 +76,44 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         const SizedBox(height: 24),
         
         // Payment Methods
-        ...paymentMethods.map((method) => _buildPaymentMethodCard(method)),
+        FutureBuilder<Map<String, dynamic>>(
+          future: PayMongoService.getAvailablePaymentMethods(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError || !snapshot.hasData) {
+              // Fallback to default methods if API fails or returns error
+              final defaultMethods = [
+                {'id': 'gcash', 'type': 'gcash', 'name': 'GCash', 'description': 'Pay via GCash e-wallet'},
+                {'id': 'paymaya', 'type': 'paymaya', 'name': 'Maya', 'description': 'Pay via Maya e-wallet'},
+                {'id': 'card', 'type': 'card', 'name': 'Credit/Debit Card', 'description': 'Visa, Mastercard'},
+              ];
+              return Column(
+                children: defaultMethods.map((method) => _buildPaymentMethodCard(method)).toList(),
+              );
+            }
+
+            final data = snapshot.data!['data'] as List? ?? [];
+            final methods = data.map((m) {
+              final attributes = m['attributes'];
+              return {
+                'id': m['id'],
+                'type': attributes['type'],
+                'name': attributes['name'] ?? attributes['type'].toString().toUpperCase(),
+                'description': attributes['description'] ?? 'Pay using ${attributes['type']}',
+              };
+            }).toList();
+
+            if (methods.isEmpty) {
+              return const Center(child: Text('No payment methods available'));
+            }
+
+            return Column(
+              children: methods.map((method) => _buildPaymentMethodCard(method)).toList(),
+            );
+          },
+        ),
         
         const SizedBox(height: 16),
         

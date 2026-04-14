@@ -104,7 +104,7 @@ Please check:
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(

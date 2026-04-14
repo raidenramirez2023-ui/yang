@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'package:supabase_flutter/supabase_flutter.dart';
-// import 'package:yang_chow/services/paymongo_web_service.dart'; // Disabled - using GCash QR instead
 
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -22,18 +19,20 @@ import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 
-import 'package:yang_chow/pages/customer/gcash_qr_payment_page.dart';
+import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
+import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
-import 'package:yang_chow/services/email_notification_service.dart';
-import 'package:yang_chow/services/menu_service.dart';
-import 'package:yang_chow/models/menu_item.dart';
 
-// import 'package:yang_chow/services/paymongo_service.dart'; // Disabled - using GCash QR instead
+
+import 'package:yang_chow/services/paymongo_service.dart';
+import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:intl/intl.dart';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 
 
@@ -54,18 +53,18 @@ class CustomerDashboardPage extends StatefulWidget {
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   int _selectedIndex = 0;
-
-  bool _isLoading = true;
+  bool _isLoading = false;
+  final ReservationService _reservationService = ReservationService();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: kIsWeb
+        ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
+        : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
+  );
 
   List<Map<String, dynamic>> customerReservations = [];
-
-  List<Map<String, dynamic>> _notifications = [];
-
-  int _notificationCount = 0; // Notification badge count for ActivityStream
-
   Stream<List<Map<String, dynamic>>>? _notificationsStream;
-  String _activeMenuCategory = MenuService.categories.first;
-  late Map<String, List<MenuItem>> _menu;
+  String? _lastSeenNotificationId;
+
 
 
 
@@ -73,9 +72,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   late AppSettingsService _appSettings;
 
-  late ReservationService _reservationService;
 
-  late EmailNotificationService _emailService;
 
 
 
@@ -95,7 +92,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   bool _enableSpecialRequests = AppConstants.defaultEnableSpecialRequests;
 
-  String? _lastSeenNotificationId;
+
 
 
 
@@ -145,19 +142,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
-  // Google Sign-In instance
 
-
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-
-    clientId: kIsWeb
-
-        ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
-
-        : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
-
-  );
 
 
 
@@ -168,12 +153,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     super.initState();
 
     _appSettings = AppSettingsService();
+    // Initialize configuration from app_settings
 
-    _reservationService = ReservationService();
 
-    _emailService = EmailNotificationService();
-    _menu = MenuService.getMenu();
-    _activeMenuCategory = MenuService.categories.first;
+
 
 
 
@@ -181,10 +164,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     _loadConfigurationSettings();
 
+
+
     _loadCustomerReservations();
 
-    // Set loading to false after initialization
-    setState(() => _isLoading = false);
 
 
     final currentUser = Supabase.instance.client.auth.currentUser;
@@ -199,45 +182,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
           );
 
-      // Listen for payment approvals to update notification count
-
-      _notificationsStream?.listen((notifications) {
-
-        _updateNotificationCount(notifications);
-
-      });
-
     }
-
-  }
-
-
-
-  void _updateNotificationCount(List<Map<String, dynamic>> notifications) {
-
-    // Count unread payment approval notifications
-
-    int count = 0;
-
-    for (final notification in notifications) {
-
-      if (notification['type'] == 'payment_approved' && 
-
-          notification['read_at'] == null) {
-
-        count++;
-
-      }
-
-    }
-
-    
-
-    setState(() {
-
-      _notificationCount = count;
-
-    });
 
   }
 
@@ -1590,6 +1535,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     final isSelected = _selectedIndex == index;
 
+
+
     return GestureDetector(
 
       onTap: () {
@@ -1728,87 +1675,77 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                   ),
 
-
-
-                  // Notification Badge for Activity (index 4)
-
-                  if (index == 4 && _notificationCount > 0)
-
-                    Positioned(
-
-                      right: 0,
-
-                      top: 0,
-
-                      child: Container(
-
-                        width: 18,
-
-                        height: 18,
-
-                        decoration: BoxDecoration(
-
-                          color: Colors.red,
-
-                          shape: BoxShape.circle,
-
-                          border: Border.all(color: Colors.white, width: 2),
-
-                        ),
-
-                        child: Center(
-
-                          child: Text(
-
-                            _notificationCount > 99 ? '99+' : _notificationCount.toString(),
-
-                            style: const TextStyle(
-
-                              color: Colors.white,
-
-                              fontSize: 10,
-
-                              fontWeight: FontWeight.bold,
-
-                            ),
-
-                          ),
-
-                        ),
-
-                      ),
-
-                    ),
-
-
-
                 ],
-
-              )
-
-            ),
-
-            const SizedBox(height: 4),
-
-            Text(
-
-              label,
-
-              style: TextStyle(
-
-                color: isSelected
-
-                    ? AppTheme.primaryColor
-
-                    : Colors.grey.shade600,
-
-                fontSize: 11,
-
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
 
               ),
 
             ),
+
+
+
+            AnimatedContainer(
+
+              duration: const Duration(milliseconds: 300),
+
+
+
+              height: isSelected ? 4 : 0,
+
+            ),
+
+
+
+            if (isSelected)
+
+              Text(
+
+                label,
+
+
+
+                style: TextStyle(
+
+                  color: AppTheme.primaryColor,
+
+
+
+                  fontWeight: FontWeight.w700,
+
+
+
+                  fontSize: 12,
+
+
+
+                  letterSpacing: 0.2,
+
+                ),
+
+              )
+
+            else
+
+              Text(
+
+                label,
+
+
+
+                style: TextStyle(
+
+                  color: Colors.grey.shade500,
+
+
+
+                  fontWeight: FontWeight.w500,
+
+
+
+                  fontSize: 11,
+
+                ),
+
+              ),
 
           ],
 
@@ -2679,40 +2616,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     }
 
   }
-
-
-
-  String _formatLocalDateTime(String? dateTimeString) {
-
-    if (dateTimeString == null || dateTimeString.isEmpty) {
-
-      return 'Unknown time';
-
-    }
-
-
-
-    try {
-
-      DateTime utcTime = DateTime.parse(dateTimeString);
-
-
-
-      DateTime localTime = utcTime.toLocal();
-
-
-
-      return '${localTime.year.toString().padLeft(4, '0')}-${localTime.month.toString().padLeft(2, '0')}-${localTime.day.toString().padLeft(2, '0')} ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}:${localTime.second.toString().padLeft(2, '0')}';
-
-    } catch (e) {
-
-      return 'Invalid time';
-
-    }
-
-  }
-
-
 
   Widget _buildReservationsSection() {
 
@@ -3963,22 +3866,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
 
             _buildAccountMenuCard(
-
               icon: Icons.logout_rounded,
-
               title: 'Logout',
-
               subtitle: 'Securely exit your session',
-
               isDestructive: true,
-
               onTap: _showLogoutDialog,
-
             ),
 
 
 
             const SizedBox(height: 24),
+
+
 
           ],
 
@@ -4104,6 +4003,226 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
 
 
+  Widget _buildHomeMenuSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Our Menu',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E1E),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _selectedIndex = 3),
+                child: const Text('View All'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: MenuService.categories.length,
+            itemBuilder: (context, index) {
+              final category = MenuService.categories[index];
+              return _buildMenuCategoryCard(category);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMenuCategoryCard(String category) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedIndex = 3;
+        });
+      },
+      child: Container(
+        width: 120,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFDAD6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.restaurant_menu, color: Color(0xFF1D1B1E), size: 20),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                category,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proceedToGCashPayment(Map<String, dynamic> reservation, double depositAmount) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GCashPaymentPage(
+          reservationId: reservation['id'],
+          depositAmount: depositAmount,
+          onPaymentSuccess: () {
+            _updateReservationPaymentStatus(reservation['id'], depositAmount);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Initializing payment...'),
+            ],
+          ),
+        ),
+      );
+
+      final paymentLink = await PayMongoService.createPaymentLink(
+        amount: depositAmount * 100,
+        description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
+        metadata: {
+          'reservation_id': reservation['id'],
+          'customer_email': reservation['customer_email'],
+        },
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      if (paymentLink['checkoutUrl'] != null) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PayMongoPaymentPage(
+              paymentUrl: paymentLink['checkoutUrl'],
+              reservationId: reservation['id'],
+              depositAmount: depositAmount,
+              onPaymentSuccess: () {
+                _updateReservationPaymentStatus(reservation['id'], depositAmount);
+              },
+            ),
+          ),
+        );
+      } else {
+        _showErrorDialog('Failed to initialize payment.');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      _showErrorDialog('Payment failed: $e');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateReservationPaymentStatus(String reservationId, double depositAmount) async {
+    try {
+      await _reservationService.updatePaymentStatus(
+        reservationId: reservationId,
+        paymentStatus: 'deposit_paid',
+        paymentAmount: depositAmount,
+      );
+      _loadCustomerReservations();
+    } catch (e) {
+      debugPrint('Error: $e');
+    }
+  }
+
+  Future<void> _createReservationWithoutPayment(
+    dynamic currentUser,
+    String eventType,
+    String eventDate,
+    String startTime,
+    double durationHours,
+    int numberOfGuests,
+    String specialRequests,
+  ) async {
+    try {
+      await _reservationService.createReservation(
+        customerEmail: currentUser.email ?? '',
+        customerName: currentUser.userMetadata?['full_name'] ?? 'Customer',
+        eventType: eventType,
+        eventDate: eventDate,
+        startTime: startTime,
+        durationHours: durationHours,
+        numberOfGuests: numberOfGuests,
+        specialRequests: specialRequests,
+        customerPhone: null,
+        customerAddress: null,
+      );
+      
+      if (!mounted) return;
+      _loadCustomerReservations();
+      setState(() => _selectedIndex = 0);
+    } catch (e) {
+      _showErrorDialog('Failed to create reservation: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Widget _buildHistoryItem(Map<String, dynamic> reservation) {
     final needsDepositPayment = _reservationService.needsDepositPayment(reservation);
     final pricingInfo = _reservationService.getReservationPricing(reservation);
@@ -4136,7 +4255,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     ),
                   ),
                 ),
-                _buildStatusChip(reservation['status']),
+                _buildStatusChip(reservation['status'] ?? 'pending'),
               ],
             ),
             const SizedBox(height: 12),
@@ -4185,7 +4304,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               ],
             ),
             
-            // Pricing Information Section
             if (priceQuotationSent && totalPrice > 0) ...[
               const Divider(height: 24),
               Container(
@@ -4201,8 +4319,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     Row(
                       children: [
                         Icon(Icons.monetization_on, size: 16, color: Colors.blue),
-                        SizedBox(width: 4),
-                        Text(
+                        const SizedBox(width: 4),
+                        const Text(
                           'Pricing Details',
                           style: TextStyle(
                             fontSize: 14,
@@ -4212,36 +4330,36 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Total Price:'),
+                        const Text('Total Price:'),
                         Text(
                           'PHP ${totalPrice.toStringAsFixed(2)}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Deposit (50%):'),
+                        const Text('Deposit (50%):'),
                         Text(
                           'PHP ${depositAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Remaining Balance:'),
+                        const Text('Remaining Balance:'),
                         Text(
                           'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
                           style: TextStyle(
@@ -4256,7 +4374,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               ),
             ],
             
-            // Payment Status Section
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -4282,7 +4399,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                   ],
                 ),
                 Text(
-                  'Booked on ${reservation['created_at']?.toString().split('T')[0] ?? 'N/A'}',
+                  'Booked on ${_formatLocalDateTime(reservation['created_at'])}',
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade400,
@@ -4292,19 +4409,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               ],
             ),
             
-            // Action Buttons
             if (needsDepositPayment) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _showPaymentDialog(reservation),
-                  icon: Icon(Icons.payment, size: 18),
+                  icon: const Icon(Icons.payment, size: 18),
                   label: Text('Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -4315,19 +4431,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(Icons.check_circle, color: Colors.green, size: 20),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Deposit paid! Reservation confirmed.',
+                        'Deposit paid! Awaiting admin approval.',
                         style: TextStyle(
                           color: Colors.green,
                           fontWeight: FontWeight.w500,
@@ -4337,17 +4453,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                   ],
                 ),
               ),
-            ] else if (!priceQuotationSent && reservation['status'] == 'pending') ...[
+            ] else if (!priceQuotationSent && (reservation['status'] == 'pending' || reservation['status'] == 'pending_quotation')) ...[
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
                     Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
                     SizedBox(width: 8),
@@ -4370,37 +4486,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  String _getPaymentStatusText(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return 'AWAITING QUOTATION';
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return 'DEPOSIT DUE';
-      case 'deposit_paid':
-        return 'DEPOSIT PAID';
-      case 'fully_paid':
-        return 'FULLY PAID';
-      case 'refunded':
-        return 'REFUNDED';
-      default:
-        return paymentStatus.toUpperCase();
+  String _getPaymentStatusText(String status, bool isQuoted) {
+    if (!isQuoted) return 'AWAITING QUOTATION';
+    switch (status) {
+      case 'deposit_paid': return 'DEPOSIT PAID';
+      case 'paid': return 'FULLY PAID';
+      case 'unpaid': return 'DEPOSIT DUE';
+      case 'refunded': return 'REFUNDED';
+      default: return status.toUpperCase();
     }
   }
 
-  Color _getPaymentStatusColor(String paymentStatus, bool priceQuotationSent) {
-    if (!priceQuotationSent) return Colors.orange;
-    
-    switch (paymentStatus) {
-      case 'unpaid':
-        return Colors.orange;
-      case 'deposit_paid':
-        return Colors.green;
-      case 'fully_paid':
-        return Colors.blue;
-      case 'refunded':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Color _getPaymentStatusColor(String status, bool isQuoted) {
+    if (!isQuoted) return Colors.orange;
+    switch (status) {
+      case 'deposit_paid': return Colors.green;
+      case 'paid': return Colors.blue;
+      case 'unpaid': return Colors.orange;
+      case 'refunded': return Colors.red;
+      default: return Colors.grey;
     }
   }
 
@@ -4411,7 +4515,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.payment, color: Colors.green),
             SizedBox(width: 8),
@@ -4426,9 +4530,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               'Complete your reservation by paying the 50% deposit.',
               style: TextStyle(color: Colors.grey.shade600),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
@@ -4437,13 +4541,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Deposit Amount:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
                     'PHP ${depositAmount.toStringAsFixed(2)}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                       fontSize: 18,
@@ -4452,70 +4556,144 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                 ],
               ),
             ),
-            SizedBox(height: 16),
-            Text(
-              'Pay with GCash QR Code',
+            const SizedBox(height: 16),
+            const Text(
+              'Choose your preferred payment method:',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             
-            // GCash QR Payment
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _proceedToGCashQRPayment(reservation, depositAmount);
+                  _proceedToGCashPayment(reservation, depositAmount);
                 },
-                icon: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'G',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-                label: const Text('Pay with GCash QR'),
+                icon: const Icon(Icons.account_balance_wallet),
+                label: const Text('Pay with GCash'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                 ),
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'All payments are secure and processed by PayMongo.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            const SizedBox(height: 8),
+            
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _proceedToPayMongoPayment(reservation, depositAmount);
+                },
+                icon: const Icon(Icons.payment),
+                label: const Text('Other Payment Methods'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
         ],
       ),
     );
   }
 
+  String _formatLocalDateTime(dynamic dateTime) {
+    if (dateTime == null) return 'N/A';
+    try {
+      final dt = dateTime is String ? DateTime.parse(dateTime).toLocal() : (dateTime as DateTime).toLocal();
+      return "${dt.month}/${dt.day}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return dateTime.toString();
+    }
+  }
 
-
-
+  Widget _buildAccountMenuCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDestructive ? Colors.red.shade50 : Colors.grey.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDestructive ? Colors.red.shade600 : Colors.grey.shade700,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDestructive ? Colors.red.shade600 : const Color(0xFF1D1B1E),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildActivitySection() {
 
@@ -5991,18 +6169,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
       // Create reservation using the new reservation service
 
-      await _createReservationWithoutPayment({
-        'customer_email': currentUser.email,
-        'customer_name': currentUser.userMetadata?['full_name'] ?? 'User',
-        'event_type': _selectedEventType!,
-        'event_date': formattedDate,
-        'start_time': startTime,
-        'duration_hours': totalDuration,
-        'number_of_guests': guestCount,
-        'special_requests': _specialRequestsController.text.trim(),
-        'customer_phone': currentUser.userMetadata?['phone'],
-        'customer_address': currentUser.userMetadata?['address'],
-      });
+      await _createReservationWithoutPayment(
+
+        currentUser,
+
+        _selectedEventType!,
+
+        formattedDate,
+
+        startTime,
+
+        totalDuration,
+
+        guestCount,
+
+        _specialRequestsController.text.trim(),
+
+      );
 
     } catch (e) {
 
@@ -6494,217 +6677,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         ],
       ),
     );
-  }
-
-  Widget _buildHomeMenuSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Popular Menu Items',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 5,
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 150,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.restaurant,
-                        size: 40,
-                        color: AppTheme.primaryColor,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Menu Item ${index + 1}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccountMenuCard({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    final color = isDestructive
-        ? const Color(0xFFBA1A1A)
-        : const Color(0xFF1D1B1E);
-
-    final iconBgColor = isDestructive
-        ? const Color(0xFFFFDAD6)
-        : const Color(0xFFFFDAD6);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: iconBgColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1D1B1E),
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey.shade400,
-                  size: 24,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _proceedToGCashQRPayment(Map<String, dynamic> reservation, double depositAmount) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GCashQRPaymentPage(
-          reservationId: reservation['id'].toString(),
-          depositAmount: depositAmount,
-          onPaymentSuccess: () {
-            Navigator.pop(context);
-            _loadReservations();
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _createReservationWithoutPayment(Map<String, dynamic> reservationData) async {
-    try {
-      await _reservationService.createReservation(
-        customerEmail: reservationData['customer_email'] ?? '',
-        customerName: reservationData['customer_name'] ?? '',
-        eventType: reservationData['event_type'] ?? '',
-        eventDate: reservationData['event_date'] ?? '',
-        startTime: reservationData['start_time'] ?? '',
-        durationHours: reservationData['duration_hours']?.toDouble() ?? 0.0,
-        numberOfGuests: reservationData['number_of_guests'] ?? 0,
-        specialRequests: reservationData['special_requests'],
-        customerPhone: reservationData['customer_phone'],
-        customerAddress: reservationData['customer_address'],
-      );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reservation created successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadReservations();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating reservation: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _loadReservations() async {
-    await _loadCustomerReservations();
   }
 }
 
