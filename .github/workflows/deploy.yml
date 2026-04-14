@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
@@ -23,9 +25,21 @@ jobs:
         flutter clean
         flutter pub get
       
+    - name: Setup environment variables
+      run: |
+        echo "PAYMONGO_PUBLIC_KEY=${{ secrets.PAYMONGO_PUBLIC_KEY }}" >> .env
+        echo "PAYMONGO_SECRET_KEY=${{ secrets.PAYMONGO_SECRET_KEY }}" >> .env
+        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+        echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+        
     - name: Build Flutter web app
       run: |
-        flutter build web --release --base-href=/
+        flutter build web --release --base-href=/ --no-sound-null-safety --verbose
+        
+    - name: Check build output
+      run: |
+        ls -la build/web/
+        echo "Build completed successfully!"
         
     - name: Deploy to Hostinger via FTP
       if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
