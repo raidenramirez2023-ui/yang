@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+// import 'package:yang_chow/services/paymongo_web_service.dart'; // Disabled - using GCash QR instead
 
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -19,15 +23,14 @@ import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 
-import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
-import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
+import 'package:yang_chow/pages/customer/gcash_qr_payment_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
 
-import 'package:yang_chow/services/paymongo_service.dart';
+// import 'package:yang_chow/services/paymongo_service.dart'; // Disabled - using GCash QR instead
 
 import 'package:intl/intl.dart';
 
@@ -53,11 +56,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
   int _selectedIndex = 0;
 
-
+  bool _isLoading = true;
 
   List<Map<String, dynamic>> customerReservations = [];
 
-  bool _isLoading = false;
+  List<Map<String, dynamic>> _notifications = [];
+
+  int _notificationCount = 0; // Notification badge count for ActivityStream
 
   Stream<List<Map<String, dynamic>>>? _notificationsStream;
   String _activeMenuCategory = MenuService.categories.first;
@@ -177,10 +182,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     _loadConfigurationSettings();
 
-
-
     _loadCustomerReservations();
 
+    // Set loading to false after initialization
+    setState(() => _isLoading = false);
 
 
     final currentUser = Supabase.instance.client.auth.currentUser;
@@ -195,7 +200,45 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
           );
 
+      // Listen for payment approvals to update notification count
+
+      _notificationsStream?.listen((notifications) {
+
+        _updateNotificationCount(notifications);
+
+      });
+
     }
+
+  }
+
+
+
+  void _updateNotificationCount(List<Map<String, dynamic>> notifications) {
+
+    // Count unread payment approval notifications
+
+    int count = 0;
+
+    for (final notification in notifications) {
+
+      if (notification['type'] == 'payment_approved' && 
+
+          notification['read_at'] == null) {
+
+        count++;
+
+      }
+
+    }
+
+    
+
+    setState(() {
+
+      _notificationCount = count;
+
+    });
 
   }
 
@@ -1548,8 +1591,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
     final isSelected = _selectedIndex == index;
 
-
-
     return GestureDetector(
 
       onTap: () {
@@ -1688,77 +1729,87 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
                   ),
 
+
+
+                  // Notification Badge for Activity (index 4)
+
+                  if (index == 4 && _notificationCount > 0)
+
+                    Positioned(
+
+                      right: 0,
+
+                      top: 0,
+
+                      child: Container(
+
+                        width: 18,
+
+                        height: 18,
+
+                        decoration: BoxDecoration(
+
+                          color: Colors.red,
+
+                          shape: BoxShape.circle,
+
+                          border: Border.all(color: Colors.white, width: 2),
+
+                        ),
+
+                        child: Center(
+
+                          child: Text(
+
+                            _notificationCount > 99 ? '99+' : _notificationCount.toString(),
+
+                            style: const TextStyle(
+
+                              color: Colors.white,
+
+                              fontSize: 10,
+
+                              fontWeight: FontWeight.bold,
+
+                            ),
+
+                          ),
+
+                        ),
+
+                      ),
+
+                    ),
+
+
+
                 ],
-
-              ),
-
-            ),
-
-
-
-            AnimatedContainer(
-
-              duration: const Duration(milliseconds: 300),
-
-
-
-              height: isSelected ? 4 : 0,
-
-            ),
-
-
-
-            if (isSelected)
-
-              Text(
-
-                label,
-
-
-
-                style: TextStyle(
-
-                  color: AppTheme.primaryColor,
-
-
-
-                  fontWeight: FontWeight.w700,
-
-
-
-                  fontSize: 12,
-
-
-
-                  letterSpacing: 0.2,
-
-                ),
 
               )
 
-            else
+            ),
 
-              Text(
+            const SizedBox(height: 4),
 
-                label,
+            Text(
 
+              label,
 
+              style: TextStyle(
 
-                style: TextStyle(
+                color: isSelected
 
-                  color: Colors.grey.shade500,
+                    ? AppTheme.primaryColor
 
+                    : Colors.grey.shade600,
 
+                fontSize: 11,
 
-                  fontWeight: FontWeight.w500,
-
-
-
-                  fontSize: 11,
-
-                ),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
 
               ),
+
+            ),
 
           ],
 
@@ -4404,18 +4455,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             ),
             SizedBox(height: 16),
             Text(
-              'Choose your preferred payment method:',
+              'Pay with GCash QR Code',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
             
-            // GCash Option
+            // GCash QR Payment
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _proceedToGCashPayment(reservation, depositAmount);
+                  _proceedToGCashQRPayment(reservation, depositAmount);
                 },
                 icon: Container(
                   width: 24,
@@ -4424,30 +4475,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     color: Colors.blue,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                  child: const Center(
+                    child: Text(
+                      'G',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ),
-                label: Text('Pay with GCash'),
+                label: const Text('Pay with GCash QR'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            
-            // Other Payment Methods
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToPayMongoPayment(reservation, depositAmount);
-                },
-                icon: Icon(Icons.payment),
-                label: Text('Other Payment Methods'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
@@ -4827,11 +4873,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
             
             // GCash Option
             Container(
+=======
+            // GCash QR Payment
+            SizedBox(
+>>>>>>> 63b3fec (newpayment)
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _proceedToGCashPayment(reservation, depositAmount);
+                  _proceedToGCashQRPayment(reservation, depositAmount);
                 },
                 icon: Container(
                   width: 24,
@@ -4840,37 +4890,60 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
                     color: Colors.blue,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 16),
+                  child: const Center(
+                    child: Text(
+                      'G',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ),
-                label: Text('Pay with GCash'),
+                label: const Text('Pay with GCash QR'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
-            SizedBox(height: 8),
-            
-            // Other Payment Methods
+            const SizedBox(height: 12),
             Container(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _proceedToPayMongoPayment(reservation, depositAmount);
-                },
-                icon: Icon(Icons.payment),
-                label: Text('Other Payment Methods'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'All payments are secure and processed by PayMongo.',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.qr_code_scanner, size: 16, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text(
+                        'Fast & Secure Payment',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Scan the QR code with your GCash app to pay instantly.',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -4884,11 +4957,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  Future<void> _proceedToGCashPayment(Map<String, dynamic> reservation, double depositAmount) async {
-    // Navigate directly to GCash payment page
+  Future<void> _proceedToGCashQRPayment(Map<String, dynamic> reservation, double depositAmount) async {
+    // Navigate to GCash QR payment page
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => GCashPaymentPage(
+        builder: (context) => GCashQRPaymentPage(
           reservationId: reservation['id'],
           depositAmount: depositAmount,
           onPaymentSuccess: () {
@@ -4899,6 +4972,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
+  /*
   Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
     try {
       // Show loading dialog
@@ -4918,35 +4992,77 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       );
 
       // Create PayMongo payment link
-      final paymentLink = await PayMongoService.createPaymentLink(
-        amount: depositAmount * 100, // Convert to cents
-        description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
-        returnUrl: 'https://yourapp.com/payment/success', // You need to configure this
-        metadata: {
-          'reservation_id': reservation['id'],
-          'customer_email': reservation['customer_email'],
-          'event_type': reservation['event_type'],
-          'payment_type': 'deposit',
-        },
-      );
+      Map<String, dynamic> paymentLink;
+      
+      if (kIsWeb) {
+        // Use direct payment link for web platform
+        paymentLink = await PayMongoWebService.createDirectPaymentLink(
+          amount: depositAmount,
+          description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
+          metadata: {
+            'reservation_id': reservation['id'],
+            'customer_email': reservation['customer_email'],
+            'event_type': reservation['event_type'],
+            'payment_type': 'deposit',
+          },
+        );
+      } else {
+        // Use regular service for mobile
+        paymentLink = await PayMongoService.createPaymentLink(
+          amount: depositAmount,
+          description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
+          metadata: {
+            'reservation_id': reservation['id'],
+            'customer_email': reservation['customer_email'],
+            'event_type': reservation['event_type'],
+            'payment_type': 'deposit',
+          },
+        );
+      }
 
       // Close loading dialog
       Navigator.pop(context);
 
       if (paymentLink != null && paymentLink['checkoutUrl'] != null) {
-        // Navigate to PayMongo payment page
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PayMongoPaymentPage(
-              paymentUrl: paymentLink['checkoutUrl'],
-              reservationId: reservation['id'],
-              depositAmount: depositAmount,
-              onPaymentSuccess: () {
-                _updateReservationPaymentStatus(reservation['id'], depositAmount);
-              },
-            ),
-          ),
-        );
+        // Open PayMongo payment link directly in browser
+        final uri = Uri.parse(paymentLink['checkoutUrl']);
+        
+        if (kIsWeb) {
+          // For web, directly try to launch without canLaunchUrl check
+          try {
+            await launchUrl(
+              uri,
+              mode: LaunchMode.inAppWebView,
+              webOnlyWindowName: '_blank',
+            );
+          } catch (e) {
+            try {
+              await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+            } catch (e2) {
+              _showErrorDialog('Could not open payment page. Please try again.');
+              return;
+            }
+          }
+          
+          // Show payment completion dialog
+          _showPaymentCompletionDialog(reservation, depositAmount);
+        } else {
+          // For mobile/desktop
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(
+              uri,
+              mode: LaunchMode.externalApplication,
+            );
+            
+            // Show payment completion dialog
+            _showPaymentCompletionDialog(reservation, depositAmount);
+          } else {
+            _showErrorDialog('Could not open payment page. Please try again.');
+          }
+        }
       } else {
         _showErrorDialog('Failed to initialize payment. Please try again.');
       }
@@ -4955,6 +5071,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
       _showErrorDialog('Payment initialization failed: $e');
     }
   }
+  */
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -4976,6 +5093,108 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               foregroundColor: Colors.white,
             ),
             child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPaymentCompletionDialog(Map<String, dynamic> reservation, double depositAmount) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.launch, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Payment Redirected'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PayMongo checkout page opened in your browser!'),
+            SizedBox(height: 12),
+            Text('Payment details are pre-filled:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+            SizedBox(height: 8),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 8),
+                      Text('Amount: PHP ${depositAmount.toStringAsFixed(2)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 8),
+                      Text('Description: Deposit for ${reservation['event_type']}', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text('To pay:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text('1. Look for "Scan QR Ph code to pay"', style: TextStyle(fontSize: 12, color: Colors.blue)),
+                  Text('2. Open GCash and scan the QRPH code', style: TextStyle(fontSize: 12, color: Colors.green)),
+                  Text('3. Or choose other payment methods', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            SizedBox(height: 12),
+            Text('Complete payment and click "I Completed Payment" below.'),
+            SizedBox(height: 8),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Amount: PHP ${depositAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateReservationPaymentStatus(reservation['id'], depositAmount);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('I Completed Payment'),
           ),
         ],
       ),

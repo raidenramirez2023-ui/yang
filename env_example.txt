@@ -1,0 +1,14 @@
+# Copy this to .env file
+# Supabase Configuration
+SUPABASE_URL=https://tvzbsvqaikjkxrqykrhw.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2emJzdnFhaWtqa3hycXlrcmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MTIwNzQsImV4cCI6MjA4NzQ4ODA3NH0.5cE-OTWEgLTP2vgteqk6-8bfw-ZGahdc8dBJOaUtzrQ
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2emJzdnFhaWtqa3hycXlrcmh3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTkxMjA3NCwiZXhwIjoyMDg3NDg4MDc0fQ.d4PM7ozurJNU9JQ8XAzGbbSGdpYiYnn-bSk0-atrM0o
+
+# PayMongo Configuration (add your PayMongo keys here)
+PAYMONGO_PUBLIC_KEY=pk_test_your_paymongo_public_key_here
+PAYMONGO_SECRET_KEY=sk_test_your_paymongo_secret_key_here
+
+# App Configuration
+APP_NAME=Yang Chow Restaurant
+APP_SCHEME=yangchow
+DOMAIN=yc-pagsanjan.site
