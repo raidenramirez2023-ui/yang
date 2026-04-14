@@ -19,15 +19,12 @@ import 'package:yang_chow/pages/login_page.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 
-import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
 import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 
-
-import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:intl/intl.dart';
@@ -4110,55 +4107,91 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
     );
   }
 
-  Future<void> _proceedToPayMongoPayment(Map<String, dynamic> reservation, double depositAmount) async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+  Future<void> _proceedToQRPayment(Map<String, dynamic> reservation, double depositAmount) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          child: Stack(
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Initializing payment...'),
+              // Full screen QR code
+              Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: MediaQuery.of(context).size.width * 0.85,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // QR Code takes most of the space
+                      Expanded(
+                        flex: 3,
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Image.asset(
+                            'assets/images/newgcash.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      // Amount and info at bottom
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Amount: PHP ${depositAmount.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: 50,
+                right: 20,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.white, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      );
-
-      final paymentLink = await PayMongoService.createPaymentLink(
-        amount: depositAmount * 100,
-        description: 'Deposit for ${reservation['event_type']} on ${reservation['event_date']}',
-        metadata: {
-          'reservation_id': reservation['id'],
-          'customer_email': reservation['customer_email'],
-        },
-      );
-
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      if (paymentLink['checkoutUrl'] != null) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PayMongoPaymentPage(
-              paymentUrl: paymentLink['checkoutUrl'],
-              reservationId: reservation['id'],
-              depositAmount: depositAmount,
-              onPaymentSuccess: () {
-                _updateReservationPaymentStatus(reservation['id'], depositAmount);
-              },
-            ),
-          ),
-        );
-      } else {
-        _showErrorDialog('Failed to initialize payment.');
-      }
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      _showErrorDialog('Payment failed: $e');
-    }
+      ),
+    );
   }
 
   void _showErrorDialog(String message) {
@@ -4586,10 +4619,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
               child: OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _proceedToPayMongoPayment(reservation, depositAmount);
+                  _proceedToQRPayment(reservation, depositAmount);
                 },
-                icon: const Icon(Icons.payment),
-                label: const Text('Other Payment Methods'),
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Pay with GCash QR'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
