@@ -417,6 +417,7 @@ class _PaymentPageState extends State<PaymentPage> {
     if (methodType == 'gcash' || methodType == 'paymaya') {
       await _processEWalletPayment(methodType);
     } else {
+      // QRPH, Card, and Bank Transfer use Payment Link flow
       await _processPaymentLink();
     }
   }

@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
@@ -18,32 +18,21 @@ jobs:
       with:
         channel: 'stable'
         
-    - name: Get Flutter dependencies
-      run: |
-        flutter clean
-        flutter pub get
+    - name: Get dependencies
+      run: flutter pub get
       
-    - name: Build Flutter web app
+    - name: Build web app
       run: |
-        flutter build web --release --base-href=/
+        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+        echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+        flutter build web --release --base-href=/ --web-renderer html
         
-    - name: Deploy to Hostinger via FTP
-      if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    - name: Deploy to Hostinger
+      if: github.event.pull_request.merged == true
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_HOST }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
-        server-dir: /
-        dry-run: false
-        protocol: ftp
-        port: 21
-        timeout: 600000
-        security: loose
-        
-    - name: Notify deployment success
-      if: success()
-      run: |
-        echo "Deployment to Hostinger completed successfully!"
-        echo "Your app is now live at yc-pagsanjan.site"
+        server-dir: /public_html/
