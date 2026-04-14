@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
-import 'package:yang_chow/services/paymongo_service.dart';
 
 class GCashPaymentPage extends StatefulWidget {
   final String reservationId;
@@ -41,29 +40,14 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     });
 
     try {
-      // Create GCash payment link
-      final paymentLink = await PayMongoService.createGCashPaymentLink(
-        amount: widget.depositAmount * 100, // Convert to cents
-        description: 'GCash Deposit for Reservation',
-        returnUrl: 'https://yourapp.com/payment/success',
-        metadata: {
-          'reservation_id': widget.reservationId,
-          'payment_type': 'gcash_deposit',
-        },
-      );
-
-      if (paymentLink['success'] == true) {
-        setState(() {
-          _paymentUrl = paymentLink['checkoutUrl'];
-        });
-        // Auto-redirect to GCash payment
-        await _launchGCashPayment();
-      } else {
-        throw Exception(paymentLink['error'] ?? 'Failed to create GCash payment');
-      }
+      // Show QR code for payment
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _showQRPaymentDialog();
     } catch (e) {
-      _showErrorDialog('Failed to initialize GCash payment: $e');
-    } finally {
+      _showErrorDialog('Failed to initialize payment: $e');
       setState(() {
         _isLoading = false;
       });
@@ -580,6 +564,93 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
             child: Text('Yes, Cancel'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showQRPaymentDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          child: Stack(
+            children: [
+              // Full screen QR code
+              Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: MediaQuery.of(context).size.width * 0.85,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // QR Code takes most of the space
+                      Expanded(
+                        flex: 3,
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Image.asset(
+                            'assets/images/newgcash.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      // Amount and info at bottom
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Amount: PHP ${widget.depositAmount.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: 50,
+                right: 20,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.white, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

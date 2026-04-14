@@ -231,7 +231,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return filteredData;
   }
 
-
+  
   int _getMonthIndex(String monthName) {
     switch (monthName) {
       case 'January': return 1;
@@ -269,13 +269,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   double _getBarChartMaxY() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return 275; // Max Y for Daily (250 + buffer)
+        return 550; // Max Y for Daily (500 + buffer)
       case 'Weekly':
-        return 550; // Max Y for Weekly (500 + buffer)
+        return 1100; // Max Y for Weekly (1100 + buffer)
       case 'Monthly':
-        return 2400; // Max Y for Monthly (2200 + buffer)
+        return 4400; // Max Y for Monthly (4400 + buffer)
       case 'Annually':
-        return 30000; // Max Y for Annually (28000 + buffer)
+        return 60000; // Max Y for Annually (60000 + buffer)
       default:
         return 100; // Default max Y
     }
@@ -284,13 +284,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   double _getBarChartInterval() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return 25; // Interval for Daily (0,25,50,75,100,125,150,175,200,225,250)
+        return 50; // Interval for Daily (0,50,100,150,200,250,300,350,400,450,500)
       case 'Weekly':
-        return 50; // Interval for Weekly (0,50,100,150,200,250,300,350,400,450,500)
+        return 100; // Interval for Weekly (0,100,200,300,400,500,600,700,800,900,1000,1100)
       case 'Monthly':
-        return 200; // Interval for Monthly (0,200,400,600,800,1000,1200,1400,1600,1800,2000,2200)
+        return 400; // Interval for Monthly (0,400,800,1200,1600,2000,2400,2800,3200,3600,4000,4400)
       case 'Annually':
-        return 2000; // Interval for Annually (0,2000,4000,6000,8000,10000,12000,14000,16000,18000,20000,22000,24000,26000,28000)
+        return 4000; // Interval for Annually (0,4000,8000,12000,16000,20000,24000,28000,32000,36000,40000,44000,48000,52000,56000)
       default:
         return 20; // Default interval
     }
@@ -735,7 +735,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         Container(
           constraints: const BoxConstraints(maxWidth: 120),
           child: DropdownButtonFormField<String>(
-          initialValue: _selectedTimeFilter,
+            initialValue: _selectedTimeFilter,
             decoration: InputDecoration(
               labelText: 'Period',
               border: OutlineInputBorder(
@@ -778,7 +778,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           children: [
             // Month dropdown for Daily
             Container(
-              constraints: const BoxConstraints(maxWidth: 110),
+              constraints: const BoxConstraints(maxWidth: 115),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedDailyMonth,
                 decoration: InputDecoration(
@@ -811,7 +811,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             const SizedBox(width: 4),
             // Day dropdown for Daily
             Container(
-              constraints: const BoxConstraints(maxWidth: 90),
+              constraints: const BoxConstraints(maxWidth: 115),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedDailyDay,
                 decoration: InputDecoration(
@@ -849,7 +849,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           children: [
             // Month dropdown for Weekly
             Container(
-              constraints: const BoxConstraints(maxWidth: 110),
+              constraints: const BoxConstraints(maxWidth: 115),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedWeeklyMonth,
                 decoration: InputDecoration(
@@ -882,7 +882,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             const SizedBox(width: 4),
             // Week dropdown for Weekly
             Container(
-              constraints: const BoxConstraints(maxWidth: 90),
+              constraints: const BoxConstraints(maxWidth: 115),
               child: DropdownButtonFormField<String>(
                 initialValue: _selectedWeekFilter,
                 decoration: InputDecoration(

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:yang_chow/services/paymongo_service.dart';
 
 import 'package:yang_chow/utils/app_theme.dart';
 
@@ -56,10 +54,8 @@ class _PaymentPageState extends State<PaymentPage> {
 
   String? _errorMessage;
 
-  String? _currentLinkId;
-
-  bool _isVerifying = false;
-
+  
+  
 
 
   @override
@@ -248,7 +244,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
                   : Text(
 
-                      'Pay ${PayMongoService.formatAmount(widget.amount)}',
+                      'Pay PHP ${widget.amount.toStringAsFixed(2)}',
 
                       style: const TextStyle(
 
@@ -422,94 +418,14 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // ── E-Wallet (GCash / Maya) ─────────────────────────────────────────────────
+  // ── E-Wallet (GCash) ─────────────────────────────────────────────────
   Future<void> _processEWalletPayment(String type) async {
     try {
-      final returnUrl = kIsWeb
-          ? '${Uri.base.origin}/#/customer-dashboard?status=success'
-          : 'yangchow://payment/success';
-
-      // 1. Create Payment Intent
-      final intentResult = await PayMongoService.createPaymentIntent(
-        amount: widget.amount,
-        description: widget.description,
-        currency: 'PHP',
-        metadata: {
-          // PayMongo requires all metadata values to be flat strings
-          if (widget.metadata != null)
-            ...widget.metadata!.map((k, v) => MapEntry(k, v?.toString() ?? '')),
-          'payment_method': type,
-          'reference_number': PayMongoService.generateReferenceNumber(),
-        },
-      );
-
-      if (intentResult['success'] != true) {
-        setState(() {
-          _errorMessage = intentResult['error']?.toString() ?? 'Failed to create payment intent';
-          _isProcessing = false;
-        });
-        return;
-      }
-
-      final paymentIntentId = intentResult['paymentIntentId'] as String;
-      final clientKey = intentResult['clientKey'] as String;
-
-      // 2. Create Payment Method
-      final methodResult = await PayMongoService.createPaymentMethod(
-        type: type,
-        details: {},
-      );
-
-      if (methodResult['success'] != true) {
-        setState(() {
-          _errorMessage = methodResult['error']?.toString() ?? 'Failed to create payment method';
-          _isProcessing = false;
-        });
-        return;
-      }
-
-      final paymentMethodId = methodResult['paymentMethodId'] as String;
-
-      // 3. Attach Payment Method → gets redirect URL
-      final attachResult = await PayMongoService.attachPaymentMethod(
-        paymentIntentId: paymentIntentId,
-        paymentMethodId: paymentMethodId,
-        clientKey: clientKey,
-        returnUrl: returnUrl,
-      );
-
-      if (attachResult['success'] != true) {
-        setState(() {
-          _errorMessage = attachResult['error']?.toString() ?? 'Failed to attach payment method';
-          _isProcessing = false;
-        });
-        return;
-      }
-
-      final status = attachResult['data']['attributes']['status'];
-
-      if (status == 'awaiting_next_action') {
-        // 4. Redirect user to GCash / Maya
-        final redirectUrl = attachResult['data']['attributes']
-            ['next_action']?['redirect']?['url'] as String?;
-
-        if (redirectUrl != null) {
-          _currentLinkId = paymentIntentId; // reuse for verification
-          await _launchPaymentUrl(redirectUrl);
-        } else {
-          setState(() {
-            _errorMessage = 'Could not get ${type == 'gcash' ? 'GCash' : 'Maya'} redirect URL.';
-            _isProcessing = false;
-          });
-        }
-      } else if (status == 'succeeded') {
-        _onPaymentSuccess();
-      } else {
-        setState(() {
-          _errorMessage = 'Unexpected payment status: $status';
-          _isProcessing = false;
-        });
-      }
+      setState(() {
+        _isProcessing = false;
+      });
+      
+      _showQRPaymentDialog();
     } catch (e) {
       setState(() {
         _errorMessage = 'Payment failed: ${e.toString()}';
@@ -518,45 +434,14 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // ── Payment Link (QRPh, Card, Bank Transfer) ────────────────────────────────
+  // ── Payment Link (QRPH, Card, Bank Transfer) ────────────────────────────────
   Future<void> _processPaymentLink() async {
     try {
-      String? successUrl;
-      String? cancelUrl;
-
-      if (kIsWeb) {
-        final currentUrl = Uri.base.origin;
-        successUrl = '$currentUrl/#/customer-dashboard?status=success';
-        cancelUrl = '$currentUrl/#/customer-dashboard?status=cancelled';
-      }
-
-      final result = await PayMongoService.createPaymentLink(
-        amount: widget.amount,
-        description: widget.description,
-        returnUrl: successUrl,
-        cancelUrl: cancelUrl,
-        metadata: {
-          // PayMongo requires all metadata values to be flat strings
-          if (widget.metadata != null)
-            ...widget.metadata!.map((k, v) => MapEntry(k, v?.toString() ?? '')),
-          'payment_method': _selectedPaymentMethod!['type'],
-          'reference_number': PayMongoService.generateReferenceNumber(),
-        },
-      );
-
-      if (result['success'] == true) {
-        _currentLinkId = result['data']['data']['id'] as String;
-        if (kIsWeb) {
-          await _launchPaymentUrl(result['checkoutUrl'] as String);
-        } else {
-          await _openPaymentWebView(result['checkoutUrl'] as String);
-        }
-      } else {
-        setState(() {
-          _errorMessage = result['error']?.toString() ?? 'Failed to create payment link';
-          _isProcessing = false;
-        });
-      }
+      setState(() {
+        _isProcessing = false;
+      });
+      
+      _showQRPaymentDialog();
     } catch (e) {
       setState(() {
         _errorMessage = 'Payment processing failed: ${e.toString()}';
@@ -567,311 +452,99 @@ class _PaymentPageState extends State<PaymentPage> {
 
 
 
-  Future<void> _launchPaymentUrl(String url) async {
-
-    try {
-
-      final uri = Uri.parse(url);
-
-      if (await canLaunchUrl(uri)) {
-
-        await launchUrl(
-
-          uri,
-
-          mode: LaunchMode.externalApplication,
-
-        );
-
-        
-
-        // Show dialog for web payment completion
-
-        _showWebPaymentDialog();
-
-      } else {
-
-        setState(() {
-
-          _errorMessage = 'Could not launch payment URL';
-
-          _isProcessing = false;
-
-        });
-
-      }
-
-    } catch (e) {
-
-      setState(() {
-
-        _errorMessage = 'Error launching payment: ${e.toString()}';
-
-        _isProcessing = false;
-
-      });
-
-    }
-
-  }
+  
 
 
+  
 
-  void _showWebPaymentDialog() {
 
+  
+  void _showQRPaymentDialog() {
     showDialog(
-
       context: context,
-
       barrierDismissible: false,
-
-      builder: (context) => StatefulBuilder(
-
-        builder: (context, setDialogState) => AlertDialog(
-
-          title: const Text('Payment in Progress'),
-
-          content: Column(
-
-            mainAxisSize: MainAxisSize.min,
-
+      builder: (context) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          child: Stack(
             children: [
-
-              if (_isVerifying)
-
-                const CircularProgressIndicator()
-
-              else
-
-                const Icon(Icons.launch, size: 48, color: AppTheme.primaryColor),
-
-              const SizedBox(height: 16),
-
-              Text(
-
-                _isVerifying 
-
-                  ? 'Verifying your payment...' 
-
-                  : 'Payment page opened in new tab.\nComplete the payment and return here.',
-
-                textAlign: TextAlign.center,
-
-              ),
-
-              const SizedBox(height: 16),
-
-              const Text(
-
-                'After payment completion, click "Verify Payment" below.',
-
-                textAlign: TextAlign.center,
-
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-
-              ),
-
-            ],
-
-          ),
-
-          actions: [
-
-            TextButton(
-
-              onPressed: () {
-
-                Navigator.of(context).pop();
-
-                setState(() {
-
-                  _isProcessing = false;
-
-                });
-
-              },
-
-              child: const Text('Cancel'),
-
-            ),
-
-            ElevatedButton(
-
-              onPressed: _isVerifying ? null : () async {
-
-                setDialogState(() => _isVerifying = true);
-
-                final success = await _verifyPayment();
-
-                setDialogState(() => _isVerifying = false);
-
-                
-
-                if (success) {
-                  if (!context.mounted) return;
-                  Navigator.of(context).pop();
-                } else {
-                  // Show mini error or just keep dialog open
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Payment not yet detected. Please complete payment first.',
+              // Full screen QR code
+              Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  height: MediaQuery.of(context).size.width * 0.85,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
                       ),
-                    ),
-                  );
-                }
-
-              },
-
-              style: ElevatedButton.styleFrom(
-
-                backgroundColor: AppTheme.primaryColor,
-
-                foregroundColor: Colors.white,
-
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // QR Code takes most of the space
+                      Expanded(
+                        flex: 3,
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Image.asset(
+                            'assets/images/newgcash.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      // Amount and info at bottom
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Amount: PHP ${widget.amount.toStringAsFixed(2)}',
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
+                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-
-              child: const Text('Verify Payment'),
-
-            ),
-
-          ],
-
+              // Close button
+              Positioned(
+                top: 50,
+                right: 20,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.white, size: 30),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-
       ),
-
     );
-
   }
-
-
-
-  Future<bool> _verifyPayment() async {
-
-    if (_currentLinkId == null) return false;
-
-
-
-    try {
-
-      final result = await PayMongoService.retrievePaymentLink(_currentLinkId!);
-
-      if (result['success'] == true && result['isPaid'] == true) {
-
-        _onPaymentSuccess();
-
-        return true;
-
-      }
-
-    } catch (e) {
-
-      debugPrint('Error verifying payment: $e');
-
-    }
-
-    return false;
-
-  }
-
-
-
-  void _onPaymentSuccess() {
-
-    widget.onPaymentComplete?.call(true, {
-
-      'status': 'success',
-
-      'amount': widget.amount,
-
-      'payment_method': _selectedPaymentMethod!['type'],
-
-      'link_id': _currentLinkId,
-
-    });
-
-    
-
-    if (mounted) {
-
-      if (Navigator.of(context).canPop()) {
-
-        Navigator.of(context).pop(true);
-
-      }
-
-    }
-
-  }
-
-
-
-  Future<void> _openPaymentWebView(String checkoutUrl) async {
-
-
-
-    await Navigator.of(context).push(
-
-      MaterialPageRoute(
-
-        builder: (context) => PaymentWebView(
-
-          checkoutUrl: checkoutUrl,
-
-          onSuccess: () {
-
-            Navigator.of(context).pop(); // Close WebView
-
-            Navigator.of(context).pop(true); // Close Payment Page
-
-            widget.onPaymentComplete?.call(true, {
-
-              'status': 'success',
-
-              'amount': widget.amount,
-
-              'payment_method': _selectedPaymentMethod!['type'],
-
-            });
-
-          },
-
-          onCancel: () {
-
-            Navigator.of(context).pop(); // Close WebView
-
-            setState(() {
-
-              _isProcessing = false;
-
-            });
-
-          },
-
-          onError: (error) {
-
-            Navigator.of(context).pop(); // Close WebView
-
-            setState(() {
-
-              _errorMessage = error;
-
-              _isProcessing = false;
-
-            });
-
-          },
-
-        ),
-
-      ),
-
-    );
-
-  }
-
 }
 
 

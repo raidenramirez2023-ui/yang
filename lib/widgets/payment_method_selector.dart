@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/payment_logo_placeholder.dart';
 
@@ -63,7 +62,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
                 ),
               ),
               Text(
-                PayMongoService.formatAmount(widget.amount),
+                'PHP ${widget.amount.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -76,8 +75,8 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         const SizedBox(height: 24),
         
         // Payment Methods
-        FutureBuilder<Map<String, dynamic>>(
-          future: PayMongoService.getAvailablePaymentMethods(),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: _getAvailablePaymentMethods(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -94,16 +93,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
               );
             }
 
-            final data = snapshot.data!['data'] as List? ?? [];
-            final methods = data.map((m) {
-              final attributes = m['attributes'];
-              return {
-                'id': m['id'],
-                'type': attributes['type'],
-                'name': attributes['name'] ?? attributes['type'].toString().toUpperCase(),
-                'description': attributes['description'] ?? 'Pay using ${attributes['type']}',
-              };
-            }).toList();
+            final methods = snapshot.data!;
 
             if (methods.isEmpty) {
               return const Center(child: Text('No payment methods available'));
@@ -246,5 +236,46 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         ),
       ),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _getAvailablePaymentMethods() async {
+    // Return local payment methods since we're using QR code
+    return [
+      {
+        'id': 'gcash',
+        'type': 'gcash',
+        'name': 'GCash',
+        'description': 'Pay using GCash e-wallet',
+        'icon': 'gcash',
+      },
+      {
+        'id': 'paymaya',
+        'type': 'paymaya',
+        'name': 'Maya',
+        'description': 'Pay using Maya e-wallet',
+        'icon': 'paymaya',
+      },
+      {
+        'id': 'qrph',
+        'type': 'qrph',
+        'name': 'QRPH',
+        'description': 'Pay using QRPH (QR Philippines)',
+        'icon': 'qrph',
+      },
+      {
+        'id': 'card',
+        'type': 'card',
+        'name': 'Credit/Debit Card',
+        'description': 'Pay using Visa, Mastercard, or JCB',
+        'icon': 'card',
+      },
+      {
+        'id': 'bank_transfer',
+        'type': 'bank_transfer',
+        'name': 'Bank Transfer',
+        'description': 'Pay via online banking',
+        'icon': 'bank',
+      },
+    ];
   }
 }
