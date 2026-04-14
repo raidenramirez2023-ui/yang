@@ -1,6 +1,8 @@
 name: Deploy to Hostinger
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
     types: [closed]
     branches: [ main ]
@@ -34,7 +36,7 @@ jobs:
         
     - name: Build Flutter web app
       run: |
-        flutter build web --release --base-href=/ --no-sound-null-safety --verbose
+        flutter build web --release --base-href=/ --web-renderer canvaskit
         
     - name: Check build output
       run: |
