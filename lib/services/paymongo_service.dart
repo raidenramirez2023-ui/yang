@@ -27,14 +27,7 @@ class PayMongoService {
     return key;
   }
 
-  static String get _clientKey {
-    final key = dotenv.env['PAYMONGO_PUBLIC_KEY'];
-    if (key == null || key.isEmpty) {
-      throw Exception('PAYMONGO_PUBLIC_KEY not found in environment variables');
-    }
-    return key;
-  }
-
+  
 
 
   static const Map<String, String> _headers = {
@@ -47,48 +40,6 @@ class PayMongoService {
 
 
 
-static Future<Map<String, String>> createPaymentIntent({
-    required double amount,
-    required String description,
-    Map<String, dynamic>? metadata,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/payment_intents'),
-        headers: {
-          ..._headers,
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-        },
-        body: jsonEncode({
-          'data': {
-            'attributes': {
-              'amount': amount.round(), // Convert to centavos
-              'payment_method_allowed': ['gcash', 'card', 'paymaya'],
-              'description': description,
-              'statement_descriptor': 'YANG RESTAURANT',
-              'currency': 'PHP',
-              'metadata': metadata ?? {},
-            }
-          }
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final clientKey = data['data']['attributes']['client_key'];
-        final paymentIntentId = data['data']['id'];
-        
-        return {
-          'client_key': clientKey,
-          'payment_intent_id': paymentIntentId,
-        };
-      } else {
-        throw Exception('Failed to create payment intent: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Payment intent creation failed: $e');
-    }
-  }
 
 
   static Future<Map<String, dynamic>> retrievePaymentIntent(String paymentIntentId) async {
@@ -307,157 +258,53 @@ static Future<Map<String, String>> createPaymentIntent({
           isPaid = payments.any((p) => p['attributes']['status'] == 'paid');
         }
 
-  static Future<Map<String, dynamic>> createSource({
-
-    required double amount,
-
-    required String type, // 'gcash', 'paymaya', etc.
-
-    required Map<String, dynamic> redirect,
-
-    required String url,
-
-    required List<String> events,
-
-  }) async {
-
-    try {
-
-      final response = await http.post(
-
-        Uri.parse('$_baseUrl/sources'),
-
-        headers: {
-
-          ..._headers,
-
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-
-        },
-
-        body: jsonEncode({
-
-          'data': {
-
-            'attributes': {
-
-              'amount': amount.round(),
-
-              'type': type,
-
-              'currency': 'PHP',
-
-              'redirect': redirect,
-
-              'metadata': metadata ?? {},
-
-            }
-
-          }
-
-        }),
-
-      );
-
-
-
-      if (response.statusCode == 200) {
-
-        return jsonDecode(response.body);
-
-    }
-
-        throw Exception('Failed to create source: ${response.body}');
-
-      }
-
-      
-
-      throw Exception('Source creation failed: $e');
-
-    }
-  static Future<Map<String, dynamic>> createPaymentLink({
-
-    required double amount,
-
-    required String description,
-
-    String? returnUrl,
-
-    String? cancelUrl,
-
-    Map<String, dynamic>? metadata,
-
-  }) async {
-
-    try {
-
-      final response = await http.post(
-
-        Uri.parse('$_baseUrl/links'),
-
-        headers: {
-
-          ..._headers,
-
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_publicKey:'))}',
-
-        },
-
-        body: jsonEncode({
-
-          'data': {
-
-            'attributes': {
-
-              'amount': amount.round(),
-
-              'description': description,
-
-              'currency': 'PHP',
-
-              'metadata': metadata ?? {},
-
-            }
-
-          }
-
-        }),
-
-      );
-
-
-
-      if (response.statusCode == 200) {
-
-        final responseData = jsonDecode(response.body);
-        
-        // Extract the checkout URL from PayMongo response
-        final checkoutUrl = responseData['data']?['attributes']?['checkout_url'] ?? 
-                          responseData['data']?['attributes']?['url'];
-        
-        if (checkoutUrl == null) {
-          throw Exception('No checkout URL returned from PayMongo');
-        }
-        
         return {
           'success': true,
-          'checkoutUrl': checkoutUrl,
-          'data': responseData,
+          'isPaid': isPaid,
+          'data': data,
         };
-
       } else {
-
-        throw Exception('Failed to create payment link: ${response.body}');
-
+        throw Exception('Failed to retrieve payment link: ${response.body}');
       }
-
     } catch (e) {
-
-      throw Exception('Payment link creation failed: $e');
-
+      throw Exception('Payment link retrieval failed: $e');
     }
+  }
 
+  static Future<Map<String, dynamic>> createSource({
+    required double amount,
+    required String type, // 'gcash', 'paymaya', etc.
+    required Map<String, dynamic> redirect,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/sources'),
+        headers: {
+          ..._headers,
+          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
+        },
+        body: jsonEncode({
+          'data': {
+            'attributes': {
+              'amount': amount.round(),
+              'type': type,
+              'currency': 'PHP',
+              'redirect': redirect,
+              'metadata': metadata ?? {},
+            }
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to create source: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Source creation failed: $e');
+    }
   }
 
 
@@ -647,48 +494,12 @@ static Future<Map<String, String>> createPaymentIntent({
     }
   }
 
-  // Retrieve Payment Link
-  static Future<Map<String, dynamic>> retrievePaymentLink(String linkId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/links/$linkId'),
-        headers: {
-          ..._headers,
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final attributes = responseData['data']['attributes'];
-        final status = attributes['status'];
-        final isPaid = status == 'paid';
-        
-        return {
-          'success': true,
-          'isPaid': isPaid,
-          'status': status,
-          'data': responseData,
-        };
-      } else {
-        return {
-          'success': false,
-          'error': 'Failed to retrieve payment link: ${response.body}',
-        };
-      }
-    } catch (e) {
-      return {
-        'success': false,
-        'error': 'Payment link retrieval failed: $e',
-      };
-    }
-  }
 
   // Generate Reference Number
   static String generateReferenceNumber() {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = DateTime.now().microsecond.toString().substring(0, 3);
-    return 'YANG${timestamp}$random';
+    return 'YANG$timestamp$random';
   }
 
   // Format Amount for Display
@@ -789,7 +600,7 @@ static Future<Map<String, String>> createPaymentIntent({
     }
   }
 
-  // Updated createPaymentLink to return consistent format
+  // Create Payment Link
   static Future<Map<String, dynamic>> createPaymentLink({
     required double amount,
     required String description,
