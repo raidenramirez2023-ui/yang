@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_options.dart'; // Supabase configuration
@@ -44,19 +42,7 @@ Future<void> main() async {
 
 
 
-  try {
-
-    // Load environment variables
-
-    await dotenv.load(fileName: '.env');
-
-    debugPrint('✅ Environment variables loaded');
-
-  } catch (e) {
-
-    debugPrint('⚠️ Could not load .env file: $e');
-
-  }
+  // Environment variables are now hardcoded in supabase_options.dart
 
 
 
