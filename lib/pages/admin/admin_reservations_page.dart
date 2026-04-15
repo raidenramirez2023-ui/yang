@@ -1359,8 +1359,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       children: [
         if (!isArchived) ...[
           if (status == 'pending') ...[
-            // Pricing button - show if pricing is needed
-            if (needsPricing)
+            // Pricing button - show if pricing is needed or if the status is pending
+            if (needsPricing || status == 'pending')
               IconButton(
                 onPressed: () => _showPriceQuotationDialog(reservation),
                 icon: Icon(
