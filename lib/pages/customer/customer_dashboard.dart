@@ -13732,46 +13732,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
         
         menuItems.add(
           Padding(
-            padding: EdgeInsets.only(bottom: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    menuName,
-                    style: TextStyle(
-                      color: AppTheme.darkGrey,
-                      fontSize: 14,
-                    ),
+                Text(
+                  menuName,
+                  style: TextStyle(
+                    color: AppTheme.darkGrey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'x$qty',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (price != null)
-                      Text(
-                        '¥${price.toStringAsFixed(2)} each',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
                 ),
                 if (price != null)
                   Text(
-                    '¥${totalPrice.toStringAsFixed(2)}',
+                    '₱${price.toStringAsFixed(2)}   x$qty  =  ₱${totalPrice.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: AppTheme.darkGrey,
-                      fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),

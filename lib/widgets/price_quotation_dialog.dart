@@ -87,43 +87,30 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
 
   void _calculateSuggestedPrice() {
-
-    final durationHours = widget.reservation['duration_hours'] as int? ?? 0;
-
-    final numberOfGuests = widget.reservation['number_of_guests'] as int? ?? 0;
-
-    
-
-    if (durationHours > 0 && numberOfGuests > 0) {
-
-      _suggestedPrice = _pricingService.calculateTotalPrice(
-
-        durationHours: durationHours,
-
-        numberOfGuests: numberOfGuests,
-
-      );
-
-      
-
-      _pricingBreakdown = _pricingService.getPricingBreakdown(
-
-        durationHours: durationHours,
-
-        numberOfGuests: numberOfGuests,
-
-      );
-
-      
-
-      _priceController.text = _suggestedPrice.toStringAsFixed(2);
-
+    // Calculate total from menu items
+    double menuTotal = 0.0;
+    if (widget.reservation['selected_menu_items'] != null) {
+      final items = widget.reservation['selected_menu_items'] as Map<String, dynamic>;
+      items.forEach((menuName, quantity) {
+        final qty = quantity is int ? quantity : int.tryParse(quantity.toString()) ?? 0;
+        if (qty > 0) {
+          final price = _getMenuItemPrice(menuName);
+          if (price != null) {
+            menuTotal += price * qty;
+          }
+        }
+      });
     }
 
-    
+    if (menuTotal > 0) {
+      _suggestedPrice = menuTotal;
+      _pricingBreakdown = {
+        'totalPrice': menuTotal,
+      };
+      _priceController.text = _suggestedPrice.toStringAsFixed(2);
+    }
 
     setState(() {});
-
   }
 
 
@@ -706,46 +693,23 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
         
         menuItems.add(
           Padding(
-            padding: EdgeInsets.only(bottom: 4, left: 80),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: EdgeInsets.only(bottom: 8, left: 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    menuName,
-                    style: TextStyle(
-                      color: AppTheme.darkGrey,
-                      fontSize: 14,
-                    ),
+                Text(
+                  menuName,
+                  style: TextStyle(
+                    color: AppTheme.darkGrey,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'x$qty',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (price != null)
-                      Text(
-                        '¥${price.toStringAsFixed(2)} each',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
                 ),
                 if (price != null)
                   Text(
-                    '¥${totalPrice.toStringAsFixed(2)}',
+                    '₱${price.toStringAsFixed(2)}   x$qty  =  ₱${totalPrice.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: AppTheme.darkGrey,
-                      fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
@@ -779,7 +743,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
                 ),
               ),
               Text(
-                '¥${grandTotal.toStringAsFixed(2)}',
+                '₱${grandTotal.toStringAsFixed(2)}',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.bold,
@@ -908,15 +872,8 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
     if (_pricingBreakdown == null) return SizedBox.shrink();
 
-    
-
-    final breakdown = _pricingBreakdown!;
-
-    final currentPrice = _useCustomPrice ? _currentPrice : _suggestedPrice;
-
+    final currentPrice = _currentPrice;
     final currentDeposit = _pricingService.calculateDepositAmount(currentPrice);
-
-    
 
     return Container(
 
@@ -955,22 +912,6 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
           ),
 
           SizedBox(height: 12),
-
-          
-
-          _buildBreakdownRow('Base Rate', 'PHP ${(breakdown['baseRate'] as double).toStringAsFixed(2)}'),
-
-          _buildBreakdownRow('Duration Multiplier', '${(breakdown['durationMultiplier'] as double).toStringAsFixed(2)}x'),
-
-          _buildBreakdownRow('Guest Multiplier', '${(breakdown['guestMultiplier'] as double).toStringAsFixed(2)}x'),
-
-          Divider(),
-
-          _buildBreakdownRow('Base Price', 'PHP ${(breakdown['basePrice'] as double).toStringAsFixed(2)}'),
-
-          _buildBreakdownRow('Guest Premium', 'PHP ${(breakdown['guestPremium'] as double).toStringAsFixed(2)}'),
-
-          Divider(),
 
           _buildBreakdownRow(
 

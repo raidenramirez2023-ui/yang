@@ -274,8 +274,8 @@ class MenuService {
       item('Lechon Macau', 675.80, 'Roast and Soy Specialties', Colors.brown, customImagePath: 'assets/images/LechonMacau.jpg'),
       item('Roast Pork Asado', 675.80, 'Roast and Soy Specialties', Colors.pink, customImagePath: 'assets/images/RPAsado.jpg'),
       item('Roast Chicken', 698.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/RoastChicken.jpg'),
-      item('Cold Cuts 3 Kinds (Asado, Lechon Macau, Roast Chicken)', 408.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/CC3.png'),
-      item('Cold Cut 5 Kinds (Asado, Lechon Macau, Roast Chicken, Seaweeds, Century Egg)', 588.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/CC5.png'),
+      item('Cold Cuts 3 Kinds', 408.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/CC3.png'),
+      item('Cold Cut 5 Kinds', 588.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/CC5.png'),
       item('Soyed Taufo', 268.80, 'Roast and Soy Specialties', Colors.amber, customImagePath: 'assets/images/SoyedTaufo.png'),
     ]);
 
