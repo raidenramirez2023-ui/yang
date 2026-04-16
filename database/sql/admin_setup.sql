@@ -19,7 +19,7 @@ CREATE POLICY "Users can manage their profile" ON users
 
 -- Create admin accounts
 INSERT INTO users (email, role) VALUES 
-  ('adm.pagsanjan@gmail.com', 'admin'),
+  ('admn.pagsanjan@gmail.com', 'admin'),
   ('admin@yangchow.com', 'admin'),
   ('manager@yangchow.com', 'admin');
 
