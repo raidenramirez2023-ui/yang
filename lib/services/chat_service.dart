@@ -15,8 +15,8 @@ class ChatService {
   // Stream for all conversations (for admin)
   Stream<List<Map<String, dynamic>>> getConversationsStream() {
     return _supabase
-        .from('admin_chat_conversations')
-        .stream(primaryKey: ['session_id'])
+        .from('chat_sessions')
+        .stream(primaryKey: ['id'])
         .order('last_message_at', ascending: false);
   }
 
@@ -287,10 +287,13 @@ class ChatService {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) return false;
       
+      final email = currentUser.email;
+      if (email == null) return false;
+      
       final response = await Supabase.instance.client
           .from('users')
           .select('role')
-          .eq('id', currentUser.id)
+          .eq('email', email)
           .single();
       return response['role'] == 'admin';
     } catch (e) {

@@ -36,8 +36,8 @@ class _LoginPageState extends State<LoginPage> {
   // Google Sign-In instance
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb 
-      ? '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com' // Web Client ID
-      : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Android Client ID
+      ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID
+      : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID (adjust based on platform if needed)
   );
 
 
@@ -438,7 +438,7 @@ class _LoginPageState extends State<LoginPage> {
         await Supabase.instance.client.auth.signOut();
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: Uri.base.origin,
+          redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.flutter://login-callback/',
           queryParams: {'prompt': 'select_account'},
         );
       } else {
@@ -513,7 +513,7 @@ class _LoginPageState extends State<LoginPage> {
       // Check if user exists in the users table
       final userResponse = await Supabase.instance.client
           .from('users')
-          .select('role, avatar_url')
+          .select('id, role, avatar_url')
           .eq('email', email)
           .maybeSingle();
 
@@ -547,11 +547,26 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacementNamed(context, '/customer-dashboard');
         }
       } else {
-        // Update existing user if avatar_url changed or is missing
-        if (avatarUrl != null && userResponse['avatar_url'] != avatarUrl) {
+        // Prepare updates for existing user
+        final Map<String, dynamic> updates = {};
+        final existingAvatarUrl = userResponse['avatar_url']?.toString();
+        final existingId = userResponse['id']?.toString();
+        
+        if (avatarUrl != null && existingAvatarUrl != avatarUrl) {
+          updates['avatar_url'] = avatarUrl;
+        }
+        
+        // Crucial: Sync the public.users id with the auth.users id
+        if (existingId != session.user.id) {
+          debugPrint('OAuth: Synchronizing ID mismatch: $existingId -> ${session.user.id}');
+          updates['id'] = session.user.id;
+        }
+
+        if (updates.isNotEmpty) {
+          debugPrint('OAuth: Updating user record: $updates');
           await Supabase.instance.client
               .from('users')
-              .update({'avatar_url': avatarUrl})
+              .update(updates)
               .eq('email', email);
         }
 
@@ -594,8 +609,14 @@ class _LoginPageState extends State<LoginPage> {
           _isLoading = false;
           _isRedirecting = false;
         });
+        
+        String friendlyError = "OAuth Error: $e";
+        if (e.toString().contains('23505') || e.toString().contains('duplicate key')) {
+          friendlyError = "This account is already being synchronized. Please try refreshing or logging in again.";
+        }
+        
         _showSnackBar(
-          "OAuth Error: $e",
+          friendlyError,
           Colors.red.shade700,
           Icons.error_outline,
         );

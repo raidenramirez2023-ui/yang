@@ -30,8 +30,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
   Future<void> _initializeChat() async {
     // Set up stream for conversations
     _conversationsStream = Supabase.instance.client
-        .from('admin_chat_conversations')
-        .stream(primaryKey: ['session_id'])
+        .from('chat_sessions')
+        .stream(primaryKey: ['id'])
         .order('last_message_at', ascending: false);
   }
 
@@ -345,7 +345,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
 
   Widget _buildConversationItem(Map<String, dynamic> conversation) {
     final isSelected =
-        _selectedConversation?['session_id'] == conversation['session_id'];
+        _selectedConversation?['id'] == conversation['id'];
     final customerName = conversation['customer_name'] ?? 'Customer';
     final customerEmail = conversation['customer_email'];
     final unreadCount = conversation['unread_customer_count'] ?? 0;
