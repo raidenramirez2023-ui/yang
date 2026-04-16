@@ -10,8 +10,6 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
-import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
-
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
 
 
@@ -274,7 +272,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         if (mounted) {
 
-          Navigator.of(context).pushReplacementNamed('/login');
+          Navigator.of(context).pushReplacementNamed('/staff-login');
 
         }
 
@@ -325,8 +323,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       _buildKitchenRequestsPage(),
 
       const InventoryPage(),
-
-      const InventoryForecastPage(),
 
       const InventoryRoomPage(),
 
@@ -446,9 +442,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   child: _buildSimpleActionCard(
 
-                    title: 'View Forecast',
+                    title: 'View Rooms',
 
-                    icon: Icons.trending_up,
+                    icon: Icons.room,
 
                     color: AppTheme.warningOrange,
 
@@ -1543,23 +1539,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       _buildCompactSidebarItem(
 
-                        icon: Icons.trending_up,
+                        icon: Icons.room,
 
-                        title: 'Forecast',
+                        title: 'Rooms',
 
                         index: 3,
 
                       ),
 
-                      _buildCompactSidebarItem(
-
-                        icon: Icons.room,
-
-                        title: 'Rooms',
-
-                        index: 4,
-
-                      ),
+                      _buildCompactSidebarLogoutItem(),
 
                       
                     ],
@@ -1569,46 +1557,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ),
 
                 
-
-                // Logout Button
-
-                Container(
-
-                  padding: const EdgeInsets.all(8),
-
-                  child: ListTile(
-
-                    leading: const Icon(Icons.logout, color: AppTheme.white, size: 20),
-
-                    title: const Text(
-
-                      'Logout',
-
-                      style: TextStyle(
-
-                        color: AppTheme.white,
-
-                        fontWeight: FontWeight.w600,
-
-                        fontSize: 12,
-
-                      ),
-
-                    ),
-
-                    onTap: _signOut,
-
-                    shape: RoundedRectangleBorder(
-
-                      borderRadius: BorderRadius.circular(8),
-
-                    ),
-
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-
-                  ),
-
-                ),
 
               ],
 
@@ -1664,7 +1612,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         _selectedIndex == 2 ? Icons.inventory :
 
-                        _selectedIndex == 3 ? Icons.trending_up : Icons.room,
+                        Icons.room,
 
                         color: AppTheme.primaryColor,
 
@@ -1682,7 +1630,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         _selectedIndex == 2 ? 'Manage Inventory' :
 
-                        _selectedIndex == 3 ? 'Inventory Forecast' : 'Room Inventory',
+                        'Room Inventory',
 
                         style: const TextStyle(
 
@@ -1772,7 +1720,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                  _selectedIndex == 2 ? 'Manage Inventory' :
 
-                 _selectedIndex == 3 ? 'Inventory Forecast' : 'Room Inventory'),
+                 'Room Inventory'),
 
           ],
 
@@ -1944,21 +1892,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   _buildSidebarItem(
 
-                    icon: Icons.trending_up,
-
-                    title: 'Inventory Forecast',
-
-                    index: 3,
-
-                  ),
-
-                  _buildSidebarItem(
-
                     icon: Icons.room,
 
                     title: 'Room Inventory',
 
-                    index: 4,
+                    index: 3,
 
                   ),
 
@@ -2083,6 +2021,62 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         ),
 
         tileColor: isSelected ? AppTheme.white.withValues(alpha: 0.2) : Colors.transparent,
+
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+
+        dense: true,
+
+      ),
+
+    );
+
+  }
+
+
+
+  Widget _buildCompactSidebarLogoutItem() {
+
+    return Container(
+
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+
+      child: ListTile(
+
+        leading: const Icon(
+
+          Icons.logout,
+
+          color: AppTheme.white,
+
+          size: 20,
+
+        ),
+
+        title: const Text(
+
+          'Logout',
+
+          style: TextStyle(
+
+            color: AppTheme.white,
+
+            fontWeight: FontWeight.w600,
+
+            fontSize: 13,
+
+          ),
+
+        ),
+
+        onTap: _signOut,
+
+        shape: RoundedRectangleBorder(
+
+          borderRadius: BorderRadius.circular(8),
+
+        ),
+
+        tileColor: Colors.transparent,
 
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
 

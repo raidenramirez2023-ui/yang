@@ -13924,9 +13924,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> {
 
               if (mounted) {
 
-                Navigator.of(context).pushAndRemoveUntil(
+                Navigator.of(context).pushNamedAndRemoveUntil(
 
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  '/login',
 
                   (route) => false,
 
