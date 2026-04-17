@@ -541,36 +541,61 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         ),
         const SizedBox(height: 16),
 
-        // Remember Me Checkbox
+        // Remember Me and Forgot Password Row
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: Checkbox(
-                value: _rememberMe,
-                onChanged: _isLoading
-                    ? null
-                    : (bool? value) {
-                        setState(() {
-                          _rememberMe = value ?? false;
-                        });
-                      },
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
+            // Remember Me Checkbox
+            Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Checkbox(
+                    value: _rememberMe,
+                    onChanged: _isLoading
+                        ? null
+                        : (bool? value) {
+                            setState(() {
+                              _rememberMe = value ?? false;
+                            });
+                          },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    activeColor: AppTheme.primaryColor,
+                    checkColor: Colors.white,
+                    side: BorderSide(color: AppTheme.primaryColor),
+                  ),
                 ),
-                activeColor: AppTheme.primaryColor,
-                checkColor: Colors.white,
-                side: BorderSide(color: AppTheme.primaryColor),
-              ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Remember me',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Text(
-              'Remember me',
-              style: TextStyle(
-                color: Colors.black54,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            // Forgot Password Link
+            TextButton(
+              onPressed: _isLoading ? null : () {
+                Navigator.pushNamed(context, '/forgot-password');
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Forgot Password?',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -692,15 +717,40 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         ),
         const SizedBox(height: 16),
 
-        // Remember Me
+        // Remember Me and Forgot Password Row
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Checkbox(
-              value: _rememberMe,
-              onChanged: _isLoading ? null : (value) => setState(() => _rememberMe = value ?? false),
-              activeColor: AppTheme.primaryColor,
+            // Remember Me Checkbox
+            Row(
+              children: [
+                Checkbox(
+                  value: _rememberMe,
+                  onChanged: _isLoading ? null : (value) => setState(() => _rememberMe = value ?? false),
+                  activeColor: AppTheme.primaryColor,
+                ),
+                const Text('Remember me'),
+              ],
             ),
-            const Text('Remember me'),
+            // Forgot Password Link
+            TextButton(
+              onPressed: _isLoading ? null : () {
+                Navigator.pushNamed(context, '/forgot-password');
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Forgot Password?',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
