@@ -38,12 +38,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           _isLoading = false;
         });
         
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdatePasswordPage(email: _emailController.text.trim()),
-          ),
-        );
+        // Navigate to OTP verification page
+        if (mounted) {
+          setState(() => _isLoading = false);
+          Navigator.pushNamed(
+            context,
+            '/otp-password-reset',
+            arguments: _emailController.text.trim(),
+          );
+        }
       }
     } on AuthException catch (e) {
       if (mounted) {
