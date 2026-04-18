@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../../models/menu_item.dart';
 import '../../services/menu_reservation_service.dart';
 import '../../services/menu_service.dart';
+import '../../utils/app_theme.dart';
+import '../../utils/responsive_utils.dart';
 
 class MenuSelectionPage extends StatefulWidget {
   final int guestCount;
@@ -122,20 +124,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       body: Column(
         children: [
           // Pricing Summary Card
-          if (selectedItems.isNotEmpty)
             Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+              margin: ResponsiveUtils.getResponsiveMargin(context),
+              padding: const EdgeInsets.all(20),
+              decoration: AppTheme.cardDecoration().copyWith(
+                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1), width: 1),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,14 +234,19 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           // Bottom Action Bar
           if (selectedItems.isNotEmpty)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).padding.bottom + 20,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, -5),
                   ),
                 ],
               ),
@@ -318,45 +316,28 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Calculate responsive aspect ratio based on screen height
-        final screenHeight = constraints.maxHeight;
-        final childAspectRatio = screenHeight > 600 ? 0.75 : 0.65;
-        
-        return GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final quantity = selectedItems[item.name] ?? 0;
-            return _buildMenuItemCard(item, quantity);
-          },
-        );
+    return GridView.builder(
+      padding: ResponsiveUtils.getResponsivePadding(context),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
+        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.8 : 0.72,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final quantity = selectedItems[item.name] ?? 0;
+        return _buildMenuItemCard(item, quantity);
       },
     );
   }
 
   Widget _buildMenuItemCard(MenuItem item, int quantity) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+      decoration: AppTheme.cardDecoration().copyWith(
         border: quantity > 0 
-            ? Border.all(color: Colors.red, width: 2)
+            ? Border.all(color: AppTheme.primaryColor, width: 2)
             : Border.all(color: Colors.transparent),
       ),
       child: Column(

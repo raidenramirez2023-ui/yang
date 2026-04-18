@@ -128,10 +128,11 @@ class _PayMongoTestPageState extends State<PayMongoTestPage> {
     });
 
     try {
-      final methods = PayMongoService.getAvailablePaymentMethods();
+      final methods = await PayMongoService.getAvailablePaymentMethods();
       setState(() {
+        final data = methods['data'] as List? ?? [];
         _result = 'Available Payment Methods:\n' +
-            methods.map((m) => '- ${m['name']}: ${m['description']}').join('\n');
+            data.map((m) => '- ${m['attributes']['name'] ?? 'Unknown'}').join('\n');
       });
     } catch (e) {
       setState(() {
@@ -194,6 +195,7 @@ class _PayMongoTestPageState extends State<PayMongoTestPage> {
     try {
       final result = await PayMongoService.createPaymentIntent(
         amount: 100.0,
+        description: 'Test Payment Intent',
         metadata: {
           'test': 'true',
           'payment_method': 'gcash',

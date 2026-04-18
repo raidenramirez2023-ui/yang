@@ -166,43 +166,6 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     }
   }
 
-  void _handlePaymentConfirmed() async {
-    if (_paymentConfirmed) return; // Prevent multiple calls
-    
-    setState(() {
-      _paymentConfirmed = true;
-    });
-
-    try {
-      // Update reservation payment status
-      final success = await _reservationService.updatePaymentStatus(
-        reservationId: widget.reservationId,
-        paymentStatus: 'deposit_paid',
-        paymentAmount: widget.depositAmount,
-        paymentReference: 'GCASH_QR_${DateTime.now().millisecondsSinceEpoch}',
-      );
-
-      if (!success) {
-        throw Exception('Failed to update payment status');
-      }
-
-      // Send confirmation email
-      await _sendPaymentConfirmationEmail();
-
-      if (mounted) {
-        // Show success dialog
-        _showSuccessDialog();
-      }
-    } catch (e) {
-      debugPrint('Error updating payment status: $e');
-      if (mounted) {
-        setState(() {
-          _paymentConfirmed = false; // Reset state on error
-        });
-        _showErrorDialog('Payment confirmation failed. Please contact support.');
-      }
-    }
-  }
 
   Future<void> _sendPaymentConfirmationEmail() async {
     try {
@@ -321,30 +284,4 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     );
   }
 
-  void _showCancelConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Payment?'),
-        content: const Text('Are you sure you want to cancel this payment? Your reservation will not be confirmed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('No, Continue'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Close payment page
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
 }

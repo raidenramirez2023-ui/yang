@@ -593,28 +593,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           controller: firstNameController,
           enabled: !_isLoading,
           validator: _validateFirstName,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter your first name',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
-            ),
+            prefixIcon: const Icon(Icons.person_outline, size: 22),
           ),
         ),
         const SizedBox(height: 20),
@@ -633,28 +615,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           controller: lastNameController,
           enabled: !_isLoading,
           validator: _validateLastName,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter your last name',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
-            ),
+            prefixIcon: const Icon(Icons.person_outline, size: 22),
           ),
         ),
         const SizedBox(height: 20),
@@ -674,32 +638,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           enabled: !_isLoading,
           validator: _validatePhone,
           keyboardType: TextInputType.phone,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(11),
           ],
           decoration: InputDecoration(
             hintText: 'Enter your phone number',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            prefixIcon: const Icon(Icons.phone_outlined, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
-            ),
+            prefixIcon: const Icon(Icons.phone_outlined, size: 22),
           ),
         ),
         const SizedBox(height: 20),
@@ -719,28 +665,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           keyboardType: TextInputType.emailAddress,
           enabled: !_isLoading,
           validator: _validateEmail,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter your email',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE81E0D)),
-            ),
+            prefixIcon: const Icon(Icons.email_outlined, size: 22),
           ),
         ),
         const SizedBox(height: 20),

@@ -574,56 +574,61 @@ class ReservationService {
 
   /// Add a review for a reservation
 
-  Future<bool> addReview({
-
+  /// Upsert a review (Create or Update based on customer email)
+  Future<bool> upsertReview({
     required String reservationId,
-
     required String customerEmail,
-
     required int overallRating,
-
     required int foodQuality,
-
     required int serviceQuality,
-
     required int ambiance,
-
     required String? reviewText,
-
   }) async {
-
     try {
-
-      await _supabase.from('reviews').insert({
-
+      final now = DateTime.now().toIso8601String();
+      await _supabase.from('reviews').upsert({
         'reservation_id': reservationId,
-
         'customer_email': customerEmail,
-
         'rating': overallRating,
-
         'food_quality': foodQuality,
-
         'service_quality': serviceQuality,
-
         'ambiance': ambiance,
-
         'review_text': reviewText,
-
-      });
-
-
+        'updated_at': now,
+      }, onConflict: 'customer_email');
 
       return true;
-
     } catch (e) {
-
-      debugPrint('Error adding review: $e');
-
-      throw Exception('Failed to add review: $e');
-
+      debugPrint('Error upserting review: $e');
+      throw Exception('Failed to submit review: $e');
     }
+  }
 
+  /// Get the existing review for a customer
+  Future<Map<String, dynamic>?> getCustomerReview(String customerEmail) async {
+    try {
+      final response = await _supabase
+          .from('reviews')
+          .select()
+          .eq('customer_email', customerEmail)
+          .maybeSingle();
+
+      return response;
+    } catch (e) {
+      debugPrint('Error fetching customer review: $e');
+      return null;
+    }
+  }
+
+  /// Check if a customer is eligible to leave a review (has at least one completed reservation)
+  Future<bool> isEligibleForReview(String customerEmail) async {
+    try {
+      final reservations = await getCustomerReservations(customerEmail);
+      return reservations.any((r) => r['status'] == 'completed');
+    } catch (e) {
+      debugPrint('Error checking review eligibility: $e');
+      return false;
+    }
   }
 
 

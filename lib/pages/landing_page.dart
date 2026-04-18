@@ -1,10 +1,12 @@
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/services/reservation_service.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -21,6 +23,7 @@ class _LandingPageState extends State<LandingPage> {
   final GlobalKey _updatesKey = GlobalKey();
   final GlobalKey _hoursKey = GlobalKey();
   final GlobalKey _contactKey = GlobalKey();
+  final GlobalKey _reviewsKey = GlobalKey();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isCheckingSession = true;
   int? _selectedMonth; // null means "Show All" or "Latest"
@@ -32,17 +35,28 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
-    
-    // Initialize real-time announcements stream first
-    _announcementsStream = Supabase.instance.client
-        .from('announcements')
-        .stream(primaryKey: ['id'])
-        .eq('is_active', true)
-        .order('created_at', ascending: false);
-    
+
     // Add scroll listener
     _scrollController.addListener(_scrollListener);
-    
+
+    // Initialize announcements stream and check session in background
+    _initializeAsync();
+  }
+
+  /// Initialize async operations that may depend on Supabase
+  Future<void> _initializeAsync() async {
+    try {
+      // Initialize real-time announcements stream
+      _announcementsStream = Supabase.instance.client
+          .from('announcements')
+          .stream(primaryKey: ['id'])
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
+    } catch (e) {
+      debugPrint('Error initializing announcements stream: $e');
+      // Continue with empty stream
+    }
+
     _checkAndRedirectUser();
   }
 
@@ -70,33 +84,50 @@ class _LandingPageState extends State<LandingPage> {
   }
 
   Future<void> _checkAndRedirectUser() async {
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null && session.user.email != null) {
-      final email = session.user.email!;
-      final userResponse = await Supabase.instance.client
-          .from('users')
-          .select('role')
-          .eq('email', email)
-          .maybeSingle();
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && session.user.email != null) {
+        final email = session.user.email!;
+        try {
+          final userResponse = await Supabase.instance.client
+              .from('users')
+              .select('role')
+              .eq('email', email)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 10));
 
-      if (mounted) {
-        final navigator = Navigator.of(context);
-        if (userResponse == null) {
-          // It's a brand new Google user, insert them and go to customer dashboard
-          await Supabase.instance.client.from('users').insert({
-            'email': email,
-            'role': 'customer',
-          });
-          navigator.pushReplacementNamed('/customer-dashboard');
-          return;
-        } else {
-          String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
-          _redirectByUserRole(email, userRole);
-          return;
+          if (mounted) {
+            final navigator = Navigator.of(context);
+            if (userResponse == null) {
+              // It's a brand new Google user, insert them and go to customer dashboard
+              try {
+                await Supabase.instance.client.from('users').insert({
+                  'email': email,
+                  'role': 'customer',
+                }).timeout(const Duration(seconds: 5));
+              } catch (e) {
+                debugPrint('Error inserting new user: $e');
+              }
+              navigator.pushReplacementNamed('/customer-dashboard');
+              return;
+            } else {
+              String userRole = userResponse['role']?.toString().toLowerCase() ?? 'customer';
+              _redirectByUserRole(email, userRole);
+              return;
+            }
+          }
+        } on TimeoutException {
+          debugPrint('Timeout checking user session');
+          // Fall through to show landing page
+        } catch (e) {
+          debugPrint('Error checking user session: $e');
+          // Fall through to show landing page
         }
       }
+    } catch (e) {
+      debugPrint('Error in _checkAndRedirectUser: $e');
     }
-    
+
     // If no session found or error, show landing page
     if (mounted) {
       setState(() {
@@ -219,6 +250,7 @@ class _LandingPageState extends State<LandingPage> {
                 _buildHeroSection(context),
                 _buildAboutUsSection(context),
                 _buildUpdatesSection(context),
+                _buildReviewsSection(context),
                 _buildServicesSection(context),
                 _buildHoursAndLocationSection(context),
                 _buildContactSection(context),
@@ -300,6 +332,7 @@ class _LandingPageState extends State<LandingPage> {
                       _navButton('HOME', const Key('nav_home'), () => _scrollToSection(_heroKey)),
                       _navButton('ABOUT', const Key('nav_about'), () => _scrollToSection(_aboutKey)),
                       _navButton('UPDATES', const Key('nav_updates'), () => _scrollToSection(_updatesKey)),
+                      _navButton('REVIEWS', const Key('nav_reviews'), () => _scrollToSection(_reviewsKey)),
                       _navButton('SERVICES', const Key('nav_services'), () => _scrollToSection(_servicesKey)),
                       _navButton('CONTACT', const Key('nav_contact'), () => _scrollToSection(_contactKey)),
                       const SizedBox(width: 20),
@@ -397,6 +430,7 @@ class _LandingPageState extends State<LandingPage> {
                 _drawerItem('HOME', Icons.home_rounded, const Key('drawer_home'), () => _scrollToSection(_heroKey)),
                 _drawerItem('ABOUT', Icons.info_outline_rounded, const Key('drawer_about'), () => _scrollToSection(_aboutKey)),
                 _drawerItem('UPDATES', Icons.notifications_none_rounded, const Key('drawer_updates'), () => _scrollToSection(_updatesKey)),
+                _drawerItem('REVIEWS', Icons.stars_rounded, const Key('drawer_reviews'), () => _scrollToSection(_reviewsKey)),
                 _drawerItem('SERVICES', Icons.restaurant_menu_rounded, const Key('drawer_services'), () => _scrollToSection(_servicesKey)),
                 _drawerItem('HOURS', Icons.schedule_rounded, const Key('drawer_hours'), () => _scrollToSection(_hoursKey)),
                 _drawerItem('CONTACT', Icons.alternate_email_rounded, const Key('drawer_contact'), () => _scrollToSection(_contactKey)),
@@ -1447,6 +1481,184 @@ class _LandingPageState extends State<LandingPage> {
               fontSize: 14,
               height: 1.5,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewsSection(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final reservationService = ReservationService();
+
+    return Container(
+      key: _reviewsKey,
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 60 : 100,
+        horizontal: ResponsiveUtils.isMobile(context) ? 20 : 40,
+      ),
+      color: Colors.white,
+      child: MaxWidthContainer(
+        child: Column(
+          children: [
+            Column(
+              children: [
+                const Text(
+                  'GUEST EXPERIENCES',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'What Our Clients Say',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: isMobile ? 32 : 44,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3E2723),
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 60,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 60),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: reservationService.getAllReviews(limit: 6),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+                }
+
+                final reviews = snapshot.data ?? [];
+                if (reviews.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                return Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  alignment: WrapAlignment.center,
+                  children: reviews.map((review) => _buildReviewCard(context, review)).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReviewCard(BuildContext context, Map<String, dynamic> review) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final String customerEmail = review['customer_email'] ?? '';
+    final String name = review['customer_name'] ?? customerEmail.split('@')[0];
+    
+    // Mask name: "John Doe" -> "John D."
+    String displayName = name;
+    if (name.contains(' ')) {
+      final parts = name.split(' ');
+      if (parts.length >= 2) {
+        displayName = '${parts[0]} ${parts[1][0]}.';
+      }
+    }
+
+    final rating = (review['rating'] as num?)?.toDouble() ?? 5.0;
+
+    return Container(
+      width: isMobile ? double.infinity : 380,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(5, (index) => Icon(
+              index < rating.floor() ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: Colors.amber,
+              size: 20,
+            )),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            review['review_text'] ?? 'Wonderful experience! Highly recommend.',
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.6,
+              color: Color(0xFF3E2723).withValues(alpha: 0.8),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.person_rounded, color: AppTheme.primaryColor, size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName.toUpperCase(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.verified_rounded, color: AppTheme.successGreen, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Verified Guest',
+                          style: TextStyle(
+                            color: AppTheme.successGreen,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

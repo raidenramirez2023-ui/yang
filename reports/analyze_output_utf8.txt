@@ -1,0 +1,61 @@
+﻿Analyzing yang...                                               
+
+   info - Don't invoke 'print' in production code - check_env.dart:7:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:13:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:14:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:17:5 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:18:5 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:19:5 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:27:7 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:29:7 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:33:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:38:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:39:3 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:42:5 - avoid_print
+   info - Don't invoke 'print' in production code - check_env.dart:44:5 - avoid_print
+warning - Unused import: 'package:yang_chow/pages/login_page.dart' - lib\pages\customer\customer_dashboard.dart:17:8 - unused_import
+  error - Expected an identifier - lib\pages\customer\customer_dashboard.dart:5770:1 - missing_identifier
+  error - Expected an identifier - lib\pages\customer\customer_dashboard.dart:5770:3 - missing_identifier
+  error - Expected an identifier - lib\pages\customer\customer_dashboard.dart:5770:5 - missing_identifier
+  error - List literals require one type argument or none, but 2 found - lib\pages\customer\customer_dashboard.dart:5770:7 - expected_one_list_type_arguments
+  error - The name 'Updated' isn't a type, so it can't be used as a type argument - lib\pages\customer\customer_dashboard.dart:5770:9 - non_type_as_type_argument
+  error - Expected to find ',' - lib\pages\customer\customer_dashboard.dart:5770:17 - expected_token
+  error - Expected to find '>' - lib\pages\customer\customer_dashboard.dart:5770:17 - expected_token
+  error - The name 'upstream' isn't a type, so it can't be used as a type argument - lib\pages\customer\customer_dashboard.dart:5770:17 - non_type_as_type_argument
+  error - The '===' operator is not supported - lib\pages\customer\customer_dashboard.dart:5775:1 - unsupported_operator
+  error - The '===' operator is not supported - lib\pages\customer\customer_dashboard.dart:5775:4 - unsupported_operator
+  error - Expected to find ';' - lib\pages\customer\customer_dashboard.dart:5781:18 - expected_token
+  error - Expected to find ')' - lib\pages\customer\customer_dashboard.dart:5782:15 - expected_token
+  error - Expected to find '>' - lib\pages\customer\customer_dashboard.dart:5782:15 - expected_token
+  error - Expected to find '[' - lib\pages\customer\customer_dashboard.dart:5782:15 - expected_token
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:577:1 - missing_identifier
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:577:3 - missing_identifier
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:577:5 - missing_identifier
+  error - List literals require one type argument or none, but 2 found - lib\pages\staff\staff_login_page.dart:577:7 - expected_one_list_type_arguments
+  error - The name 'Updated' isn't a type, so it can't be used as a type argument - lib\pages\staff\staff_login_page.dart:577:9 - non_type_as_type_argument
+  error - Expected to find ',' - lib\pages\staff\staff_login_page.dart:577:17 - expected_token
+  error - Expected to find '>' - lib\pages\staff\staff_login_page.dart:577:17 - expected_token
+  error - The name 'upstream' isn't a type, so it can't be used as a type argument - lib\pages\staff\staff_login_page.dart:577:17 - non_type_as_type_argument
+  error - The '===' operator is not supported - lib\pages\staff\staff_login_page.dart:629:1 - unsupported_operator
+  error - The '===' operator is not supported - lib\pages\staff\staff_login_page.dart:629:4 - unsupported_operator
+  error - Expected to find ')' - lib\pages\staff\staff_login_page.dart:661:11 - expected_token
+  error - Expected to find '>' - lib\pages\staff\staff_login_page.dart:661:11 - expected_token
+  error - Expected to find '[' - lib\pages\staff\staff_login_page.dart:661:11 - expected_token
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:812:1 - missing_identifier
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:812:3 - missing_identifier
+  error - Expected an identifier - lib\pages\staff\staff_login_page.dart:812:5 - missing_identifier
+  error - List literals require one type argument or none, but 2 found - lib\pages\staff\staff_login_page.dart:812:7 - expected_one_list_type_arguments
+  error - The name 'Updated' isn't a type, so it can't be used as a type argument - lib\pages\staff\staff_login_page.dart:812:9 - non_type_as_type_argument
+  error - Expected to find ',' - lib\pages\staff\staff_login_page.dart:812:17 - expected_token
+  error - Expected to find '>' - lib\pages\staff\staff_login_page.dart:812:17 - expected_token
+  error - The name 'upstream' isn't a type, so it can't be used as a type argument - lib\pages\staff\staff_login_page.dart:812:17 - non_type_as_type_argument
+  error - The '===' operator is not supported - lib\pages\staff\staff_login_page.dart:841:1 - unsupported_operator
+  error - The '===' operator is not supported - lib\pages\staff\staff_login_page.dart:841:4 - unsupported_operator
+  error - Expected to find ')' - lib\pages\staff\staff_login_page.dart:862:11 - expected_token
+  error - Expected to find '>' - lib\pages\staff\staff_login_page.dart:862:11 - expected_token
+  error - Expected to find '[' - lib\pages\staff\staff_login_page.dart:862:11 - expected_token
+   info - The private field _useCustomPrice could be 'final' - lib\widgets\price_quotation_dialog.dart:55:8 - prefer_final_fields
+   info - Use interpolation to compose strings and values - test_paymongo_fix.dart:134:19 - prefer_interpolation_to_compose_strings
+

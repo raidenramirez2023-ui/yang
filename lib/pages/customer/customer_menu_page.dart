@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/menu_item.dart';
 import '../../services/menu_service.dart';
+import '../../utils/responsive_utils.dart';
 
 class CustomerMenuPage extends StatefulWidget {
   const CustomerMenuPage({super.key});
@@ -77,11 +78,11 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
+        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.8 : 0.75,
+        crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
+        mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {

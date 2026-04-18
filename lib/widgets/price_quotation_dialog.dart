@@ -668,7 +668,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
   }
 
   List<Widget> _buildMenuItemsList(Map<String, dynamic> selectedMenuItems) {
-    if (selectedMenuItems == null || selectedMenuItems.isEmpty) {
+    if (selectedMenuItems.isEmpty) {
       return [
         Text(
           'No menu items selected',
@@ -681,7 +681,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
     }
 
     final menuItems = <Widget>[];
-    final items = selectedMenuItems as Map<String, dynamic>;
+    final items = selectedMenuItems;
     double grandTotal = 0.0;
     
     items.forEach((menuName, quantity) {
