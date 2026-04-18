@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,8 +8,6 @@ import 'supabase_options.dart'; // Supabase configuration
 import 'utils/app_theme.dart';
 
 import 'services/app_settings_service.dart';
-
-
 
 // Features
 
@@ -34,90 +33,59 @@ import 'pages/admin/pagsanjaninv_dashboard.dart';
 
 import 'pages/staff/chef_dashboard.dart';
 
-
-
 Future<void> main() async {
-
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Don't block app initialization on Supabase/Settings loading
+  // Initialize these in the background instead
+  _initializeServices();
 
+  runApp(const YangChowApp());
+}
 
-  // Environment variables are now hardcoded in supabase_options.dart
-
-
-
+/// Initialize Supabase and app settings in the background
+Future<void> _initializeServices() async {
   try {
-
-    // Initialize Supabase with platform-specific configuration
-
+    // Add a timeout to Supabase initialization to prevent hanging
     await Supabase.initialize(
-
       url: SupabaseOptions.supabaseUrl,
-
       anonKey: SupabaseOptions.supabaseAnonKey,
-
-      debug: true, // Enable debug mode for better error messages
-
+      debug: true,
+    ).timeout(
+      const Duration(seconds: 15),
+      onTimeout: () {
+        debugPrint('⚠️ Supabase initialization timed out');
+        throw TimeoutException('Supabase initialization timed out');
+      },
     );
 
     debugPrint('✅ Supabase initialized successfully');
 
-
-
-    // Initialize application settings from database
-
+    // Initialize application settings from database with timeout
     try {
-
       final appSettings = AppSettingsService();
-
-      await appSettings.initializeSettings();
-
+      await appSettings.initializeSettings().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⚠️ App settings initialization timed out');
+        },
+      );
       debugPrint('✅ Application settings loaded');
-
     } catch (e) {
-
       debugPrint('⚠️ Could not load app settings: $e (using defaults)');
-
     }
-
   } catch (e) {
-
-    debugPrint('❌ Supabase initialization failed: $e');
-
-    debugPrint(
-
-      'Please check your Supabase configuration in lib/supabase_options.dart',
-
-    );
-
-
-
-    // Continue with app even if Supabase fails (for testing)
-
-    debugPrint('⚠️ Continuing with app in offline mode...');
-
+    debugPrint('❌ Background initialization error: $e');
+    // App continues to run with offline mode
   }
-
-
-
-  runApp(const YangChowApp());
-
 }
 
-
-
 class YangChowApp extends StatelessWidget {
-
   const YangChowApp({super.key});
 
-
-
   @override
-
   Widget build(BuildContext context) {
-
     return MaterialApp(
-
       title: 'Yang Chow Restaurant Management System',
 
       debugShowCheckedModeBanner: false,
@@ -127,7 +95,6 @@ class YangChowApp extends StatelessWidget {
       initialRoute: '/',
 
       routes: {
-
         '/': (context) => const LandingPage(),
 
         '/login': (context) => const LoginPage(),
@@ -144,17 +111,13 @@ class YangChowApp extends StatelessWidget {
 
         '/admin-reservations': (context) => const AdminReservationsPage(),
 
-        '/pagsanjaninv-dashboard': (context) => const PagsanjaninvDashboardPage(),
+        '/pagsanjaninv-dashboard': (context) =>
+            const PagsanjaninvDashboardPage(),
 
         '/staff-dashboard': (context) => const StaffDashboardPage(),
 
         '/chef-dashboard': (context) => const ChefDashboardPage(),
-
       },
-
     );
-
   }
-
 }
-

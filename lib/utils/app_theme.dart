@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 
 /// Professional App Theme System
 class AppTheme {
-  // Primary Colors
-  static const Color primaryColor = Color.fromARGB(255, 131, 29, 29);
-  static const Color primaryDark = Color.fromARGB(255, 183, 28, 28);
-  static const Color primaryLight = Color.fromARGB(255, 239, 83, 80);
+  // Primary Colors (Refined for better contrast and modern feel)
+  static const Color primaryColor = Color(0xFFC62828); // Deeper, more elegant red
+  static const Color primaryDark = Color(0xFF8E0000);
+  static const Color primaryLight = Color(0xFFFF5F52);
 
-  // Neutral Colors
-  static const Color darkGrey = Color(0xFF212121);
-  static const Color mediumGrey = Color(0xFF757575);
-  static const Color lightGrey = Color(0xFFEEEEEE);
+  // Neutral Colors (Cooler undertones)
+  static const Color darkGrey = Color(0xFF1C1C1E);
+  static const Color mediumGrey = Color(0xFF8E8E93);
+  static const Color lightGrey = Color(0xFFE5E5EA);
   static const Color white = Color(0xFFFFFFFF);
-  static const Color backgroundColor = Color(0xFFFAFAFA);
+  static const Color backgroundColor = Color(0xFFF9F9FF); // Cooler modern background
 
   // Accent Colors
-  static const Color successGreen = Color(0xFF4CAF50);
-  static const Color warningOrange = Color(0xFFFFA726);
-  static const Color errorRed = Color(0xFFE53935);
-  static const Color infoBlue = Color(0xFF2196F3);
+  static const Color successGreen = Color(0xFF34C759);
+  static const Color warningOrange = Color(0xFFFF9500);
+  static const Color errorRed = Color(0xFFFF3B30);
+  static const Color infoBlue = Color(0xFF007AFF);
 
   // Get light theme
   static ThemeData get lightTheme {
@@ -27,80 +27,151 @@ class AppTheme {
       brightness: Brightness.light,
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
+      // Default typography refined for modern geometric appearance
+      fontFamily: 'Roboto', // Default fallback, but properly weighted
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: white,
-        elevation: 2,
+        backgroundColor: white,
+        foregroundColor: darkGrey,
+        elevation: 0,
+        scrolledUnderElevation: 2, // Modern material 3 scrolling behavior
         centerTitle: false,
+        iconTheme: IconThemeData(color: darkGrey),
       ),
       cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0, // We will use custom shadow containers or rely on M3 subtle elevations
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         color: white,
+        margin: EdgeInsets.zero, // Clean margins
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: white,
-          elevation: 4,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+            if (states.contains(WidgetState.disabled)) return lightGrey;
+            return primaryColor;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+            if (states.contains(WidgetState.disabled)) return mediumGrey;
+            return white;
+          }),
+          elevation: WidgetStateProperty.resolveWith<double>((states) {
+            if (states.contains(WidgetState.hovered)) return 6;
+            if (states.contains(WidgetState.pressed)) return 2;
+            if (states.contains(WidgetState.disabled)) return 0;
+            return 2; // Default subtle elevation
+          }),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: primaryColor,
-          side: const BorderSide(color: primaryColor, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+            if (states.contains(WidgetState.disabled)) return mediumGrey;
+            return primaryColor;
+          }),
+          side: WidgetStateProperty.resolveWith<BorderSide>((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return const BorderSide(color: lightGrey, width: 1.5);
+            }
+            return const BorderSide(color: primaryColor, width: 1.5);
+          }),
+          overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.hovered)) {
+              return primaryColor.withValues(alpha: 0.04);
+            }
+            if (states.contains(WidgetState.pressed)) {
+              return primaryColor.withValues(alpha: 0.12);
+            }
+            return null;
+          }),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: primaryColor,
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+            if (states.contains(WidgetState.disabled)) return mediumGrey;
+            return primaryColor;
+          }),
+          overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.hovered)) {
+              return primaryColor.withValues(alpha: 0.04);
+            }
+            return null;
+          }),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 14,
+          vertical: 16, // Slightly taller for modern look
         ),
+        filled: true,
+        fillColor: white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: lightGrey),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: lightGrey),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorRed, width: 1),
         ),
         labelStyle: const TextStyle(
           color: mediumGrey,
           fontWeight: FontWeight.w500,
         ),
+        floatingLabelStyle: const TextStyle(
+          color: primaryColor,
+          fontWeight: FontWeight.w600,
+        ),
         prefixIconColor: mediumGrey,
-        filled: false,
       ),
       textTheme: const TextTheme(
         displayLarge: TextStyle(
           fontSize: 32,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
           color: darkGrey,
+          letterSpacing: -0.5,
         ),
         displayMedium: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: darkGrey,
+          letterSpacing: -0.5,
         ),
         headlineMedium: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: darkGrey,
+          letterSpacing: -0.5,
         ),
         headlineSmall: TextStyle(
           fontSize: 20,
@@ -120,17 +191,19 @@ class AppTheme {
         titleSmall: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: darkGrey,
+          color: mediumGrey,
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: darkGrey,
+          height: 1.5,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: darkGrey,
+          height: 1.4,
         ),
         bodySmall: TextStyle(
           fontSize: 12,
@@ -141,7 +214,26 @@ class AppTheme {
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: white,
         elevation: 2,
+        selectedIconTheme: IconThemeData(color: primaryColor),
+        unselectedIconTheme: IconThemeData(color: mediumGrey),
+        selectedLabelTextStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
+        unselectedLabelTextStyle: TextStyle(color: mediumGrey),
       ),
+    );
+  }
+
+  // Pre-defined BoxDecorations for modern cards with smooth shadows
+  static BoxDecoration cardDecoration() {
+    return BoxDecoration(
+      color: white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04), // Very subtle shadow
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 

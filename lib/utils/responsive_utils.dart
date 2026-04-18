@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 
 /// Responsive breakpoints and utilities
 class ResponsiveUtils {
-  static const double mobileBreakpoint = 600;
-  static const double tabletBreakpoint = 900;
+  // Modern standard breakpoints
+  static const double mobileBreakpoint = 768; // Below 768 -> Mobile
+  static const double tabletBreakpoint = 1024; // 768 to 1023 -> Tablet
+
+  // Maximum content widths to prevent extreme stretching on large monitors
+  static const double maxDesktopWidth = 1440;
+  static const double maxContentWidth = 1200;
 
   /// Check if device is mobile
   static bool isMobile(BuildContext context) {
@@ -27,9 +32,14 @@ class ResponsiveUtils {
     return kIsWeb;
   }
 
-  /// Check if should use drawer (web mobile)
+  /// Check if should use drawer (mobile or small web)
   static bool shouldUseDrawer(BuildContext context) {
-    return isWeb() && isMobile(context);
+    return !isDesktop(context);
+  }
+
+  /// Retrieve the maximum safe content width wrapper
+  static double getMaxContentWidth() {
+    return maxContentWidth;
   }
 
   /// Get responsive font size
@@ -72,9 +82,9 @@ class ResponsiveUtils {
     if (width < mobileBreakpoint) {
       return const EdgeInsets.all(16);
     } else if (width < tabletBreakpoint) {
-      return const EdgeInsets.all(20);
-    } else {
       return const EdgeInsets.all(24);
+    } else {
+      return const EdgeInsets.all(32);
     }
   }
 
@@ -82,11 +92,11 @@ class ResponsiveUtils {
   static EdgeInsets getResponsiveMargin(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) {
-      return const EdgeInsets.all(12);
-    } else if (width < tabletBreakpoint) {
       return const EdgeInsets.all(16);
+    } else if (width < tabletBreakpoint) {
+      return const EdgeInsets.all(24);
     } else {
-      return const EdgeInsets.all(20);
+      return const EdgeInsets.all(32);
     }
   }
 
@@ -94,11 +104,11 @@ class ResponsiveUtils {
   static EdgeInsets getResponsiveCardPadding(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) {
-      return const EdgeInsets.all(12);
-    } else if (width < tabletBreakpoint) {
       return const EdgeInsets.all(16);
+    } else if (width < tabletBreakpoint) {
+      return const EdgeInsets.all(24);
     } else {
-      return const EdgeInsets.all(20);
+      return const EdgeInsets.all(32); // Give breathing room on desktop
     }
   }
 
@@ -140,9 +150,9 @@ class ResponsiveUtils {
   static double getResponsiveBorderRadius(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) {
-      return 8;
+      return 12; // Adjusted for modern 12-16px aesthetic
     } else if (width < tabletBreakpoint) {
-      return 12;
+      return 16;
     } else {
       return 16;
     }
@@ -150,25 +160,27 @@ class ResponsiveUtils {
 
   /// Get responsive card elevation
   static double getResponsiveCardElevation(BuildContext context) {
+    // Relying more on shadows or subtle colors rather than aggressive elevation
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) {
-      return 1;
+      return 0; 
     } else if (width < tabletBreakpoint) {
-      return 2;
+      return 0;
     } else {
-      return 4;
+      return 0;
     }
   }
 
   /// Get responsive button height
   static double getResponsiveButtonHeight(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
+    // Human Interface Guidelines: 44px min hit target
     if (width < mobileBreakpoint) {
-      return 36;
+      return 48; // minimum touch target is larger on mobile
     } else if (width < tabletBreakpoint) {
-      return 40;
-    } else {
       return 48;
+    } else {
+      return 52;
     }
   }
 
@@ -176,11 +188,11 @@ class ResponsiveUtils {
   static double getResponsiveDialogMaxWidth(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) {
-      return width * 0.9;
+      return width * 0.95;
     } else if (width < tabletBreakpoint) {
-      return 400;
-    } else {
       return 500;
+    } else {
+      return 600;
     }
   }
 }

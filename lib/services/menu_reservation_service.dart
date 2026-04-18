@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/menu_item.dart';
 import 'menu_service.dart';
-import 'pricing_service.dart';
 
 /// Service to handle menu-based reservation pricing
 class MenuReservationService {

@@ -1073,34 +1073,22 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
 // ══════════════════════════════════════════════════════════
 //  TAB 2 — FINISHED ORDERS
 // ══════════════════════════════════════════════════════════
-class _FinishedOrdersTab extends StatelessWidget {
+class _FinishedOrdersTab extends StatefulWidget {
   const _FinishedOrdersTab();
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchDoneOrders(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryColor),
-          );
-        }
-        final orders = snap.data ?? [];
-        if (orders.isEmpty) {
-          return _buildEmptyState(
-            Icons.hourglass_empty,
-            'No finished orders yet',
-            '',
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: orders.length,
-          itemBuilder: (_, i) => _FinishedOrderCard(order: orders[i]),
-        );
-      },
-    );
+  State<_FinishedOrdersTab> createState() => _FinishedOrdersTabState();
+}
+
+class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
+  int _currentPage = 1;
+  static const int _itemsPerPage = 50;
+  late Future<List<Map<String, dynamic>>> _ordersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersFuture = _fetchDoneOrders();
   }
 
   Future<List<Map<String, dynamic>>> _fetchDoneOrders() async {
@@ -1116,6 +1104,251 @@ class _FinishedOrdersTab extends StatelessWidget {
       return [];
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _ordersFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+          );
+        }
+        final allOrders = snap.data ?? [];
+        if (allOrders.isEmpty) {
+          return _buildEmptyState(
+            Icons.hourglass_empty,
+            'No finished orders yet',
+            '',
+          );
+        }
+
+        final int totalPages = (allOrders.length / _itemsPerPage).ceil();
+        if (_currentPage > totalPages && totalPages > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _currentPage = totalPages);
+          });
+        }
+
+        final int startIndex = (_currentPage - 1) * _itemsPerPage;
+        int endIndex = startIndex + _itemsPerPage;
+        if (endIndex > allOrders.length) endIndex = allOrders.length;
+
+        final currentOrders = (startIndex < allOrders.length)
+            ? allOrders.sublist(startIndex, endIndex)
+            : <Map<String, dynamic>>[];
+
+        return Column(
+          children: [
+            // Header Row
+            Container(
+              padding: const EdgeInsets.fromLTRB(40, 16, 40, 16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                ),
+              ),
+              child: Row(
+                children: const [
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Order ID',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Text(
+                      'Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Amount',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Status',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: currentOrders.length,
+                itemBuilder: (_, i) => _FinishedOrderCard(order: currentOrders[i]),
+              ),
+            ),
+            if (totalPages > 1) _buildPagination(totalPages),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPagination(int totalPages) {
+    List<Widget> pageWidgets = [];
+    bool lastWasEllipsis = false;
+
+    // Show more numbers: current +/- 2
+    for (int i = 1; i <= totalPages; i++) {
+      if (totalPages <= 7 || i == 1 || i == totalPages || (i >= _currentPage - 2 && i <= _currentPage + 2)) {
+        final isSelected = i == _currentPage;
+        pageWidgets.add(
+          GestureDetector(
+            onTap: () => setState(() => _currentPage = i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryColor : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
+                  width: 1.5,
+                ),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ] : null,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$i',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        );
+        lastWasEllipsis = false;
+      } else {
+        if (!lastWasEllipsis) {
+          pageWidgets.add(const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Text('...', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 16)),
+          ));
+          lastWasEllipsis = true;
+        }
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Prev button
+          _buildNavButton(
+            label: 'PREV',
+            icon: Icons.chevron_left_rounded,
+            isEnabled: _currentPage > 1,
+            onTap: () => setState(() => _currentPage--),
+          ),
+          const SizedBox(width: 16),
+          ...pageWidgets,
+          const SizedBox(width: 16),
+          // Next button
+          _buildNavButton(
+            label: 'NEXT',
+            icon: Icons.chevron_right_rounded,
+            isEnabled: _currentPage < totalPages,
+            onTap: () => setState(() => _currentPage++),
+            isTrailing: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavButton({
+    required String label,
+    required IconData icon,
+    required bool isEnabled,
+    required VoidCallback onTap,
+    bool isTrailing = false,
+  }) {
+    return InkWell(
+      onTap: isEnabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isEnabled ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isEnabled ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ] : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
+            if (!isTrailing) const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                letterSpacing: 1.1,
+              ),
+            ),
+            if (isTrailing) const SizedBox(width: 6),
+            if (isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _FinishedOrderCard extends StatelessWidget {
@@ -1124,155 +1357,199 @@ class _FinishedOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final customer = order['customer_name']?.toString() ?? 'Guest';
+    final customer = order['customer_name']?.toString() ?? 'GUEST USER';
     final total = (order['total_amount'] as num?)?.toDouble() ?? 0;
     final createdAt = order['created_at'] != null
         ? DateTime.tryParse(order['created_at'].toString())
         : null;
     final timeStr = createdAt != null
-        ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal())
+        ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
         : '—';
     final orderId = _formatOrderId(order);
+    final tableNumber = order['table_number']?.toString();
+    final numberOfGuests = order['number_of_guests'];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.successGreen.withValues(alpha: 0.15),
+          color: const Color(0xFFF1F5F9), // Lighter border
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.successGreen.withValues(alpha: 0.06),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+          // Order ID column
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.successGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.successGreen.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  orderId,
+                  style: const TextStyle(
+                    color: AppTheme.successGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
-            child: Row(
+          ),
+          // Details column
+          Expanded(
+            flex: 4,
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successGreen,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    orderId,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer,
-                        style: const TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        timeStr,
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 11,
-                        ),
-                      ),
-                      if (order['table_number']?.toString().isNotEmpty ==
-                              true ||
-                          order['number_of_guests'] != null) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            if (order['table_number']?.toString().isNotEmpty ==
-                                true) ...[
-                              const Icon(
-                                Icons.table_restaurant,
-                                size: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Table ${order['table_number']}',
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                            if (order['table_number']?.toString().isNotEmpty ==
-                                    true &&
-                                order['number_of_guests'] != null) ...[
-                              const SizedBox(width: 8),
-                            ],
-                            if (order['number_of_guests'] != null) ...[
-                              const Icon(
-                                Icons.people,
-                                size: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${order['number_of_guests']} ${order['number_of_guests'] == 1 ? 'guest' : 'guests'}',
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '₱${NumberFormat('#,##0.00').format(total)}',
-                      style: const TextStyle(
-                        color: AppTheme.successGreen,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                      ),
+                    const Icon(
+                      Icons.person,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(width: 6),
                     Text(
-                      'SERVED',
-                      style: TextStyle(
-                        color: AppTheme.successGreen.withValues(alpha: 0.7),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
+                      customer.toUpperCase(),
+                      style: const TextStyle(
+                        color: Color(0xFF1E293B),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
                   ],
                 ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                if (numberOfGuests != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.people,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$numberOfGuests',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (tableNumber != null && tableNumber.isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.table_restaurant,
+                        size: 14,
+                        color: Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'T-$tableNumber',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
+          ),
+          // Amount column
+          Expanded(
+            flex: 2,
+            child: Text(
+              '₱${NumberFormat('#,##0.00').format(total)}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Color(0xFF1E293B),
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          // Status column
+          Expanded(
+             flex: 2,
+             child: Align(
+               alignment: Alignment.centerRight,
+               child: Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                 decoration: BoxDecoration(
+                   color: AppTheme.successGreen,
+                   borderRadius: BorderRadius.circular(20),
+                 ),
+                 child: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: const [
+                     Icon(
+                       Icons.check,
+                       color: Colors.white,
+                       size: 14,
+                     ),
+                     SizedBox(width: 4),
+                     Text(
+                       'SERVED',
+                       style: TextStyle(
+                         color: Colors.white,
+                         fontWeight: FontWeight.w700,
+                         fontSize: 11,
+                         letterSpacing: 0.5,
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+             ),
           ),
         ],
       ),
