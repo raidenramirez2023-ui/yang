@@ -20,6 +20,16 @@ import 'pages/staff/staff_login_page.dart';
 
 import 'pages/forgot_password_page.dart';
 
+import 'pages/simple_password_reset.dart';
+
+import 'utils/deep_link_service.dart';
+
+import 'pages/test_email_template.dart';
+
+import 'pages/template_fix_complete.dart';
+
+import 'pages/otp_password_reset.dart';
+
 import 'pages/landing_page.dart';
 
 import 'pages/customer/customer_dashboard.dart';
@@ -137,6 +147,17 @@ class YangChowApp extends StatelessWidget {
         '/register': (context) => const CustomerRegistrationPage(),
 
         '/forgot-password': (context) => const ForgotPasswordPage(),
+
+        '/reset-password': (context) => const SimplePasswordResetPage(),
+
+        '/test-email-template': (context) => const TestEmailTemplate(),
+
+        '/template-fix-complete': (context) => const TemplateFixComplete(),
+
+        '/otp-password-reset': (context) {
+          final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+          return OtpPasswordResetPage(email: email);
+        },
 
         '/customer-dashboard': (context) => const CustomerDashboardPage(),
 
