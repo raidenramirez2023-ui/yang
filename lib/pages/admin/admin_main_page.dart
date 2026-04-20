@@ -21,7 +21,6 @@ import 'package:yang_chow/pages/admin/admin_dashboard.dart';
 
 import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
 
-import 'package:yang_chow/pages/admin/admin_customer_approval_page.dart';
 
 import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
 
@@ -56,7 +55,6 @@ class AdminMainPage extends StatefulWidget {
 class _AdminMainPageState extends State<AdminMainPage> {
 
   int _selectedIndex = 0;
-  int _pendingCustomerCount = 0;
   int _pendingPaymentCount = 0;
   int _pendingReservationCount = 0;
 
@@ -72,15 +70,12 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     _checkUserRole();
 
-    _loadPendingCustomerCount();
-
     _loadPendingPaymentCount();
 
     _loadPendingReservationCount();
 
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
     _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
-      _loadPendingCustomerCount();
       _loadPendingPaymentCount();
       _loadPendingReservationCount();
     });
@@ -98,75 +93,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     if (!isAdmin && mounted) {
 
       Navigator.pushReplacementNamed(context, '/staff-dashboard');
-
-    }
-
-  }
-
-
-
-  Future<void> _loadPendingCustomerCount() async {
-
-    try {
-
-      final supabase = Supabase.instance.client;
-
-      final response = await supabase
-
-          .from('users')
-
-          .select('*')
-
-          .eq('role', 'customer')
-
-          .eq('is_approved', false)
-
-          .filter('rejection_reason', 'is', null)
-
-          .not('email', 'is', null)
-
-          .not('firstname', 'is', null)
-
-          .not('lastname', 'is', null);
-
-      
-      // Print first few customers to see what's being counted
-      final customers = response as List;
-      for (int i = 0; i < customers.length && i < 3; i++) {
-        final customer = customers[i];
-        debugPrint('Customer $i: ${customer['email']} - approved: ${customer['is_approved']} - rejection: ${customer['rejection_reason']}');
-      }
-
-      if (mounted) {
-        // Filter out incomplete customer records
-        final validCustomers = (response as List).where((customer) =>
-          customer['email'] != null && customer['email'].toString().trim().isNotEmpty &&
-          customer['firstname'] != null && customer['firstname'].toString().trim().isNotEmpty &&
-          customer['lastname'] != null && customer['lastname'].toString().trim().isNotEmpty
-        ).toList();
-
-        debugPrint('Valid pending customers count: ${validCustomers.length}');
-
-        setState(() {
-          _pendingCustomerCount = validCustomers.length;
-        });
-      }
-
-    } catch (e) {
-
-      debugPrint('Error loading pending customer count: $e');
-
-      // Set to 0 on error to prevent crashes
-
-      if (mounted) {
-
-        setState(() {
-
-          _pendingCustomerCount = 0;
-
-        });
-
-      }
 
     }
 
@@ -292,8 +218,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Reservations',
 
-    'Customer Approvals',
-
     'Payment Approvals',
 
     'User Management',
@@ -318,8 +242,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.event_available,
 
-    Icons.person_add,
-
     Icons.payment,
 
     Icons.people,
@@ -343,8 +265,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const InventoryForecastPage(),
 
     const AdminReservationsPage(),
-
-    const AdminCustomerApprovalPage(),
 
     const PaymentApprovalPage(),
 
@@ -576,10 +496,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                       onTap: () {
                         setState(() => _selectedIndex = index);
-                        // Refresh count when switching to Customer Approvals
-                        if (_pageTitles[index] == 'Customer Approvals') {
-                          _loadPendingCustomerCount();
-                        }
                         // Refresh count when switching to Payment Approvals
                         if (_pageTitles[index] == 'Payment Approvals') {
                           // Reset count to 0 when admin views payment approvals (mark as seen)
@@ -656,39 +572,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             ),
 
-                            // Add badge for Customer Approvals
-
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.red,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingCustomerCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
 
                             // Add badge for Reservations
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
@@ -1182,10 +1065,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
                       onTap: () {
 
                         setState(() => _selectedIndex = index);
-                        // Refresh count when switching to Customer Approvals
-                        if (_pageTitles[index] == 'Customer Approvals') {
-                          _loadPendingCustomerCount();
-                        }
                         // Refresh count when switching to Payment Approvals
                         if (_pageTitles[index] == 'Payment Approvals') {
                           // Reset count to 0 when admin views payment approvals (mark as seen)
@@ -1265,39 +1144,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                             ),
 
-                            // Add badge for Customer Approvals
-
-                            if (_pageTitles[index] == 'Customer Approvals' && _pendingCustomerCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.red,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingCustomerCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
 
                             // Add badge for Reservations
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)

@@ -96,7 +96,7 @@ class YangChowApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Yang Chow Restaurant Management System',
+      title: 'Yang Chow Restaurant',
 
       debugShowCheckedModeBanner: false,
 

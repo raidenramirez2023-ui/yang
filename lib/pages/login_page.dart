@@ -217,7 +217,7 @@ class _LoginPageState extends State<LoginPage> {
 
           .from('users')
 
-          .select('role, is_approved')
+          .select('role')
 
           .eq('email', email)
 
@@ -322,27 +322,8 @@ class _LoginPageState extends State<LoginPage> {
       } else {
 
         String userRole = userResponse['role']?.toString().toLowerCase() ?? 'staff';
-        bool isApproved = userResponse['is_approved'] ?? true; // Default to true for non-customers
 
         debugPrint('User role found: $userRole');
-        debugPrint('User approval status: $isApproved');
-
-        // Check if customer is approved
-        if (userRole == 'customer' && !isApproved) {
-          debugPrint('Customer account not approved, blocking login');
-          await Supabase.instance.client.auth.signOut(); // Sign them out
-
-          _showSnackBar(
-            "Your account is still pending admin approval. Please wait for the admin to approve your registration.",
-            Colors.orange.shade700,
-            Icons.pending_actions,
-          );
-
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-          return;
-        }
 
         // Check if user is staff - if yes, block and redirect to staff portal
         if (userRole != 'customer') {

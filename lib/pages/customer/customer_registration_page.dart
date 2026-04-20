@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/services/email_verification_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -27,6 +28,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isLoading = false;
   bool _agreeToTerms = false;
   final bool _isRedirecting = false;
+  
+  // Email verification states
+  bool _isEmailVerified = false;
+  bool _isVerifyingEmail = false;
+  bool _showVerificationModal = false;
+  String? _verificationToken;
+  
+  // OTP code input
+  final TextEditingController otpController = TextEditingController();
 
   @override
   void initState() {
@@ -53,6 +63,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    otpController.dispose();
     super.dispose();
   }
 
@@ -164,6 +175,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       return;
     }
 
+    // Check if email is verified
+    if (!_isEmailVerified) {
+      _showSnackBar(
+        "Please verify your email address before registering",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
     String rawFirstName = firstNameController.text.trim();
     String rawLastName = lastNameController.text.trim();
     String phone = phoneController.text.trim();
@@ -244,24 +265,25 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       );
 
       if (authResponse.user != null) {
-        // Insert user into users table with is_approved = false
+        // Insert user into users table with is_approved = true (no admin approval needed)
         await Supabase.instance.client.from('users').insert({
+          'id': authResponse.user!.id, // Store Supabase Auth user ID
           'email': email,
           'firstname': firstName,
           'lastname': lastName,
           'phone': phone,
           'role': 'customer',
-          'is_approved': false, // Requires admin approval
+          'is_approved': true, // Auto-approved after email verification
         });
 
         debugPrint('=== CUSTOMER CREATED VIA AUTH ===');
         debugPrint('User ID: ${authResponse.user!.id}');
         debugPrint('Email: $email');
         debugPrint('Name: $firstName $lastName');
-        debugPrint('STATUS: Pending admin approval');
+        debugPrint('STATUS: Auto-approved');
 
         _showSnackBar(
-          "Registration successful! Your account is now pending admin approval. You will be notified once approved.",
+          "Registration successful! You can now login to your account.",
           Colors.green.shade700,
           Icons.check_circle_outline,
         );
@@ -329,6 +351,209 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
+    );
+  }
+
+  // Verify OTP code
+  Future<void> _verifyOtpCode() async {
+    final otpCode = otpController.text.trim();
+    
+    if (otpCode.length != 6) {
+      _showSnackBar(
+        'Please enter a valid 6-digit code',
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+    
+    setState(() {
+      _isVerifyingEmail = true;
+    });
+    
+    try {
+      final verificationService = EmailVerificationService();
+      final isVerified = await verificationService.verifyEmail(otpCode);
+      
+      if (isVerified) {
+        setState(() {
+          _isEmailVerified = true;
+          _verificationToken = otpCode;
+          _showVerificationModal = false;
+        });
+        
+        // Close the modal
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        
+        _showSnackBar(
+          'Email verified successfully!',
+          Colors.green.shade700,
+          Icons.check_circle_outline,
+        );
+        
+        otpController.clear();
+      } else {
+        _showSnackBar(
+          'Invalid or expired verification code',
+          Colors.red.shade700,
+          Icons.error_outline,
+        );
+      }
+    } catch (e) {
+      _showSnackBar(
+        'Error verifying code: $e',
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+    } finally {
+      setState(() {
+        _isVerifyingEmail = false;
+      });
+    }
+  }
+
+  // Send verification email
+  Future<void> _sendVerificationEmail() async {
+    final email = emailController.text.trim();
+    
+    if (email.isEmpty) {
+      _showSnackBar(
+        'Please enter your email address first',
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+    
+    if (_validateEmail(email) != null) {
+      _showSnackBar(
+        'Please enter a valid email address',
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+      return;
+    }
+    
+    setState(() {
+      _isVerifyingEmail = true;
+    });
+    
+    try {
+      // Call the email verification service
+      final verificationService = EmailVerificationService();
+      final otpCode = await verificationService.sendVerificationEmail(
+        email: email,
+        appName: 'Yang Chow Restaurant',
+      );
+      
+      if (otpCode != null) {
+        _verificationToken = otpCode;
+        _showSnackBar(
+          'Verification code sent! Please check your inbox.',
+          Colors.green.shade700,
+          Icons.check_circle_outline,
+        );
+        // Show OTP input modal
+        _showOtpInputModal();
+      } else {
+        throw Exception('Failed to generate verification code');
+      }
+    } catch (e) {
+      _showSnackBar(
+        'Failed to send verification code: $e',
+        Colors.red.shade700,
+        Icons.error_outline,
+      );
+    } finally {
+      setState(() {
+        _isVerifyingEmail = false;
+      });
+    }
+  }
+
+  // Show OTP input modal
+  void _showOtpInputModal() {
+    otpController.clear();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Enter Verification Code',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Please enter the 6-digit code sent to your email',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 10,
+                ),
+                decoration: InputDecoration(
+                  hintText: '000000',
+                  counterText: '',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _isVerifyingEmail ? null : _verifyOtpCode,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE81E0D),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isVerifyingEmail
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Verify'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -660,17 +885,70 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: emailController,
-          keyboardType: TextInputType.emailAddress,
-          enabled: !_isLoading,
-          validator: _validateEmail,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: 'Enter your email',
-            prefixIcon: const Icon(Icons.email_outlined, size: 22),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                enabled: !_isLoading && !_isEmailVerified,
+                validator: _validateEmail,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  hintText: 'Enter your email',
+                  prefixIcon: const Icon(Icons.email_outlined, size: 22),
+                  suffixIcon: _isEmailVerified
+                      ? const Icon(Icons.verified, color: Colors.green, size: 20)
+                      : null,
+                ),
+              ),
+            ),
+            if (!_isEmailVerified) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isVerifyingEmail || _isLoading
+                      ? null
+                      : _sendVerificationEmail,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE81E0D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: _isVerifyingEmail
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Verify', style: TextStyle(fontSize: 14)),
+                ),
+              ),
+            ],
+          ],
         ),
+        if (_isEmailVerified)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  'Verified Email Address',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 20),
 
         // Password Field
