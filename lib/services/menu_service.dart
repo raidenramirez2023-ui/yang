@@ -414,4 +414,9 @@ class MenuService {
 
     return menu;
   }
+
+  static int getTotalMenuItemsCount() {
+    final menu = getMenu();
+    return menu.values.fold(0, (sum, list) => sum + list.length);
+  }
 }

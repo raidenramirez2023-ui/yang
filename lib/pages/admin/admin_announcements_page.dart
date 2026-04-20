@@ -15,6 +15,8 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
   bool isLoading = true;
   final TextEditingController titleController = TextEditingController();
   final TextEditingController contentController = TextEditingController();
+  final TextEditingController imageUrlController = TextEditingController();
+  final TextEditingController tagController = TextEditingController();
   DateTime? selectedDate;
 
   @override
@@ -58,13 +60,17 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
       await supabase.from('announcements').insert({
         'title': titleController.text,
         'content': contentController.text,
+        'image_url': imageUrlController.text.trim().isEmpty ? null : imageUrlController.text.trim(),
+        'tag': tagController.text.trim().isEmpty ? 'Update' : tagController.text.trim(),
         'is_active': true,
-        'expires_at': selectedDate?.toIso8601String(),
+        'expiration_date': selectedDate?.toIso8601String(),
       });
 
       if (mounted) {
         titleController.clear();
         contentController.clear();
+        imageUrlController.clear();
+        tagController.clear();
         selectedDate = null;
         _loadAnnouncements();
         
@@ -170,6 +176,28 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                     ),
                   ),
                   const SizedBox(height: 15),
+                  TextField(
+                    controller: imageUrlController,
+                    decoration: InputDecoration(
+                      labelText: 'Image URL (Optional)',
+                      hintText: 'https://example.com/image.jpg',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: tagController,
+                    decoration: InputDecoration(
+                      labelText: 'Tag (Optional)',
+                      hintText: 'e.g., Promo, New arrival, Seasonal',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
                   Row(
                     children: [
                       Expanded(
@@ -247,8 +275,8 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
               itemBuilder: (context, index) {
                 final announcement = announcements[index];
                 final isActive = announcement['is_active'] ?? false;
-                final expiresAt = announcement['expires_at'] != null
-                    ? DateTime.parse(announcement['expires_at'] as String)
+                final expiresAt = (announcement['expiration_date'] ?? announcement['expires_at']) != null
+                    ? DateTime.parse((announcement['expiration_date'] ?? announcement['expires_at']) as String)
                     : null;
                 final isExpired =
                     expiresAt != null && expiresAt.isBefore(DateTime.now());
@@ -344,6 +372,8 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
   void dispose() {
     titleController.dispose();
     contentController.dispose();
+    imageUrlController.dispose();
+    tagController.dispose();
     super.dispose();
   }
 }
