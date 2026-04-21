@@ -1525,5 +1525,20 @@ class ReservationService {
 
   }
 
+  /// Get total count of completed reservations
+  Future<int> getCompletedReservationsCount() async {
+    try {
+      final response = await _supabase
+          .from('reservations')
+          .select('id')
+          .eq('status', 'completed')
+          .count(CountOption.exact);
+          
+      return response.count;
+    } catch (e) {
+      debugPrint('Error counting completed reservations: $e');
+      return 0;
+    }
+  }
 }
 
