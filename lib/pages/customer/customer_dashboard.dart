@@ -1344,7 +1344,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -1358,9 +1358,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     width: ResponsiveUtils.isMobile(context) ? 60 : 80,
                     height: ResponsiveUtils.isMobile(context) ? 60 : 80,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
                       image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
                           ? DecorationImage(
                               image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
@@ -1391,7 +1391,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       Text(
                         'Ready for a premium dining experience?',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                         ),
                       ),
@@ -2691,7 +2691,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     required void Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value as String?,
+      initialValue: value as String?,
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppTheme.darkGrey),
       decoration: InputDecoration(
         hintText: hint,
@@ -2984,7 +2984,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         UserAttributes(password: newPasswordController.text.trim()),
                       );
                       
-                      if (mounted) {
+                      if (context.mounted) {
                         Navigator.pop(context); // Close dialog
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -2996,7 +2996,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       }
                     } catch (e) {
                       setDialogState(() => isUpdating = false);
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Error updating password: $e'),

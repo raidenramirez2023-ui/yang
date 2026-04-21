@@ -47,7 +47,7 @@ class _TestEmailTemplateState extends State<TestEmailTemplate> {
       setState(() {
         _testResult += 'Error: ${e.message}\n';
         _testResult += 'Status Code: ${e.statusCode ?? 'No code'}\n\n';
-        if (e.message?.contains('unexpected_failure') == true) {
+        if (e.message.contains('unexpected_failure')) {
           _testResult += 'This is likely an email service issue.\n';
           _testResult += 'Check SendGrid configuration.\n';
         }

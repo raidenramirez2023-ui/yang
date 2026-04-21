@@ -72,7 +72,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
         );
       }
 
-    } on AuthException catch (e) {
+    } on AuthException catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(

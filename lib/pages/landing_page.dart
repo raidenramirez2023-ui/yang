@@ -1983,7 +1983,6 @@ class _LandingPageState extends State<LandingPage>
   Widget _buildContactFooterSection(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
-    final isMobile = ResponsiveUtils.isMobile(context);
 
     return Container(
       key: _contactKey,

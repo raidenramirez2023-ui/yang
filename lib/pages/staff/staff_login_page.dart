@@ -23,11 +23,11 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   // Staff roles that can access this portal
   final List<String> _allowedRoles = [
     'admin',
-    'inventory staff', 
+    'inventory staff',
     'chef',
     'cashier',
     'waitstaff',
-    'staff'
+    'staff',
   ];
 
   @override
@@ -59,8 +59,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     final session = Supabase.instance.client.auth.currentSession;
 
     if (session != null && session.user.email != null) {
-      debugPrint('Staff Login: Initial session found for ${session.user.email}');
-      
+      debugPrint(
+        'Staff Login: Initial session found for ${session.user.email}',
+      );
+
       // Check if user has staff role
       final userResponse = await Supabase.instance.client
           .from('users')
@@ -72,28 +74,36 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         String userRole = userResponse['role']?.toString().toLowerCase() ?? '';
         String firstName = userResponse['firstname']?.toString() ?? '';
         String lastName = userResponse['lastname']?.toString() ?? '';
-        
+
         // Check if role is allowed for staff portal
         if (_allowedRoles.contains(userRole)) {
           // Create display name - use email if name is empty or "Customer"
-          String displayName = firstName.isNotEmpty && firstName != 'Customer' ? firstName : session.user.email!.split('@')[0];
+          String displayName = firstName.isNotEmpty && firstName != 'Customer'
+              ? firstName
+              : session.user.email!.split('@')[0];
           if (firstName.isEmpty && lastName.isEmpty) {
             displayName = session.user.email!.split('@')[0];
-          } else if (firstName.isNotEmpty && lastName.isNotEmpty && firstName != 'Customer') {
+          } else if (firstName.isNotEmpty &&
+              lastName.isNotEmpty &&
+              firstName != 'Customer') {
             displayName = '$firstName $lastName';
           }
-          
+
           debugPrint('Staff role verified: $userRole');
           debugPrint('Staff display name: "$displayName"');
-          
+
           if (mounted) {
-            _showSnackBar("Welcome back, $displayName!", Colors.green.shade700, Icons.check_circle_outline);
+            _showSnackBar(
+              "Welcome back, $displayName!",
+              Colors.green.shade700,
+              Icons.check_circle_outline,
+            );
             _redirectByUserRole(session.user.email!, userRole);
           }
           return;
         }
       }
-      
+
       // User not authorized for staff portal, sign out
       await Supabase.instance.client.auth.signOut();
     }
@@ -109,7 +119,8 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
     if (email.toLowerCase() == 'pagsanjaninv@gmail.com') {
       Navigator.pushReplacementNamed(context, '/pagsanjaninv-dashboard');
-    } else if (email.toLowerCase() == 'chefycp@gmail.com' || email.toLowerCase() == 'chefycp.gmail.com') {
+    } else if (email.toLowerCase() == 'chefycp@gmail.com' ||
+        email.toLowerCase() == 'chefycp.gmail.com') {
       Navigator.pushReplacementNamed(context, '/chef-dashboard');
     } else if (userRole == 'admin') {
       Navigator.pushReplacementNamed(context, '/dashboard');
@@ -217,10 +228,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       debugPrint('Staff lastName: "$lastName"');
 
       // Create display name - use email if name is empty or "Customer"
-      String displayName = firstName.isNotEmpty && firstName != 'Customer' ? firstName : email.split('@')[0];
+      String displayName = firstName.isNotEmpty && firstName != 'Customer'
+          ? firstName
+          : email.split('@')[0];
       if (firstName.isEmpty && lastName.isEmpty) {
         displayName = email.split('@')[0];
-      } else if (firstName.isNotEmpty && lastName.isNotEmpty && firstName != 'Customer') {
+      } else if (firstName.isNotEmpty &&
+          lastName.isNotEmpty &&
+          firstName != 'Customer') {
         displayName = '$firstName $lastName';
       }
 
@@ -235,7 +250,6 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       if (mounted) {
         _redirectByUserRole(email, userRole);
       }
-
     } on AuthException catch (e) {
       String errorMessage;
       switch (e.message.toLowerCase()) {
@@ -287,8 +301,6 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-
     if (_isSessionChecking) {
       return const Scaffold(
         body: Center(
@@ -297,85 +309,144 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             children: [
               CircularProgressIndicator(color: AppTheme.primaryColor),
               SizedBox(height: 16),
-              Text('Checking staff authentication...', style: TextStyle(color: AppTheme.primaryColor)),
+              Text(
+                'Checking staff authentication...',
+                style: TextStyle(color: AppTheme.primaryColor),
+              ),
             ],
           ),
         ),
       );
     }
 
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet = ResponsiveUtils.isTablet(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      body: isDesktop
+          ? _buildDesktopLayout()
+          : (isTablet ? _buildTabletLayout() : _buildMobileLayout()),
     );
   }
 
   Widget _buildDesktopLayout() {
-    return Row(
+    return Stack(
       children: [
-        // Left side - Staff themed background
-        Expanded(
+        Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppTheme.primaryColor,
-                  AppTheme.primaryColor.withValues(alpha: 0.8),
-                  Colors.blue.shade800,
-                ],
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/YangChow.jpg'),
+                fit: BoxFit.cover,
               ),
             ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.admin_panel_settings, size: 120, color: Colors.white.withValues(alpha: 0.9)),
-                  const SizedBox(height: 24),
-                  Text(
-                    'STAFF PORTAL',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Yang Chow Restaurant',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Employee Access Only',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
+            child: Container(
+              color: AppTheme.primaryColor.withValues(alpha: 0.85),
             ),
           ),
         ),
-        // Right side - Light beige background
-        Expanded(
-          child: Container(
-            color: const Color(0xFFF5F0E8),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Padding(
-                  padding: const EdgeInsets.all(48.0),
-                  child: _buildLoginForm(),
+        Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/images/ycplogo.png',
+                      width: 450,
+                      height: 450,
+                      fit: BoxFit.contain,
+                    ),
+                  ],
                 ),
               ),
+            ),
+            Expanded(
+              flex: 5,
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 40,
+                    ),
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 30,
+                          offset: Offset(0, 15),
+                        ),
+                      ],
+                    ),
+                    child: _buildLoginForm(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabletLayout() {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/YangChow.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(
+              color: AppTheme.primaryColor.withValues(alpha: 0.85),
+            ),
+          ),
+        ),
+        Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                Image.asset(
+                  'assets/images/ycplogo.png',
+                  height: 240,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 32),
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 0,
+                  ),
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 30,
+                        offset: Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: _buildLoginForm(),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
           ),
         ),
@@ -384,108 +455,94 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   }
 
   Widget _buildMobileLayout() {
-    return Container(
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/images/bg.png'),
-          fit: BoxFit.cover,
-        ),
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg, vertical: 40),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Staff icon and title
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(32),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppTheme.primaryColor,
-                        AppTheme.primaryColor.withValues(alpha: 0.8),
-                        Colors.blue.shade800,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.admin_panel_settings, size: 80, color: Colors.white),
-                      const SizedBox(height: 16),
-                      Text(
-                        'STAFF PORTAL',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Yang Chow Restaurant',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: _buildMobileLoginForm(),
-                ),
-              ],
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/YangChow.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(
+              color: AppTheme.primaryColor.withValues(alpha: 0.85),
             ),
           ),
         ),
-      ),
+        SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 24),
+                  Image.asset(
+                    'assets/images/ycplogo.png',
+                    height: 200,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 0,
+                    ),
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: _buildLoginForm(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildMobileLoginForm() {
+  Widget _buildLoginForm() {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Staff Login',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF8B0000),
-          ),
+        // Role Indicator
+        Row(
+          children: [
+            Expanded(
+              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'STAFF LOGIN',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter your credentials to manage shifts and orders.',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
 
+        // Email Input
         const Text(
           'STAFF EMAIL',
           style: TextStyle(
@@ -495,17 +552,26 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             letterSpacing: 1,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         TextField(
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
           enabled: !_isLoading,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            hintText: 'Enter your staff email',
+            hintText: 'Enter Staff Email',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            prefixIcon: Icon(
+              Icons.email_outlined,
+              color: Colors.grey.shade500,
+              size: 20,
+            ),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -514,14 +580,15 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.shade300),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF8B0000), width: 2),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
+        // Password Input
         const Text(
           'PASSWORD',
           style: TextStyle(
@@ -531,21 +598,32 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             letterSpacing: 1,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         TextField(
           controller: passwordController,
           obscureText: !_isPasswordVisible,
           enabled: !_isLoading,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            hintText: 'Enter your password',
+            hintText: 'Enter Password',
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            prefixIcon: Icon(
+              Icons.lock_outline,
+              color: Colors.grey.shade500,
+              size: 20,
+            ),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             suffixIcon: IconButton(
               icon: Icon(
-                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                color: Colors.grey.shade600,
+                _isPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: Colors.grey.shade500,
                 size: 20,
               ),
               onPressed: () {
@@ -562,213 +640,9 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.shade300),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF8B0000), width: 2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Remember Me and Forgot Password Row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Remember Me Checkbox
-            Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: Checkbox(
-                    value: _rememberMe,
-                    onChanged: _isLoading
-                        ? null
-                        : (bool? value) {
-                            setState(() {
-                              _rememberMe = value ?? false;
-                            });
-                          },
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    activeColor: AppTheme.primaryColor,
-                    checkColor: Colors.white,
-                    side: BorderSide(color: AppTheme.primaryColor),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Remember me',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            // Forgot Password Link
-            TextButton(
-              onPressed: _isLoading ? null : () {
-                Navigator.pushNamed(context, '/forgot-password');
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Forgot Password?',
-                style: TextStyle(
-                  color: AppTheme.primaryColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Login Button
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : handleStaffLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B0000),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: _isLoading
-              ? const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text(
-                  'STAFF LOGIN',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoginForm() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Staff Login',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF8B0000),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter your credentials to manage shifts and orders.',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
-        ),
-        const SizedBox(height: 32),
-
-        const Text(
-          'STAFF EMAIL',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: emailController,
-          keyboardType: TextInputType.emailAddress,
-          enabled: !_isLoading,
-          decoration: InputDecoration(
-            hintText: 'Enter your staff email',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF8B0000), width: 2),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        const Text(
-          'PASSWORD',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: passwordController,
-          obscureText: !_isPasswordVisible,
-          enabled: !_isLoading,
-          decoration: InputDecoration(
-            hintText: 'Enter your password',
-            hintStyle: TextStyle(color: Colors.grey.shade400),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                color: Colors.grey.shade600,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isPasswordVisible = !_isPasswordVisible;
-                });
-              },
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF8B0000), width: 2),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
             ),
           ),
         ),
@@ -781,19 +655,43 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             // Remember Me Checkbox
             Row(
               children: [
-                Checkbox(
-                  value: _rememberMe,
-                  onChanged: _isLoading ? null : (value) => setState(() => _rememberMe = value ?? false),
-                  activeColor: AppTheme.primaryColor,
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _rememberMe,
+                    onChanged: _isLoading
+                        ? null
+                        : (bool? value) {
+                            setState(() {
+                              _rememberMe = value ?? false;
+                            });
+                          },
+                    activeColor: AppTheme.primaryColor,
+                    side: BorderSide(color: Colors.grey.shade400),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 ),
-                const Text('Remember me'),
+                const SizedBox(width: 8),
+                Text(
+                  'Remember me',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
             // Forgot Password Link
             TextButton(
-              onPressed: _isLoading ? null : () {
-                Navigator.pushNamed(context, '/forgot-password');
-              },
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      Navigator.pushNamed(context, '/forgot-password');
+                    },
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
@@ -803,44 +701,44 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 'Forgot Password?',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 32),
 
         // Login Button
         SizedBox(
-          width: double.infinity,
-          height: 50,
+          height: 52,
           child: ElevatedButton(
             onPressed: _isLoading ? null : handleStaffLogin,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B0000),
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              elevation: 0,
+              elevation: 4,
+              shadowColor: AppTheme.primaryColor.withValues(alpha: 0.35),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             child: _isLoading
                 ? const SizedBox(
-                    height: 20,
-                    width: 20,
+                    height: 24,
+                    width: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
                 : const Text(
-                    'STAFF LOGIN',
+                    'SIGN IN',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                      letterSpacing: 1.0,
                     ),
                   ),
           ),

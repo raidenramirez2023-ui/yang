@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:yang_chow/utils/app_constants.dart';
 
 /// Unified Email Service for Customer Registration and Password Reset
 /// Uses SendGrid SMTP for actual email sending
@@ -97,7 +96,7 @@ class UnifiedEmailService {
         'status': 'sent',
       });
 
-      final response = await _supabase.functions.invoke('send-email', body: {
+      await _supabase.functions.invoke('send-email', body: {
         'to': customerEmail,
         'subject': 'Account Approved - Yang Chow Restaurant',
         'htmlBody': _buildAccountApprovedBody(customerName: customerName),

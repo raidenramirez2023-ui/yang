@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'lib/services/add_menu_ingredients_to_inventory.dart';
+import 'package:yang_chow/services/add_menu_ingredients_to_inventory.dart';
 
 void main() async {
   // Initialize Supabase
