@@ -937,7 +937,7 @@ class _LandingPageState extends State<LandingPage>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Image.asset(
-                'assets/images/YC1.png',
+                'assets/images/YangChow.jpg',
                 fit: BoxFit.cover,
                 height: 360,
               ),
@@ -951,7 +951,7 @@ class _LandingPageState extends State<LandingPage>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/images/YC3.jpg',
+                      'assets/images/Yang.jpg',
                       fit: BoxFit.cover,
                       width: double.infinity,
                     ),
@@ -962,7 +962,7 @@ class _LandingPageState extends State<LandingPage>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/images/YC4.jpg',
+                      'assets/images/Chow.jpg',
                       fit: BoxFit.cover,
                       width: double.infinity,
                     ),
@@ -1001,7 +1001,7 @@ class _LandingPageState extends State<LandingPage>
         _buildAboutFeature(
           Icons.people_rounded,
           'Family-Friendly Atmosphere',
-          'We\'re more than a restaurant -- we\'re a place where families gather, memories are made, and traditions live on.',
+          'We\'re more than a restaurant we\'re a place where families gather, memories are made, and traditions live on.',
         ),
       ],
     );
@@ -1525,28 +1525,23 @@ class _LandingPageState extends State<LandingPage>
       ),
       _buildServiceCard(
         Icons.celebration_rounded,
-        'Private Events & Catering',
+        'Private Events',
         'Planning a birthday, reunion, or corporate event? We offer tailored catering packages and exclusive private dining spaces.',
       ),
       _buildServiceCard(
-        Icons.delivery_dining_rounded,
-        'Takeout & Delivery',
-        'Prefer dining at home? Order your favorites online or by phone, freshly prepared and delivered straight to your doorstep.',
+        Icons.shopping_bag_rounded,
+        'Takeout or Pickup',
+        'Prefer dining at home? Order your favorites physically to takehome or advance order by online to freshly prepared and ready for pickup.',
       ),
       _buildServiceCard(
         Icons.calendar_month_rounded,
         'Reservation System',
-        'Skip the wait — reserve a table in advance through our quick and easy online booking system. Available 7 days a week.',
-      ),
-      _buildServiceCard(
-        Icons.local_offer_rounded,
-        'Loyalty & Promos',
-        'Sign up for our loyalty program and unlock exclusive discounts, birthday perks, and early access to seasonal promotions.',
+        'Skip the wait reserve a table in advance through our quick and easy online booking system. Available 7 days a week.',
       ),
       _buildServiceCard(
         Icons.groups_rounded,
         'Group Packages',
-        'Feeding a crowd? Our group set menus are designed for maximum variety and value — perfect for families, teams, and celebrations.',
+        'Feeding a crowd? Our group set menus are designed for maximum variety and value perfect for families, teams, and celebrations.',
       ),
     ];
 
@@ -2139,19 +2134,19 @@ class _LandingPageState extends State<LandingPage>
         _buildContactItem(
           Icons.location_on_rounded,
           'Our Location',
-          '123 Yang Chow Avenue, Chinatown\nManila, Philippines 1001',
+          'CLA Town Center Mall\nPagsanjan, Laguna, Philippines 4008',
         ),
         const SizedBox(height: 32),
         _buildContactItem(
           Icons.schedule_rounded,
           'Opening Hours',
-          'Monday – Friday: 10:00 AM – 10:00 PM\nSaturday – Sunday: 9:00 AM – 11:00 PM',
+          'Monday – Sunday: 10:00 AM – 08:00 PM',
         ),
         const SizedBox(height: 32),
         _buildContactItem(
           Icons.phone_rounded,
           'Call Us',
-          '+63 2 8888 1234\n+63 917 555 0088',
+          'TEL# 501-9179\nCP# +63975-041-9671',
         ),
         const SizedBox(height: 32),
         _buildContactItem(

@@ -51,15 +51,242 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     super.dispose();
   }
 
-  void _showReplenishDialog() {
+  void _showBulkReplenishDialog() {
+    final receiverCtrl = TextEditingController();
+    List<Map<String, dynamic>> bulkItems = [];
+    List<Map<String, dynamic>> allItems = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              constraints: BoxConstraints(
+                maxWidth: ResponsiveUtils.isMobile(context)
+                    ? double.infinity
+                    : 700,
+                maxHeight: ResponsiveUtils.isMobile(context)
+                    ? MediaQuery.of(context).size.height * 0.9
+                    : 800,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.successGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.playlist_add,
+                          color: AppTheme.successGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Bulk Incoming Stock Delivery',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppTheme.mediumGrey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Receiver field (common for all items)
+                  _buildInput(
+                    receiverCtrl,
+                    'Receiver (for all items)',
+                    Icons.person_outline,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Add item button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      _showAddBulkItemDialog(
+                        allItems,
+                        (item) {
+                          setDialogState(() {
+                            bulkItems.add(item);
+                          });
+                        },
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Item'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: AppTheme.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Bulk items list
+                  Expanded(
+                    child: bulkItems.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 64,
+                                  color: AppTheme.mediumGrey,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No items added yet',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppTheme.mediumGrey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Click "Add Item" to start',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppTheme.mediumGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: bulkItems.length,
+                            itemBuilder: (context, index) {
+                              final item = bulkItems[index];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppTheme.lightGrey,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['name'] ?? 'Unknown',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.darkGrey,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${item['category']} • ${item['quantity']} ${item['unit']}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppTheme.mediumGrey,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Supplier: ${item['supplier']}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppTheme.mediumGrey,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          bulkItems.removeAt(index);
+                                        });
+                                      },
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: AppTheme.errorRed,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: bulkItems.isEmpty ||
+                                receiverCtrl.text.trim().isEmpty
+                            ? null
+                            : () async {
+                                await _processBulkIncomingStock(
+                                  bulkItems,
+                                  receiverCtrl.text.trim(),
+                                );
+                                if (context.mounted) Navigator.pop(context);
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.successGreen,
+                          foregroundColor: AppTheme.white,
+                        ),
+                        child: Text('Process ${bulkItems.length} Items'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddBulkItemDialog(
+    List<Map<String, dynamic>> allItems,
+    Function(Map<String, dynamic>) onItemAdded,
+  ) {
     String selectedCategory = categories[1];
     String? selectedItemName;
     String? selectedUnit;
     String? selectedSupplier;
     final qtyCtrl = TextEditingController();
-    final receiverCtrl = TextEditingController();
-
-    List<Map<String, dynamic>> allItems = [];
     List<String> filteredItemNames = [];
 
     showDialog(
@@ -78,7 +305,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     : 500,
                 maxHeight: ResponsiveUtils.isMobile(context)
                     ? MediaQuery.of(context).size.height * 0.85
-                    : 700,
+                    : 600,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -90,20 +317,20 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.successGreen.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
-                          Icons.inventory_2,
-                          color: AppTheme.successGreen,
+                          Icons.add_circle_outline,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Incoming Stock Delivery',
+                          'Add Item to Bulk Delivery',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.darkGrey,
                           ),
@@ -125,7 +352,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── 1. Category Dropdown ──
+                          // Category Dropdown
                           DropdownButtonFormField<String>(
                             initialValue: selectedCategory,
                             decoration: _buildDecoration(
@@ -166,7 +393,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── 2. Item Name Dropdown (filtered by category) ──
+                          // Item Name Dropdown
                           StreamBuilder<List<Map<String, dynamic>>>(
                             stream: Supabase.instance.client
                                 .from('inventory')
@@ -259,7 +486,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── 3. Quantity ──
+                          // Quantity
                           Row(
                             children: [
                               Expanded(
@@ -294,8 +521,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 ),
                               ),
                               const SizedBox(width: 12),
-
-                              // ── 4. Unit — auto-filled from DB, read-only ──
                               Expanded(
                                 child: InputDecorator(
                                   decoration: _buildDecoration(
@@ -320,7 +545,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           ),
                           const SizedBox(height: 16),
 
-                          // ── 5. Supplier — auto-filled from DB, read-only ──
+                          // Supplier
                           InputDecorator(
                             decoration: _buildDecoration(
                               'Supplier',
@@ -339,70 +564,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-
-                          // ── 6. Receiver ──
-                          _buildInput(
-                            receiverCtrl,
-                            'Receiver',
-                            Icons.person_outline,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // ── 7. Date and Time (Real-Time) ──
-                          StreamBuilder(
-                            stream: Stream.periodic(const Duration(seconds: 1)),
-                            builder: (context, snapshot) {
-                              final now = DateTime.now();
-                              return InputDecorator(
-                                decoration: _buildDecoration(
-                                  'Date and Time',
-                                  Icons.access_time,
-                                ),
-                                child: Text(
-                                  _formatExactDate(now.toIso8601String()),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: AppTheme.darkGrey,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Info banner
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.infoBlue.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppTheme.infoBlue.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: AppTheme.infoBlue,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Stock will be added to existing inventory or create new item if not exists',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.infoBlue,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -418,13 +579,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () async {
+                        onPressed: () {
                           final qty = int.tryParse(qtyCtrl.text);
                           if (selectedItemName == null ||
                               selectedItemName!.isEmpty ||
                               selectedUnit == null ||
                               selectedSupplier == null ||
-                              receiverCtrl.text.trim().isEmpty ||
                               qty == null ||
                               qty <= 0) {
                             _showErrorSnackBar(
@@ -433,22 +593,21 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             return;
                           }
 
-                          await _processIncomingStock(
-                            selectedItemName!,
-                            selectedCategory,
-                            qty,
-                            selectedUnit!,
-                            selectedSupplier!,
-                            receiverCtrl.text.trim(),
-                          );
+                          onItemAdded({
+                            'name': selectedItemName,
+                            'category': selectedCategory,
+                            'quantity': qty,
+                            'unit': selectedUnit,
+                            'supplier': selectedSupplier,
+                          });
 
-                          if (context.mounted) Navigator.pop(context);
+                          Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.successGreen,
+                          backgroundColor: AppTheme.primaryColor,
                           foregroundColor: AppTheme.white,
                         ),
-                        child: const Text('Add Stock'),
+                        child: const Text('Add to List'),
                       ),
                     ],
                   ),
@@ -542,6 +701,42 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       _showSuccessSnackBar('Stock added successfully!');
     } catch (e) {
       _showErrorSnackBar('Failed to add stock: $e');
+    }
+  }
+
+  Future<void> _processBulkIncomingStock(
+    List<Map<String, dynamic>> bulkItems,
+    String receiver,
+  ) async {
+    int successCount = 0;
+    int failureCount = 0;
+    List<String> failedItems = [];
+
+    for (var item in bulkItems) {
+      try {
+        await _processIncomingStock(
+          item['name'] as String,
+          item['category'] as String,
+          item['quantity'] as int,
+          item['unit'] as String,
+          item['supplier'] as String,
+          receiver,
+        );
+        successCount++;
+      } catch (e) {
+        failureCount++;
+        failedItems.add(item['name'] as String);
+      }
+    }
+
+    if (failureCount > 0) {
+      _showErrorSnackBar(
+        'Processed $successCount items successfully. Failed to process $failureCount items: ${failedItems.join(", ")}',
+      );
+    } else {
+      _showSuccessSnackBar(
+        'Successfully processed all $successCount items!',
+      );
     }
   }
 
@@ -958,8 +1153,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 ),
               ),
               ElevatedButton.icon(
-                onPressed: _showReplenishDialog,
-                icon: const Icon(Icons.add),
+                onPressed: _showBulkReplenishDialog,
+                icon: const Icon(Icons.playlist_add),
                 label: const Text('New Delivery'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.white,
