@@ -21,8 +21,6 @@ import 'pages/forgot_password_page.dart';
 
 import 'pages/simple_password_reset.dart';
 
-import 'utils/deep_link_service.dart';
-
 import 'pages/test_email_template.dart';
 
 import 'pages/template_fix_complete.dart';

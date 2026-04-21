@@ -89,7 +89,7 @@ class EmailVerificationService {
         return false;
       }
 
-      final verification = response as Map<String, dynamic>;
+      final verification = response;
       final isUsed = verification['is_used'] as bool? ?? false;
       final expiresAt = DateTime.parse(verification['expires_at'] as String);
       final now = DateTime.now().toUtc();
@@ -141,7 +141,7 @@ class EmailVerificationService {
       }
 
       // Check if the verification is still valid (not expired)
-      final verification = response.first as Map<String, dynamic>;
+      final verification = response.first;
       final expiresAt = DateTime.parse(verification['expires_at'] as String);
       final now = DateTime.now().toUtc();
 

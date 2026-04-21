@@ -128,7 +128,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               margin: ResponsiveUtils.getResponsiveMargin(context),
               padding: const EdgeInsets.all(20),
               decoration: AppTheme.cardDecoration().copyWith(
-                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1), width: 1),
+                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1), width: 1),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +244,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 15,
                     offset: const Offset(0, -5),
                   ),

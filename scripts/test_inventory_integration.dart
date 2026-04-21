@@ -1,4 +1,4 @@
-import 'lib/services/recipe_service.dart';
+import 'package:yang_chow/services/recipe_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

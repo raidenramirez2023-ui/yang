@@ -68,7 +68,7 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
         try {
           final session = Supabase.instance.client.auth.currentSession;
           if (session != null) {
-            debugPrint('Recovery session found: ${session.user?.email}');
+            debugPrint('Recovery session found: ${session.user.email}');
             
             // Update password using the recovery session
             await Supabase.instance.client.auth.updateUser(
@@ -136,7 +136,7 @@ class _SimplePasswordResetPageState extends State<SimplePasswordResetPage> {
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null) {
-        debugPrint('User authenticated from email link: ${session.user?.email}');
+        debugPrint('User authenticated from email link: ${session.user.email}');
         // User is authenticated from email link, ready to reset password
       }
     } catch (e) {

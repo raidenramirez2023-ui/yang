@@ -131,8 +131,7 @@ class _PayMongoTestPageState extends State<PayMongoTestPage> {
       final methods = await PayMongoService.getAvailablePaymentMethods();
       setState(() {
         final data = methods['data'] as List? ?? [];
-        _result = 'Available Payment Methods:\n' +
-            data.map((m) => '- ${m['attributes']['name'] ?? 'Unknown'}').join('\n');
+        _result = 'Available Payment Methods:\n${data.map((m) => '- ${m['attributes']['name'] ?? 'Unknown'}').join('\n')}';
       });
     } catch (e) {
       setState(() {

@@ -52,7 +52,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
   bool _isLoading = false;
 
-  bool _useCustomPrice = true;
+  final bool _useCustomPrice = true;
 
   double _suggestedPrice = 0.0;
 
