@@ -450,20 +450,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           const SizedBox(height: 8),
 
-          ListTile(
-            onTap: () => _showLogoutDialog(context),
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text(
-              'Logout',
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
           Expanded(
 
             child: ListView.builder(
@@ -624,7 +610,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
               },
 
             ),
+          ),
 
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+          ListTile(
+            onTap: () => _showLogoutDialog(context),
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text(
+              'Logout',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -682,12 +681,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
           _buildAdminNotificationIcon(),
 
           const SizedBox(width: 8),
-
-          IconButton(
-            icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
-            tooltip: 'Logout',
-            onPressed: () => _showLogoutDialog(context),
-          ),
 
           const SizedBox(width: 16),
 
@@ -1019,19 +1012,6 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           ),
 
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text(
-              'Logout',
-              style: TextStyle(color: Colors.redAccent),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              _showLogoutDialog(context);
-            },
-          ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
           Expanded(
 
             child: ListView.builder(
@@ -1197,6 +1177,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
             ),
 
+          ),
+
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              _showLogoutDialog(context);
+            },
           ),
 
           const SizedBox(height: 16),
