@@ -335,7 +335,7 @@ class _LoginPageState extends State<LoginPage> {
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: kIsWeb
-              ? Uri.base.origin
+              ? '${Uri.base.origin}/#/login'
               : 'io.supabase.flutter://login-callback/',
           queryParams: {'prompt': 'select_account'},
         );
