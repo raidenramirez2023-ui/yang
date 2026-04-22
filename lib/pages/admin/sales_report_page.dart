@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io' show File;
 import 'dart:convert';
 import 'dart:async';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -666,87 +667,49 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   Widget _summaryCard(String title, String value, IconData icon, Color color,
       String growth, double width) {
-    return Container(
+    return _AnimatedSummaryCard(
+      title: title,
+      value: value,
+      icon: icon,
+      color: color,
+      growth: growth,
       width: width,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(50),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  growth,
-                  style: const TextStyle(
-                    color: Color(0xFF16A34A),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: const Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
-              letterSpacing: -1,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   /// ================= CHART CARD =================
   Widget _chartCard(List<double> chartValues) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutCubic,
+      builder: (context, animationValue, child) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 600),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: const Color(0xFFF1F5F9).withValues(alpha: animationValue),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.05 * animationValue),
+                blurRadius: 20 * animationValue,
+                offset: Offset(0, 10 * animationValue),
+              ),
+            ],
           ),
-        ],
-      ),
+          transform: Matrix4.identity()
+            ..translateByVector3(Vector3(0.0, (1.0 - animationValue) * 20.0, 0.0)),
+          child: Opacity(
+            opacity: animationValue,
+            child: child,
+          ),
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1452,5 +1415,357 @@ class _SalesReportPageState extends State<SalesReportPage>
         ],
       ),
     );
+  }
+}
+
+// ── Animated Summary Card Widget ───────────────────────────────────────────────
+class _AnimatedSummaryCard extends StatefulWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String growth;
+  final double width;
+
+  const _AnimatedSummaryCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.growth,
+    required this.width,
+  });
+
+  @override
+  _AnimatedSummaryCardState createState() => _AnimatedSummaryCardState();
+}
+
+class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: widget.width,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.color.withValues(alpha: _isHovered ? 0.3 : 0.1),
+            width: _isHovered ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: _isHovered ? 0.1 : 0.02),
+              blurRadius: _isHovered ? 20 : 8,
+              offset: Offset(0, _isHovered ? 8 : 4),
+            ),
+            if (_isHovered)
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.15),
+                blurRadius: 30,
+                offset: const Offset(0, 0),
+              ),
+          ],
+        ),
+        margin: EdgeInsets.only(
+          top: _isHovered ? 4.0 : 0.0,
+          bottom: _isHovered ? 0.0 : 4.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: widget.color.withValues(alpha: _isHovered ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: _isHovered ? [
+                      BoxShadow(
+                        color: widget.color.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
+                  ),
+                  child: Icon(
+                    widget.icon, 
+                    color: widget.color, 
+                    size: _isHovered ? 22 : 20,
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: widget.growth.contains('+') 
+                        ? const Color(0xFFF0FDF4)
+                        : const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: _isHovered ? [
+                      BoxShadow(
+                        color: widget.growth.contains('+') 
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.2)
+                            : const Color(0xFFDC2626).withValues(alpha: 0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ] : null,
+                  ),
+                  child: Text(
+                    widget.growth,
+                    style: TextStyle(
+                      color: widget.growth.contains('+') 
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFDC2626),
+                      fontSize: _isHovered ? 11 : 10,
+                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                color: const Color(0xFF64748B),
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+              child: Text(widget.title.toUpperCase()),
+            ),
+            const SizedBox(height: 6),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: _isHovered ? 22 : 20,
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF0F172A),
+                letterSpacing: _isHovered ? -1.2 : -1,
+              ),
+              child: Text(widget.value),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Animated Chart Widget ───────────────────────────────────────────────────
+class _AnimatedChart extends StatefulWidget {
+  final List<double> chartValues;
+
+  const _AnimatedChart({required this.chartValues});
+
+  @override
+  _AnimatedChartState createState() => _AnimatedChartState();
+}
+
+class _AnimatedChartState extends State<_AnimatedChart> 
+    with TickerProviderStateMixin {
+  late AnimationController _chartController;
+  late Animation<double> _chartAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _chartController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _chartAnimation = CurvedAnimation(
+      parent: _chartController,
+      curve: Curves.easeOutCubic,
+    );
+    
+    // Start chart animation after a delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _chartController.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _chartController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _chartAnimation,
+      builder: (context, child) {
+        return SizedBox(
+          height: 350,
+          child: LineChart(
+            LineChartData(
+              maxY: (widget.chartValues.isEmpty ? 1000.0 : widget.chartValues.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000.0, 10000000.0).toDouble(),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) => const Color(0xFF1E293B),
+                  tooltipPadding: const EdgeInsets.all(12),
+                  getTooltipItems: (spots) {
+                    return spots.map((spot) {
+                      final labels = _getChartLabels();
+                      final dayIndex = spot.x.toInt();
+                      final dayLabel = dayIndex < labels.length 
+                          ? labels[dayIndex] 
+                          : 'Day ${dayIndex + 1}';
+                      
+                      return LineTooltipItem(
+                        NumberFormat.currency(symbol: '₱', decimalDigits: 2).format(spot.y),
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: '\n$dayLabel',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList();
+                  },
+                ),
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      final labels = _getChartLabels();
+                      final dayIndex = value.toInt();
+                      
+                      if (dayIndex >= widget.chartValues.length || dayIndex < 0) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      if (dayIndex < labels.length) {
+                        return SideTitleWidget(
+                          meta: meta,
+                          child: Text(
+                            labels[dayIndex],
+                            style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }
+                      return const SizedBox();
+                    },
+                    reservedSize: 30,
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      return SideTitleWidget(
+                        meta: meta,
+                        child: Text(
+                          _formatCurrency(value),
+                          style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      );
+                    },
+                    reservedSize: 45,
+                  ),
+                ),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: true,
+                horizontalInterval: 1000,
+                verticalInterval: 1,
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                  strokeWidth: 1,
+                  dashArray: [3, 3],
+                ),
+                getDrawingVerticalLine: (value) => FlLine(
+                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.3),
+                  strokeWidth: 1,
+                  dashArray: [2, 4],
+                ),
+              ),
+              borderData: FlBorderData(
+                show: true,
+                border: Border.all(
+                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                  width: 1,
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: List.generate(
+                    widget.chartValues.length,
+                    (i) => FlSpot(i.toDouble(), widget.chartValues[i] * _chartAnimation.value),
+                  ),
+                  isCurved: true,
+                  color: Colors.red,
+                  barWidth: 5,
+                  isStrokeCapRound: true,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, barData, index) {
+                      return FlDotCirclePainter(
+                        radius: 6,
+                        color: Colors.red,
+                        strokeWidth: 3,
+                        strokeColor: Colors.white,
+                      );
+                    },
+                  ),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: Colors.red.withValues(alpha: 0.3 * _chartAnimation.value),
+                  ),
+                ),
+              ],
+              minY: 0,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<String> _getChartLabels() {
+    // This would need to be passed from the parent or made accessible
+    return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+  }
+
+  String _formatCurrency(double value) {
+    if (value >= 1000000) {
+      return '₱${(value / 1000000).toStringAsFixed(1)}m';
+    } else if (value >= 1000) {
+      return '₱${(value / 1000).toStringAsFixed(0)}k';
+    } else {
+      return '₱${value.toStringAsFixed(0)}';
+    }
   }
 }

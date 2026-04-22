@@ -3741,163 +3741,246 @@ class _ActivityItem {
 
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
-class _KpiCard extends StatelessWidget {
+class _KpiCard extends StatefulWidget {
   final _KpiData data;
 
   const _KpiCard({required this.data});
+  
+  @override
+  State<_KpiCard> createState() => _KpiCardState();
+}
+
+class _KpiCardState extends State<_KpiCard> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    if (data.isHighlight) return _buildHighlightCard();
+    if (widget.data.isHighlight) return _buildHighlightCard();
 
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: data.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(data.icon, color: data.color, size: 22),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.all(AppTheme.xl),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: _isHovered ? 0.08 : 0.02),
+              blurRadius: _isHovered ? 20 : 10,
+              offset: Offset(0, _isHovered ? 8 : 4),
+            ),
+            if (_isHovered)
+              BoxShadow(
+                color: widget.data.color.withValues(alpha: 0.1),
+                blurRadius: 30,
+                offset: const Offset(0, 0),
               ),
-              if (data.subPositive != null || !data.showProgress)
-                Text(
-                  data.sub,
-                  style: TextStyle(
-                    color: data.sub == 'High'
-                        ? AppTheme.errorRed
-                        : (data.subPositive == true
-                              ? AppTheme.successGreen
-                              : AppTheme.mediumGrey),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+          ],
+          border: Border.all(
+            color: widget.data.color.withValues(alpha: _isHovered ? 0.3 : 0.0),
+            width: 1,
+          ),
+        ),
+        margin: EdgeInsets.only(
+          top: _isHovered ? 2.0 : 0.0,
+          bottom: _isHovered ? 0.0 : 2.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: widget.data.color.withValues(alpha: _isHovered ? 0.2 : 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: _isHovered ? [
+                      BoxShadow(
+                        color: widget.data.color.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
+                  ),
+                  child: Icon(
+                    widget.data.icon, 
+                    color: widget.data.color, 
+                    size: 22,
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.xl),
-          Text(
-            data.label,
-            style: const TextStyle(
-              color: AppTheme.mediumGrey,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+                if (widget.data.subPositive != null || !widget.data.showProgress)
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      color: widget.data.sub == 'High'
+                          ? AppTheme.errorRed
+                          : (widget.data.subPositive == true
+                                ? AppTheme.successGreen
+                                : AppTheme.mediumGrey),
+                      fontSize: _isHovered ? 13 : 12,
+                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                    ),
+                    child: Text(widget.data.sub),
+                  ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            data.value,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.darkGrey,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: AppTheme.md),
-          if (data.showProgress)
-            _buildProgressBar()
-          else if (data.extra != null)
-            Text(
-              data.extra!,
+            const SizedBox(height: AppTheme.xl),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
               style: const TextStyle(
                 color: AppTheme.mediumGrey,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
+              child: Text(widget.data.label),
             ),
-        ],
+            const SizedBox(height: 4),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: _isHovered ? 34 : 32,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+                letterSpacing: _isHovered ? -1.2 : -1,
+              ),
+              child: Text(widget.data.value),
+            ),
+            const SizedBox(height: AppTheme.md),
+            if (widget.data.showProgress)
+              _buildProgressBar()
+            else if (widget.data.extra != null)
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  color: AppTheme.mediumGrey,
+                  fontSize: _isHovered ? 11 : 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                child: Text(widget.data.extra!),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHighlightCard() {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                data.label,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.all(AppTheme.xl),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: _isHovered ? 0.5 : 0.3),
+              blurRadius: _isHovered ? 25 : 15,
+              offset: Offset(0, _isHovered ? 10 : 6),
+            ),
+            if (_isHovered)
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.2),
+                blurRadius: 40,
+                offset: const Offset(0, 0),
               ),
-              const SizedBox(height: 8),
-              Text(
-                data.value,
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.trending_up,
-                    color: Colors.white70,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    data.sub,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+          ],
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: _isHovered ? [
+              AppTheme.primaryColor,
+              AppTheme.primaryDark,
+              Colors.white.withValues(alpha: 0.1),
+            ] : [
+              AppTheme.primaryColor,
+              AppTheme.primaryDark,
             ],
           ),
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Icon(
-              Icons.restaurant,
-              color: Colors.white.withValues(alpha: 0.2),
-              size: 48,
+        ),
+        margin: EdgeInsets.only(
+          top: _isHovered ? 3.0 : 0.0,
+          bottom: _isHovered ? 0.0 : 3.0,
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                    fontSize: _isHovered ? 12 : 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  child: Text(widget.data.label),
+                ),
+                const SizedBox(height: 8),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    fontSize: _isHovered ? 38 : 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: _isHovered ? -1.2 : -1,
+                  ),
+                  child: Text(widget.data.value),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Icons.trending_up,
+                        color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                        size: _isHovered ? 16 : 14,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                        fontSize: _isHovered ? 13 : 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      child: Text(widget.data.sub),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-        ],
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              right: _isHovered ? -5 : 0,
+              top: _isHovered ? -5 : 0,
+              child: Icon(
+                Icons.restaurant,
+                color: Colors.white.withValues(alpha: _isHovered ? 0.3 : 0.2),
+                size: _isHovered ? 52 : 48,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3905,20 +3988,36 @@ class _KpiCard extends StatelessWidget {
   Widget _buildProgressBar() {
     return Column(
       children: [
-        Container(
-          height: 4,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: _isHovered ? 6 : 4,
           width: double.infinity,
           decoration: BoxDecoration(
             color: AppTheme.lightGrey,
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
+            boxShadow: _isHovered ? [
+              BoxShadow(
+                color: widget.data.color.withValues(alpha: 0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ] : null,
           ),
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
-            widthFactor: 0.65,
-            child: Container(
+            widthFactor: _isHovered ? 0.75 : 0.65,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: data.color,
-                borderRadius: BorderRadius.circular(2),
+                color: widget.data.color,
+                borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
+                boxShadow: _isHovered ? [
+                  BoxShadow(
+                    color: widget.data.color.withValues(alpha: 0.4),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ] : null,
               ),
             ),
           ),

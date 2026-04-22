@@ -21,6 +21,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   
   // Services
   final ReservationService _reservationService = ReservationService();
+  
+  // Controllers
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -97,6 +100,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         _showSnackBar('Sync failed. Please ensure you have the "exec_sql" RPC function defined in Supabase.', Colors.orange);
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _updateExpiredReservations(List<Map<String, dynamic>> reservations) async {
@@ -370,13 +379,20 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Padding(
-      padding: ResponsiveUtils.getResponsivePadding(context),
+      padding: isDesktop 
+          ? EdgeInsets.zero 
+          : ResponsiveUtils.getResponsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with refresh button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Header Row with internal padding on desktop
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 20 : 0,
+              vertical: isDesktop ? 16 : 0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
@@ -395,7 +411,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               const Spacer(),
             ],
           ),
-          ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+          ),
+          if (!isDesktop) ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
           Expanded(
             child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
           ),
@@ -405,132 +422,167 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildDesktopLayout() {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildKpiSummary(),
-        ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
-        _buildFilterSegmentControl(),
-        ResponsiveUtils.verticalSpace(context, mobile: 20, tablet: 24, desktop: 28),
-        Expanded(child: _buildReservationsTable()),
+        // Vertical Navigation Sidebar (Edge-to-edge)
+        _buildVerticalFilterNav(),
+        // Main Content Area
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Column(
+              children: [
+                Expanded(child: _buildReservationsTable()),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildVerticalFilterNav() {
+    final filters = [
+      {'value': 'all',       'label': 'All Events',  'icon': Icons.event_note_rounded},
+      {'value': 'pending',   'label': 'Pending',     'icon': Icons.pending_actions_rounded},
+      {'value': 'confirmed', 'label': 'Confirmed',   'icon': Icons.check_circle_outline_rounded},
+      {'value': 'completed', 'label': 'Completed',   'icon': Icons.done_all_rounded},
+      {'value': 'cancelled', 'label': 'Cancelled',   'icon': Icons.cancel_outlined},
+      {'value': 'archived',  'label': 'Archived',    'icon': Icons.archive_outlined},
+    ];
+
+    final unarchived = reservations.where((r) => r['is_archived'] != true);
+    final counts = {
+      'all':       unarchived.length,
+      'pending':   unarchived.where((r) => r['status'] == 'pending').length,
+      'confirmed': unarchived.where((r) => r['status'] == 'confirmed').length,
+      'completed': unarchived.where((r) => r['status'] == 'completed').length,
+      'cancelled': unarchived.where((r) => r['status'] == 'cancelled').length,
+      'archived':  reservations.where((r) => r['is_archived'] == true).length,
+    };
+
+    final statusColors = {
+      'all':       AppTheme.infoBlue,
+      'pending':   Colors.orange,
+      'confirmed': AppTheme.successGreen,
+      'completed': Colors.blueGrey,
+      'cancelled': Colors.red,
+      'archived':  Colors.brown,
+    };
+
+    return Container(
+      width: 240,
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Text(
+              'NAVIGATION',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.mediumGrey,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                children: filters.map((f) {
+                  final val = f['value'] as String;
+                  final lbl = f['label'] as String;
+                  final ico = f['icon'] as IconData;
+                  final isSelected = _selectedFilter == val;
+                  final color = statusColors[val] ?? AppTheme.primaryColor;
+                  final count = counts[val] ?? 0;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: InkWell(
+                      onTap: () => setState(() => _selectedFilter = val),
+                      borderRadius: BorderRadius.circular(12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? color.withValues(alpha: 0.1) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              ico,
+                              size: 20,
+                              color: isSelected ? color : AppTheme.mediumGrey,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                lbl,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  color: isSelected ? color : AppTheme.darkGrey,
+                                ),
+                              ),
+                            ),
+                            if (count > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? color : AppTheme.mediumGrey,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildMobileLayout() {
     return Column(
       children: [
-        _buildKpiSummary(),
-        ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
         _buildFilterSegmentControl(),
         ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
         Expanded(
           child: _buildReservationsList(),
         ),
       ],
-    );
-  }
-
-  Widget _buildKpiSummary() {
-    if (_isLoading) return const SizedBox.shrink();
-
-    final isMobile = ResponsiveUtils.isMobile(context);
-    final unarchived = reservations.where((r) => r['is_archived'] != true);
-    final total = unarchived.length;
-    final pending = unarchived.where((r) => r['status'] == 'pending').length;
-    final confirmed = unarchived.where((r) => r['status'] == 'confirmed').length;
-    final completed = unarchived.where((r) => r['status'] == 'completed').length;
-
-    final cards = [
-      _buildKpiCard('Total Events', total.toString(), Icons.event, AppTheme.infoBlue),
-      _buildKpiCard('Pending', pending.toString(), Icons.pending_actions, Colors.orange),
-      _buildKpiCard('Confirmed', confirmed.toString(), Icons.check_circle_outline, AppTheme.successGreen),
-      _buildKpiCard('Completed', completed.toString(), Icons.done_all, Colors.grey),
-    ];
-
-    if (isMobile) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: cards[0]),
-              const SizedBox(width: AppTheme.sm),
-              Expanded(child: cards[1]),
-            ],
-          ),
-          const SizedBox(height: AppTheme.sm),
-          Row(
-            children: [
-              Expanded(child: cards[2]),
-              const SizedBox(width: AppTheme.sm),
-              Expanded(child: cards[3]),
-            ],
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(child: cards[0]),
-        const SizedBox(width: AppTheme.md),
-        Expanded(child: cards[1]),
-        const SizedBox(width: AppTheme.md),
-        Expanded(child: cards[2]),
-        const SizedBox(width: AppTheme.md),
-        Expanded(child: cards[3]),
-      ],
-    );
-  }
-
-  Widget _buildKpiCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.md),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppTheme.sm),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Icon(icon, color: color, size: ResponsiveUtils.isMobile(context) ? 20 : 24),
-          ),
-          const SizedBox(width: AppTheme.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: AppTheme.mediumGrey,
-                  fontSize: ResponsiveUtils.isMobile(context) ? 12 : 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: AppTheme.xs),
-              Text(
-                value,
-                style: TextStyle(
-                  color: AppTheme.darkGrey,
-                  fontSize: ResponsiveUtils.isMobile(context) ? 18 : 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -605,10 +657,52 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
     );
   }
-
   Widget _buildReservationsTable() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 1000),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          blurRadius: 20,
+                          spreadRadius: 5 * value,
+                        )
+                      ]
+                    ),
+                    child: const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'LOADING RESERVATIONS...',
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        ),
+      );
     }
 
     if (_filteredReservations.isEmpty) {
@@ -619,12 +713,15 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     
     return Card(
       elevation: isMobile ? 1 : 2,
+      margin: EdgeInsets.zero,
       child: LayoutBuilder(
         builder: (context, constraints) {
           return Scrollbar(
+            controller: _horizontalScrollController,
             thumbVisibility: !isMobile,
             trackVisibility: !isMobile,
             child: SingleChildScrollView(
+              controller: _horizontalScrollController,
               scrollDirection: Axis.horizontal,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
@@ -633,199 +730,142 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.vertical,
                   child: DataTable(
-              columnSpacing: isMobile ? 8 : 24,
-              horizontalMargin: isMobile ? 8 : 16,
-              headingRowHeight: isMobile ? 48 : 56,
-              dataRowMinHeight: isMobile ? 40 : 48,
-              dataRowMaxHeight: isMobile ? 60 : 72,
-              columns: [
-                DataColumn(
-                  label: Text(
-                    'Customer',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
+                    columnSpacing: isMobile ? 12 : 48,
+                    horizontalMargin: isMobile ? 12 : 32,
+                    headingRowHeight: isMobile ? 48 : 56,
+                    dataRowMinHeight: isMobile ? 48 : 64,
+                    dataRowMaxHeight: isMobile ? 64 : 80,
+                    dividerThickness: 0.5,
+                    headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withValues(alpha: 0.04)),
+                    headingTextStyle: TextStyle(
+                      color: AppTheme.darkGrey,
                       fontWeight: FontWeight.bold,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 11, tablet: 12, desktop: 13),
+                      letterSpacing: 0.3,
                     ),
-                  ),
-                ),
-                if (!isMobile) DataColumn(
-                  label: Text(
-                    'Event',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Date',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Time',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (!isMobile) DataColumn(
-                  label: Text(
-                    'Guests',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Status',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Actions',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(
-                        context,
-                        mobile: 12,
-                        tablet: 13,
-                        desktop: 14,
-                      ),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-              rows: _filteredReservations.map((reservation) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        isMobile
-                            ? (reservation['customer_name']?.toString().split(' ')[0] ?? '')
-                            : '${reservation['customer_name']}\n${reservation['customer_email']}',
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 11,
-                            tablet: 12,
-                            desktop: 13,
+                    columns: [
+                      DataColumn(label: _buildColumnHeader('Customer', Icons.person_outline, isMobile)),
+                      if (!isMobile) DataColumn(label: _buildColumnHeader('Event', Icons.celebration_outlined, isMobile)),
+                      DataColumn(label: _buildColumnHeader('Date', Icons.calendar_today_outlined, isMobile)),
+                      DataColumn(label: _buildColumnHeader('Time', Icons.access_time, isMobile)),
+                      if (!isMobile) DataColumn(label: _buildColumnHeader('Guests', Icons.people_outline, isMobile)),
+                      DataColumn(label: _buildColumnHeader('Status', Icons.check_circle_outline, isMobile)),
+                      DataColumn(label: _buildColumnHeader('Actions', Icons.settings_outlined, isMobile)),
+                    ],
+                    rows: _filteredReservations.map((reservation) {
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Text(
+                              isMobile
+                                  ? (reservation['customer_name']?.toString().split(' ')[0] ?? '')
+                                  : '${reservation['customer_name']}\n${reservation['customer_email']}',
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 11,
+                                  tablet: 12,
+                                  desktop: 13,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    if (!isMobile) DataCell(
-                      Text(
-                        reservation['event_type'],
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 11,
-                            tablet: 12,
-                            desktop: 13,
+                          if (!isMobile) DataCell(
+                            Text(
+                              reservation['event_type'],
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 11,
+                                  tablet: 12,
+                                  desktop: 13,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        reservation['event_date'],
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 11,
-                            tablet: 12,
-                            desktop: 13,
+                          DataCell(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6.0),
+                              child: _buildCalendarDateBadge(reservation['event_date']?.toString() ?? ''),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        reservation['start_time'],
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 11,
-                            tablet: 12,
-                            desktop: 13,
+                          DataCell(
+                            _buildTimeBadge(reservation['start_time']?.toString() ?? ''),
                           ),
-                        ),
-                      ),
-                    ),
-                    if (!isMobile) DataCell(
-                      Text(
-                        '${reservation['number_of_guests']}',
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 11,
-                            tablet: 12,
-                            desktop: 13,
+                          if (!isMobile) DataCell(
+                            Text(
+                              '${reservation['number_of_guests']}',
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 11,
+                                  tablet: 12,
+                                  desktop: 13,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(_buildStatusChip(reservation['status'])),
-                    DataCell(_buildActionButtons(reservation)),
-                  ],
-                );
-              }).toList(),
+                          DataCell(_buildStatusChip(reservation['status'])),
+                          DataCell(_buildActionButtons(reservation)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
-      );
-     },
-    ),
     );
   }
 
   Widget _buildReservationsList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 1000),
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          blurRadius: 20,
+                          spreadRadius: 5 * value,
+                        )
+                      ]
+                    ),
+                    child: const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'LOADING RESERVATIONS...',
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        ),
+      );
     }
 
     if (_filteredReservations.isEmpty) {
@@ -839,49 +879,56 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       itemCount: _filteredReservations.length,
       itemBuilder: (context, index) {
         final reservation = _filteredReservations[index];
-        return Card(
-          elevation: isMobile ? 2 : 4,
-          margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-          ),
-          child: InkWell(
-            onTap: () {},
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            child: Row(
+        return TweenAnimationBuilder<double>(
+          key: ValueKey(reservation['id']),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 400 + (index * 100).clamp(0, 600)),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, 30 * (1 - value)),
+              child: Opacity(
+                opacity: value,
+                child: child,
+              ),
+            );
+          },
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+            child: _HoverAnimatedCard(
+              child: Card(
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                ),
+                child: InkWell(
+                  onTap: () {},
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  child: Row(
               children: [
                 // Ticket Stub (Left Side Date/Time)
                 Container(
-                  width: 90,
+                  width: 105,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                    color: Colors.grey.withValues(alpha: 0.02),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(AppTheme.radiusLg),
                       bottomLeft: Radius.circular(AppTheme.radiusLg),
                     ),
-                    border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.3), style: BorderStyle.solid)),
+                    border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.15), style: BorderStyle.solid)),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          reservation['event_date'].split('-').last, // Just the Day
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        Text(
-                          reservation['start_time'].substring(0, 5), // Just HH:mm
-                          style: TextStyle(
-                            fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 12, tablet: 13, desktop: 14),
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.mediumGrey,
-                          ),
+                        _buildCalendarDateBadge(reservation['event_date']?.toString() ?? ''),
+                        const SizedBox(height: 10),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: _buildTimeBadge(reservation['start_time']?.toString() ?? ''),
                         ),
                       ],
                     ),
@@ -966,6 +1013,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
             ),
           ),
         );
@@ -1291,6 +1341,141 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
     );
   }
+  Widget _buildCalendarDateBadge(String dateString) {
+    if (dateString.isEmpty) return const Text('N/A');
+    try {
+      final date = DateTime.parse(dateString);
+      final month = DateFormat('MMM').format(date).toUpperCase();
+      final day = DateFormat('dd').format(date);
+      final year = DateFormat('yyyy').format(date);
+      
+      return Container(
+        width: 50,
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              offset: const Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(7),
+                  topRight: Radius.circular(7),
+                ),
+              ),
+              child: Text(
+                month,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 2),
+              child: Text(
+                day,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.darkGrey,
+                  fontSize: 16,
+                  height: 1.0,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Text(
+                year,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.mediumGrey,
+                  fontSize: 9,
+                  height: 1.0,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      return Text(dateString);
+    }
+  }
+
+  Widget _buildTimeBadge(String timeString) {
+    if (timeString.isEmpty) return const Text('N/A');
+    String displayTime = timeString;
+    try {
+      if (!timeString.toUpperCase().contains('M')) {
+        String formatted = timeString;
+        if (formatted.length >= 5) formatted = formatted.substring(0, 5); 
+        final parts = formatted.split(':');
+        if (parts.length == 2) {
+          final dt = DateTime(2020, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+          displayTime = DateFormat.jm().format(dt);
+        }
+      }
+    } catch (e) {}
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.lightGrey.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.access_time_rounded, size: 14, color: AppTheme.primaryColor),
+          const SizedBox(width: 6),
+          Text(
+            displayTime,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColumnHeader(String title, IconData icon, bool isMobile) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: isMobile ? 14 : 16, color: AppTheme.primaryColor.withValues(alpha: 0.7)),
+        SizedBox(width: isMobile ? 4 : 8),
+        Flexible(
+          child: Text(
+            title.toUpperCase(), 
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildStatusChip(String status) {
     Color color;
@@ -1348,7 +1533,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildActionButtons(Map<String, dynamic> reservation) {
-    String status = reservation['status'];
+    String status = reservation['status'] ?? 'pending';
     String reservationId = reservation['id'];
     bool isArchived = reservation['is_archived'] == true;
     final needsPricing = _reservationService.needsPricing(reservation);
@@ -1359,105 +1544,109 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       children: [
         if (!isArchived) ...[
           if (status == 'pending') ...[
-            // Pricing button - show if pricing is needed or if the status is pending
             if (needsPricing || status == 'pending')
-              IconButton(
+              _buildCircleActionButton(
+                icon: Icons.monetization_on_outlined,
+                color: Colors.purple,
+                tooltip: 'Set Price & Quotation',
                 onPressed: () => _showPriceQuotationDialog(reservation),
-                icon: Icon(
-                  Icons.monetization_on, 
-                  color: Colors.purple,
-                  size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-                ),
-                tooltip: 'Set Price & Send Quotation',
-                iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
               ),
-            // Confirm button - only show if pricing is done
             if (priceQuotationSent)
-              IconButton(
+              _buildCircleActionButton(
+                icon: Icons.check_circle_outline,
+                color: AppTheme.successGreen,
+                tooltip: 'Confirm Reservation',
                 onPressed: () => _showConfirmReservationDialog(reservation),
-                icon: Icon(
-                  Icons.check, 
-                  color: Colors.green,
-                  size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-                ),
-                tooltip: 'Confirm',
-                iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
               ),
-            IconButton(
+            _buildCircleActionButton(
+              icon: Icons.close_rounded,
+              color: Colors.red,
+              tooltip: 'Cancel Reservation',
               onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
-              icon: Icon(
-                Icons.close, 
-                color: Colors.red,
-                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-              ),
-              tooltip: 'Cancel',
-              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
             ),
           ],
           if (status == 'confirmed') ...[
-            IconButton(
+            _buildCircleActionButton(
+              icon: Icons.cancel_outlined,
+              color: Colors.red,
+              tooltip: 'Cancel Reservation',
               onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
-              icon: Icon(
-                Icons.cancel, 
-                color: Colors.red,
-                size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-              ),
-              tooltip: 'Cancel',
-              iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
             ),
           ],
         ],
-        IconButton(
-          onPressed: () => _showViewReservationDialog(reservation),
-          icon: Icon(
-            Icons.visibility,
-            color: AppTheme.infoBlue,
-            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-          ),
+        _buildCircleActionButton(
+          icon: Icons.visibility_outlined,
+          color: AppTheme.infoBlue,
           tooltip: 'View Details',
+          onPressed: () => _showViewReservationDialog(reservation),
         ),
         if (!isArchived && status == 'completed') ...[
           Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: ResponsiveUtils.getResponsiveFontSize(context, mobile: 8, tablet: 10, desktop: 12),
-              vertical: ResponsiveUtils.getResponsiveFontSize(context, mobile: 4, tablet: 6, desktop: 8),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            margin: const EdgeInsets.only(right: 6),
             decoration: BoxDecoration(
               color: Colors.grey.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
             ),
-            child: Text(
+            child: const Text(
               'COMPLETED',
               style: TextStyle(
                 color: Colors.grey,
-                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 8, tablet: 9, desktop: 10),
-                fontWeight: FontWeight.bold,
+                fontSize: 8,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
               ),
             ),
           ),
         ],
         if (isArchived)
-          IconButton(
-            onPressed: () => _restoreReservation(reservationId),
-            icon: Icon(
-              Icons.restore, 
-              color: AppTheme.successGreen,
-              size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-            ),
+          _buildCircleActionButton(
+            icon: Icons.restore_rounded,
+            color: AppTheme.successGreen,
             tooltip: 'Restore',
-            iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+            onPressed: () => _restoreReservation(reservationId),
           ),
-        IconButton(
-          onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived),
-          icon: Icon(
-            isArchived ? Icons.delete_forever : Icons.archive, 
-            color: Colors.red,
-            size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
+        if (isArchived || status == 'cancelled' || status == 'completed')
+          _buildCircleActionButton(
+            icon: isArchived ? Icons.delete_outline_rounded : Icons.archive_outlined,
+            color: isArchived ? Colors.red : Colors.orange,
+            tooltip: isArchived ? 'Delete Permanently' : 'Archive',
+            onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived),
           ),
-          tooltip: isArchived ? 'Delete Permanently' : 'Archive',
-          iconSize: ResponsiveUtils.getResponsiveIconSize(context, mobile: 18, tablet: 20, desktop: 24),
-        ),
       ],
+    );
+  }
+
+  Widget _buildCircleActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    required String tooltip,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6.0),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(20),
+            hoverColor: color.withValues(alpha: 0.12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+                border: Border.all(color: color.withValues(alpha: 0.15), width: 1.2),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1598,6 +1787,52 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               label: const Text('Accept Reservation'),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _HoverAnimatedCard extends StatefulWidget {
+  final Widget child;
+
+  const _HoverAnimatedCard({required this.child});
+
+  @override
+  State<_HoverAnimatedCard> createState() => _HoverAnimatedCardState();
+}
+
+class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..scale(_isHovered ? 1.01 : 1.0)
+          ..translate(0.0, _isHovered ? -4.0 : 0.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            if (_isHovered)
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              )
+            else
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: widget.child,
       ),
     );
   }
