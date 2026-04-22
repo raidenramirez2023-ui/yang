@@ -474,7 +474,6 @@ class _PaymentPanelState extends State<PaymentPanel>
             const SizedBox(height: 24),
             _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
             _sidebarItem('GCash', Icons.account_balance_wallet_outlined, 'GCASH'),
-            _sidebarItem('Maya', Icons.account_balance_wallet_outlined, 'MAYA'),
             _sidebarCashierButton(),
             _sidebarServerButton(),
             const SizedBox(height: 20),
@@ -575,7 +574,12 @@ class _PaymentPanelState extends State<PaymentPanel>
   Widget _sidebarItem(String value, IconData icon, String label) {
     bool isSelected = _method == value;
     return GestureDetector(
-      onTap: () => setState(() => _method = value),
+      onTap: () {
+        setState(() => _method = value);
+        if (value == 'GCash') {
+          _showGcashQR();
+        }
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -612,6 +616,131 @@ class _PaymentPanelState extends State<PaymentPanel>
           ],
         ),
       ),
+    );
+  }
+
+  void _showGcashQR() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 550,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'GCash Payment',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: _textDark,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.grey,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // QR Code Image
+                SizedBox(
+                  width: 500,
+                  height: 500,
+                  child: Image.asset(
+                    'assets/images/newgcash.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Instructions
+                const Text(
+                  'Scan the QR code using your GCash app',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: _textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'to complete the payment',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _textDark,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Close Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _indigo,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
