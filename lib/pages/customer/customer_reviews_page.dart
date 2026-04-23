@@ -179,178 +179,195 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'GUEST FEEDBACK',
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 18),
-        ),
         backgroundColor: Colors.white,
-        foregroundColor: AppTheme.darkGrey,
         elevation: 0,
+        surfaceTintColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Guest Feedback',
+          style: TextStyle(
+            color: AppTheme.darkGrey,
+            fontWeight: FontWeight.w500,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-          : SingleChildScrollView(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: ResponsiveUtils.getMaxContentWidth()),
-                  child: Padding(
-                    padding: ResponsiveUtils.getResponsivePadding(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionHeader(
-                          title: 'SELECT RESERVATION',
-                          subtitle: 'You can review any of your completed events',
-                        ),
-                        const SizedBox(height: 24),
-
-                  if (_pastReservations.isEmpty)
-                    _buildEmptyState()
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _pastReservations.length,
-                      itemBuilder: (context, index) {
-                        final reservation = _pastReservations[index];
-                        final isSelected =
-                            _selectedReservation?['id'] == reservation['id'];
-
-                        return _buildReservationCard(reservation, isSelected);
-                      },
-                    ),
-
-                  if (_selectedReservation != null &&
-                      _selectedReservation!.isNotEmpty) ...[
-                    const SizedBox(height: 40),
-                    _buildSectionHeader(
-                      title: 'YOUR EXPERIENCE',
-                      subtitle: 'How was the food, service, and ambiance?',
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: AppTheme.cardDecoration(),
+          : RefreshIndicator(
+              onRefresh: () async {
+                _loadPastReservations();
+              },
+              color: AppTheme.primaryColor,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: ResponsiveUtils.getMaxContentWidth()),
+                    child: Padding(
+                      padding: ResponsiveUtils.getResponsivePadding(context),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildRatingCategory(
-                            title: 'OVERALL RATING',
-                            rating: _overallRating,
-                            onRatingChanged: (rating) {
-                              setState(() => _overallRating = rating);
-                            },
+                          _buildSectionHeader(
+                            title: 'Select Reservation',
+                            subtitle: 'Review any of your completed events',
                           ),
-                          const Divider(height: 40),
-                          _buildRatingCategory(
-                            title: 'FOOD QUALITY',
-                            rating: _foodQuality,
-                            onRatingChanged: (rating) {
-                              setState(() => _foodQuality = rating);
-                            },
-                          ),
-                          const Divider(height: 40),
-                          _buildRatingCategory(
-                            title: 'SERVICE QUALITY',
-                            rating: _serviceQuality,
-                            onRatingChanged: (rating) {
-                              setState(() => _serviceQuality = rating);
-                            },
-                          ),
-                          const Divider(height: 40),
-                          _buildRatingCategory(
-                            title: 'AMBIANCE',
-                            rating: _ambiance,
-                            onRatingChanged: (rating) {
-                              setState(() => _ambiance = rating);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildSectionHeader(
-                      title: 'ADDITIONAL COMMENTS',
-                      subtitle: 'Optional feedback to help us improve',
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _reviewTextController,
-                      maxLines: 5,
-                      style: const TextStyle(fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: 'Share your experience...',
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.all(20),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitReview,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 4,
-                          shadowColor: AppTheme.primaryColor.withValues(alpha: 0.3),
-                        ),
-                        child: _isSubmitting
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(
-                                _existingReview != null ? 'UPDATE REVIEW' : 'SUBMIT REVIEW',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 2,
-                                ),
+                          const SizedBox(height: 24),
+                          if (_pastReservations.isEmpty)
+                            _buildEmptyState()
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _pastReservations.length,
+                              itemBuilder: (context, index) {
+                                final reservation = _pastReservations[index];
+                                final isSelected =
+                                    _selectedReservation?['id'] == reservation['id'];
+
+                                return _buildReservationCard(reservation, isSelected);
+                              },
+                            ),
+                          if (_selectedReservation != null &&
+                              _selectedReservation!.isNotEmpty) ...[
+                            const SizedBox(height: 40),
+                            _buildSectionHeader(
+                              title: 'Your Experience',
+                              subtitle: 'How was the food, service, and ambiance?',
+                            ),
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: AppTheme.cardDecoration(),
+                              child: Column(
+                                children: [
+                                  _buildRatingCategory(
+                                    title: 'Overall Rating',
+                                    rating: _overallRating,
+                                    onRatingChanged: (rating) {
+                                      setState(() => _overallRating = rating);
+                                    },
+                                  ),
+                                  const Divider(height: 40),
+                                  _buildRatingCategory(
+                                    title: 'FOOD QUALITY',
+                                    rating: _foodQuality,
+                                    onRatingChanged: (rating) {
+                                      setState(() => _foodQuality = rating);
+                                    },
+                                  ),
+                                  const Divider(height: 40),
+                                  _buildRatingCategory(
+                                    title: 'SERVICE QUALITY',
+                                    rating: _serviceQuality,
+                                    onRatingChanged: (rating) {
+                                      setState(() => _serviceQuality = rating);
+                                    },
+                                  ),
+                                  const Divider(height: 40),
+                                  _buildRatingCategory(
+                                    title: 'AMBIANCE',
+                                    rating: _ambiance,
+                                    onRatingChanged: (rating) {
+                                      setState(() => _ambiance = rating);
+                                    },
+                                  ),
+                                ],
                               ),
-                      ),
-                    ),
-                    if (_existingReview != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.infoBlue.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppTheme.infoBlue.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.info_outline_rounded, color: AppTheme.infoBlue, size: 20),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'You have an existing review. Your changes will update the previous entry to keep our landing page focused on your latest experience.',
-                                  style: TextStyle(
-                                    color: AppTheme.infoBlue,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                            ),
+                            const SizedBox(height: 32),
+                            _buildSectionHeader(
+                              title: 'Additional Comments',
+                              subtitle: 'Optional feedback to help us improve',
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _reviewTextController,
+                              maxLines: 5,
+                              style: const TextStyle(fontSize: 15),
+                              decoration: InputDecoration(
+                                hintText: 'Share your experience...',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(20),
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 60,
+                              child: ElevatedButton(
+                                onPressed: _isSubmitting ? null : _submitReview,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 4,
+                                  shadowColor: AppTheme.primaryColor.withAlpha(76),
+                                ),
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : Text(
+                                        _existingReview != null ? 'Update Review' : 'Submit Review',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            if (_existingReview != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.infoBlue.withAlpha(12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppTheme.infoBlue.withAlpha(51)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, color: AppTheme.infoBlue, size: 20),
+                                      const SizedBox(width: 12),
+                                      const Expanded(
+                                        child: Text(
+                                          'You have an existing review. Your changes will update the previous entry to keep our landing page focused on your latest experience.',
+                                          style: TextStyle(
+                                            color: AppTheme.infoBlue,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -367,22 +384,25 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1),
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (int i = 1; i <= 5; i++)
-              GestureDetector(
-                onTap: () => onRatingChanged(i),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(
-                    i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: i <= rating ? Colors.amber : AppTheme.lightGrey,
-                    size: 40,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int i = 1; i <= 5; i++)
+                GestureDetector(
+                  onTap: () => onRatingChanged(i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      i <= rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: i <= rating ? Colors.amber : AppTheme.lightGrey,
+                      size: 40,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -406,7 +426,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
           subtitle,
           style: TextStyle(
             fontSize: 13,
-            color: AppTheme.mediumGrey.withValues(alpha: 0.8),
+            color: AppTheme.mediumGrey.withAlpha(204),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -433,7 +453,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withAlpha(8),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -490,24 +510,27 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.5)),
-      ),
+      decoration: AppTheme.cardDecoration(),
       child: Column(
         children: [
-          Icon(Icons.rate_review_outlined, size: 64, color: AppTheme.mediumGrey.withValues(alpha: 0.3)),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.rate_review_rounded, size: 64, color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+          ),
           const SizedBox(height: 24),
           const Text(
-            'NO COMPLETED EVENTS',
-            style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+            'No Completed Events',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: AppTheme.darkGrey),
           ),
           const SizedBox(height: 8),
           Text(
             'Complete a reservation to unlock feedback options.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
+            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
           ),
         ],
       ),

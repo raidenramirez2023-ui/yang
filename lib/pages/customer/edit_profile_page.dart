@@ -403,6 +403,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  bool get _isChanged {
+    return _firstNameController.text.trim() != _initialFirstName ||
+        _lastNameController.text.trim() != _initialLastName ||
+        _phoneNumberController.text.trim() != _initialPhone ||
+        _pickedFile != null;
+  }
+
+  Future<bool?> _showUnsavedChangesDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Unsaved Changes'),
+        content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Stay'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
@@ -411,25 +440,47 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ? _firstNameController.text[0].toUpperCase()
         : 'U';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FF),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FF),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1D1B1E)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Edit Profile',
-          style: TextStyle(
-            color: Color(0xFF1D1B1E),
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        if (!_isChanged) {
+          Navigator.of(context).pop();
+          return;
+        }
+        final shouldPop = await _showUnsavedChangesDialog();
+        if (shouldPop == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
+            onPressed: () async {
+              if (!_isChanged) {
+                Navigator.of(context).pop();
+              } else {
+                final result = await _showUnsavedChangesDialog();
+                if (result == true && context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              }
+            },
           ),
+          title: const Text(
+            'Edit Profile',
+            style: TextStyle(
+              color: AppTheme.darkGrey,
+              fontWeight: FontWeight.w500,
+              fontSize: 20,
+            ),
+          ),
+          centerTitle: true,
         ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Form(
@@ -542,102 +593,109 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B6B6B),
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.mediumGrey,
                 ),
               ),
 
               const SizedBox(height: 32),
 
-              // ── First Name ──────────────────────────────────────────────
-              _buildFieldLabel('FIRST NAME'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _firstNameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: _fieldDecoration(
-                  hint: 'Enter your first name',
-                  suffixIcon: Icons.person_outline_rounded,
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'First name is required'
-                    : null,
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Last Name ──────────────────────────────────────────────
-              _buildFieldLabel('LAST NAME'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _lastNameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: _fieldDecoration(
-                  hint: 'Enter your last name',
-                  suffixIcon: Icons.person_outline_rounded,
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Last name is required'
-                    : null,
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Phone Number ────────────────────────────────────────────
-              _buildFieldLabel('PHONE NUMBER'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _phoneNumberController,
-                keyboardType: TextInputType.phone,
-                decoration: _fieldDecoration(
-                  hint: 'Enter your phone number',
-                  suffixIcon: Icons.phone_outlined,
-                ),
-                validator: (v) {
-                  final value = v?.trim() ?? '';
-                  if (value.isEmpty) return 'Phone number is required';
-                  if (!_isValidPhoneNumber(value)) {
-                    return 'Phone number must be 11 digits and start with 09';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Email Address ──────────────────────────────────────────
-              _buildFieldLabel('EMAIL ADDRESS'),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                readOnly: true, // email change requires re-verification
-                style: TextStyle(color: Colors.grey.shade600),
-                decoration: _fieldDecoration(
-                  hint: 'Your email address',
-                  suffixIcon: Icons.mail_outline_rounded,
+              // ── Basic Information ──────────────────────────────────────
+              _buildSectionHeader('BASIC INFORMATION'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: AppTheme.cardDecoration(),
+                child: Column(
+                  children: [
+                    _buildFieldLabel('FIRST NAME'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _firstNameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _fieldDecoration(
+                        hint: 'Enter your first name',
+                        suffixIcon: Icons.person_outline_rounded,
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'First name is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildFieldLabel('LAST NAME'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _lastNameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: _fieldDecoration(
+                        hint: 'Enter your last name',
+                        suffixIcon: Icons.person_outline_rounded,
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Last name is required'
+                          : null,
+                    ),
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
 
-              const SizedBox(height: 36),
+              // ── Contact Information ──────────────────────────────────────
+              _buildSectionHeader('CONTACT DETAILS'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: AppTheme.cardDecoration(),
+                child: Column(
+                  children: [
+                    _buildFieldLabel('PHONE NUMBER'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _phoneNumberController,
+                      keyboardType: TextInputType.phone,
+                      decoration: _fieldDecoration(
+                        hint: 'Enter your phone number',
+                        suffixIcon: Icons.phone_outlined,
+                      ),
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        if (value.isEmpty) return 'Phone number is required';
+                        if (!_isValidPhoneNumber(value)) {
+                          return 'Phone number must be 11 digits and start with 09';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildFieldLabel('EMAIL ADDRESS'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      readOnly: true,
+                      style: TextStyle(color: Colors.grey.shade600),
+                      decoration: _fieldDecoration(
+                        hint: 'Your email address',
+                        suffixIcon: Icons.mail_outline_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.only(
-          left: 24,
-          right: 24,
-          bottom: 32,
-          top: 12,
-        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F9FF),
+          color: AppTheme.backgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -645,22 +703,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         child: SizedBox(
           width: double.infinity,
-          height: 54,
+          height: 56,
           child: ElevatedButton(
             onPressed: _isSaving ? null : _saveChanges,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B1A1A),
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey.shade300,
-              elevation: 0,
+              elevation: 2,
+              shadowColor: AppTheme.primaryColor.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: _isSaving
                 ? const SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: 24,
+                    height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -670,11 +729,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     'Save Changes',
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
                     ),
                   ),
           ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.primaryColor,
+          letterSpacing: 1.2,
         ),
       ),
     );

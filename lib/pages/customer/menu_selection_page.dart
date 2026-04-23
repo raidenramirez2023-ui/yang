@@ -93,22 +93,28 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(
-          'Select Menu Items (${widget.guestCount} guests)',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
-          ),
-        ),
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Select Menu Items',
+          style: const TextStyle(
+            color: AppTheme.darkGrey,
+            fontWeight: FontWeight.w800,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          labelColor: Colors.red,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.red,
+          tabAlignment: TabAlignment.start,
+          labelColor: AppTheme.primaryColor,
+          unselectedLabelColor: AppTheme.mediumGrey,
+          indicatorColor: AppTheme.primaryColor,
           indicatorWeight: 3,
           tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
         ),
@@ -116,7 +122,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           if (selectedItems.isNotEmpty)
             IconButton(
               onPressed: _clearSelection,
-              icon: const Icon(Icons.clear_all, color: Colors.red),
+              icon: const Icon(Icons.clear_all, color: AppTheme.primaryColor),
               tooltip: 'Clear Selection',
             ),
         ],
@@ -141,13 +147,13 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Color(0xFF1E293B),
+                          color: AppTheme.darkGrey,
                         ),
                       ),
                       Text(
                         '${selectedItems.values.fold(0, (sum, qty) => sum + qty)} items',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
+                        style: const TextStyle(
+                          color: AppTheme.mediumGrey,
                           fontSize: 14,
                         ),
                       ),
@@ -161,7 +167,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         'Total Menu Price:',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: AppTheme.mediumGrey,
                         ),
                       ),
                       Text(
@@ -169,7 +175,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: AppTheme.darkGrey,
                         ),
                       ),
                     ],
@@ -182,7 +188,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         '50% Deposit Required:',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: AppTheme.mediumGrey,
                         ),
                       ),
                       Text(
@@ -190,7 +196,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.red,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                     ],
@@ -203,7 +209,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         'Cost per Guest:',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: AppTheme.mediumGrey,
                         ),
                       ),
                       Text(
@@ -257,11 +263,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Deposit Required',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: AppTheme.mediumGrey,
                           ),
                         ),
                         Text(
@@ -269,7 +275,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.red,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                       ],
@@ -289,11 +295,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: const Text('Confirm Selection'),
@@ -358,7 +364,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: AppTheme.primaryColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -412,7 +418,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
-                        color: Color(0xFF1E293B),
+                        color: AppTheme.darkGrey,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -420,7 +426,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       item.category,
                       style: const TextStyle(
                         fontSize: 9,
-                        color: Colors.grey,
+                        color: AppTheme.mediumGrey,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -430,7 +436,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         IconButton(
                           onPressed: () => _removeFromSelection(item),
                           icon: const Icon(Icons.remove_circle_outline, size: 18),
-                          color: quantity > 0 ? Colors.red : Colors.grey.shade400,
+                          color: quantity > 0 ? AppTheme.primaryColor : AppTheme.lightGrey,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -444,7 +450,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         IconButton(
                           onPressed: () => _addToSelection(item),
                           icon: const Icon(Icons.add_circle_outline, size: 18),
-                          color: Colors.red,
+                          color: AppTheme.primaryColor,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),

@@ -240,7 +240,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('GCash Payment'),
-        backgroundColor: Colors.blue,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: Icon(Icons.close),
@@ -252,7 +252,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.9),
+              color: AppTheme.primaryColor.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -282,13 +282,13 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(Colors.blue),
+                      valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
                     ),
                     SizedBox(height: 16),
                     Text(
                       'Initializing GCash payment...',
                       style: TextStyle(
-                        color: Colors.blue,
+                        color: AppTheme.primaryColor,
                         fontSize: 16,
                       ),
                     ),
@@ -348,12 +348,12 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Icon(
                           Icons.account_balance_wallet,
-                          color: Colors.blue,
+                          color: AppTheme.primaryColor,
                           size: 30,
                         ),
                       ),
@@ -363,7 +363,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
                       SizedBox(height: 8),
@@ -379,9 +379,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       Container(
                         padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           children: [
@@ -398,7 +398,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue,
+                                color: AppTheme.primaryColor,
                               ),
                             ),
                           ],
@@ -483,10 +483,10 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                             child: ElevatedButton(
                               onPressed: _launchGCashPayment,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(vertical: 14),
-                              ),
+                               backgroundColor: AppTheme.primaryColor,
+                               foregroundColor: Colors.white,
+                               padding: EdgeInsets.symmetric(vertical: 14),
+                             ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -523,7 +523,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.security, color: Colors.blue),
+                  Icon(Icons.security, color: AppTheme.primaryColor),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(

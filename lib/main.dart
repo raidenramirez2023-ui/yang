@@ -40,6 +40,7 @@ import 'pages/staff/staff_dashboard.dart';
 import 'pages/admin/pagsanjaninv_dashboard.dart';
 
 import 'pages/staff/chef_dashboard.dart';
+import 'pages/customer/all_products_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,9 +75,9 @@ Future<void> _initializeServices() async {
       final appSettings = AppSettingsService();
       await appSettings.initializeSettings().timeout(
         const Duration(seconds: 10),
-        onTimeout: () {
-          debugPrint('⚠️ App settings initialization timed out');
-        },
+                onTimeout: () {
+                  debugPrint('⚠️ App settings initialization timed out');
+                },
       );
       debugPrint('✅ Application settings loaded');
     } catch (e) {
@@ -136,6 +137,8 @@ class YangChowApp extends StatelessWidget {
         '/staff-dashboard': (context) => const StaffDashboardPage(),
 
         '/chef-dashboard': (context) => const ChefDashboardPage(),
+
+        '/all-products': (context) => const AllProductsPage(),
       },
     );
   }

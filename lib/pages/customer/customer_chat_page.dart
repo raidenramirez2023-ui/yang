@@ -149,6 +149,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         backgroundColor: const Color(0xFFFFFFFF),
         foregroundColor: Colors.black,
         elevation: 1,
+        automaticallyImplyLeading: false,
         titleSpacing: 0,
         title: Row(
           children: [
@@ -157,7 +158,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF2C3E50), // Professional dark blue
+                color: AppTheme.primaryColor, // Professional Red
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -183,7 +184,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF2C3E50), // Professional dark blue
+                      color: AppTheme.primaryColor, // Professional Red
                     ),
                   ),
                   Row(
@@ -192,7 +193,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF27AE60), // Professional green
+                          color: AppTheme.successGreen, // Professional green
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -201,7 +202,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                         'Available',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF7F8C8D), // Professional grey
+                          color: AppTheme.mediumGrey, // Professional grey
                         ),
                       ),
                     ],
@@ -233,11 +234,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE74C3C), // Professional red
+                      color: AppTheme.primaryColor, // Professional red
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFE74C3C).withValues(alpha: 0.3),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
@@ -259,7 +260,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           ),
           if (!isDesktop)
             IconButton(
-              icon: const Icon(Icons.info, color: Color(0xFF7F8C8D)),
+              icon: const Icon(Icons.info, color: AppTheme.mediumGrey),
               onPressed: _showChatInfo,
             ),
         ],
@@ -280,7 +281,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFF2C3E50),
+                        color: AppTheme.primaryColor,
                       ),
                     )
                   : StreamBuilder<List<Map<String, dynamic>>>(
@@ -304,7 +305,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                             ConnectionState.waiting) {
                           return const Center(
                             child: CircularProgressIndicator(
-                              color: Color(0xFF2C3E50),
+                              color: AppTheme.primaryColor,
                             ),
                           );
                         }
@@ -324,20 +325,20 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                   'Error loading messages',
                                   style: TextStyle(
                                     fontSize: 18,
-                                    color: const Color(0xFF2C3E50),
+                                    color: AppTheme.primaryColor,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Please try again',
-                                  style: TextStyle(color: Colors.grey.shade500),
+                                  style: TextStyle(color: AppTheme.mediumGrey),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Error: ${snapshot.error}',
                                   style: TextStyle(
-                                    color: const Color(0xFFE74C3C),
+                                    color: AppTheme.errorRed,
                                     fontSize: 12,
                                   ),
                                   textAlign: TextAlign.center,
@@ -394,11 +395,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFF2C3E50).withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2C3E50).withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -407,7 +408,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             child: Icon(
               Icons.chat_bubble_outline,
               size: 60,
-              color: const Color(0xFF2C3E50),
+              color: AppTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
@@ -416,7 +417,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF2C3E50),
+              color: AppTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 12),
@@ -425,7 +426,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF7F8C8D),
+              color: AppTheme.mediumGrey,
               height: 1.4,
             ),
           ),
@@ -433,11 +434,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF2C3E50),
+              color: AppTheme.primaryColor,
               borderRadius: BorderRadius.circular(25),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2C3E50).withValues(alpha: 0.2),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -483,7 +484,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               height: 32,
               margin: const EdgeInsets.only(right: 8, top: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C3E50),
+                color: AppTheme.primaryColor, // Support agent in Red
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -525,7 +526,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       color: messageText == ChatService.unsentMessageSentinel
                           ? Colors.grey.withValues(alpha: 0.1)
                           : isFromCustomer
-                              ? const Color(0xFF2C3E50)
+                              ? AppTheme.primaryColor
                               : const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(18).copyWith(
                         bottomLeft: isFromCustomer
@@ -558,10 +559,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                           : messageText,
                       style: TextStyle(
                         color: messageText == ChatService.unsentMessageSentinel
-                            ? Color(0xFF95A5A6)
+                            ? AppTheme.mediumGrey
                             : isFromCustomer
                                 ? Colors.white
-                                : const Color(0xFF2C3E50),
+                                : AppTheme.primaryColor,
                         fontSize: 15,
                         fontStyle:
                             messageText == ChatService.unsentMessageSentinel
@@ -585,7 +586,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     timeStr,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF95A5A6),
+                      color: AppTheme.mediumGrey,
                     ),
                   ),
                 ),
@@ -599,7 +600,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               height: 32,
               margin: const EdgeInsets.only(left: 8, top: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF95A5A6),
+                color: AppTheme.mediumGrey,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -642,7 +643,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               },
               icon: const Icon(
                 Icons.attach_file,
-                color: Color(0xFF7F8C8D),
+                color: AppTheme.mediumGrey,
                 size: 24,
               ),
               style: IconButton.styleFrom(
@@ -674,7 +675,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     horizontal: 16,
                     vertical: 10,
                   ),
-                  hintStyle: TextStyle(color: Color(0xFF95A5A6), fontSize: 15),
+                  hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 15),
                 ),
                 maxLines: 5,
                 minLines: 1,
@@ -690,14 +691,14 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           Container(
             decoration: BoxDecoration(
               color: _isSending
-                  ? const Color(0xFFECF0F1)
-                  : const Color(0xFF2C3E50),
+                   ? AppTheme.lightGrey
+                   : AppTheme.primaryColor,
               shape: BoxShape.circle,
               boxShadow: _isSending
                   ? null
                   : [
                       BoxShadow(
-                        color: const Color(0xFF2C3E50).withValues(alpha: 0.3),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -713,7 +714,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          const Color(0xFF7F8C8D),
+                          AppTheme.mediumGrey,
                         ),
                       ),
                     )
@@ -736,7 +737,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.mediumGrey)),
           ),
           TextButton(
             onPressed: () async {
@@ -755,7 +756,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             child: const Text(
               'Unsend',
               style: TextStyle(
-                color: Color(0xFFE74C3C),
+                color: AppTheme.errorRed,
                 fontWeight: FontWeight.bold,
               ),
             ),
