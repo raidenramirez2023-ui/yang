@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipe_model.dart';
+import '../models/menu_item.dart';
 import 'package:flutter/foundation.dart';
 
 class RecipeService {
@@ -8,7 +9,7 @@ class RecipeService {
   RecipeService._internal();
 
   // Hardcoded recipes for menu items - you can move this to database later
-  static const Map<String, Map<String, dynamic>> _recipeDatabase = {
+  static const Map<String, Map<String, dynamic>> recipeDatabase = {
     // Yangchow Family Bundles
     'YangChow 1': {
       'menu_item_name': 'YangChow 1',
@@ -1028,7 +1029,7 @@ class RecipeService {
     try {
       // First try to get from database (if you implement recipes table in future)
       // For now, use hardcoded recipes
-      final recipeData = _recipeDatabase[menuItemName];
+      final recipeData = recipeDatabase[menuItemName];
       
       if (recipeData == null) {
         // Return a default recipe if no specific recipe found
@@ -1176,6 +1177,63 @@ class RecipeService {
       }
     } catch (e) {
       debugPrint('Error during inventory deduction: $e');
+    }
+  }
+
+  Future<String?> checkInventoryAvailability(List<CartItem> cart) async {
+    try {
+      final supabase = Supabase.instance.client;
+      // Get all items from kitchen_inventory
+      final inventoryItems = await supabase
+          .from('kitchen_inventory')
+          .select('*');
+
+      for (final cartItem in cart) {
+        final recipeData = recipeDatabase[cartItem.item.name];
+        if (recipeData == null) continue;
+
+        final List ingredients = recipeData['ingredients'];
+        for (final ing in ingredients) {
+          final String ingName = ing['name'];
+          
+          // Find matching inventory item (using exact-first fuzzy matching)
+          Map<String, dynamic>? matchingItem;
+          double bestMatchScore = 0;
+          
+          for (final item in inventoryItems) {
+            final inventoryName = item['name']?.toString().toLowerCase() ?? '';
+            final ingredientName = ingName.toLowerCase();
+
+            if (inventoryName == ingredientName) {
+              matchingItem = item;
+              bestMatchScore = 1.0;
+              break;
+            } else if (inventoryName.contains(ingredientName) || 
+                       ingredientName.contains(inventoryName)) {
+              if (bestMatchScore < 0.5) {
+                matchingItem = item;
+                bestMatchScore = 0.5;
+              }
+            }
+          }
+
+          if (matchingItem != null) {
+            final num currentStock = (matchingItem['quantity'] as num?) ?? 0;
+            // The limit is: orderQuantity <= currentStock - 1
+            final num maxAllowed = currentStock - 1;
+            
+            if (cartItem.quantity > maxAllowed) {
+              final String itemName = cartItem.item.name;
+              return 'Max limit due to stock! Only ${maxAllowed.toInt()} available for $itemName.';
+            }
+          }
+        }
+      }
+
+      return null; // All good
+    } catch (e) {
+      debugPrint('Error during inventory check: $e');
+      return 'Inventory check failed: $e';
     }
   }
 

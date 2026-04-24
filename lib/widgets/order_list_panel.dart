@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/menu_item.dart';
 
@@ -7,7 +8,7 @@ class OrderListPanel extends StatefulWidget {
   final Function(CartItem) onQuantityIncreased;
   final Function(CartItem) onQuantityDecreased;
   final Function(CartItem) onRemoveItem;
-  final void Function(String name, String note, double totalAmount, int guestCount, String tableNumber)
+  final void Function(String name, String note, double totalAmount, int guestCount, String tableNumber, double discountAmount, String discountLabel, String discountName, String discountAddress)
   onProceedPayment;
   final VoidCallback onClearCart;
   final void Function(VoidCallback clearFunction) onClearInputs;
@@ -34,6 +35,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
   final TextEditingController _guestCountController = TextEditingController(text: '1');
   final TextEditingController _tableNumberController = TextEditingController();
   bool _isDiscountEnabled = false; // Discount state variable
+  String _discountLabel = 'None';
+  String _discountCustomerName = '';
+  String _discountCustomerAddress = '';
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
@@ -186,6 +190,8 @@ class _OrderListPanelState extends State<OrderListPanel> {
               const SizedBox(height: 6),
               TextField(
                 controller: _tableNumberController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
@@ -233,6 +239,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
               TextField(
                 controller: _guestCountController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
@@ -410,7 +417,11 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   Widget _buildTotalsSection() {
     final subtotal = _subtotal;
-    final discountAmount = _isDiscountEnabled ? (subtotal * 0.20) : 0.0;
+    double maxSingleItemPrice = 0.0;
+    if (widget.cart.isNotEmpty) {
+      maxSingleItemPrice = widget.cart.map((e) => e.item.price).reduce((a, b) => a > b ? a : b);
+    }
+    final discountAmount = _isDiscountEnabled ? (maxSingleItemPrice * 0.20) : 0.0;
     final total = subtotal - discountAmount;
 
     return Container(
@@ -424,49 +435,46 @@ class _OrderListPanelState extends State<OrderListPanel> {
         children: [
           _totalLine('Subtotal', '₱${_fmt.format(subtotal)}'),
           const SizedBox(height: 8),
-          // Discount row with checkbox
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: Checkbox(
-                        value: _isDiscountEnabled,
-                        onChanged: (value) {
-                          setState(() {
-                            _isDiscountEnabled = value ?? false;
-                          });
-                        },
-                        activeColor: _indigo,
-                        checkColor: Colors.white,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
+          // Clickable Discount row
+          GestureDetector(
+            onTap: _showDiscountModal,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              color: Colors.transparent, // Ensures the whole area is clickable
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isDiscountEnabled ? Icons.check_box : Icons.check_box_outline_blank,
+                          color: _isDiscountEnabled ? _indigo : _grey,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isDiscountEnabled ? 'Discount (20% - $_discountLabel)' : 'Apply Discount (20%)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _isDiscountEnabled ? _textDark : _grey,
+                            fontWeight: _isDiscountEnabled ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Discount (20%)',
-                      style: TextStyle(
-                        color: _grey,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  Text(
+                    '-₱${_fmt.format(discountAmount)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _isDiscountEnabled ? _indigo : _grey,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Text(
-                '₱${_fmt.format(discountAmount)}',
-                style: TextStyle(
-                  color: _grey,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -525,9 +533,11 @@ class _OrderListPanelState extends State<OrderListPanel> {
               onPressed: widget.cart.isNotEmpty
                   ? () {
                       final subtotal = _subtotal;
-                      final discountAmount = _isDiscountEnabled
-                          ? (subtotal * 0.20)
-                          : 0.0;
+                      double maxSingleItemPrice = 0.0;
+                      if (widget.cart.isNotEmpty) {
+                        maxSingleItemPrice = widget.cart.map((e) => e.item.price).reduce((a, b) => a > b ? a : b);
+                      }
+                      final discountAmount = _isDiscountEnabled ? (maxSingleItemPrice * 0.20) : 0.0;
                       final total = subtotal - discountAmount;
                       final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
                       final tableNumber = _tableNumberController.text.trim();
@@ -537,6 +547,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                         total,
                         guestCount,
                         tableNumber,
+                        discountAmount,
+                        _discountLabel,
+                        _discountCustomerName,
+                        _discountCustomerAddress,
                       );
                     }
                   : null,
@@ -557,5 +571,240 @@ class _OrderListPanelState extends State<OrderListPanel> {
         ],
       ),
     );
+  }
+
+  void _showDiscountModal() {
+    final TextEditingController nameController = TextEditingController(text: _discountCustomerName);
+    final TextEditingController addressController = TextEditingController(text: _discountCustomerAddress);
+    final TextEditingController otherController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: EdgeInsets.zero,
+        title: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Apply Discount', style: TextStyle(fontWeight: FontWeight.bold, color: _textDark, fontSize: 18)),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20, color: _grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: StatefulBuilder(
+          builder: (context, setModalState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Customer Details (Optional):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildModalField(nameController, 'Customer Name', Icons.person_outlined),
+                  const SizedBox(height: 8),
+                  _buildModalField(addressController, 'Address', Icons.location_on_outlined),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(color: _border),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Select Type:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDiscountItem(
+                    'Senior Citizen', 
+                    Icons.elderly, 
+                    nameController, 
+                    addressController,
+                    setModalState,
+                  ),
+                  _buildDiscountItem(
+                    'PWD', 
+                    Icons.accessible, 
+                    nameController, 
+                    addressController,
+                    setModalState,
+                  ),
+                  _buildDiscountItem(
+                    'Student', 
+                    Icons.school, 
+                    nameController, 
+                    addressController,
+                    setModalState,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(color: _border),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Other / Custom Reason:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: otherController,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Enter valid ID or reason...',
+                      hintStyle: const TextStyle(fontSize: 13, color: _grey),
+                      filled: true,
+                      fillColor: _bg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _indigo),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (otherController.text.trim().isNotEmpty) {
+                          _applyDiscount(
+                            otherController.text.trim(),
+                            nameController.text.trim(),
+                            addressController.text.trim(),
+                          );
+                          setModalState(() {}); // Refresh modal UI
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _indigo,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Apply Custom', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        actions: [
+          if (_isDiscountEnabled)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isDiscountEnabled = false;
+                  _discountLabel = 'None';
+                  _discountCustomerName = '';
+                  _discountCustomerAddress = '';
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Remove Discount', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          TextButton(
+            onPressed: () {
+              // Clicking OK saves the name/address if a discount was already selected
+              if (_isDiscountEnabled) {
+                _applyDiscount(_discountLabel, nameController.text.trim(), addressController.text.trim());
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('OK', style: TextStyle(color: _grey, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscountItem(String label, IconData icon, TextEditingController nameCtrl, TextEditingController addrCtrl, StateSetter setModalState) {
+    final isSelected = _isDiscountEnabled && _discountLabel == label;
+    return GestureDetector(
+      onTap: () {
+        _applyDiscount(label, nameCtrl.text.trim(), addrCtrl.text.trim());
+        setModalState(() {}); // Refresh modal UI
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? _indigo.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? _indigo : _border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? _indigo : _grey, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? _indigo : _textDark,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            if (isSelected) const Icon(Icons.check_circle, color: _indigo, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModalField(TextEditingController ctrl, String hint, IconData icon) {
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 13, color: _grey),
+        prefixIcon: Icon(icon, size: 18, color: _grey),
+        filled: true,
+        fillColor: _bg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _indigo),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+    );
+  }
+
+  void _applyDiscount(String label, String name, String address) {
+    setState(() {
+      _isDiscountEnabled = true;
+      _discountLabel = label;
+      _discountCustomerName = name;
+      _discountCustomerAddress = address;
+    });
   }
 }

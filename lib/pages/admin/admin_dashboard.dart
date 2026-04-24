@@ -77,9 +77,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── Real-time event conflict detection ───────────────────────────────
   final Map<String, List<Map<String, dynamic>>> _eventsByDate = {};
   final List<String> _conflictDates = [];
-  bool? _showConflictNotification;
-  String _newConflictDate = '';
-  bool _userClosedConflictNotification = false;
 
   // ── Real-time reservation tracking ───────────────────────────────
   int _previousReservationCount = 0;
@@ -91,6 +88,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   DateTime? _focusedMonth;
   String _selectedPeriod = 'Weekly'; // New period selector state
   final String _selectedYear = '2026'; // New year selector state
+  int _schedulePage = 0;
+  static const int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -99,7 +98,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     // Initialize state variables
     _isVenueStatusExpanded = true;
     _showNewOrderNotification = false;
-    _showConflictNotification = false;
     _showNewReservationNotification = false;
     _focusedMonth = DateTime.now();
 
@@ -733,27 +731,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               if ((start1.isBefore(end2) && end1.isAfter(start2)) ||
                   (start2.isBefore(end1) && end2.isAfter(start1)) ||
                   (start1.isAtSameMomentAs(start2))) {
-                // Conflict detected - add date to conflict list
-                final dateStr = DateFormat('yyyy-MM-dd').format(start1);
-                if (!_conflictDates.contains(dateStr)) {
-                  _conflictDates.add(dateStr);
-
-                  // Show conflict notification with priority info
-                  if (!_userClosedConflictNotification) {
-                    _showConflictNotification = true;
+                  // Conflict detected - add date to conflict list
+                  final dateStr = DateFormat('yyyy-MM-dd').format(start1);
+                  if (!_conflictDates.contains(dateStr)) {
+                    _conflictDates.add(dateStr);
                   }
-                  _newConflictDate =
-                      '${DateFormat('MMM dd').format(start1)}: ${event1['customer_name']} (priority)';
-
-                  // Auto-hide notification after 8 seconds
-                  Future.delayed(const Duration(seconds: 8), () {
-                    if (mounted) {
-                      setState(() {
-                        _showConflictNotification = false;
-                      });
-                    }
-                  });
-                }
                 break;
               }
             }
@@ -1031,16 +1013,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                             const SizedBox(height: AppTheme.xl),
 
-                            // ── Confirmed Events Analytics ──────────────────────────────────
-                            _buildSectionTitle(
-                              context,
-                              'Confirmed Events Analytics',
-                            ),
                             const SizedBox(height: AppTheme.md),
                             _buildConfirmedEventsAnalytics(
                               context,
                               isDesktop || isTablet,
                             ),
+                            const SizedBox(height: AppTheme.xl),
+
+                            // ── Monthly Event Schedule ──────────────────────────────────
+                            _buildSectionTitle(context, 'Monthly Event Schedule'),
+                            const SizedBox(height: AppTheme.md),
+                            _buildMonthlyOverview(context),
                             const SizedBox(height: AppTheme.xl),
 
                             ResponsiveUtils.isMobile(context)
@@ -1094,13 +1077,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           right: 20,
                           child: _buildNewReservationNotification(),
                         ),
-                      // Event conflict notification overlay
-                      if (_showConflictNotification ?? false)
-                        Positioned(
-                          top: 140,
-                          left: 20,
-                          child: _buildConflictNotification(),
-                        ),
+
                     ],
                   ),
                 );
@@ -1683,6 +1660,88 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           if (_isVenueStatusExpanded ?? true) ...[
             const SizedBox(height: AppTheme.md),
 
+            // Next Event Countdown (Moved here)
+            if (_nextEvent.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(AppTheme.lg),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child:
+                          const Icon(Icons.timer, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: AppTheme.lg),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'NEXT EVENT STARTS IN',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _nextEventCountdown,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_nextEvent['event_type']} · ${_nextEvent['customer_name']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.mediumGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getEventStatusColor(
+                          _nextEvent,
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getEventStatusText(_nextEvent),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: _getEventStatusColor(_nextEvent),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.lg),
+            ],
+
             // 1. Current Status Circle Chart (Restored)
             Container(
               padding: const EdgeInsets.symmetric(vertical: AppTheme.lg),
@@ -1770,9 +1829,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ),
             const SizedBox(height: AppTheme.lg),
 
-            // 2. Month Selector & Event List (Integrated)
-            _buildMonthlyOverview(context),
-            const SizedBox(height: AppTheme.xl),
+
           ],
         ],
       ),
@@ -1933,23 +1990,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       }
     });
 
-    // Sorting by date and then by time
+    // Sorting logic (Keep existing sorting)
     monthEvents.sort((a, b) {
       int dateCompare = a['date_key'].compareTo(b['date_key']);
       if (dateCompare != 0) return dateCompare;
 
-      // Secondary sort by event_start if available
       DateTime? startA = a['event_start'] as DateTime?;
       DateTime? startB = b['event_start'] as DateTime?;
       if (startA != null && startB != null) {
         return startA.compareTo(startB);
       }
 
-      // Fallback time sort
       String timeA = a['start_time']?.toString() ?? '';
       String timeB = b['start_time']?.toString() ?? '';
       return timeA.compareTo(timeB);
     });
+
+    // Pagination Logic
+    final totalItems = monthEvents.length;
+    final totalPages = (totalItems / _itemsPerPage).ceil();
+
+    if (_schedulePage >= totalPages && totalPages > 0) {
+      _schedulePage = totalPages - 1;
+    }
+
+    final startIndex = _schedulePage * _itemsPerPage;
+    final endIndex = min(startIndex + _itemsPerPage, totalItems);
+    final displayedEvents =
+        totalItems > 0 ? monthEvents.sublist(startIndex, endIndex) : [];
 
     return Container(
       decoration: BoxDecoration(
@@ -2022,15 +2090,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               ),
             )
-          else
+          else ...[
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: monthEvents.length,
+              itemCount: displayedEvents.length,
               separatorBuilder: (context, index) =>
                   const Divider(height: 1, color: AppTheme.lightGrey),
               itemBuilder: (context, index) {
-                final event = monthEvents[index];
+                final event = displayedEvents[index];
                 final dateKey = event['date_key'] as String;
                 final isConfirmed =
                     (event['status']?.toString().toLowerCase() ?? '') ==
@@ -2154,9 +2222,64 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 );
               },
             ),
+
+            // Pagination Controls
+            if (totalPages > 1)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppTheme.lightGrey)),
+                  color: Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Page ${_schedulePage + 1} of $totalPages',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.mediumGrey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: _schedulePage > 0
+                              ? () => setState(() => _schedulePage--)
+                              : null,
+                          icon: const Icon(Icons.chevron_left),
+                          iconSize: 20,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          color: AppTheme.primaryColor,
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _schedulePage < totalPages - 1
+                              ? () => setState(() => _schedulePage++)
+                              : null,
+                          icon: const Icon(Icons.chevron_right),
+                          iconSize: 20,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          color: AppTheme.primaryColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ],
       ),
     );
+
   }
 
   Widget _statusLegendRow(Color color, String title, String subtitle) {
@@ -2236,7 +2359,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ),
           onChanged: (DateTime? newValue) {
             if (newValue != null) {
-              setState(() => _focusedMonth = newValue);
+              setState(() {
+                _focusedMonth = newValue;
+                _schedulePage = 0; // Reset page on month change
+              });
             }
           },
           items: months
@@ -2348,8 +2474,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   type: 0,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: _buildGridCard('...', '', type: 3)),
             ],
           ),
         ],
@@ -2388,11 +2512,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 color: const Color(0xFF14536E),
               ), // Dark teal accent line
             ),
-          if (type == 3)
-            const Center(
-              child: Icon(Icons.more_horiz, color: Colors.grey, size: 28),
-            )
-          else
+
             Padding(
               padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
               child: Column(
@@ -2526,87 +2646,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     return Column(
       children: [
-        // Next Event Countdown (Most Important - Top Priority)
-        if (_nextEvent.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(AppTheme.lg),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              border: Border.all(
-                color: AppTheme.primaryColor.withValues(alpha: 0.2),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.timer, color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: AppTheme.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NEXT EVENT STARTS IN',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _nextEventCountdown,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.darkGrey,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_nextEvent['event_type']} · ${_nextEvent['customer_name']}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getEventStatusColor(
-                      _nextEvent,
-                    ).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _getEventStatusText(_nextEvent),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: _getEventStatusColor(_nextEvent),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.lg),
-        ],
-
         // Live Event Status Indicators (Real-time Updates)
         if (_ongoingEvents.isNotEmpty || _upcomingEvents.isNotEmpty) ...[
           Container(
@@ -3520,95 +3559,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  // ── Event Conflict Notification Widget ────────────────────────────────────
-  Widget _buildConflictNotification() {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.warningOrange,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.warningOrange.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.event_busy,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'EVENT CONFLICT!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Multiple events on $_newConflictDate',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Click to view details',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            InkWell(
-              onTap: () {
-                debugPrint('X button tapped - closing conflict notification');
-                setState(() {
-                  _showConflictNotification = false;
-                  _userClosedConflictNotification = true;
-                });
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(Icons.close, color: Colors.white, size: 18),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   // ── New Reservation Notification Widget ─────────────────────────────
   Widget _buildNewReservationNotification() {

@@ -31,6 +31,10 @@ class ReceiptTemplate extends StatelessWidget {
   final String? orderType; // WALK-IN, DINE IN
   final int terminalNumber;
   final String? cashierName;
+  final double discountAmount;
+  final String discountLabel;
+  final String? discountName;
+  final String? discountAddress;
 
   ReceiptTemplate({
     super.key,
@@ -49,6 +53,10 @@ class ReceiptTemplate extends StatelessWidget {
     this.orderType = 'WALK-IN',
     this.terminalNumber = 1,
     this.cashierName,
+    this.discountAmount = 0.0,
+    this.discountLabel = 'None',
+    this.discountName,
+    this.discountAddress,
   }) : transactionDate = transactionDate ?? DateTime.now();
 
   String get _formattedDate {
@@ -335,6 +343,23 @@ class ReceiptTemplate extends StatelessWidget {
                 ),
               ],
             ),
+            if (discountAmount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '  Discount (20% - $discountLabel)',
+                      style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                    ),
+                    Text(
+                      '-${fmt.format(discountAmount)}',
+                      style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+              ),
             _dashDivider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -422,20 +447,20 @@ class ReceiptTemplate extends StatelessWidget {
             const SizedBox(height: 20),
 
             // ===== NAME & ADDRESS =====
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Name: _________________________________________',
-                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                'Name: ${discountName?.isNotEmpty == true ? discountName : "________________________________________"}',
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 maxLines: 1,
               ),
             ),
             const SizedBox(height: 6),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Address: ______________________________________',
-                style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                'Address: ${discountAddress?.isNotEmpty == true ? discountAddress : "___________________________________"}',
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
                 maxLines: 1,
               ),
             ),
@@ -513,6 +538,33 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     super.initState();
     _tabController = TabController(length: MenuService.categories.length, vsync: this);
     menu = MenuService.getMenu();
+    _fetchInventory();
+  }
+
+  Future<void> _fetchInventory() async {
+    if (_isFetchingInventory) return;
+    if (mounted) setState(() => _isFetchingInventory = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final data = await supabase.from('kitchen_inventory').select('name, quantity');
+      if (data != null) {
+        final Map<String, num> newCache = {};
+        for (var item in data) {
+          final name = item['name']?.toString().toLowerCase() ?? '';
+          newCache[name] = (item['quantity'] as num?) ?? 0;
+        }
+        if (mounted) {
+          setState(() {
+            _inventoryCache.clear();
+            _inventoryCache.addAll(newCache);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching inventory for POS: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingInventory = false);
+    }
   }
 
   @override
@@ -542,24 +594,76 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     );
   }
 
+  bool _isStockAvailable(String itemName, int requestedQuantity) {
+    if (widget.userRole != 'Staff') return true;
+    
+    final recipeData = RecipeService.recipeDatabase[itemName];
+    if (recipeData == null) return true;
+
+    final List ingredients = recipeData['ingredients'];
+    for (final ing in ingredients) {
+      final String ingName = ing['name'].toString().toLowerCase();
+      
+      num? stock;
+      if (_inventoryCache.containsKey(ingName)) {
+        stock = _inventoryCache[ingName];
+      } else {
+        for (final entry in _inventoryCache.entries) {
+          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
+            stock = entry.value;
+            break;
+          }
+        }
+      }
+
+      if (stock != null) {
+        final maxAllowed = stock - 1;
+        if (requestedQuantity > maxAllowed) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Max limit due to stock! Only ${maxAllowed.toInt()} available for $itemName.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   void addToCart(MenuItem item) {
     final index = cart.indexWhere((e) => e.item.name == item.name);
-    setState(() {
-      if (index >= 0) {
+    
+    if (index >= 0) {
+      if (!_isStockAvailable(item.name, cart[index].quantity + 1)) return;
+      setState(() {
         final existing = cart.removeAt(index);
         existing.quantity++;
         cart.insert(0, existing);
-      } else {
+      });
+    } else {
+      if (!_isStockAvailable(item.name, 1)) return;
+      setState(() {
         cart.insert(0, CartItem(item, 1));
-      }
+      });
+    }
+  }
+
+  void _increaseQuantity(CartItem item) {
+    if (!_isStockAvailable(item.item.name, item.quantity + 1)) return;
+    setState(() {
+      item.quantity++;
     });
   }
 
   double get totalAmount =>
       cart.fold(0.0, (sum, c) => sum + (c.item.price * c.quantity));
 
-  void _increaseQuantity(CartItem cartItem) =>
-      setState(() => cartItem.quantity++);
+  final Map<String, num> _inventoryCache = {};
+  bool _isFetchingInventory = false;
 
   void _decreaseQuantity(CartItem cartItem) {
     setState(() {
@@ -813,6 +917,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     String tableNumber = '',
     String cashierName = '',
     String serverName = '',
+    double discountAmount = 0.0,
+    String discountLabel = 'None',
+    String discountName = '',
+    String discountAddress = '',
   }) async {
     if (cart.isEmpty) {
       ScaffoldMessenger.of(
@@ -824,10 +932,27 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // Snapshot the cart and total NOW — before the OrderListPanel
     // has a chance to clear the cart after calling this callback.
     final cartSnapshot = cart.map((c) => CartItem(c.item, c.quantity)).toList();
-    final snapshotTotal = cartSnapshot.fold(
+    final subtotal = cartSnapshot.fold(
       0.0,
       (sum, c) => sum + (c.item.price * c.quantity),
     );
+    final finalTotal = subtotal - discountAmount;
+
+    // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
+    if (widget.userRole == 'Staff') {
+      final inventoryError = await RecipeService().checkInventoryAvailability(cartSnapshot);
+      if (inventoryError != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(inventoryError),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
 
     // Determine the next transaction ID (001, 002, ...)
     // Only count clean sequential IDs (<= 9999). Legacy large IDs are ignored.
@@ -857,7 +982,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     // Persist to Supabase (fire-and-forget, errors shown via snackbar)
     _saveOrderToDatabase(
       cartSnapshot: cartSnapshot,
-      total: snapshotTotal,
+      total: finalTotal,
       customerName: customerName,
       note: note,
       transactionId: transactionId,
@@ -866,6 +991,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       changeDue: changeDue,
       guestCount: guestCount,
       tableNumber: tableNumber,
+      discountAmount: discountAmount,
+      discountLabel: discountLabel,
+      discountName: discountName,
+      discountAddress: discountAddress,
     );
 
     // Use the widget's own context (Scaffold context) so the dialog
@@ -878,7 +1007,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         child: SingleChildScrollView(
           child: ReceiptTemplate(
             cart: cartSnapshot,
-            totalAmount: snapshotTotal,
+            totalAmount: finalTotal,
             customerName: customerName.isNotEmpty ? customerName : null,
             note: note.isNotEmpty ? note : null,
             paymentMethod: paymentMethod,
@@ -892,6 +1021,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             orderType: 'WALK-IN',
             terminalNumber: 1,
             cashierName: cashierName.isNotEmpty ? cashierName : 'JANE',
+            discountAmount: discountAmount,
+            discountLabel: discountLabel,
+            discountName: discountName,
+            discountAddress: discountAddress,
           ),
         ),
       ),
@@ -909,6 +1042,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     required double changeDue,
     required int guestCount,
     required String tableNumber,
+    double discountAmount = 0.0,
+    String discountLabel = 'None',
+    String discountName = '',
+    String discountAddress = '',
   }) async {
     try {
       final supabase = Supabase.instance.client;
@@ -930,6 +1067,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             'staff_email': staffEmail,
             'table_number': tableNumber.isNotEmpty ? tableNumber : null,
             'number_of_guests': guestCount,
+            'discount_amount': discountAmount,
+            'discount_label': discountLabel,
+            'discount_name': discountName,
+            'discount_address': discountAddress,
             'created_at': DateTime.now().toIso8601String(),
           })
           .select('id')
@@ -960,6 +1101,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           cartItem.quantity,
         );
       }
+      
+      // Refresh inventory cache after deduction
+      _fetchInventory();
     } catch (e) {
       debugPrint('Supabase Error: $e');
       // Non-blocking: show a warning but don't block the receipt
@@ -1179,6 +1323,20 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       child: ElevatedButton(
                         onPressed: cart.isNotEmpty
                             ? () async {
+                                // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
+                                if (widget.userRole == 'Staff') {
+                                  final inventoryError = await RecipeService().checkInventoryAvailability(cart);
+                                  if (inventoryError != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(inventoryError),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                }
+
                                 // Close the bottom sheet first, then show
                                 // the receipt dialog using the parent context.
                                 Navigator.pop(context);
@@ -1393,7 +1551,21 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       onQuantityIncreased: _increaseQuantity,
                       onQuantityDecreased: _decreaseQuantity,
                       onRemoveItem: _removeItem,
-                      onProceedPayment: (name, note, totalAmount, guestCount, tableNumber) {
+                      onProceedPayment: (name, note, totalAmount, guestCount, tableNumber, discountAmount, discountLabel, discountName, discountAddress) async {
+                        // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
+                        if (widget.userRole == 'Staff') {
+                          final inventoryError = await RecipeService().checkInventoryAvailability(cart);
+                          if (inventoryError != null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(inventoryError),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                        }
+
                         showDialog(
                           context: context,
                           barrierDismissible: false,
@@ -1436,6 +1608,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                         tableNumber: tableNumber,
                                         cashierName: cashierName,
                                         serverName: serverName,
+                                        discountAmount: discountAmount,
+                                        discountLabel: discountLabel,
+                                        discountName: discountName,
+                                        discountAddress: discountAddress,
                                       );
                                       setState(() => cart.clear());
                                       _mobileCustomerNameController.clear();
@@ -1525,7 +1701,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 ),
               )
             else
-              const SizedBox(width: 11), // same space as bar + margin
+              const SizedBox(width: 11),
             Expanded(
               child: Text(
                 MenuService.categories[index],
