@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -16,6 +17,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   late TabController _tabController;
   String _searchQuery = '';
   String _selectedStorageRoom = 'All';
+  String _incomingSearchQuery = '';
+  int _incomingCurrentPage = 1;
+  int _incomingItemsPerPage = 10;
 
   static const List<String> storageRooms = [
     'All',
@@ -659,6 +663,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String unit,
     String supplier,
     String receiver,
+    String? drNumber,
+    String? deliveryTimestamp,
   ) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -695,7 +701,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         'unit': unit,
         'supplier': supplier,
         'processed_by': receiver,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': deliveryTimestamp ?? DateTime.now().toIso8601String(),
+        if (drNumber != null) 'purpose': 'DR: $drNumber',
       });
 
       _showSuccessSnackBar('Stock added successfully!');
@@ -711,6 +718,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     int successCount = 0;
     int failureCount = 0;
     List<String> failedItems = [];
+    
+    // Generate a single DR Number (unique id) for this bulk delivery
+    final drNumber = const Uuid().v4();
+    final deliveryTimestamp = DateTime.now().toIso8601String();
 
     for (var item in bulkItems) {
       try {
@@ -721,6 +732,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           item['unit'] as String,
           item['supplier'] as String,
           receiver,
+          drNumber, // Pass DR Number
+          deliveryTimestamp, // Pass delivery timestamp
         );
         successCount++;
       } catch (e) {
@@ -735,7 +748,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       );
     } else {
       _showSuccessSnackBar(
-        'Successfully processed all $successCount items!',
+        'Successfully processed all $successCount items! DR Number: $drNumber',
       );
     }
   }
@@ -752,6 +765,143 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     );
   }
 
+  void _showDeliveryDetailsModal(String drNumber, List<Map<String, dynamic>> transactions) {
+    final deliveryDateTime = _formatExactDate(transactions.first['created_at']);
+    final receiver = transactions.first['processed_by']?.toString() ?? 'Unknown';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.inventory_2, color: AppTheme.successGreen),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Delivery Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                  Text(
+                    'DR Number: $drNumber',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                  Text(
+                    'Receiver: $receiver',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                  Text(
+                    deliveryDateTime,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: transactions.length,
+            itemBuilder: (context, index) {
+              final transaction = transactions[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.lightGrey),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.inventory, size: 16, color: AppTheme.primaryColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            transaction['item_name'] ?? 'Unknown Item',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.format_list_numbered, size: 14, color: AppTheme.successGreen),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'.trim(),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.successGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (transaction['supplier'] != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.business, size: 14, color: AppTheme.mediumGrey),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Supplier: ${transaction['supplier']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.mediumGrey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -759,9 +909,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
-        title: ResponsiveUtils.isMobile(context)
-            ? const Text('Inventory Room')
-            : const Text('Inventory Room Management'),
+        automaticallyImplyLeading: false,
+        title: const Text('Storage Room'),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.white,
@@ -1169,6 +1318,62 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           ),
         ),
 
+        // Search bar
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _incomingSearchQuery = value;
+                _incomingCurrentPage = 1;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search by DR Number or Date...',
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppTheme.successGreen,
+              ),
+              suffixIcon: _incomingSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(
+                        Icons.clear,
+                        color: AppTheme.mediumGrey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _incomingSearchQuery = '';
+                          _incomingCurrentPage = 1;
+                        });
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppTheme.successGreen),
+              ),
+              filled: true,
+              fillColor: AppTheme.backgroundColor,
+            ),
+          ),
+        ),
+
         // Recent Incoming Transactions
         Expanded(
           child: StreamBuilder<List<Map<String, dynamic>>>(
@@ -1220,127 +1425,214 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 );
               }
 
-              return ListView.builder(
-                padding: EdgeInsets.all(
-                  ResponsiveUtils.isMobile(context) ? 8 : 16,
-                ),
-                itemCount: transactions.length,
-                itemBuilder: (context, index) {
-                  final transaction = transactions[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.darkGrey.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                      border: Border.all(
-                        color: AppTheme.successGreen.withValues(alpha: 0.3),
+              // Group transactions by DR Number (stored in purpose column)
+              Map<String, List<Map<String, dynamic>>> groupedTransactions = {};
+              for (var transaction in transactions) {
+                final purpose = transaction['purpose']?.toString() ?? '';
+                final drNumber = purpose.startsWith('DR: ') 
+                    ? purpose.substring(4) 
+                    : transaction['id'].toString();
+                if (!groupedTransactions.containsKey(drNumber)) {
+                  groupedTransactions[drNumber] = [];
+                }
+                groupedTransactions[drNumber]!.add(transaction);
+              }
+
+              // Filter by search query (DR Number or Date)
+              List<String> filteredDrNumbers = [];
+              if (_incomingSearchQuery.isEmpty) {
+                filteredDrNumbers = groupedTransactions.keys.toList();
+              } else {
+                final searchLower = _incomingSearchQuery.toLowerCase();
+                for (var drNumber in groupedTransactions.keys) {
+                  final drTransactions = groupedTransactions[drNumber]!;
+                  final firstTransaction = drTransactions.first;
+                  final formattedDate = _formatExactDate(firstTransaction['created_at']).toLowerCase();
+                  
+                  if (drNumber.toLowerCase().contains(searchLower) || 
+                      formattedDate.contains(searchLower)) {
+                    filteredDrNumbers.add(drNumber);
+                  }
+                }
+              }
+
+              final drNumbers = filteredDrNumbers;
+
+              // Pagination logic
+              final totalPages = (drNumbers.length / _incomingItemsPerPage).ceil();
+              final startIndex = (_incomingCurrentPage - 1) * _incomingItemsPerPage;
+              final endIndex = startIndex + _incomingItemsPerPage;
+              final paginatedDrNumbers = drNumbers.sublist(
+                startIndex,
+                endIndex > drNumbers.length ? drNumbers.length : endIndex,
+              );
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: EdgeInsets.all(
+                        ResponsiveUtils.isMobile(context) ? 8 : 16,
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.successGreen.withValues(
-                                  alpha: 0.1,
+                      itemCount: paginatedDrNumbers.length,
+                      itemBuilder: (context, index) {
+                        final drNumber = paginatedDrNumbers[index];
+                        final drTransactions = groupedTransactions[drNumber]!;
+                        final firstTransaction = drTransactions.first;
+                        final itemCount = drTransactions.length;
+
+                        return GestureDetector(
+                          onTap: () => _showDeliveryDetailsModal(drNumber, drTransactions),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.add_shopping_cart,
-                                color: AppTheme.successGreen,
-                                size: 20,
+                              ],
+                              border: Border.all(
+                                color: AppTheme.successGreen.withValues(alpha: 0.3),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    transaction['item_name'] ?? 'Unknown Item',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.darkGrey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.successGreen.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.inventory_2,
+                                        color: AppTheme.successGreen,
+                                        size: 20,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    '${transaction['quantity']} ${transaction['unit']?.toString().trim() ?? 'units'}'
-                                        .trim(),
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.successGreen,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'DR Number: $drNumber',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.darkGrey,
+                                            ),
+                                          ),
+                                          Text(
+                                            '$itemCount item${itemCount > 1 ? 's' : ''}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.successGreen,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    Text(
+                                      _formatExactDate(firstTransaction['created_at']),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.mediumGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (firstTransaction['processed_by'] != null) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.person,
+                                        size: 16,
+                                        color: AppTheme.mediumGrey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Receiver: ${firstTransaction['processed_by']}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.mediumGrey,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
-                              ),
+                              ],
                             ),
-                            Text(
-                              _formatExactDate(transaction['created_at']),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.mediumGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (transaction['supplier'] != null) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.business,
-                                size: 16,
-                                color: AppTheme.mediumGrey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Supplier: ${transaction['supplier']}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.mediumGrey,
-                                ),
-                              ),
-                            ],
                           ),
-                        ],
-                        if (transaction['processed_by'] != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.person,
-                                size: 16,
-                                color: AppTheme.mediumGrey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Receiver: ${transaction['processed_by']}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.mediumGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                  if (totalPages > 1) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            onPressed: _incomingCurrentPage > 1
+                                ? () {
+                                    setState(() {
+                                      _incomingCurrentPage--;
+                                    });
+                                  }
+                                : null,
+                            icon: const Icon(Icons.chevron_left),
+                            color: AppTheme.successGreen,
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            'Page $_incomingCurrentPage of $totalPages',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          IconButton(
+                            onPressed: _incomingCurrentPage < totalPages
+                                ? () {
+                                    setState(() {
+                                      _incomingCurrentPage++;
+                                    });
+                                  }
+                                : null,
+                            icon: const Icon(Icons.chevron_right),
+                            color: AppTheme.successGreen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               );
             },
           ),
