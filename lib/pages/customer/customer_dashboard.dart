@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -12,8 +13,6 @@ import 'package:yang_chow/utils/app_theme.dart';
 
 import 'package:yang_chow/utils/app_constants.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 
 import 'package:yang_chow/pages/customer/customer_chat_page.dart';
@@ -21,6 +20,7 @@ import 'package:yang_chow/pages/customer/customer_chat_page.dart';
 import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
 import 'package:yang_chow/pages/customer/menu_selection_page.dart';
 
+import 'package:yang_chow/pages/customer/transactions_page.dart';
 import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
@@ -47,8 +47,7 @@ class CustomerDashboardPage extends StatefulWidget {
 }
 
 class _CustomerDashboardPageState extends State<CustomerDashboardPage> with SingleTickerProviderStateMixin {
-  late TabController _menuTabController;
-  late Map<String, List<MenuItem>> _menuData;
+
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
   int _selectedIndex = 0;
@@ -104,62 +103,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _startTimeController = TextEditingController();
 
-  // Onboarding tracking
-  final Map<int, String> _tooltips = {
-    0: 'Welcome! You can see your recent activity and quick actions here.',
-    1: 'Need a table? Fill out this form to make a reservation.',
-    3: 'Browse our full menu and current pricing here.',
-  };
-  final Set<int> _shownTooltips = {};
-
-  Future<void> _loadOnboardingStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      for (int key in _tooltips.keys) {
-        if (prefs.getBool('tooltip_shown_$key') ?? false) {
-          _shownTooltips.add(key);
-        }
-      }
-    });
-    _triggerTooltip(0);
-  }
-
-  Future<void> _triggerTooltip(int index) async {
-    if (_tooltips.containsKey(index) && !_shownTooltips.contains(index)) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('tooltip_shown_$index', true);
-      setState(() => _shownTooltips.add(index));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.tips_and_updates_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _tooltips[index]!,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: AppTheme.primaryColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: EdgeInsets.only(
-              bottom: 20,
-              left: ResponsiveUtils.isMobile(context) ? 20 : MediaQuery.of(context).size.width * 0.3,
-              right: ResponsiveUtils.isMobile(context) ? 20 : MediaQuery.of(context).size.width * 0.3,
-            ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    }
-  }
-
   final TextEditingController _durationController = TextEditingController();
 
   final TextEditingController _guestsController = TextEditingController();
@@ -185,17 +128,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     _appSettings = AppSettingsService();
 
-    // Initialize configuration from app_settings
-
-    // Initialize configuration from app_settings
-
     _loadConfigurationSettings();
     _loadCustomerReservations();
     _loadReviewEligibility();
-    _loadOnboardingStatus();
-
-    _menuTabController = TabController(length: MenuService.categories.length, vsync: this);
-    _menuData = MenuService.getMenu();
 
     final currentUser = Supabase.instance.client.auth.currentUser;
 
@@ -269,6 +204,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
+  Future<void> _handleRefresh() async {
+    await Future.wait([
+      _loadCustomerReservations(),
+      _loadReviewEligibility(),
+    ]);
+    _loadConfigurationSettings();
+    if (mounted) setState(() {});
+  }
+
   String _getUserDisplayName() {
     final metadata = Supabase.instance.client.auth.currentUser?.userMetadata;
 
@@ -319,15 +263,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       backgroundColor: isDesktop ? Colors.white : const Color(0xFFF9F9FF),
 
       appBar: isDesktop
-          ? AppBar(
-              automaticallyImplyLeading: false,
-
-              title: const Text('Customer Dashboard'),
-
-              backgroundColor: AppTheme.primaryColor,
-
-              foregroundColor: Colors.white,
-            )
+          ? null
           : _buildDashboardAppBar(_getAppBarTitle()),
 
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
@@ -371,14 +307,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
       centerTitle: true,
 
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Color(0xFF1D1B1E)),
-
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
-      ),
-
       title: Text(
         title,
 
@@ -389,7 +317,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         ),
       ),
 
-      actions: [_buildNotificationIcon(), const SizedBox(width: 8)],
+      actions: [
+        _buildNotificationIcon(),
+        IconButton(
+          icon: const Icon(Icons.person_outline_rounded, color: Color(0xFF1D1B1E)),
+          onPressed: () => setState(() => _selectedIndex = 5),
+          tooltip: 'Account',
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 
@@ -800,50 +736,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Dark Sidebar
+        // White Sidebar
         Container(
           width: 280,
-
-          color: const Color(0xFF1E1E1E),
-
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade200, width: 1),
+            ),
+          ),
           child: Column(
             children: [
               // Logo Section
               Container(
                 padding: const EdgeInsets.all(24),
-
                 child: Row(
                   children: [
-                    Container(
+                    Image.asset(
+                      'assets/images/ycplogo.png',
                       width: 40,
-
                       height: 40,
-
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-
-                      child: const Icon(
-                        Icons.restaurant,
-
-                        color: Colors.white,
-
-                        size: 24,
-                      ),
+                      fit: BoxFit.contain,
                     ),
-
                     const SizedBox(width: 12),
-
                     const Text(
                       'Yang Chow',
-
                       style: TextStyle(
-                        color: Colors.white,
-
+                        color: AppTheme.darkGrey,
                         fontSize: 20,
-
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -852,7 +772,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
 
               // Navigation Items
-              ...List.generate(6, (index) {
+              ...List.generate(5, (index) {
                 final icons = [
                   Icons.home_rounded,
 
@@ -863,8 +783,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   Icons.monetization_on_rounded,
 
                   Icons.assignment_rounded,
-
-                  Icons.person_rounded,
                 ];
 
                 final labels = [
@@ -873,51 +791,45 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   'Chat',
                   'Quotations',
                   'Activity',
-                  'Account',
                 ];
 
-                return Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-
-                    vertical: 4,
-                  ),
-
-                  decoration: BoxDecoration(
-                    color: _selectedIndex == index
-                        ? AppTheme.primaryColor
-                        : Colors.transparent,
-
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-
-                  child: ListTile(
-                    leading: Icon(
-                      icons[index],
-
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    decoration: BoxDecoration(
                       color: _selectedIndex == index
-                          ? Colors.white
-                          : Colors.grey.shade400,
+                          ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
                     ),
-
-                    title: Text(
-                      labels[index],
-
-                      style: TextStyle(
-                        color: _selectedIndex == index
-                            ? Colors.white
-                            : Colors.grey.shade400,
-
-                        fontWeight: _selectedIndex == index
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      leading: Icon(
+                        icons[index],
+                        color: _selectedIndex == index
+                            ? AppTheme.primaryColor
+                            : Colors.grey.shade600,
+                      ),
+                      title: Text(
+                        labels[index],
+                        style: TextStyle(
+                          color: _selectedIndex == index
+                              ? AppTheme.primaryColor
+                              : Colors.grey.shade600,
+                          fontWeight: _selectedIndex == index
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedIndex = index);
+                      },
+                      hoverColor: AppTheme.primaryColor.withValues(alpha: 0.08),
                     ),
-
-                    onTap: () {
-                      setState(() => _selectedIndex = index);
-                      _triggerTooltip(index);
-                    },
                   ),
                 );
               }),
@@ -944,14 +856,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
                     children: [
-                      const Text(
-                        'Customer Dashboard',
-
-                        style: TextStyle(
+                      Text(
+                        _getAppBarTitle(),
+                        style: const TextStyle(
                           fontSize: 24,
-
                           fontWeight: FontWeight.bold,
-
                           color: Color(0xFF1E1E1E),
                         ),
                       ),
@@ -960,19 +869,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         children: [
                           _buildNotificationIcon(),
 
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
 
                           IconButton(
-                            onPressed: _showLogoutDialog,
+                            onPressed: () => setState(() => _selectedIndex = 5),
 
                             icon: const Icon(
-                              Icons.logout,
+                              Icons.person_outline_rounded,
 
                               color: Color(0xFF1E1E1E),
                             ),
 
-                            tooltip: 'Logout',
+                            tooltip: 'Account',
                           ),
+
+                          const SizedBox(width: 8),
                         ],
                       ),
                     ],
@@ -1013,12 +924,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         Expanded(
           child: Container(
             color: Colors.transparent,
-
             child: RefreshIndicator(
-              onRefresh: _loadCustomerReservations,
-
+              onRefresh: _handleRefresh,
               color: AppTheme.primaryColor,
-
               child: Padding(
                 padding: ResponsiveUtils.getResponsivePadding(context),
                 child: _buildContent(),
@@ -1027,89 +935,27 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           ),
         ),
 
-        // Modern Animated Mobile Navigation at Bottom
+        // Modern Animated Mobile Navigation at Bottom (Floating Icons Design)
         Container(
-          padding: const EdgeInsets.only(
-            bottom: 16,
-
-            left: 16,
-
-            right: 16,
-
-            top: 8,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
           ),
-
-          decoration: BoxDecoration(
-            color: const Color(
-              0xFFF5F5F5,
-            ), // Match background to blend seamlessly
-          ),
-
           child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-
-              borderRadius: BorderRadius.circular(30),
-
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
-
-                  blurRadius: 20,
-
-                  offset: const Offset(0, 10),
-                ),
-
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-
-                  blurRadius: 10,
-
-                  offset: const Offset(0, -2),
-                ),
-              ],
+            height: 52,
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
             ),
-
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-                  ),
-
-                  Expanded(
-                    child: _buildMobileNavItem(
-                      1,
-
-                      Icons.event_available_rounded,
-
-                      'Reserve',
-                    ),
-                  ),
-
-                  Expanded(
-                    child: _buildMobileNavItem(
-                      2,
-                      Icons.chat_bubble_rounded,
-                      'Chat',
-                    ),
-                  ),
-
-                  Expanded(
-                    child: _buildMobileNavItem(3, Icons.monetization_on_rounded, 'Quotations'),
-                  ),
-
-                  Expanded(
-                    child: _buildMobileNavItem(4, Icons.assignment_rounded, 'Activity'),
-                  ),
-
-                  Expanded(
-                    child: _buildMobileNavItem(5, Icons.person_rounded, 'Account'),
-                  ),
+                  _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
+                  _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
+                  _buildMobileNavItem(2, Icons.chat_bubble_rounded, 'Chat'),
+                  _buildMobileNavItem(3, Icons.monetization_on_rounded, 'Price'),
+                  _buildMobileNavItem(4, Icons.assignment_rounded, 'Activity'),
                 ],
               ),
             ),
@@ -1124,110 +970,49 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         setState(() {
           _selectedIndex = index;
         });
-        _triggerTooltip(index);
       },
-
       behavior: HitTestBehavior.opaque,
-
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-
-        curve: Curves.easeOutCubic,
-
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 12,
+          vertical: 6,
+        ),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withValues(alpha: 0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.15)
               : Colors.transparent,
-
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
         ),
-
-        child: Column(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
-
           children: [
             AnimatedScale(
-              scale: isSelected ? 1.15 : 1.0,
-
+              scale: isSelected ? 1.1 : 1.0,
               duration: const Duration(milliseconds: 300),
-
-              curve: Curves.easeOutBack,
-
-              child: Stack(
-                alignment: Alignment.center,
-
-                children: [
-                  if (isSelected)
-                    Container(
-                      width: 32,
-
-                      height: 32,
-
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.3),
-
-                            blurRadius: 12,
-
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  Icon(
-                    icon,
-
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : Colors.grey.shade700,
-
-                    size: 24,
-                  ),
-                ],
+              child: Icon(
+                icon,
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
+                size: 24,
               ),
             ),
-
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-
-              height: isSelected ? 4 : 0,
-            ),
-
-            if (isSelected)
+            if (isSelected) ...[
+              const SizedBox(width: 8),
               Text(
                 label,
-
                 style: TextStyle(
                   color: AppTheme.primaryColor,
-
                   fontWeight: FontWeight.w700,
-
-                  fontSize: 12,
-
+                  fontSize: 13,
                   letterSpacing: 0.2,
                 ),
-              )
-            else
-              Text(
-                label,
-
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-
-                  fontWeight: FontWeight.w500,
-
-                  fontSize: 11,
-                ),
               ),
+            ],
           ],
         ),
       ),
@@ -1235,6 +1020,30 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.02, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<int>(_selectedIndex),
+        child: _getSectionWidget(),
+      ),
+    );
+  }
+
+  Widget _getSectionWidget() {
     switch (_selectedIndex) {
       case 0:
         return _buildHomeSection();
@@ -1276,7 +1085,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
         border: isPrimary ? null : Border.all(color: Colors.grey.shade300),
 
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
 
       child: Material(
@@ -1285,7 +1094,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         child: InkWell(
           onTap: onTap,
 
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
 
           child: Center(
             child: Row(
@@ -1331,130 +1140,136 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Modern Welcome Banner with Gradient
-          Container(
-            padding: ResponsiveUtils.getResponsivePadding(context),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryColor, AppTheme.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Hero(
-                  tag: 'user_avatar',
-                  child: Container(
-                    width: ResponsiveUtils.isMobile(context) ? 60 : 80,
-                    height: ResponsiveUtils.isMobile(context) ? 60 : 80,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-                      image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
-                          ? DecorationImage(
-                              image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
-                        ? Icon(Icons.person_rounded, color: Colors.white, size: ResponsiveUtils.isMobile(context) ? 30 : 40)
-                        : null,
+          // ── Welcome Banner ──────────────────────────────────────────────
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: ResponsiveUtils.getResponsivePadding(context),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Decorative circles overlay
+                  Positioned(
+                    right: -20,
+                    top: -20,
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.07),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 30,
+                    bottom: -30,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
+                  ),
+                  // Banner content
+                  Row(
                     children: [
-                      Text(
-                        'Hi, ${_getUserDisplayName()}!',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 22, tablet: 26, desktop: 30),
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                      Hero(
+                        tag: 'user_avatar',
+                        child: Container(
+                          width: ResponsiveUtils.isMobile(context) ? 60 : 80,
+                          height: ResponsiveUtils.isMobile(context) ? 60 : 80,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                            image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
+                                ? DecorationImage(
+                                    image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
+                              ? Icon(Icons.person_rounded, color: Colors.white, size: ResponsiveUtils.isMobile(context) ? 30 : 40)
+                              : null,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Ready for a premium dining experience?',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 14,
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hi, ${_getUserDisplayName()}!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 22, tablet: 26, desktop: 30),
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ready for a premium dining experience?',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 32),
 
           const SizedBox(height: 24),
 
-          _buildIntegratedMenu(),
-
-          if (_isEligibleForReview) ...[
-            const SizedBox(height: 24),
-            _buildFeedbackSection(),
-          ],
-
-          // Quick Actions
+          // ── Quick Actions (moved above menu for immediate discoverability) ──
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: AppTheme.cardDecoration(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E1E1E),
-                    letterSpacing: -0.3,
-                  ),
+                  style: AppTheme.sectionHeaderStyle,
                 ),
-
-                const SizedBox(height: 20),
-
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _buildQuickActionButton(
                         onTap: () => setState(() => _selectedIndex = 1),
-
-                        icon: Icons.add,
-
-                        label: 'Make a New Reservation',
-
+                        icon: Icons.add_circle_outline_rounded,
+                        label: 'New Reservation',
                         isPrimary: true,
                       ),
                     ),
-
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: _buildQuickActionButton(
                         onTap: () => setState(() => _selectedIndex = 5),
-
-                        icon: Icons.person_outline,
-
+                        icon: Icons.person_outline_rounded,
                         label: 'My Account',
-
                         isPrimary: false,
                       ),
                     ),
@@ -1466,208 +1281,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           const SizedBox(height: 24),
 
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: AppTheme.cardDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Recent Activity',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E1E1E),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
+          // ── Products & Pricing menu grid ────────────────────────────────
+          _buildIntegratedMenu(),
 
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedIndex = 4;
-                        });
-                      },
+          // ── Feedback section (conditional) ──────────────────────────────
+          if (_isEligibleForReview) ...[
+            const SizedBox(height: 24),
+            _buildFeedbackSection(),
+          ],
 
-                      child: const Text(
-                        'View All Activity',
-
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
-
-                customerReservations.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(32),
-
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.folder_outlined,
-
-                              size: 48,
-
-                              color: Colors.grey.shade400,
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            Text(
-                              'No recent activity found',
-
-                              style: TextStyle(
-                                fontSize: 16,
-
-                                fontWeight: FontWeight.w500,
-
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            Text(
-                              'Book your first table to start seeing activity here.',
-
-                              style: TextStyle(
-                                fontSize: 14,
-
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-
-                        physics: const NeverScrollableScrollPhysics(),
-
-                        itemCount: customerReservations.take(3).length,
-
-                        itemBuilder: (context, index) {
-                          final reservation = customerReservations[index];
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-
-                            padding: const EdgeInsets.all(16),
-
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-
-                              borderRadius: BorderRadius.circular(8),
-
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(
-                                      reservation['status'],
-                                    ).withValues(alpha: 0.1),
-
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-
-                                  child: Icon(
-                                    _getStatusIcon(reservation['status']),
-
-                                    color: _getStatusColor(
-                                      reservation['status'],
-                                    ),
-
-                                    size: 20,
-                                  ),
-                                ),
-
-                                const SizedBox(width: 12),
-
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-
-                                    children: [
-                                      Text(
-                                        reservation['event_type'] ??
-                                            'Reservation',
-
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-
-                                          fontSize: 14,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 4),
-
-                                      Text(
-                                        '${reservation['event_date']} at ${reservation['start_time']}',
-
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-
-                                    vertical: 4,
-                                  ),
-
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(
-                                      reservation['status'],
-                                    ).withValues(alpha: 0.1),
-
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-
-                                  child: Text(
-                                    reservation['status']?.toUpperCase() ??
-                                        'PENDING',
-
-                                    style: TextStyle(
-                                      color: _getStatusColor(
-                                        reservation['status'],
-                                      ),
-
-                                      fontSize: 10,
-
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-              ],
-            ),
-          ),
 
           const SizedBox(height: 24),
         ],
@@ -1704,7 +1326,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       hasReview ? 'YOUR FEEDBACK' : 'LEAVE A REVIEW',
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
                         color: AppTheme.primaryColor,
                       ),
@@ -1786,7 +1408,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
               child: Text(
                 hasReview ? 'UPDATE YOUR REVIEW' : 'WRITE A REVIEW',
-                style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+                style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1),
               ),
             ),
           ),
@@ -1795,37 +1417,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
 
-      case 'confirmed':
-        return Colors.green;
-
-      case 'cancelled':
-        return Colors.red;
-
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getStatusIcon(String? status) {
-    switch (status) {
-      case 'pending':
-        return Icons.pending;
-
-      case 'confirmed':
-        return Icons.check_circle;
-
-      case 'cancelled':
-        return Icons.cancel;
-
-      default:
-        return Icons.help;
-    }
-  }
 
   Widget _buildReservationsSection() {
     return SingleChildScrollView(
@@ -1838,30 +1430,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
-            // Header
+            // ── Section header ──────────────────────────────────────────
             const Text(
               'Reserve Your Space',
-
               style: TextStyle(
                 fontSize: 28,
-
-                fontWeight: FontWeight.bold,
-
-                color: Color(0xFF1D1B1E),
-
+                fontWeight: FontWeight.w600,
+                color: AppTheme.darkGrey,
                 height: 1.2,
+                letterSpacing: -0.5,
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
 
             Text(
               'Curate your next memorable moment with ease.',
-
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+
 
             // Form Card
             Container(
@@ -1967,7 +1557,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   if (pickedDate != null) {
                                     setState(() {
                                       _dateController.text =
-                                          "${pickedDate.month}/${pickedDate.day}/${pickedDate.year}";
+                                          DateFormat('MMMM d, yyyy').format(pickedDate);
                                     });
                                   }
                                 },
@@ -2068,16 +1658,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                               _buildStyledTextField(
                                 controller: _guestsController,
-
-                                hint: '0',
-
+                                hint: 'Enter number of guests',
                                 icon: Icons.people_alt_rounded,
-
                                 keyboardType: TextInputType.number,
-
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                 ],
+                                helperText: '$_minGuestCount–$_maxGuestCount guests allowed',
                               ),
 
                               const SizedBox(height: 24),
@@ -2283,7 +1870,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                                     fontWeight: FontWeight.bold,
 
-                                                    color: Colors.red,
                                                   ),
                                                 ),
                                               ],
@@ -2293,7 +1879,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                       ),
                                     ],
 
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 16),
 
                                     SizedBox(
                                       width: double.infinity,
@@ -2324,7 +1910,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
-                                              8,
+                                              12,
                                             ),
                                           ),
                                         ),
@@ -2584,7 +2170,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                         .withValues(alpha: 0.3),
 
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
 
@@ -2648,14 +2234,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
+  // ── Reservation Form Helpers ──────────────────────────────────────
+
+
   Widget _buildFormLabel(String label) {
     return Text(
       label,
-      style: TextStyle(
-        fontSize: 12,
-        letterSpacing: 0.5,
-        fontWeight: FontWeight.w700,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
         color: AppTheme.mediumGrey,
+        letterSpacing: 1.2,
       ),
     );
   }
@@ -2668,6 +2257,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     VoidCallback? onTap,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
+    String? helperText,
   }) {
     return TextFormField(
       controller: controller,
@@ -2678,6 +2268,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         hintText: hint,
+        helperText: helperText,
+        helperStyle: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
         prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
       ),
     );
@@ -2750,7 +2342,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 initial,
                                 style: const TextStyle(
                                   fontSize: 32,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   color: AppTheme.primaryColor,
                                 ),
                               ),
@@ -2767,7 +2359,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                           name,
                           style: const TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: AppTheme.darkGrey,
                             letterSpacing: -0.5,
                           ),
@@ -2781,22 +2373,52 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                        if (currentUser?.userMetadata?['avatar_url'] == null) ...[
+                          const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () async {
+                              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                              if (mounted) setState(() {});
+                            },
+                            child: const Text(
+                              'Add a profile photo →',
+                              style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 20),
+
+            // Member Stats Row
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: AppTheme.cardDecoration(),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildProfileStat('${customerReservations.length}', 'Reservations'),
+                  _buildProfileDivider(),
+                  _buildProfileStat(
+                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toIso8601String())),
+                    'Member Since',
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 32),
 
             // Menu Cards
             _buildAccountMenuCard(
               icon: Icons.person_outline_rounded,
-
               title: 'Edit Profile',
-
               subtitle: 'Details about your account',
-
               onTap: () async {
                 await Navigator.of(
                   context,
@@ -2817,31 +2439,57 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
 
             _buildAccountMenuCard(
-              icon: Icons.history_edu_rounded,
+              icon: Icons.history_rounded,
+              title: 'Transactions',
+              subtitle: 'View your previous reservations',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => TransactionsPage(initialTransactions: customerReservations),
+                  ),
+                );
+              },
+            ),
 
-              title: 'Activity History',
-
-              subtitle: 'View your past and ongoing activities',
-
-              onTap: _showHistoryPage,
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Divider(height: 1, thickness: 0.5, color: AppTheme.lightGrey),
             ),
 
             _buildAccountMenuCard(
               icon: Icons.logout_rounded,
-
               title: 'Logout',
-
-              subtitle: 'Securely exit your session',
-
+              subtitle: 'Sign out of your account',
               isDestructive: true,
-
               onTap: _showLogoutDialog,
             ),
-
-            const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileStat(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileDivider() {
+    return Container(
+      height: 30,
+      width: 1,
+      color: AppTheme.lightGrey,
     );
   }
 
@@ -3022,84 +2670,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
-  void _showHistoryPage() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: const Color(0xFFF9F9FF),
-
-          appBar: AppBar(
-            backgroundColor: const Color(0xFFF9F9FF),
-
-            elevation: 0,
-
-            scrolledUnderElevation: 0,
-
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                color: Color(0xFF1D1B1E),
-              ),
-
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-
-            title: const Text(
-              'Activity History',
-
-              style: TextStyle(
-                color: Color(0xFF1D1B1E),
-
-                fontWeight: FontWeight.bold,
-
-                fontSize: 18,
-              ),
-            ),
-          ),
-
-          body: customerReservations.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      Icon(
-                        Icons.history_edu_rounded,
-
-                        size: 64,
-
-                        color: Colors.grey.shade300,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Text(
-                        'No activities found',
-
-                        style: TextStyle(
-                          fontSize: 16,
-
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-
-                  itemCount: customerReservations.length,
-
-                  itemBuilder: (context, index) {
-                    final reservation = customerReservations[index];
-
-                    return _buildHistoryItem(reservation);
-                  },
-                ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildIntegratedMenu() {
     return Column(
@@ -3107,38 +2677,47 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: const Text(
-            'Products & Pricing',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E1E1E),
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Top Selling Menu',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E1E1E),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.pushNamed(context, '/all-products');
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        'See All Menu',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 12,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
-        
-        // Category Tabs
-        Container(
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          child: TabBar(
-            controller: _menuTabController,
-            isScrollable: true,
-            labelColor: AppTheme.primaryColor,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: AppTheme.primaryColor,
-            indicatorWeight: 3,
-            indicatorSize: TabBarIndicatorSize.label,
-            dividerColor: Colors.transparent,
-            physics: const BouncingScrollPhysics(),
-            tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
-            onTap: (index) {
-              setState(() {}); // Trigger rebuild to update grid
-            },
-          ),
-        ),
-        
         const SizedBox(height: 16),
         
         // Menu Items Grid
@@ -3151,15 +2730,41 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildMenuCategoryGrid() {
-    final String currentCategory = MenuService.categories[_menuTabController.index];
-    final items = _menuData[currentCategory] ?? [];
+    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    final List<MenuItem> flattenedItems = [];
+    for (var list in allMenu.values) {
+      flattenedItems.addAll(list);
+    }
+    
+    // Curated list of top-selling products
+    final List<String> topSellingNames = [
+      'YangChow 1',
+      'YangChow 3',
+      'Buttered Chicken',
+      'Lechon Macau',
+      'Pancit Canton',
+      'Yang Chow Fried Rice',
+      'Siomai with Shrimp',
+      'Sweet and Sour Pork',
+      'Broccoli Leaves with Oyster Sauce',
+      'Hot Shrimp Salad',
+    ];
+    
+    // Filter and ensure we maintain the order of topSellingNames
+    final List<MenuItem> items = [];
+    for (var name in topSellingNames) {
+      final found = flattenedItems.where((item) => item.name == name).toList();
+      if (found.isNotEmpty) {
+        items.add(found.first);
+      }
+    }
 
     if (items.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(40),
         child: const Center(
           child: Text(
-            'No items available in this category.',
+            'No top-selling items available.',
             style: TextStyle(color: Colors.grey),
           ),
         ),
@@ -3170,10 +2775,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.8 : 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
+        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -3184,85 +2789,140 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildProductCard(MenuItem item) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Section
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Stack(
-                children: [
-                  _buildImageWidget(item),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '₱${_fmt.format(item.price)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+    bool isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        return MouseRegion(
+          onEnter: (_) => setCardState(() => isHovered = true),
+          onExit: (_) => setCardState(() => isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            transform: isHovered ? Matrix4.translationValues(0, -4, 0) : Matrix4.identity(),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: isHovered 
+                    ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                    : Colors.black.withValues(alpha: 0.05),
+                  blurRadius: isHovered ? 25 : 10,
+                  offset: isHovered ? const Offset(0, 10) : const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image Section
+                Expanded(
+                  flex: 3,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Stack(
+                      children: [
+                        _buildImageWidget(item),
+                        // Glassmorphic Price Badge
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  '₱${_fmt.format(item.price)}',
+                                  style: const TextStyle(
+                                    color: AppTheme.primaryColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                
+                // Content Section
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          item.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            color: Color(0xFF1E293B),
+                            height: 1.2,
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  item.category.toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 6.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isHovered ? AppTheme.primaryColor : Colors.transparent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: isHovered ? Colors.white : const Color(0xFFCBD5E1),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          
-          // Content Section
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  Text(
-                    item.category,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -3615,391 +3275,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
-  Widget _buildHistoryItem(Map<String, dynamic> reservation) {
-    final needsDepositPayment = _reservationService.needsDepositPayment(
-      reservation,
-    );
-
-    final pricingInfo = _reservationService.getReservationPricing(reservation);
-
-    final totalPrice = pricingInfo['totalPrice'] as double;
-
-    final depositAmount = pricingInfo['depositAmount'] as double;
-
-    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
-
-    final priceQuotationSent = reservation['price_quotation_sent'] == true;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-
-      elevation: 0,
-
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-                Expanded(
-                  child: Text(
-                    reservation['event_type'] ?? 'Reservation',
-
-                    style: const TextStyle(
-                      fontSize: 18,
-
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                _buildStatusChip(reservation['status'] ?? 'pending'),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-
-                  size: 16,
-
-                  color: Colors.grey.shade600,
-                ),
-
-                const SizedBox(width: 8),
-
-                Text(
-                  'Date: ${reservation['event_date']}',
-
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 4),
-
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time_rounded,
-
-                  size: 16,
-
-                  color: Colors.grey.shade600,
-                ),
-
-                const SizedBox(width: 8),
-
-                Text(
-                  'Time: ${reservation['start_time']} (${reservation['duration_hours']}h)',
-
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 4),
-
-            Row(
-              children: [
-                Icon(
-                  Icons.people_alt_rounded,
-
-                  size: 16,
-
-                  color: Colors.grey.shade600,
-                ),
-
-                const SizedBox(width: 8),
-
-                Text(
-                  'Guests: ${reservation['number_of_guests']}',
-
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-
-            if (priceQuotationSent && totalPrice > 0) ...[
-              const Divider(height: 24),
-
-              Container(
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.05),
-
-                  borderRadius: BorderRadius.circular(8),
-
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                ),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.monetization_on,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-
-                        const SizedBox(width: 4),
-
-                        const Text(
-                          'Pricing Details',
-
-                          style: TextStyle(
-                            fontSize: 14,
-
-                            fontWeight: FontWeight.bold,
-
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                      children: [
-                        const Text('Total Price:'),
-
-                        Text(
-                          'PHP ${totalPrice.toStringAsFixed(2)}',
-
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                      children: [
-                        const Text('Deposit (50%):'),
-
-                        Text(
-                          'PHP ${depositAmount.toStringAsFixed(2)}',
-
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                      children: [
-                        const Text('Remaining Balance:'),
-
-                        Text(
-                          'PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}',
-
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            const Divider(height: 24),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-                    Text(
-                      'Payment Status',
-
-                      style: TextStyle(
-                        fontSize: 12,
-
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-
-                    Text(
-                      _getPaymentStatusText(paymentStatus, priceQuotationSent),
-
-                      style: TextStyle(
-                        fontSize: 14,
-
-                        fontWeight: FontWeight.bold,
-
-                        color: _getPaymentStatusColor(
-                          paymentStatus,
-                          priceQuotationSent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                Text(
-                  'Booked on ${_formatLocalDateTime(reservation['created_at'])}',
-
-                  style: TextStyle(
-                    fontSize: 11,
-
-                    color: Colors.grey.shade400,
-
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-
-            if (needsDepositPayment) ...[
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-
-                child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentDialog(reservation),
-
-                  icon: const Icon(Icons.payment, size: 18),
-
-                  label: Text(
-                    'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
-                  ),
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-
-                    foregroundColor: Colors.white,
-
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ] else if (paymentStatus == 'deposit_paid') ...[
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(8),
-
-                  border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.3),
-                  ),
-                ),
-
-                child: const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 20),
-
-                    SizedBox(width: 8),
-
-                    Expanded(
-                      child: Text(
-                        'Deposit paid! Awaiting admin approval.',
-
-                        style: TextStyle(
-                          color: Colors.green,
-
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (!priceQuotationSent &&
-                (reservation['status'] == 'pending' ||
-                    reservation['status'] == 'pending_quotation')) ...[
-              const SizedBox(height: 16),
-
-              Container(
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(8),
-
-                  border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.3),
-                  ),
-                ),
-
-                child: const Row(
-                  children: [
-                    Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
-
-                    SizedBox(width: 8),
-
-                    Expanded(
-                      child: Text(
-                        'Awaiting price quotation from admin.',
-
-                        style: TextStyle(
-                          color: Colors.orange,
-
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   String _getPaymentStatusText(String status, bool isQuoted) {
     if (!isQuoted) return 'AWAITING QUOTATION';
 
@@ -4243,7 +3518,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   decoration: BoxDecoration(
                     color: isDestructive
                         ? Colors.red.shade50
-                        : Colors.grey.shade50,
+                        : AppTheme.primaryColor.withValues(alpha: 0.07),
 
                     shape: BoxShape.circle,
                   ),
@@ -4253,7 +3528,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                     color: isDestructive
                         ? Colors.red.shade600
-                        : Colors.grey.shade700,
+                        : AppTheme.primaryColor,
 
                     size: 24,
                   ),
@@ -4313,204 +3588,148 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildActivitySection() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              const Text(
-                'Reservation Activity',
-
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Reservation Activity',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1D1B1E),
+                height: 1.2,
+                letterSpacing: -0.5,
               ),
-
-              const SizedBox(height: 20),
-
-              if (customerReservations.isEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-
-                      children: [
-                        const Icon(
-                          Icons.assignment_outlined,
-
-                          size: 64,
-
-                          color: Colors.grey,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const Text(
-                          'No reservation activity',
-
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        const Text(
-                          'Make your first reservation to see your activity here!',
-
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Keep track of your upcoming and past events.',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 32),
+            if (customerReservations.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                width: double.infinity,
+                decoration: AppTheme.cardDecoration(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.assignment_rounded,
+                        size: 40,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-
-                  physics: const NeverScrollableScrollPhysics(),
-
-                  itemCount: customerReservations.length,
-
-                  itemBuilder: (context, index) {
-                    final reservation = customerReservations[index];
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-                            Row(
+                    const SizedBox(height: 24),
+                    const Text(
+                      'No reservation activity',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Your booking history will appear here once you make your first reservation.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: customerReservations.length,
+                itemBuilder: (context, index) {
+                  final reservation = customerReservations[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: AppTheme.cardDecoration(),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.03),
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
                               children: [
                                 Expanded(
                                   child: Text(
-                                    reservation['event_type'],
-
+                                    reservation['event_type'] ?? 'Reservation',
                                     style: const TextStyle(
                                       fontSize: 16,
-
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.darkGrey,
                                     ),
                                   ),
                                 ),
-
                                 Row(
                                   children: [
-                                    _buildStatusChip(reservation['status']),
-
+                                    _buildStatusChip(reservation['status'] ?? 'pending'),
                                     const SizedBox(width: 8),
-
-                                    // Show payment button for confirmed but unpaid reservations
                                     if (reservation['status'] == 'confirmed' &&
                                         reservation['payment_status'] != 'paid')
                                       IconButton(
-                                        onPressed: () =>
-                                            _showPaymentDialog(reservation),
-
-                                        icon: const Icon(
-                                          Icons.payment,
-
-                                          color: Colors.green,
-
-                                          size: 20,
-                                        ),
-
+                                        onPressed: () => _showPaymentDialog(reservation),
+                                        icon: const Icon(Icons.payment_rounded, color: AppTheme.successGreen, size: 22),
                                         tooltip: 'Pay Reservation Fee',
                                       ),
-
-                                    // Show payment status for paid reservations
                                     if (reservation['payment_status'] == 'paid')
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-
-                                          vertical: 4,
-                                        ),
-
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.withValues(
-                                            alpha: 0.1,
-                                          ),
-
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                          color: AppTheme.successGreen.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(20),
                                         ),
-
                                         child: const Text(
                                           'PAID',
-
                                           style: TextStyle(
-                                            color: Colors.green,
-
+                                            color: AppTheme.successGreen,
                                             fontSize: 10,
-
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                       ),
-
-                                    const SizedBox(width: 8),
-
-                                    // Confirmed: Cancel or Reschedule
                                     if (reservation['status'] == 'confirmed' ||
                                         reservation['status'] == 'pending')
                                       PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert_rounded, color: AppTheme.mediumGrey),
                                         onSelected: (String value) {
                                           if (value == 'cancel') {
-                                            _showCancellationDialog(
-                                              reservation,
-                                            );
+                                            _showCancellationDialog(reservation);
                                           } else if (value == 'reschedule') {
                                             _showRescheduleDialog(reservation);
                                           }
                                         },
-
                                         itemBuilder: (BuildContext context) => [
                                           const PopupMenuItem<String>(
                                             value: 'cancel',
-
                                             child: Row(
                                               children: [
-                                                Icon(
-                                                  Icons.close,
-
-                                                  color: Colors.red,
-
-                                                  size: 18,
-                                                ),
-
-                                                SizedBox(width: 8),
-
+                                                Icon(Icons.close_rounded, color: AppTheme.errorRed, size: 18),
+                                                SizedBox(width: 12),
                                                 Text('Cancel Reservation'),
                                               ],
                                             ),
                                           ),
-
                                           const PopupMenuItem<String>(
                                             value: 'reschedule',
-
                                             child: Row(
                                               children: [
-                                                Icon(
-                                                  Icons.edit_calendar,
-
-                                                  color: Colors.blue,
-
-                                                  size: 18,
-                                                ),
-
-                                                SizedBox(width: 8),
-
+                                                Icon(Icons.edit_calendar_rounded, color: AppTheme.infoBlue, size: 18),
+                                                SizedBox(width: 12),
                                                 Text('Reschedule'),
                                               ],
                                             ),
@@ -4521,90 +3740,112 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 ),
                               ],
                             ),
-
-                            const SizedBox(height: 8),
-
-                            Text('Date: ${reservation['event_date']}'),
-
-                            Text('Time: ${reservation['start_time']}'),
-
-                            Text(
-                              'Duration: ${reservation['duration_hours']} hours',
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildActivityDetailRow(Icons.calendar_today_rounded, 'Date', reservation['event_date']),
+                                const SizedBox(height: 12),
+                                _buildActivityDetailRow(Icons.access_time_rounded, 'Time', reservation['start_time']),
+                                const SizedBox(height: 12),
+                                _buildActivityDetailRow(Icons.people_alt_rounded, 'Guests', '${reservation['number_of_guests']} guests'),
+                                const SizedBox(height: 12),
+                                _buildActivityDetailRow(Icons.timer_rounded, 'Duration', '${reservation['duration_hours']} hours'),
+                                const Divider(height: 32),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Booked on: ${_formatLocalDateTime(reservation['created_at'])}',
+                                      style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
+                                    ),
+                                    if (reservation['payment_status'] == 'paid')
+                                      const Icon(Icons.verified_rounded, color: AppTheme.successGreen, size: 16),
+                                  ],
+                                ),
+                              ],
                             ),
-
-                            Text('Guests: ${reservation['number_of_guests']}'),
-
-                            const SizedBox(height: 8),
-
-                            Text(
-                              'Booked on: ${_formatLocalDateTime(reservation['created_at'])}',
-
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-            ],
-          ),
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildActivityDetailRow(IconData icon, String label, String? value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppTheme.primaryColor.withValues(alpha: 0.6)),
+        const SizedBox(width: 12),
+        Text(
+          '$label:',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.mediumGrey),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value ?? 'N/A',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatusChip(String status) {
     Color color;
-
     IconData icon;
 
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'pending':
-        color = Colors.orange;
-
-        icon = Icons.pending;
-
+        color = AppTheme.warningOrange;
+        icon = Icons.pending_rounded;
         break;
-
       case 'confirmed':
-        color = Colors.green;
-
-        icon = Icons.check_circle;
-
+        color = AppTheme.successGreen;
+        icon = Icons.check_circle_rounded;
         break;
-
       case 'cancelled':
-        color = Colors.red;
-
-        icon = Icons.cancel;
-
+        color = AppTheme.errorRed;
+        icon = Icons.cancel_rounded;
         break;
-
       default:
-        color = Colors.grey;
-
-        icon = Icons.help;
+        color = AppTheme.mediumGrey;
+        icon = Icons.help_outline_rounded;
     }
 
-    return Chip(
-      label: Text(status.toUpperCase()),
-
-      backgroundColor: color.withValues(alpha: 0.1),
-
-      labelStyle: TextStyle(
-        color: color,
-
-        fontWeight: FontWeight.bold,
-
-        fontSize: 10,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
-
-      avatar: Icon(icon, size: 14, color: color),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

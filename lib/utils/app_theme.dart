@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Professional App Theme System
 class AppTheme {
   // Primary Colors (Refined for better contrast and modern feel)
   static const Color primaryColor = Color(0xFFC62828); // Deeper, more elegant red
   static const Color primaryDark = Color(0xFF8E0000);
+
+  // Primary gradient (welcome banner, sidebar header)
+  static LinearGradient get primaryGradient => const LinearGradient(
+    colors: [primaryColor, primaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // Consistent section heading style
+  static const TextStyle sectionHeaderStyle = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w800,
+    color: darkGrey,
+    letterSpacing: -0.3,
+  );
+
+  // Spacing helper — returns a vertical SizedBox
+  static SizedBox gap(double height) => SizedBox(height: height);
+
   static const Color primaryLight = Color(0xFFFF5F52);
 
   // Neutral Colors (Cooler undertones)
@@ -28,7 +48,7 @@ class AppTheme {
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
       // Default typography refined for modern geometric appearance
-      fontFamily: 'Roboto', // Default fallback, but properly weighted
+      fontFamily: GoogleFonts.inter().fontFamily,
       appBarTheme: const AppBarTheme(
         backgroundColor: white,
         foregroundColor: darkGrey,
@@ -154,61 +174,63 @@ class AppTheme {
         ),
         prefixIconColor: mediumGrey,
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.w800,
-          color: darkGrey,
-          letterSpacing: -0.5,
-        ),
-        displayMedium: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: darkGrey,
-          letterSpacing: -0.5,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: darkGrey,
-          letterSpacing: -0.5,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: darkGrey,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: darkGrey,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: darkGrey,
-        ),
-        titleSmall: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: mediumGrey,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
-          color: darkGrey,
-          height: 1.5,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
-          color: darkGrey,
-          height: 1.4,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.normal,
-          color: mediumGrey,
+      textTheme: GoogleFonts.interTextTheme(
+        const TextTheme(
+          displayLarge: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: darkGrey,
+            letterSpacing: -0.5,
+          ),
+          displayMedium: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: darkGrey,
+            letterSpacing: -0.5,
+          ),
+          headlineMedium: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: darkGrey,
+            letterSpacing: -0.5,
+          ),
+          headlineSmall: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: darkGrey,
+          ),
+          titleLarge: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: darkGrey,
+          ),
+          titleMedium: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: darkGrey,
+          ),
+          titleSmall: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: mediumGrey,
+          ),
+          bodyLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
+            color: darkGrey,
+            height: 1.5,
+          ),
+          bodyMedium: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.normal,
+            color: darkGrey,
+            height: 1.4,
+          ),
+          bodySmall: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.normal,
+            color: mediumGrey,
+          ),
         ),
       ),
       navigationRailTheme: const NavigationRailThemeData(
@@ -229,9 +251,29 @@ class AppTheme {
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04), // Very subtle shadow
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 16,
           offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  // Bottom navigation pill bar decoration
+  static BoxDecoration navBarDecoration() {
+    return BoxDecoration(
+      color: white,
+      borderRadius: BorderRadius.circular(30),
+      boxShadow: [
+        BoxShadow(
+          color: primaryColor.withValues(alpha: 0.12),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, -2),
         ),
       ],
     );

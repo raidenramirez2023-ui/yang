@@ -636,7 +636,7 @@ class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
         curve: Curves.easeOutCubic,
         transform: Matrix4.identity()
           ..scale(_isHovered ? 1.01 : 1.0)
-          ..translate(0.0, _isHovered ? -4.0 : 0.0),
+          ..setTranslationRaw(0.0, _isHovered ? -4.0 : 0.0, 0.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
