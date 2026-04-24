@@ -179,19 +179,9 @@ class _LandingPageState extends State<LandingPage>
       if (_showScrollToTop) setState(() => _showScrollToTop = false);
     }
 
-    // Navbar visibility logic
-    double currentOffset = _scrollController.offset;
-    if (currentOffset <= 0) {
-      // Always show at the very top
-      if (!_isNavbarVisible) setState(() => _isNavbarVisible = true);
-    } else if (currentOffset > _lastScrollOffset && currentOffset > 80) {
-      // Scrolling down and past header area
-      if (_isNavbarVisible) setState(() => _isNavbarVisible = false);
-    } else if (currentOffset < _lastScrollOffset) {
-      // Scrolling up
-      if (!_isNavbarVisible) setState(() => _isNavbarVisible = true);
-    }
-    _lastScrollOffset = currentOffset;
+    setState(() {
+      _lastScrollOffset = _scrollController.offset;
+    });
   }
 
   Future<void> _checkAndRedirectUser() async {
@@ -313,9 +303,33 @@ class _LandingPageState extends State<LandingPage>
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F5DC),
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // Fixed Red Background Overlay (from login page)
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/YangChow.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Container(
+                    color: const Color(0xFFC62828).withValues(alpha: 0.9),
+                  ),
+                  CustomPaint(
+                    painter: ChinesePatternPainter(
+                      color: Colors.black.withValues(alpha: 0.05),
+                    ),
+                    size: Size.infinite,
+                  ),
+                ],
+              ),
+            ),
+          ),
           // Main Scrollable Content
           SingleChildScrollView(
             controller: _scrollController,
@@ -352,18 +366,21 @@ class _LandingPageState extends State<LandingPage>
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.fastOutSlowIn,
-            top: _isNavbarVisible ? 0 : -100, // Slide up to hide
+            top: 0, // Always fixed at the top
             left: 0,
             right: 0,
             child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5DC),
+                color: _lastScrollOffset > 50
+                    ? const Color(0xFFC62828).withValues(alpha: 0.98)
+                    : Colors.transparent,
                 boxShadow: [
-                  if (_isNavbarVisible && _lastScrollOffset > 10)
+                  if (_lastScrollOffset > 50)
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
                 ],
               ),
@@ -384,7 +401,7 @@ class _LandingPageState extends State<LandingPage>
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-      color: const Color(0xFFF5F5DC),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -400,7 +417,7 @@ class _LandingPageState extends State<LandingPage>
                     Text(
                       'Yang',
                       style: TextStyle(
-                        color: Color(0xFF3E2723),
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 24,
                       ),
@@ -408,7 +425,7 @@ class _LandingPageState extends State<LandingPage>
                     Text(
                       'Chow',
                       style: TextStyle(
-                        color: Color(0xFFC62828),
+                        color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 24,
                       ),
@@ -421,13 +438,13 @@ class _LandingPageState extends State<LandingPage>
               if (isDesktop)
                 Row(
                   children: [
-                    _navLink('Home', () => _scrollToTop()),
-                    _navLink('About', () => _scrollToSection(_aboutKey)),
-                    _navLink('Menu', () => _scrollToSection(_menuKey)),
-                    _navLink('Updates', () => _scrollToSection(_updatesKey)),
-                    _navLink('Services', () => _scrollToSection(_servicesKey)),
-                    _navLink('Reviews', () => _scrollToSection(_reviewsKey)),
-                    _navLink('Contact', () => _scrollToSection(_contactKey)),
+                    _navLink('Home', () => _scrollToTop(), Colors.white),
+                    _navLink('About', () => _scrollToSection(_aboutKey), Colors.white),
+                    _navLink('Menu', () => _scrollToSection(_menuKey), Colors.white),
+                    _navLink('Updates', () => _scrollToSection(_updatesKey), Colors.white),
+                    _navLink('Services', () => _scrollToSection(_servicesKey), Colors.white),
+                    _navLink('Reviews', () => _scrollToSection(_reviewsKey), Colors.white),
+                    _navLink('Contact', () => _scrollToSection(_contactKey), Colors.white),
                   ],
                 ),
 
@@ -438,7 +455,7 @@ class _LandingPageState extends State<LandingPage>
                   child: AnimatedIcon(
                     icon: AnimatedIcons.menu_close,
                     progress: _menuController,
-                    color: const Color(0xFF3E2723),
+                    color: Colors.white,
                     size: 28,
                   ),
                 )
@@ -446,8 +463,8 @@ class _LandingPageState extends State<LandingPage>
                 ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/login'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFC62828),
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFFC62828),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -465,12 +482,12 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _navLink(String label, VoidCallback onTap) {
+  Widget _navLink(String label, VoidCallback onTap, [Color color = const Color(0xFF1E1E1E)]) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: TextButton(
         onPressed: onTap,
-        style: TextButton.styleFrom(foregroundColor: const Color(0xFF1E1E1E)),
+        style: TextButton.styleFrom(foregroundColor: color),
         child: Text(
           label,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
@@ -639,7 +656,7 @@ class _LandingPageState extends State<LandingPage>
       key: _homeKey,
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xFFF5F5DC),
+        color: Colors.transparent,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(60),
           bottomRight: Radius.circular(60),
@@ -681,13 +698,13 @@ class _LandingPageState extends State<LandingPage>
                         fontSize: isTablet ? 48 : 64,
                         height: 1.1,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFF1E1E1E),
+                        color: Colors.white,
                       ),
                       children: const [
                         TextSpan(text: 'Authentic Flavors,\nTrue '),
                         TextSpan(
                             text: 'Heritage',
-                            style: TextStyle(color: Color(0xFFC62828))),
+                            style: TextStyle(color: Colors.amber)), // Changed to amber for contrast on red
                       ],
                     ),
                   ),
@@ -696,22 +713,22 @@ class _LandingPageState extends State<LandingPage>
                     'Experience the heart of Chinese culinary tradition.\nFrom our handpicked ingredients to our master chefs,\nwe bring you an unforgettable dining journey.',
                     style: TextStyle(
                         fontSize: 16,
-                        color: Color(0xFF555555),
+                        color: Colors.white70,
                         height: 1.6),
                   ),
                   const SizedBox(height: 48),
                   ElevatedButton(
                     onPressed: () => Navigator.pushNamed(context, '/login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFC62828),
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFC62828),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 20),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30)),
                       elevation: 8,
                       shadowColor:
-                          const Color(0xFFC62828).withValues(alpha: 0.4),
+                          Colors.black.withValues(alpha: 0.2),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -767,13 +784,13 @@ class _LandingPageState extends State<LandingPage>
               fontSize: 42,
               height: 1.2,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1E1E1E),
+              color: Colors.white,
             ),
             children: [
               TextSpan(text: 'Authentic Flavors,\nTrue '),
               TextSpan(
                   text: 'Heritage',
-                  style: TextStyle(color: Color(0xFFC62828))),
+                  style: TextStyle(color: Colors.amber)),
             ],
           ),
         ),
@@ -782,7 +799,7 @@ class _LandingPageState extends State<LandingPage>
           'Experience the heart of Chinese culinary tradition. From our handpicked ingredients to our master chefs, we bring you an unforgettable dining journey.',
           textAlign: TextAlign.center,
           style:
-              TextStyle(fontSize: 14, color: Color(0xFF555555), height: 1.5),
+              TextStyle(fontSize: 14, color: Colors.white70, height: 1.5),
         ),
         const SizedBox(height: 48),
         Container(
@@ -807,14 +824,14 @@ class _LandingPageState extends State<LandingPage>
         ElevatedButton(
           onPressed: () => Navigator.pushNamed(context, '/login'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFC62828),
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFFC62828),
             padding:
                 const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30)),
             elevation: 8,
-            shadowColor: const Color(0xFFC62828).withValues(alpha: 0.4),
+            shadowColor: Colors.black.withValues(alpha: 0.2),
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
@@ -844,7 +861,7 @@ class _LandingPageState extends State<LandingPage>
     return Container(
       key: _aboutKey,
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-      color: const Color(0xFFF5F5DC),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -854,13 +871,13 @@ class _LandingPageState extends State<LandingPage>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC62828).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   'OUR STORY',
                   style: TextStyle(
-                    color: Color(0xFFC62828),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 2,
@@ -874,13 +891,13 @@ class _LandingPageState extends State<LandingPage>
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E1E1E),
+                      color: Colors.white,
                       height: 1.2),
                   children: [
                     TextSpan(text: 'A Legacy of '),
                     TextSpan(
                         text: 'Authentic',
-                        style: TextStyle(color: Color(0xFFC62828))),
+                        style: TextStyle(color: Colors.amber)),
                     TextSpan(text: '\nChinese Cuisine'),
                   ],
                 ),
@@ -894,7 +911,7 @@ class _LandingPageState extends State<LandingPage>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Color(0xFF555555),
+                  color: Colors.white70,
                   height: 1.8,
                 ),
               ),
@@ -983,7 +1000,7 @@ class _LandingPageState extends State<LandingPage>
         const Text(
           'Why Dine with Us?',
           style: TextStyle(
-              fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E1E1E)),
+              fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white),
         ),
         const SizedBox(height: 24),
         _buildAboutFeature(
@@ -1014,10 +1031,10 @@ class _LandingPageState extends State<LandingPage>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFC62828).withValues(alpha: 0.08),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFFC62828), size: 20),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1028,11 +1045,11 @@ class _LandingPageState extends State<LandingPage>
                   style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: Color(0xFF1E1E1E))),
+                      color: Colors.white)),
               const SizedBox(height: 4),
               Text(desc,
                   style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF555555), height: 1.5)),
+                      fontSize: 13, color: Colors.white70, height: 1.5)),
             ],
           ),
         ),
@@ -1051,7 +1068,7 @@ class _LandingPageState extends State<LandingPage>
     return Container(
       key: _menuKey,
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-      color: const Color(0xFFF5F5DC),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -1066,12 +1083,12 @@ class _LandingPageState extends State<LandingPage>
                     style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF1E1E1E)),
+                        color: Colors.white),
                     children: [
                       TextSpan(text: 'Signature '),
                       TextSpan(
                           text: 'Menu',
-                          style: TextStyle(color: Color(0xFFC62828))),
+                          style: TextStyle(color: Colors.amber)),
                     ],
                   ),
                 ),
@@ -1314,7 +1331,7 @@ class _LandingPageState extends State<LandingPage>
     return Container(
       key: _updatesKey,
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-      color: const Color(0xFFF9F0E5),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -1323,13 +1340,13 @@ class _LandingPageState extends State<LandingPage>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC62828).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   'LATEST NEWS',
                   style: TextStyle(
-                    color: Color(0xFFC62828),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 2,
@@ -1343,13 +1360,13 @@ class _LandingPageState extends State<LandingPage>
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E1E1E),
+                      color: Colors.white,
                       height: 1.2),
                   children: [
                     TextSpan(text: 'What\'s '),
                     TextSpan(
                         text: 'New',
-                        style: TextStyle(color: Color(0xFFC62828))),
+                        style: TextStyle(color: Colors.amber)),
                     TextSpan(text: ' at Yang Chow'),
                   ],
                 ),
@@ -1359,7 +1376,7 @@ class _LandingPageState extends State<LandingPage>
                 'Stay up-to-date with our latest offerings, promos, and seasonal specials.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 15, color: Color(0xFF555555), height: 1.6),
+                    fontSize: 15, color: Colors.white70, height: 1.6),
               ),
               const SizedBox(height: 60),
               if (isDesktop)
@@ -1548,7 +1565,7 @@ class _LandingPageState extends State<LandingPage>
     return Container(
       key: _servicesKey,
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-      color: const Color(0xFFF5F5DC),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -1557,13 +1574,13 @@ class _LandingPageState extends State<LandingPage>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC62828).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   'WHAT WE OFFER',
                   style: TextStyle(
-                    color: Color(0xFFC62828),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 2,
@@ -1577,13 +1594,13 @@ class _LandingPageState extends State<LandingPage>
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E1E1E),
+                      color: Colors.white,
                       height: 1.2),
                   children: [
                     TextSpan(text: 'Elite Services for\n'),
                     TextSpan(
                         text: 'Every Occasion',
-                        style: TextStyle(color: Color(0xFFC62828))),
+                        style: TextStyle(color: Colors.amber)),
                   ],
                 ),
               ),
@@ -1592,7 +1609,7 @@ class _LandingPageState extends State<LandingPage>
                 'From an intimate dinner for two to a grand celebration for hundreds, Yang Chow delivers excellence at every scale.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 15, color: Color(0xFF555555), height: 1.6),
+                    fontSize: 15, color: Colors.white, height: 1.6),
               ),
               const SizedBox(height: 60),
               if (isDesktop)
@@ -1763,7 +1780,7 @@ class _LandingPageState extends State<LandingPage>
     return Container(
       key: _reviewsKey,
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-      color: const Color(0xFFF9F0E5),
+      color: Colors.transparent,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -1772,13 +1789,13 @@ class _LandingPageState extends State<LandingPage>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC62828).withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   'TESTIMONIALS',
                   style: TextStyle(
-                    color: Color(0xFFC62828),
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 2,
@@ -1792,13 +1809,13 @@ class _LandingPageState extends State<LandingPage>
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF1E1E1E),
+                      color: Colors.white,
                       height: 1.2),
                   children: [
                     TextSpan(text: 'Our Customers '),
                     TextSpan(
                         text: 'Love',
-                        style: TextStyle(color: Color(0xFFC62828))),
+                        style: TextStyle(color: Colors.amber)),
                     TextSpan(text: ' Yang Chow'),
                   ],
                 ),
@@ -1808,7 +1825,7 @@ class _LandingPageState extends State<LandingPage>
                 'Real stories from real guests — here\'s what our community says about us.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 15, color: Color(0xFF555555), height: 1.6),
+                    fontSize: 15, color: Colors.white70, height: 1.6),
               ),
               const SizedBox(height: 20),
               // Overall rating summary
@@ -1986,13 +2003,13 @@ class _LandingPageState extends State<LandingPage>
 
     return Container(
       key: _contactKey,
-      color: const Color(0xFFF5F5DC),
+      color: Colors.transparent,
       child: Column(
         children: [
           // Contact info block
           Container(
             padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 24),
-            color: const Color(0xFFF5F5DC),
+            color: Colors.transparent,
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
@@ -2002,13 +2019,13 @@ class _LandingPageState extends State<LandingPage>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFC62828).withValues(alpha: 0.15),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
                         'CONTACT US',
                         style: TextStyle(
-                          color: Color(0xFFC62828),
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                           letterSpacing: 2,
@@ -2022,13 +2039,13 @@ class _LandingPageState extends State<LandingPage>
                         style: TextStyle(
                             fontSize: 36,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF1E1E1E),
+                            color: Colors.white,
                             height: 1.2),
                         children: [
                           TextSpan(text: 'Get in '),
                           TextSpan(
                               text: 'Touch',
-                              style: TextStyle(color: Color(0xFFC62828))),
+                              style: TextStyle(color: Colors.amber)),
                           TextSpan(text: ' With Us'),
                         ],
                       ),
@@ -2038,7 +2055,7 @@ class _LandingPageState extends State<LandingPage>
                       'Have a question, a reservation request, or want to plan a private event? We\'d love to hear from you.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 15, color: Color(0xFF555555), height: 1.6),
+                          fontSize: 15, color: Colors.white70, height: 1.6),
                     ),
                     const SizedBox(height: 60),
                     if (isDesktop)
@@ -2067,7 +2084,7 @@ class _LandingPageState extends State<LandingPage>
           Container(
             padding: const EdgeInsets.only(
                 top: 10, bottom: 40, left: 24, right: 24),
-            color: const Color(0xFFF5F5DC),
+            color: Colors.transparent,
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1200),
@@ -2114,7 +2131,7 @@ class _LandingPageState extends State<LandingPage>
                     const Text(
                       '© 2026 Yang Chow Restaurant. All rights reserved.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF9E9E9E)),
+                      style: TextStyle(fontSize: 12, color: Colors.white54),
                     ),
                   ],
                 ),
@@ -2164,10 +2181,10 @@ class _LandingPageState extends State<LandingPage>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFC62828).withValues(alpha: 0.15),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: const Color(0xFFC62828), size: 20),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 16),
         Column(
@@ -2175,14 +2192,14 @@ class _LandingPageState extends State<LandingPage>
           children: [
             Text(label,
                 style: const TextStyle(
-                    color: Color(0xFF757575),
+                    color: Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1)),
             const SizedBox(height: 4),
             Text(value,
                 style: const TextStyle(
-                    color: Color(0xFF1E1E1E),
+                    color: Colors.white,
                     fontSize: 13,
                     height: 1.6)),
           ],
@@ -2281,22 +2298,22 @@ class _LandingPageState extends State<LandingPage>
           style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1E1E1E)),
+              color: Colors.white),
         ),
         const SizedBox(height: 12),
         const Text(
           'Authentic Chinese Cuisine that brings\nfamily and friends together for\nunforgettable dining moments.',
           style: TextStyle(
-              color: Color(0xFF555555), fontSize: 12, height: 1.6),
+              color: Colors.white70, fontSize: 12, height: 1.6),
         ),
         const SizedBox(height: 20),
         const Row(
           children: [
-            Icon(Icons.facebook, color: Color(0xFFC62828), size: 20),
+            Icon(Icons.facebook, color: Colors.white, size: 20),
             SizedBox(width: 12),
-            Icon(Icons.camera_alt, color: Color(0xFFC62828), size: 20),
+            Icon(Icons.camera_alt, color: Colors.white, size: 20),
             SizedBox(width: 12),
-            Icon(Icons.ondemand_video, color: Color(0xFFC62828), size: 20),
+            Icon(Icons.ondemand_video, color: Colors.white, size: 20),
           ],
         )
       ],
@@ -2308,7 +2325,10 @@ class _LandingPageState extends State<LandingPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('QUICK LINKS',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.white)),
         const SizedBox(height: 20),
         ...[
           ('Home', () => _scrollToTop()),
@@ -2324,7 +2344,7 @@ class _LandingPageState extends State<LandingPage>
                 onTap: pair.$2,
                 child: Text(pair.$1,
                     style: const TextStyle(
-                        color: Color(0xFF555555), fontSize: 12)),
+                        color: Colors.white70, fontSize: 12)),
               ),
             )),
       ],
@@ -2365,7 +2385,54 @@ class _FooterLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(text,
-        style: const TextStyle(color: Color(0xFF555555), fontSize: 12));
+        style: const TextStyle(color: Colors.white70, fontSize: 12));
   }
 }
 
+// ---------------------------------------------------------------------------
+// Custom Painter for Chinese Grid Pattern
+// ---------------------------------------------------------------------------
+
+class ChinesePatternPainter extends CustomPainter {
+  final Color color;
+
+  ChinesePatternPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    const double tileSize = 40.0;
+    const double padding = 8.0;
+    const double innerSize = tileSize - (padding * 2);
+
+    for (double x = 0; x < size.width; x += tileSize) {
+      for (double y = 0; y < size.height; y += tileSize) {
+        // Outer square
+        canvas.drawRect(
+          Rect.fromLTWH(x + 2, y + 2, tileSize - 4, tileSize - 4),
+          paint,
+        );
+
+        // Inner square
+        canvas.drawRect(
+          Rect.fromLTWH(
+              x + padding + 2, y + padding + 2, innerSize - 4, innerSize - 4),
+          paint,
+        );
+        
+        // Small center dot/square
+        canvas.drawRect(
+          Rect.fromLTWH(x + (tileSize / 2) - 1, y + (tileSize / 2) - 1, 2, 2),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
