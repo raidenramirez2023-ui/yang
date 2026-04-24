@@ -44,6 +44,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   int _selectedIndex = 0;
 
+  int _currentPage = 1;
+
+  int _itemsPerPage = 15;
+
 
 
   @override
@@ -442,9 +446,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   child: _buildSimpleActionCard(
 
-                    title: 'View Rooms',
+                    title: 'View Storage Room',
 
-                    icon: Icons.room,
+                    icon: Icons.warehouse,
 
                     color: AppTheme.warningOrange,
 
@@ -1539,9 +1543,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       _buildCompactSidebarItem(
 
-                        icon: Icons.room,
+                        icon: Icons.warehouse,
 
-                        title: 'Rooms',
+                        title: 'Storage Room',
 
                         index: 3,
 
@@ -1612,7 +1616,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         _selectedIndex == 2 ? Icons.inventory :
 
-                        Icons.room,
+                        Icons.warehouse,
 
                         color: AppTheme.primaryColor,
 
@@ -1630,7 +1634,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         _selectedIndex == 2 ? 'Manage Inventory' :
 
-                        'Room Inventory',
+                        'Storage Room',
 
                         style: const TextStyle(
 
@@ -1720,7 +1724,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                  _selectedIndex == 2 ? 'Manage Inventory' :
 
-                 'Room Inventory'),
+                 'Storage Room'),
 
           ],
 
@@ -1892,9 +1896,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   _buildSidebarItem(
 
-                    icon: Icons.room,
+                    icon: Icons.warehouse,
 
-                    title: 'Room Inventory',
+                    title: 'Storage Room',
 
                     index: 3,
 
@@ -2351,6 +2355,25 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   final requests = snapshot.data ?? [];
 
+                  // Sort requests: Pending first, then Approved, then Rejected
+                  requests.sort((a, b) {
+                    final statusA = a['status']?.toString() ?? 'Pending';
+                    final statusB = b['status']?.toString() ?? 'Pending';
+                    
+                    // Priority order: Pending (1), Approved (2), Rejected (3)
+                    final priorityA = statusA == 'Pending' ? 1 : statusA == 'Approved' ? 2 : 3;
+                    final priorityB = statusB == 'Pending' ? 1 : statusB == 'Approved' ? 2 : 3;
+                    
+                    if (priorityA != priorityB) {
+                      return priorityA.compareTo(priorityB);
+                    }
+                    
+                    // Within same status, sort by created_at descending (newest first)
+                    final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                    final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                    return createdAtB.compareTo(createdAtA);
+                  });
+
                   if (requests.isEmpty) {
 
                     return Padding(
@@ -2401,9 +2424,99 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   
 
+                  final totalPages = (requests.length / _itemsPerPage).ceil();
+
+                  final startIndex = (_currentPage - 1) * _itemsPerPage;
+                  final endIndex = startIndex + _itemsPerPage;
+                  final paginatedRequests = requests.sublist(
+                    startIndex,
+                    endIndex > requests.length ? requests.length : endIndex,
+                  );
+
                   return Column(
 
-                    children: requests.map((request) => _buildRequestCard(request)).toList(),
+                    children: [
+
+                      ...paginatedRequests.map((request) => _buildRequestCard(request)).toList(),
+                      
+                      if (totalPages > 1) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.backgroundColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                onPressed: _currentPage > 1
+                                    ? () {
+                                        setState(() {
+                                          _currentPage--;
+                                        });
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.chevron_left),
+                                color: AppTheme.primaryColor,
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 50,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.primaryColor),
+                                ),
+                                child: TextField(
+                                  textAlign: TextAlign.center,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.darkGrey,
+                                  ),
+                                  controller: TextEditingController(text: _currentPage.toString()),
+                                  onSubmitted: (value) {
+                                    final page = int.tryParse(value);
+                                    if (page != null && page >= 1 && page <= totalPages) {
+                                      setState(() {
+                                        _currentPage = page;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'of $totalPages',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.darkGrey,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              IconButton(
+                                onPressed: _currentPage < totalPages
+                                    ? () {
+                                        setState(() {
+                                          _currentPage++;
+                                        });
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.chevron_right),
+                                color: AppTheme.primaryColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
 
                   );
 
