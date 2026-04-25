@@ -1498,36 +1498,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       backgroundColor: const Color(0xFFF5F6FA),
       body: Column(
         children: [
-          // ── Instructions Bar ───────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.blue.withValues(alpha: 0.1),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: Colors.blue, size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  '💡 Long-press any food item to view ingredients and inventory status',
-                  style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    // Add a way to dismiss this instruction
-                  },
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.blue,
-                    size: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
+
           // ── Body Row ─────────────────────────────────────────────────────
           Expanded(
             child: Stack(
