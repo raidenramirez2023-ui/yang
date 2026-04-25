@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,7 +21,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   String _incomingSearchQuery = '';
   int _incomingCurrentPage = 1;
   int _incomingItemsPerPage = 10;
-
+  
   static const List<String> storageRooms = [
     'All',
     'Freezer',
@@ -719,8 +720,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     int failureCount = 0;
     List<String> failedItems = [];
     
-    // Generate a single DR Number (unique id) for this bulk delivery
-    final drNumber = const Uuid().v4();
+    // Generate a single DR Number (5-digit random) for this bulk delivery
+    final drNumber = (10000 + Random().nextInt(90000)).toString();
     final deliveryTimestamp = DateTime.now().toIso8601String();
 
     for (var item in bulkItems) {
@@ -1481,100 +1482,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         final firstTransaction = drTransactions.first;
                         final itemCount = drTransactions.length;
 
-                        return GestureDetector(
+                        return _IncomingDeliveryItem(
+                          drNumber: drNumber,
+                          drTransactions: drTransactions,
+                          itemCount: itemCount,
+                          firstTransaction: firstTransaction,
                           onTap: () => _showDeliveryDetailsModal(drNumber, drTransactions),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppTheme.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.darkGrey.withValues(alpha: 0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                              border: Border.all(
-                                color: AppTheme.successGreen.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.successGreen.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.inventory_2,
-                                        color: AppTheme.successGreen,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'DR Number: $drNumber',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppTheme.darkGrey,
-                                            ),
-                                          ),
-                                          Text(
-                                            '$itemCount item${itemCount > 1 ? 's' : ''}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppTheme.successGreen,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatExactDate(firstTransaction['created_at']),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.mediumGrey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (firstTransaction['processed_by'] != null) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.person,
-                                        size: 16,
-                                        color: AppTheme.mediumGrey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Receiver: ${firstTransaction['processed_by']}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.mediumGrey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
+                          formatDate: _formatExactDate,
                         );
                       },
                     ),
@@ -1675,6 +1589,140 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     } catch (e) {
       return 'Unknown';
     }
+  }
+}
+
+class _IncomingDeliveryItem extends StatefulWidget {
+  final String drNumber;
+  final List<Map<String, dynamic>> drTransactions;
+  final int itemCount;
+  final Map<String, dynamic> firstTransaction;
+  final VoidCallback onTap;
+  final String Function(String?) formatDate;
+
+  const _IncomingDeliveryItem({
+    required this.drNumber,
+    required this.drTransactions,
+    required this.itemCount,
+    required this.firstTransaction,
+    required this.onTap,
+    required this.formatDate,
+  });
+
+  @override
+  State<_IncomingDeliveryItem> createState() => _IncomingDeliveryItemState();
+}
+
+class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isHovered 
+                ? AppTheme.successGreen.withValues(alpha: 0.05)
+                : AppTheme.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: _isHovered
+                    ? AppTheme.successGreen.withValues(alpha: 0.2)
+                    : AppTheme.darkGrey.withValues(alpha: 0.1),
+                blurRadius: _isHovered ? 12 : 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(
+              color: _isHovered
+                  ? AppTheme.successGreen
+                  : AppTheme.successGreen.withValues(alpha: 0.3),
+              width: _isHovered ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2,
+                      color: AppTheme.successGreen,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'DR Number: ${widget.drNumber}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                        Text(
+                          '${widget.itemCount} item${widget.itemCount > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.successGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    widget.formatDate(widget.firstTransaction['created_at']),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.firstTransaction['processed_by'] != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person,
+                      size: 16,
+                      color: AppTheme.mediumGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Receiver: ${widget.firstTransaction['processed_by']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.mediumGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
