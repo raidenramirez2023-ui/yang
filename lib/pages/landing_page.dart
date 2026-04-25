@@ -6,6 +6,12 @@ import 'package:yang_chow/services/menu_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/models/menu_item.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -52,6 +58,20 @@ class _LandingPageState extends State<LandingPage>
   late Animation<double> _menuFadeAnimation;
   late Animation<Offset> _menuSlideAnimation;
 
+  // --- Map State ---
+  final MapController _mapController = MapController();
+  final TextEditingController _mapSearchController = TextEditingController();
+  final TextEditingController _startPointController = TextEditingController(text: 'Your location');
+  final TextEditingController _destinationController = TextEditingController(text: 'Yang Chow');
+  LatLng? _userLocation;
+  LatLng? _startLatLng;
+  LatLng? _destinationLatLng = _restaurantLocation;
+  List<LatLng> _routePoints = [];
+  bool _isRouting = false;
+  bool _showDirectionsPanel = false;
+  bool _isSatelliteMode = false;
+  static const LatLng _restaurantLocation = LatLng(14.265, 121.439);
+
   @override
   void initState() {
     super.initState();
@@ -88,6 +108,7 @@ class _LandingPageState extends State<LandingPage>
 
     _checkAndRedirectUser();
     _loadDynamicData();
+    _getCurrentLocation();
   }
 
   Future<void> _loadDynamicData() async {
@@ -168,7 +189,179 @@ class _LandingPageState extends State<LandingPage>
     _scrollController.dispose();
     _animController.dispose();
     _menuController.dispose();
+    _mapSearchController.dispose();
+    _startPointController.dispose();
+    _destinationController.dispose();
     super.dispose();
+  }
+
+  // --- Map Methods ---
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location services are disabled.')),
+          );
+        }
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Location permissions are denied')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permissions are permanently denied.')),
+          );
+        }
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _userLocation = LatLng(position.latitude, position.longitude);
+      });
+
+      _mapController.move(_userLocation!, 15.0);
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+    }
+  }
+
+  Future<LatLng?> _geocodeAddress(String address) async {
+    if (address == 'Your location') {
+      if (_userLocation == null) await _getCurrentLocation();
+      return _userLocation;
+    }
+    if (address == 'Yang Chow') return _restaurantLocation;
+
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=$address&format=json&limit=1',
+      );
+      final response = await http.get(url, headers: {'User-Agent': 'YangChowApp/1.0'});
+      if (response.statusCode == 200) {
+        final List data = json.decode(response.body);
+        if (data.isNotEmpty) {
+          return LatLng(double.parse(data[0]['lat']), double.parse(data[0]['lon']));
+        }
+      }
+    } catch (e) {
+      debugPrint('Geocoding error: $e');
+    }
+    return null;
+  }
+
+  Future<void> _getRoute() async {
+    setState(() => _isRouting = true);
+
+    try {
+      // Geocode start and destination if needed
+      _startLatLng = await _geocodeAddress(_startPointController.text);
+      _destinationLatLng = await _geocodeAddress(_destinationController.text);
+
+      if (_startLatLng == null || _destinationLatLng == null) {
+        throw Exception('Could not find start or destination location.');
+      }
+
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${_startLatLng!.longitude},${_startLatLng!.latitude};'
+        '${_destinationLatLng!.longitude},${_destinationLatLng!.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List coordinates = data['routes'][0]['geometry']['coordinates'];
+        
+        setState(() {
+          _routePoints = coordinates
+              .map((coord) => LatLng(coord[1].toDouble(), coord[0].toDouble()))
+              .toList();
+          _isRouting = false;
+        });
+
+        if (_routePoints.isNotEmpty) {
+          final bounds = LatLngBounds.fromPoints([
+            _startLatLng!,
+            _destinationLatLng!,
+            ..._routePoints,
+          ]);
+          _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)));
+        }
+      } else {
+        throw Exception('Failed to load route');
+      }
+    } catch (e) {
+      debugPrint('Error getting route: $e');
+      setState(() => _isRouting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    }
+  }
+
+  void _swapRoutingPoints() {
+    final tempText = _startPointController.text;
+    _startPointController.text = _destinationController.text;
+    _destinationController.text = tempText;
+    
+    final tempLatLng = _startLatLng;
+    _startLatLng = _destinationLatLng;
+    _destinationLatLng = tempLatLng;
+    
+    if (_routePoints.isNotEmpty) _getRoute();
+  }
+
+  Future<void> _searchPlace(String query) async {
+    if (query.isEmpty) return;
+
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=1',
+      );
+      
+      final response = await http.get(url, headers: {
+        'User-Agent': 'YangChowApp/1.0',
+      });
+
+      if (response.statusCode == 200) {
+        final List data = json.decode(response.body);
+        if (data.isNotEmpty) {
+          final lat = double.parse(data[0]['lat']);
+          final lon = double.parse(data[0]['lon']);
+          final target = LatLng(lat, lon);
+          
+          _mapController.move(target, 15.0);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No results found for that location.')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching place: $e');
+    }
   }
 
   void _scrollListener() {
@@ -350,6 +543,7 @@ class _LandingPageState extends State<LandingPage>
                 _buildUpdatesSection(context), // UPDATES
                 _buildServicesSection(context), // SERVICES
                 _buildReviewsSection(context), // REVIEWS
+                _buildMapSection(context), // MAP
                 _buildContactFooterSection(context), // CONTACT
               ],
             ),
@@ -1994,7 +2188,440 @@ class _LandingPageState extends State<LandingPage>
   }
 
   // ---------------------------------------------------------------------------
-  // 7. CONTACT / FOOTER SECTION
+  // 7. MAP SECTION
+  // ---------------------------------------------------------------------------
+
+  Widget _buildMapSection(BuildContext context) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      color: Colors.transparent,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'FIND US',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              RichText(
+                textAlign: TextAlign.center,
+                text: const TextSpan(
+                  style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.2),
+                  children: [
+                    TextSpan(text: 'Visit Our '),
+                    TextSpan(
+                        text: 'Location',
+                        style: TextStyle(color: Colors.amber)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Container(
+                  height: isDesktop ? 450 : 400,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      // --- Map Layer ---
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: const MapOptions(
+                          initialCenter: _restaurantLocation,
+                          initialZoom: 16.0,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate: _isSatelliteMode 
+                              ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                              : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.yangchow.app',
+                          ),
+                          // Route Polyline
+                          if (_routePoints.isNotEmpty)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: _routePoints,
+                                  color: const Color(0xFFC62828),
+                                  strokeWidth: 4.0,
+                                ),
+                              ],
+                            ),
+                          MarkerLayer(
+                            markers: [
+                              // Restaurant Marker (Always show unless routing somewhere else)
+                              if (_destinationController.text == 'Yang Chow')
+                                Marker(
+                                  point: _restaurantLocation,
+                                  width: 80,
+                                  height: 80,
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.1),
+                                              blurRadius: 4,
+                                            )
+                                          ],
+                                        ),
+                                        child: const Text(
+                                          'Yang Chow',
+                                          style: TextStyle(
+                                            color: Color(0xFFC62828),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.location_on_rounded,
+                                        color: Color(0xFFC62828),
+                                        size: 40,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              // Start Marker
+                              if (_startLatLng != null)
+                                Marker(
+                                  point: _startLatLng!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(Icons.radio_button_checked, color: Colors.blue, size: 24),
+                                ),
+                              // Destination Marker (If not Yang Chow)
+                              if (_destinationLatLng != null && _destinationController.text != 'Yang Chow')
+                                Marker(
+                                  point: _destinationLatLng!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(Icons.location_on, color: Color(0xFFC62828), size: 30),
+                                ),
+                              // Real-time User Marker
+                              if (_userLocation != null && _startLatLng == null)
+                                Marker(
+                                  point: _userLocation!,
+                                  width: 40,
+                                  height: 40,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.2),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.person_pin_circle_rounded,
+                                        color: Colors.blue,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // --- Search / Directions Panel Overlay ---
+                      Positioned(
+                        top: 16,
+                        left: 16,
+                        right: 16,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _showDirectionsPanel 
+                            ? _buildDirectionsPanel() 
+                            : _buildSimpleSearchBar(),
+                        ),
+                      ),
+
+                      // --- Action Buttons (Bottom Right) ---
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildMapActionBtn(
+                              icon: Icons.my_location,
+                              onPressed: _getCurrentLocation,
+                              tooltip: 'My Location',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapActionBtn(
+                              icon: _showDirectionsPanel ? Icons.close : Icons.directions_rounded,
+                              onPressed: () {
+                                setState(() {
+                                  _showDirectionsPanel = !_showDirectionsPanel;
+                                  if (!_showDirectionsPanel) {
+                                    _routePoints = [];
+                                    _startLatLng = null;
+                                  }
+                                });
+                              },
+                              tooltip: _showDirectionsPanel ? 'Close Directions' : 'Get Directions',
+                              color: _showDirectionsPanel ? Colors.white : const Color(0xFFC62828),
+                              iconColor: _showDirectionsPanel ? const Color(0xFFC62828) : Colors.white,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapActionBtn(
+                              icon: Icons.map_outlined,
+                              onPressed: () async {
+                                final url = 'https://www.google.com/maps/dir/?api=1&destination=${_restaurantLocation.latitude},${_restaurantLocation.longitude}';
+                                if (await canLaunchUrl(Uri.parse(url))) {
+                                  await launchUrl(Uri.parse(url));
+                                }
+                              },
+                              tooltip: 'Open in Google Maps',
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // --- Zoom Controls (Left Side) ---
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildMapActionBtn(
+                              icon: Icons.add,
+                              onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+                              tooltip: 'Zoom In',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapActionBtn(
+                              icon: Icons.remove,
+                              onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
+                              tooltip: 'Zoom Out',
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMapActionBtn(
+                              icon: _isSatelliteMode ? Icons.layers : Icons.layers_outlined,
+                              onPressed: () => setState(() => _isSatelliteMode = !_isSatelliteMode),
+                              tooltip: 'Toggle Satellite View',
+                              color: _isSatelliteMode ? const Color(0xFFC62828) : Colors.white,
+                              iconColor: _isSatelliteMode ? Colors.white : const Color(0xFF333333),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // --- Routing Loading Overlay ---
+                      if (_isRouting)
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: Colors.white),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Calculating Route...',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimpleSearchBar() {
+    return Container(
+      key: const ValueKey('simple_search'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _mapSearchController,
+        decoration: InputDecoration(
+          hintText: 'Search location...',
+          hintStyle: const TextStyle(fontSize: 14),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFFC62828)),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () => _mapSearchController.clear(),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        ),
+        onSubmitted: _searchPlace,
+      ),
+    );
+  }
+
+  Widget _buildDirectionsPanel() {
+    return Container(
+      key: const ValueKey('directions_panel'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, size: 20),
+                onPressed: () => setState(() => _showDirectionsPanel = false),
+              ),
+              const Expanded(
+                child: Text(
+                  'Your Route',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.swap_vert_rounded),
+                onPressed: _swapRoutingPoints,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildRoutingTextField(
+            controller: _startPointController,
+            hint: 'Choose starting point...',
+            icon: Icons.radio_button_checked,
+            iconColor: Colors.blue,
+          ),
+          const SizedBox(height: 8),
+          _buildRoutingTextField(
+            controller: _destinationController,
+            hint: 'Choose destination...',
+            icon: Icons.location_on,
+            iconColor: const Color(0xFFC62828),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _getRoute,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC62828),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 45),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Get Directions', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutingTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: Icon(icon, color: iconColor, size: 18),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          suffixIcon: controller.text == 'Your location' 
+            ? null 
+            : IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: () => controller.clear(),
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapActionBtn({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+    Color color = Colors.white,
+    Color iconColor = const Color(0xFF333333),
+  }) {
+    return FloatingActionButton.small(
+      heroTag: 'map_btn_${icon.codePoint}',
+      onPressed: onPressed,
+      backgroundColor: color,
+      elevation: 4,
+      tooltip: tooltip,
+      child: Icon(icon, color: iconColor, size: 20),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. CONTACT / FOOTER SECTION
   // ---------------------------------------------------------------------------
 
   Widget _buildContactFooterSection(BuildContext context) {
