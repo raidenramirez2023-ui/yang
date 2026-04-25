@@ -539,88 +539,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
   Widget _buildSimpleActionCard({
-
     required String title,
-
     required IconData icon,
-
     required Color color,
-
     required VoidCallback onTap,
-
   }) {
-
-    return InkWell(
-
+    return _HoverableActionCard(
+      title: title,
+      icon: icon,
+      color: color,
       onTap: onTap,
-
-      borderRadius: BorderRadius.circular(8),
-
-      child: Container(
-
-        padding: const EdgeInsets.all(16),
-
-        decoration: BoxDecoration(
-
-          color: AppTheme.white,
-
-          borderRadius: BorderRadius.circular(8),
-
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-
-          boxShadow: [
-
-            BoxShadow(
-
-              color: AppTheme.darkGrey.withValues(alpha: 0.05),
-
-              blurRadius: 4,
-
-              offset: const Offset(0, 2),
-
-            ),
-
-          ],
-
-        ),
-
-        child: Column(
-
-          children: [
-
-            Icon(icon, color: color, size: 24),
-
-            const SizedBox(height: 8),
-
-            Text(
-
-              title,
-
-              style: TextStyle(
-
-                fontSize: 12,
-
-                fontWeight: FontWeight.w600,
-
-                color: color,
-
-              ),
-
-              textAlign: TextAlign.center,
-
-            ),
-
-          ],
-
-        ),
-
-      ),
-
     );
-
   }
-
-
 
   Widget _buildRequestCard(Map<String, dynamic> request) {
 
@@ -2538,6 +2468,87 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
+}
+
+class _HoverableActionCard extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _HoverableActionCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_HoverableActionCard> createState() => _HoverableActionCardState();
+}
+
+class _HoverableActionCardState extends State<_HoverableActionCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isHovered ? widget.color.withValues(alpha: 0.1) : AppTheme.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _isHovered ? widget.color : widget.color.withValues(alpha: 0.3),
+              width: _isHovered ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _isHovered 
+                    ? widget.color.withValues(alpha: 0.2)
+                    : AppTheme.darkGrey.withValues(alpha: 0.05),
+                blurRadius: _isHovered ? 8 : 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.all(_isHovered ? 4 : 0),
+                decoration: BoxDecoration(
+                  color: _isHovered ? widget.color.withValues(alpha: 0.15) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  widget.icon, 
+                  color: widget.color, 
+                  size: _isHovered ? 28 : 24,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: widget.color,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 
