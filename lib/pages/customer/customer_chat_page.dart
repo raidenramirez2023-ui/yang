@@ -182,9 +182,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   const Text(
                     'Customer Support',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor, // Professional Red
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primaryColor,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   Row(
@@ -348,12 +349,26 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                           );
                         }
 
-                        final messages = snapshot.data ?? [];
+                        final dbMessages = snapshot.data ?? [];
 
-                        if (messages.isEmpty) {
+                        if (dbMessages.isEmpty) {
                           debugPrint('No messages found, showing empty state');
                           return _buildBusinessEmptyState();
                         }
+
+                        // Prepend a welcome message to the list so it's always the first message in the history
+                        final List<Map<String, dynamic>> messages = [
+                          {
+                            'id': 'welcome_msg_static',
+                            'message': 'Welcome to Customer Support! 👋\nHow can I help you?',
+                            'is_from_customer': false,
+                            'is_read': true,
+                            'created_at': DateTime.parse(dbMessages.first['created_at'])
+                                .subtract(const Duration(seconds: 1))
+                                .toIso8601String(),
+                          },
+                          ...dbMessages,
+                        ];
 
                         debugPrint('Displaying ${messages.length} messages');
 
@@ -413,21 +428,23 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           ),
           const SizedBox(height: 24),
           const Text(
-            'Welcome to Support',
+            'Customer Support',
             style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
               color: AppTheme.primaryColor,
+              letterSpacing: -1.2,
             ),
           ),
           const SizedBox(height: 12),
           const Text(
-            'How can we assist you today?\nOur team is ready to help',
+            'Hi! Welcome to our support. 👋\nHow can I help you today?',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               color: AppTheme.mediumGrey,
-              height: 1.4,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 32),
@@ -551,28 +568,54 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                         ),
                       ],
                     ),
-                    child: Text(
-                      messageText == ChatService.unsentMessageSentinel
-                          ? (isFromCustomer
-                              ? 'You unsent a message'
-                              : 'This message was unsent')
-                          : messageText,
-                      style: TextStyle(
-                        color: messageText == ChatService.unsentMessageSentinel
-                            ? AppTheme.mediumGrey
-                            : isFromCustomer
-                                ? Colors.white
-                                : AppTheme.primaryColor,
-                        fontSize: 15,
-                        fontStyle:
+                    child: message['id'] == 'welcome_msg_static'
+                        ? RichText(
+                            text: TextSpan(
+                              style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontSize: 15,
+                                height: 1.5,
+                                fontFamily: 'Inter', // Assuming Inter or similar is used
+                              ),
+                              children: [
+                                const TextSpan(text: 'Welcome to '),
+                                const TextSpan(
+                                  text: 'Customer Support! 👋',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: '\nHow can I help you?',
+                                  style: TextStyle(height: 1.8),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Text(
                             messageText == ChatService.unsentMessageSentinel
-                                ? FontStyle.italic
-                                : FontStyle.normal,
-                        fontWeight: isFromCustomer
-                            ? FontWeight.w500
-                            : FontWeight.w400,
-                      ),
-                    ),
+                                ? (isFromCustomer
+                                    ? 'You unsent a message'
+                                    : 'This message was unsent')
+                                : messageText,
+                            style: TextStyle(
+                              color: messageText == ChatService.unsentMessageSentinel
+                                  ? AppTheme.mediumGrey
+                                  : isFromCustomer
+                                      ? Colors.white
+                                      : AppTheme.primaryColor,
+                              fontSize: 15,
+                              height: 1.4,
+                              fontStyle:
+                                  messageText == ChatService.unsentMessageSentinel
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
+                              fontWeight: isFromCustomer
+                                  ? FontWeight.w500
+                                  : FontWeight.w400,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 2),
