@@ -177,9 +177,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
           .from('reservations')
           .select('id')
           .eq('is_archived', false)
-          .inFilter('status', ['pending', 'pending_admin_approval', 'confirmed']);
+          .eq('status', 'pending');
 
-      debugPrint('Pending reservations count: ${(countResponse as List).length}');
+      debugPrint('Pending reservations only count: ${(countResponse as List).length}');
 
       if (mounted) {
         setState(() {

@@ -1763,7 +1763,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   if (pickedDate != null) {
                                     setState(() {
                                       _dateController.text =
-                                          DateFormat('MMMM d, yyyy').format(pickedDate);
+                                          DateFormat('MM/dd/yyyy').format(pickedDate);
                                     });
                                   }
                                 },
@@ -4566,7 +4566,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     if (picked != null) {
                       setState(() {
                         newDate =
-                            "${picked.month}/${picked.day}/${picked.year}";
+                            "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
                       });
                     }
                   },
