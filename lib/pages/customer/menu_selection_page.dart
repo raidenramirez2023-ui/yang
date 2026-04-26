@@ -7,12 +7,14 @@ import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
 class MenuSelectionPage extends StatefulWidget {
+  final String reservationType;
   final int guestCount;
   final Function(Map<String, int>) onMenuSelected;
   final Map<String, int>? initialSelection;
 
   const MenuSelectionPage({
     super.key,
+    required this.reservationType,
     required this.guestCount,
     required this.onMenuSelected,
     this.initialSelection,
@@ -57,7 +59,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   void _updatePricing() {
     setState(() {
       _totalPrice = _menuService.calculateMenuTotalPrice(selectedItems);
-      _depositAmount = _menuService.calculateMenuDepositAmount(_totalPrice);
+      _depositAmount = _menuService.calculateMenuDepositAmount(_totalPrice, reservationType: widget.reservationType);
     });
   }
 
@@ -184,9 +186,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        '50% Deposit Required:',
-                        style: TextStyle(
+                      Text(
+                        widget.reservationType == 'Advance Order' 
+                            ? 'Full Payment Required:' 
+                            : '50% Deposit Required:',
+                        style: const TextStyle(
                           fontSize: 14,
                           color: AppTheme.mediumGrey,
                         ),
@@ -263,9 +267,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Deposit Required',
-                          style: TextStyle(
+                        Text(
+                          widget.reservationType == 'Advance Order' 
+                              ? 'Total Amount' 
+                              : 'Deposit Required',
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.mediumGrey,
                           ),

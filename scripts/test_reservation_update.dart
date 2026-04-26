@@ -44,8 +44,9 @@ class _ReservationUpdateTestPageState extends State<ReservationUpdateTestPage> {
 
       // Test updating payment status
       final paymentSuccess = await _reservationService.updatePaymentStatus(
-        reservationId: 'test_reservation_id',
+        id: 'test_reservation_id',
         paymentStatus: 'deposit_paid',
+        table: 'reservations',
         paymentAmount: 1500.00,
         paymentReference: 'TEST_PAYMENT_123',
       );

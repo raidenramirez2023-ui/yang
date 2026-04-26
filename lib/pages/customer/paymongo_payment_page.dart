@@ -10,6 +10,7 @@ class PayMongoPaymentPage extends StatefulWidget {
   final String reservationId;
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
+  final String table; // 'reservations' or 'advance_orders'
 
   const PayMongoPaymentPage({
     super.key,
@@ -17,6 +18,7 @@ class PayMongoPaymentPage extends StatefulWidget {
     required this.reservationId,
     required this.depositAmount,
     required this.onPaymentSuccess,
+    this.table = 'reservations',
   });
 
   @override
@@ -68,10 +70,11 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     });
 
     try {
-      // Update reservation payment status (this will also update reservation status to confirmed)
+      // Update payment status
       final success = await _reservationService.updatePaymentStatus(
-        reservationId: widget.reservationId,
-        paymentStatus: 'deposit_paid',
+        id: widget.reservationId,
+        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'paid',
+        table: widget.table,
         paymentAmount: widget.depositAmount,
         paymentReference: 'PAYMONGO_${DateTime.now().millisecondsSinceEpoch}',
       );

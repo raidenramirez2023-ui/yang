@@ -624,7 +624,12 @@ class ReservationService {
   Future<bool> isEligibleForReview(String customerEmail) async {
     try {
       final reservations = await getCustomerReservations(customerEmail);
-      return reservations.any((r) => r['status'] == 'completed');
+      final advanceOrders = await getCustomerAdvanceOrders(customerEmail);
+      
+      final hasCompletedRes = reservations.any((r) => r['status'] == 'completed');
+      final hasCompletedAdv = advanceOrders.any((o) => o['status'] == 'done' || o['status'] == 'completed');
+      
+      return hasCompletedRes || hasCompletedAdv;
     } catch (e) {
       debugPrint('Error checking review eligibility: $e');
       return false;
@@ -804,6 +809,130 @@ class ReservationService {
   }
 
 
+
+  /// Create a new advance order
+  Future<Map<String, dynamic>> createAdvanceOrder({
+    required String customerEmail,
+    required String customerName,
+    required String orderType,
+    required String orderDate,
+    required String orderTime,
+    required int? numberOfGuests,
+    required Map<String, int> selectedMenuItems,
+    required double totalPrice,
+    required String? preparationNotes,
+  }) async {
+    try {
+      final now = DateTime.now();
+
+      final response = await _supabase
+          .from('advance_orders')
+          .insert({
+            'customer_email': customerEmail,
+            'customer_name': customerName,
+            'order_type': orderType,
+            'order_date': orderDate,
+            'order_time': orderTime,
+            'number_of_guests': numberOfGuests,
+            'selected_menu_items': selectedMenuItems,
+            'total_price': totalPrice,
+            'status': 'unpaid',
+            'payment_status': 'unpaid',
+            'preparation_notes': preparationNotes,
+            'created_at': now.toIso8601String(),
+            'updated_at': now.toIso8601String(),
+          })
+          .select()
+          .single();
+
+      // Send confirmation email
+      await _emailService.sendReservationConfirmation(
+        customerEmail: customerEmail,
+        customerName: customerName,
+        eventType: 'Advance Order ($orderType)',
+        eventDate: orderDate,
+        startTime: orderTime,
+        duration: 0.0,
+        guests: numberOfGuests ?? 0,
+      );
+
+      return response;
+    } catch (e) {
+      debugPrint('Error creating advance order: $e');
+      throw Exception('Failed to create advance order: $e');
+    }
+  }
+
+  /// Get customer advance orders
+  Future<List<Map<String, dynamic>>> getCustomerAdvanceOrders(
+    String customerEmail,
+  ) async {
+    try {
+      final response = await _supabase
+          .from('advance_orders')
+          .select()
+          .eq('customer_email', customerEmail)
+          .order('order_date', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching advance orders: $e');
+      return [];
+    }
+  }
+
+  /// Cancel an advance order
+  Future<bool> cancelAdvanceOrder({
+    required String orderId,
+    required String customerEmail,
+    required String customerName,
+    required String orderType,
+    required String orderDate,
+    required String cancellationReason,
+  }) async {
+    try {
+      // Fetch order details for refund calculation
+      final order = await _supabase
+          .from('advance_orders')
+          .select()
+          .eq('id', orderId)
+          .single();
+          
+      final double totalPrice = (order['total_price'] as num?)?.toDouble() ?? 0.0;
+      final String paymentStatus = order['payment_status'] ?? 'unpaid';
+      
+      double? refundAmount;
+      if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
+        refundAmount = _calculateRefundAmount(
+          eventDate: orderDate,
+          paymentAmount: totalPrice,
+        );
+      }
+
+      await _supabase
+          .from('advance_orders')
+          .update({
+            'status': 'cancelled',
+            'updated_at': DateTime.now().toIso8601String(),
+            'refund_amount': refundAmount,
+          })
+          .eq('id', orderId);
+
+      // Send cancellation email
+      await _emailService.sendReservationCancelled(
+        customerEmail: customerEmail,
+        customerName: customerName,
+        eventType: 'Advance Order ($orderType)',
+        eventDate: orderDate,
+        refundAmount: refundAmount,
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Error cancelling advance order: $e');
+      throw Exception('Failed to cancel advance order: $e');
+    }
+  }
 
   /// Get customer reservations
 
@@ -1049,126 +1178,97 @@ class ReservationService {
 
 
 
-  /// Update payment status for a reservation
-
+  /// Update payment status for a reservation or advance order
   Future<bool> updatePaymentStatus({
-
-    required String reservationId,
-
+    required String id,
     required String paymentStatus,
-
+    required String table, // 'reservations' or 'advance_orders'
     double? paymentAmount,
-
     String? paymentReference,
-
   }) async {
-
     try {
-
       final updates = <String, dynamic>{
-
         'payment_status': paymentStatus,
-
         'updated_at': DateTime.now().toIso8601String(),
-
       };
 
-
-
-      if (paymentAmount != null) {
-
-        updates['deposit_amount'] = paymentAmount;
-
-        updates['payment_amount'] = paymentAmount;
-
+      if (table == 'reservations') {
+        // Only write reservation-specific columns
+        if (paymentAmount != null) {
+          updates['deposit_amount'] = paymentAmount;
+          updates['payment_amount'] = paymentAmount;
+        }
+        if (paymentReference != null) {
+          updates['payment_reference'] = paymentReference;
+        }
+        // Set status to pending admin approval on deposit paid
+        if (paymentStatus == 'deposit_paid') {
+          updates['status'] = 'pending_admin_approval';
+        }
+      } else {
+        // advance_orders: only update payment_status + status, never overwrite total_price
+        if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
+          updates['status'] = 'pending'; // Send to kitchen
+        } else if (paymentStatus == 'pending_verification') {
+          updates['status'] = 'awaiting_verification'; // Wait for admin
+        }
       }
-
-
-
-      if (paymentReference != null) {
-
-        updates['payment_reference'] = paymentReference;
-
-      }
-
-
-
-      // If deposit is paid, set reservation status to pending admin approval
-
-      if (paymentStatus == 'deposit_paid') {
-
-        updates['status'] = 'pending_admin_approval';
-
-      }
-
-
 
       await _supabase
-
-          .from('reservations')
-
+          .from(table)
           .update(updates)
+          .eq('id', id);
 
-          .eq('id', reservationId);
-
-
-
-      // Get reservation details for notification
-
-      final reservation = await getReservation(reservationId);
-
-      if (reservation != null) {
-
-        // Send payment confirmation email
-
-        if (paymentStatus == 'deposit_paid') {
-
-          await _emailService.sendDepositPaymentConfirmation(
-
-            customerEmail: reservation['customer_email'],
-
-            customerName: reservation['customer_name'],
-
-            eventType: reservation['event_type'],
-
-            eventDate: reservation['event_date'],
-
-            depositAmount: paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
-
-          );
-
-        } else if (paymentStatus == 'fully_paid') {
-
-          await _emailService.sendFullPaymentConfirmation(
-
-            customerEmail: reservation['customer_email'],
-
-            customerName: reservation['customer_name'],
-
-            eventType: reservation['event_type'],
-
-            eventDate: reservation['event_date'],
-
-            totalAmount: paymentAmount ?? reservation['total_price'] ?? 0.0,
-
-          );
-
+      // Send email notifications — wrapped in try-catch so a failed email
+      // never causes the payment update to report failure to the customer.
+      try {
+        if (table == 'reservations') {
+          final reservation = await getReservation(id);
+          if (reservation != null) {
+            if (paymentStatus == 'deposit_paid') {
+              await _emailService.sendDepositPaymentConfirmation(
+                customerEmail: reservation['customer_email'],
+                customerName: reservation['customer_name'],
+                eventType: reservation['event_type'],
+                eventDate: reservation['event_date'],
+                depositAmount: paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
+              );
+            } else if (paymentStatus == 'fully_paid') {
+              await _emailService.sendFullPaymentConfirmation(
+                customerEmail: reservation['customer_email'],
+                customerName: reservation['customer_name'],
+                eventType: reservation['event_type'],
+                eventDate: reservation['event_date'],
+                totalAmount: paymentAmount ?? reservation['total_price'] ?? 0.0,
+              );
+            }
+          }
+        } else {
+          final response = await _supabase
+              .from('advance_orders')
+              .select()
+              .eq('id', id)
+              .single();
+          if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
+            await _emailService.sendFullPaymentConfirmation(
+              customerEmail: response['customer_email'],
+              customerName: response['customer_name'],
+              eventType: 'Advance Order (${response['order_type']})',
+              eventDate: response['order_date'],
+              totalAmount: response['total_price']?.toDouble() ?? 0.0,
+            );
+          }
         }
-
+      } catch (emailError) {
+        // Log but do not rethrow — the DB update succeeded, payment is recorded.
+        debugPrint('Warning: payment notification email failed: $emailError');
       }
 
-
-
       return true;
-
     } catch (e) {
-
       debugPrint('Error updating payment status: $e');
-
       throw Exception('Failed to update payment status: $e');
-
     }
-
   }
 
 
@@ -1406,123 +1506,101 @@ class ReservationService {
 
 
   /// Get reservations pending admin approval
-
   Future<List<Map<String, dynamic>>> getReservationsPendingApproval() async {
-
     try {
-
       final response = await _supabase
-
           .from('reservations')
-
           .select('*')
-
           .eq('status', 'pending_admin_approval')
-
           .eq('payment_status', 'deposit_paid')
-
           .eq('is_archived', false)
-
           .order('created_at', ascending: false);
 
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching reservations pending approval: $e');
+      return [];
+    }
+  }
 
+  /// Get advance orders pending admin approval
+  Future<List<Map<String, dynamic>>> getAdvanceOrdersPendingApproval() async {
+    try {
+      final response = await _supabase
+          .from('advance_orders')
+          .select('*')
+          .eq('status', 'awaiting_verification')
+          .eq('payment_status', 'pending_verification')
+          .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);
-
     } catch (e) {
-
-      debugPrint('Error fetching reservations pending approval: $e');
-
+      debugPrint('Error fetching advance orders pending approval: $e');
       return [];
-
     }
-
   }
-
-
 
   /// Approve pending payment (admin action)
-
   Future<bool> approvePendingPayment({
-
-    required String reservationId,
-
+    required String id,
+    String table = 'reservations',
   }) async {
-
     try {
+      final updates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (table == 'reservations') {
+        updates['status'] = 'confirmed';
+      } else {
+        updates['status'] = 'pending'; // To kitchen
+        updates['payment_status'] = 'paid';
+      }
 
       await _supabase
-
-          .from('reservations')
-
-          .update({
-
-            'status': 'confirmed',
-
-            'updated_at': DateTime.now().toIso8601String(),
-
-          })
-
-          .eq('id', reservationId);
-
-
+          .from(table)
+          .update(updates)
+          .eq('id', id);
 
       return true;
-
     } catch (e) {
-
       debugPrint('Error approving pending payment: $e');
-
       return false;
-
     }
-
   }
 
-
-
   /// Reject pending payment (admin action)
-
   Future<bool> rejectPendingPayment({
-
-    required String reservationId,
-
+    required String id,
+    String table = 'reservations',
     String? reason,
-
   }) async {
-
     try {
+      final updates = <String, dynamic>{
+        'payment_status': 'rejected',
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (table == 'reservations') {
+        updates['status'] = 'payment_rejected';
+        updates['admin_notes'] = reason ?? 'Payment rejected by admin';
+      } else {
+        updates['status'] = 'cancelled';
+        updates['preparation_notes'] = reason != null 
+            ? 'REJECTED: $reason' 
+            : 'REJECTED: Payment verification failed';
+      }
 
       await _supabase
-
-          .from('reservations')
-
-          .update({
-
-            'status': 'payment_rejected',
-
-            'payment_status': 'rejected',
-
-            'admin_notes': reason ?? 'Payment rejected by admin',
-
-            'updated_at': DateTime.now().toIso8601String(),
-
-          })
-
-          .eq('id', reservationId);
-
-
+          .from(table)
+          .update(updates)
+          .eq('id', id);
 
       return true;
-
     } catch (e) {
-
       debugPrint('Error rejecting pending payment: $e');
-
       return false;
-
     }
-
   }
 
   /// Get total count of completed reservations
