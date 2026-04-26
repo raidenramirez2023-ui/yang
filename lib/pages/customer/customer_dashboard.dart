@@ -1056,7 +1056,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildContent() {
     return Container(
       color: AppTheme.backgroundColor,
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 8), // Reduced from 12
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         switchInCurve: Curves.easeOutCubic,
@@ -1388,11 +1388,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
 
           // ── Quick Actions ──
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1428,19 +1428,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
 
           // ── Products & Pricing menu grid ────────────────────────────────
           _buildIntegratedMenu(),
 
           // ── Feedback section (conditional) ──────────────────────────────
           if (_isEligibleForReview) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
             _buildFeedbackSection(),
           ],
 
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
         ],
       ),
     );
@@ -1641,7 +1641,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       physics: const AlwaysScrollableScrollPhysics(),
 
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1668,7 +1668,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
 
             // Reservation Type Selection
             Row(
@@ -1721,7 +1721,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
 
             // Sub-selection for Advance Order (Dine In / Pick Up)
             if (_reservationType == 'Advance Order') ...[
@@ -1733,7 +1733,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16), // Reduced from 24
             ],
 
             // Form Card
@@ -2230,7 +2230,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 ),
                               ),
 
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
 
                               // Extra Time Toggle
                               if (_reservationType == 'Event Place') 
@@ -2358,7 +2358,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 ),
                               ),
 
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 24), // Reduced from 32
 
                               // Special Requests Field (if enabled)
                               if (_enableSpecialRequests) ...[
@@ -2459,7 +2459,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   ),
                                 ),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 24), // Reduced from 32
                               ],
 
                               // Submit Button
@@ -2541,7 +2541,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24), // Reduced from 32
           ],
         ),
       ),
@@ -2990,7 +2990,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -3880,7 +3880,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -5224,8 +5224,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
 
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -5261,6 +5263,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           ...quotations.map((reservation) => _buildQuotationCard(reservation)),
         ],
       ),
+    ),
     );
   }
 
