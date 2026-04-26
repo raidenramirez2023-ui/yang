@@ -40,9 +40,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   int _readyOrders = 0;
   int _outOfStock = 0;
   int _lowStock = 0;
-  double _revenueGrowth = 0.0;
-  double _orderGrowth = 0.0;
-  double _customerGrowth = 0.0;
   
   // ── Advance Order Performance ──────────────────────────────────
   double _advanceOrderRevenueTotal = 0.0;
@@ -304,51 +301,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final readyRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? '') == 'Ready').length;
     final readyAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'ready').length;
     _readyOrders = readyRegular + readyAdvance;
-
-    // Growth Calculations (vs Yesterday) - Compare total daily revenue
-    final yesterday = now.subtract(const Duration(days: 1));
-    final yesterdayStr = DateFormat('yyyy-MM-dd').format(yesterday);
-
-    // Get ALL orders from yesterday for accurate comparison
-    final yesterdayOrders = allOrders.where((o) {
-      final createdAt = o['created_at']?.toString() ?? '';
-      return createdAt.startsWith(yesterdayStr);
-    }).toList();
-
-    final yesterdayRevenue = yesterdayOrders.fold(
-      0.0,
-      (sum, o) => sum + ((o['total_amount'] as num?)?.toDouble() ?? 0.0),
-    );
-    final yesterdayOrdersCount = yesterdayOrders.length;
-
-    if (yesterdayRevenue > 0) {
-      _revenueGrowth =
-          ((_dailyRevenue - yesterdayRevenue) / yesterdayRevenue) * 100;
-    } else {
-      _revenueGrowth = _dailyRevenue > 0 ? 100.0 : 0.0;
-    }
-
-    if (yesterdayOrdersCount > 0) {
-      _orderGrowth =
-          ((_totalOrders - yesterdayOrdersCount) / yesterdayOrdersCount) * 100;
-    } else {
-      _orderGrowth = _totalOrders > 0 ? 100.0 : 0.0;
-    }
-
-    // Count yesterday's completed orders for customer growth comparison
-    final yesterdayCompletedOrders = yesterdayOrders.where((o) {
-      final status = o['kitchen_status']?.toString() ?? 'Pending';
-      return status != 'Pending'; // Count everything except Pending
-    }).length;
-
-    if (yesterdayCompletedOrders > 0) {
-      _customerGrowth =
-          ((_totalCustomers - yesterdayCompletedOrders) /
-              yesterdayCompletedOrders) *
-          100;
-    } else {
-      _customerGrowth = _totalCustomers > 0 ? 100.0 : 0.0;
-    }
 
     // Inventory Alerts (Real-time)
     _outOfStock = allInventory

@@ -1763,7 +1763,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   if (pickedDate != null) {
                                     setState(() {
                                       _dateController.text =
-                                          DateFormat('MM/dd/yyyy').format(pickedDate);
+                                          DateFormat('MMMM d, yyyy').format(pickedDate);
                                     });
                                   }
                                 },

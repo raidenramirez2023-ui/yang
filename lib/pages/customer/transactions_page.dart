@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class TransactionsPage extends StatefulWidget {
   final List<dynamic> initialTransactions;

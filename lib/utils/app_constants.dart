@@ -86,7 +86,6 @@ class AppConstants {
     'Anniversary',
     'Corporate Event',
     'Family Gathering',
-    'Other',
   ];
 
   // Cancellation reasons
@@ -97,7 +96,6 @@ class AppConstants {
     'Budget constraints',
     'Date conflict',
     'Health reasons',
-    'Other',
   ];
 
   // Email notification types
