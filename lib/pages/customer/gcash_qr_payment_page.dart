@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class GCashQRPaymentPage extends StatefulWidget {
   final String reservationId;
@@ -24,6 +26,10 @@ class GCashQRPaymentPage extends StatefulWidget {
 
 class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
   bool _paymentConfirmed = false;
+  bool _isLoading = false;
+  File? _receiptImage;
+  String? _receiptImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
 
@@ -72,7 +78,114 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                   ),
                 ),
               ),
-              
+
+              // Upload Receipt Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Upload your Receipt',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_receiptImageUrl != null) ...[
+                      Container(
+                        width: double.infinity,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade700),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _receiptImageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Receipt uploaded successfully',
+                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _pickReceiptImage,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.upload_file),
+                          label: Text(_isLoading ? 'Uploading...' : 'Choose Receipt Image'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Supported formats: PNG, JPG, JPEG',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
               // Test Payment Section
               Container(
                 width: double.infinity,
@@ -130,21 +243,88 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     );
   }
 
+  Future<void> _pickReceiptImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        // Check MIME type instead of file extension (more reliable)
+        final mimeType = await image.mimeType;
+        if (mimeType == null ||
+            !mimeType.startsWith('image/') ||
+            !['image/png', 'image/jpeg', 'image/jpg'].contains(mimeType.toLowerCase())) {
+          _showErrorDialog('Please select a PNG, JPG, or JPEG image file.');
+          return;
+        }
+
+        setState(() {
+          _receiptImage = File(image.path);
+        });
+
+        // Upload to Supabase storage
+        await _uploadReceiptToSupabase(image);
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to pick image: $e');
+    }
+  }
+
+  Future<void> _uploadReceiptToSupabase(XFile image) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final fileName = 'gcash_receipt_${DateTime.now().millisecondsSinceEpoch}.${image.path.split('.').last}';
+      final filePath = 'receipts/$fileName';
+
+      final fileBytes = await image.readAsBytes();
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(filePath, fileBytes);
+
+      final imageUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      setState(() {
+        _receiptImageUrl = imageUrl;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorDialog('Failed to upload receipt: $e');
+    }
+  }
+
   void _handleTestPayment() async {
     if (_paymentConfirmed) return; // Prevent multiple calls
-    
+
+    // Validate receipt upload
+    if (_receiptImageUrl == null) {
+      _showErrorDialog('Please upload your GCash receipt.');
+      return;
+    }
+
     setState(() {
       _paymentConfirmed = true;
     });
 
     try {
-      // Update payment status
+      // Update payment status with receipt URL
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
         paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'paid',
         table: widget.table,
         paymentAmount: widget.depositAmount,
         paymentReference: 'TEST_PAYMENT_${DateTime.now().millisecondsSinceEpoch}',
+        receiptUrl: _receiptImageUrl,
       );
 
       if (!success) {
