@@ -32,11 +32,23 @@ class _SalesReportPageState extends State<SalesReportPage>
   String _transactionPeriod = 'All Time';
   late Stream<List<Map<String, dynamic>>> _ordersStreamVar;
   late Stream<List<Map<String, dynamic>>> _inventoryStreamVar;
+  late Stream<List<Map<String, dynamic>>> _advanceOrdersStreamVar;
   Timer? _refreshTimer;
+
+  // Pagination state
+  int _currentPage = 1;
+  final int _itemsPerPage = 5;
 
   Stream<List<Map<String, dynamic>>> _ordersStream() {
     return _supabase
         .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+  }
+
+  Stream<List<Map<String, dynamic>>> _advanceOrdersStream() {
+    return _supabase
+        .from('advance_orders')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false);
   }
@@ -47,9 +59,13 @@ class _SalesReportPageState extends State<SalesReportPage>
         .stream(primaryKey: ['id']);
   }
 
-  Map<String, dynamic> _processMetrics(List<Map<String, dynamic>> allOrders) {
+  Map<String, dynamic> _processMetrics(List<Map<String, dynamic>> allOrders, List<Map<String, dynamic>> allAdvanceOrders) {
     final now = DateTime.now();
-    final filteredOrders = allOrders.where((order) {
+    // Combine regular orders and paid advance orders
+    List<Map<String, dynamic>> combinedOrders = [];
+    
+    // Add regular orders
+    combinedOrders.addAll(allOrders.where((order) {
       final date = DateTime.tryParse(order['created_at'] ?? '');
       if (date == null) return false;
       
@@ -61,94 +77,154 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Apply period-specific filtering
       switch (selectedPeriod) {
         case 'Daily':
-          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
           final orderHour = date.hour;
           return date.year == now.year && 
               date.month == now.month && 
               date.day == now.day &&
-              orderHour >= 10 && orderHour < 20; // Only 10:00 AM to 8:00 PM
+              orderHour >= 10 && orderHour < 20;
         case 'Weekly':
-          // Last 7 days of selected year
           final dailyDiff = now.difference(date).inDays;
           return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
         case 'Monthly':
-          // All months of selected year
           return date.year.toString() == selectedYear;
         case 'Annually':
-          // All years from 2016 to current year
           return date.year >= 2016 && date.year <= now.year;
         default:
           return false;
       }
-    }).toList();
+    }).toList());
     
-    if (filteredOrders.isEmpty) {
+    // Add paid advance orders
+    combinedOrders.addAll(allAdvanceOrders.where((order) {
+      final date = DateTime.tryParse(order['order_date'] ?? '');
+      if (date == null) return false;
+      
+      // Only include paid advance orders
+      final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
+      if (!isPaid) return false;
+      
+      // Filter by selected year first (except for yearly view)
+      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
+        return false;
+      }
+      
+      // Apply period-specific filtering
+      switch (selectedPeriod) {
+        case 'Daily':
+          return date.year == now.year && 
+              date.month == now.month && 
+              date.day == now.day;
+        case 'Weekly':
+          final dailyDiff = now.difference(date).inDays;
+          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
+        case 'Monthly':
+          return date.year.toString() == selectedYear;
+        case 'Annually':
+          return date.year >= 2016 && date.year <= now.year;
+        default:
+          return false;
+      }
+    }).toList());
+    
+    if (combinedOrders.isEmpty) {
       return {'revenue': 0.0, 'orders': 0, 'customers': 0, 'avgOrder': 0.0};
     }
 
     double totalRevenue = 0;
     Set<String> uniqueCustomers = {};
 
-    for (var order in filteredOrders) {
-      totalRevenue += (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+    for (var order in combinedOrders) {
+      // Handle both regular orders and advance orders
+      final amount = order.containsKey('total_amount') 
+          ? (order['total_amount'] as num?)?.toDouble() ?? 0.0
+          : (order['total_price'] as num?)?.toDouble() ?? 0.0;
+      totalRevenue += amount;
       uniqueCustomers.add(order['customer_name'] ?? 'Guest');
     }
 
     return {
       'revenue': totalRevenue,
-      'orders': filteredOrders.length,
+      'orders': combinedOrders.length,
       'customers': uniqueCustomers.length,
-      'avgOrder': totalRevenue / filteredOrders.length,
+      'avgOrder': totalRevenue / combinedOrders.length,
     };
   }
 
-  List<double> _processChartData(List<Map<String, dynamic>> orders) {
+  List<double> _processChartData(List<Map<String, dynamic>> orders, List<Map<String, dynamic>> advanceOrders) {
     final now = DateTime.now();
     Map<int, double> periodData = {};
     
-    for (var order in orders) {
-      final date = DateTime.tryParse(order['created_at'] ?? '');
-      if (date == null) continue;
-      
-      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
-      
-      // Apply period-specific filtering
-      switch (selectedPeriod) {
-        case 'Daily':
-          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
-          final orderHour = date.hour;
-          if (date.year == now.year && 
-              date.month == now.month && 
-              date.day == now.day &&
-              orderHour >= 10 && orderHour < 20) { // Only 10:00 AM to 8:00 PM
-            final key = orderHour - 10; // 0 = 10:00, 1 = 11:00, ..., 10 = 20:00
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Weekly':
-          // Last 7 days - group by day of week (Monday=0, Tuesday=1, etc.)
-          final dailyDiff = now.difference(date).inDays;
-          if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
-            final key = date.weekday - 1; // 0 = Monday, 6 = Sunday
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Monthly':
-          // All months of selected year
-          if (date.year.toString() == selectedYear) {
-            final key = date.month - 1; // 0 = Jan, 11 = Dec
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Annually':
-          // Years 2016 to current year
-          if (date.year >= 2016 && date.year <= now.year) {
-            final key = date.year - 2016; // 0 = 2016, 10 = 2026
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
+    // Helper to process a list of orders
+    void processList(List<Map<String, dynamic>> list, bool isAdvance) {
+      for (var order in list) {
+        final dateStr = isAdvance 
+            ? order['order_date'] // Base advance orders on scheduled date
+            : order['created_at'];
+        
+        final date = DateTime.tryParse(dateStr ?? '');
+        if (date == null) continue;
+
+        if (isAdvance) {
+          final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
+          if (!isPaid) continue;
+        }
+
+        final amount = isAdvance 
+            ? (order['total_price'] as num?)?.toDouble() ?? 0.0
+            : (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+
+        // Apply period-specific filtering
+        switch (selectedPeriod) {
+          case 'Daily':
+            if (date.year == now.year && 
+                date.month == now.month && 
+                date.day == now.day) {
+               if (isAdvance) {
+                 // Distribute advance orders at their scheduled hour
+                 try {
+                    final timeStr = order['order_time']?.toString() ?? '12:00 PM';
+                    final hour = DateFormat.jm().parse(timeStr).hour;
+                    if (hour >= 10 && hour < 20) {
+                      final key = hour - 10;
+                      periodData[key] = (periodData[key] ?? 0) + amount;
+                    }
+                 } catch (_) {
+                    periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
+                 }
+               } else {
+                  final orderHour = date.hour;
+                  if (orderHour >= 10 && orderHour < 20) {
+                    final key = orderHour - 10;
+                    periodData[key] = (periodData[key] ?? 0) + amount;
+                  }
+               }
+            }
+            break;
+          case 'Weekly':
+            final dailyDiff = now.difference(date).inDays;
+            if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
+              final key = date.weekday - 1;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+          case 'Monthly':
+            if (date.year.toString() == selectedYear) {
+              final key = date.month - 1;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+          case 'Annually':
+            if (date.year >= 2016 && date.year <= now.year) {
+              final key = date.year - 2016;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+        }
       }
     }
+
+    processList(orders, false);
+    processList(advanceOrders, true);
     
     // Convert to list based on selected period
     if (selectedPeriod == 'Daily') {
@@ -158,10 +234,8 @@ class _SalesReportPageState extends State<SalesReportPage>
     } else if (selectedPeriod == 'Monthly') {
       return List.generate(12, (i) => periodData[i] ?? 0.0);
     } else {
-      // For yearly, generate from 2016 to current year
-      final currentYear = now.year;
-      final yearRange = currentYear - 2016 + 1;
-      return List.generate(yearRange, (i) => periodData[i] ?? 0.0);
+      // Annual - 2016 to current year (2026)
+      return List.generate(now.year - 2016 + 1, (i) => periodData[i] ?? 0.0);
     }
   }
 
@@ -184,6 +258,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     _ordersStreamVar = _ordersStream();
     _inventoryStreamVar = _inventoryStream();
+    _advanceOrdersStreamVar = _advanceOrdersStream();
     
     // Start automatic refresh timer for real-time updates
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -368,98 +443,142 @@ class _SalesReportPageState extends State<SalesReportPage>
           stream: _ordersStreamVar,
           builder: (context, orderSnapshot) {
             return StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _inventoryStreamVar,
-              builder: (context, invSnapshot) {
+              stream: _advanceOrdersStreamVar,
+              builder: (context, advanceOrderSnapshot) {
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _inventoryStreamVar,
+                  builder: (context, invSnapshot) {
 
-                final allOrders = orderSnapshot.data ?? [];
-                final allInventory = invSnapshot.data ?? [];
-                
-                final metrics = _processMetrics(allOrders);
-                final chartValues = _processChartData(allOrders);
-                
-                final now = DateTime.now();
-                final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8:00 PM
-                
-                final lowStockCount = allInventory.where((item) {
-                  final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                  // For Daily view, only count low stock if currently within business hours
-                  if (selectedPeriod == 'Daily' && !isBusinessHours) {
-                    return false; // Don't count low stock outside business hours for Daily view
-                  }
-                  return qty < 10;
-                }).length;
+                    final allOrders = orderSnapshot.data ?? [];
+                    final allAdvanceOrders = advanceOrderSnapshot.data ?? [];
+                    final allInventory = invSnapshot.data ?? [];
+                    
+                    final metrics = _processMetrics(allOrders, allAdvanceOrders);
+                    final chartValues = _processChartData(allOrders, allAdvanceOrders);
+                    
+                    final now = DateTime.now();
+                    final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8: PM
+                    
+                    final lowStockCount = allInventory.where((item) {
+                      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                      // For Daily view, only count low stock if currently within business hours
+                      if (selectedPeriod == 'Daily' && !isBusinessHours) {
+                        return false; // Don't count low stock outside business hours for Daily view
+                      }
+                      return qty < 10;
+                    }).length;
 
-                metrics['lowStock'] = lowStockCount;
+                    metrics['lowStock'] = lowStockCount;
 
-                // Process all orders for the table (filtered by transaction period)
-                final tableTransactions = allOrders.where((o) {
-                  final date = DateTime.tryParse(o['created_at'] ?? '');
-                  if (date == null) return false;
-                  
-                  final now = DateTime.now();
-                  
-                  if (_transactionPeriod == 'Daily') {
-                    if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                  } else if (_transactionPeriod == 'Weekly') {
-                    // last 7 days
-                    if (now.difference(date).inDays > 7) return false;
-                  } else if (_transactionPeriod == 'Monthly') {
-                    if (date.year != now.year || date.month != now.month) return false;
-                  } else if (_transactionPeriod == 'Yearly') {
-                    if (date.year != now.year) return false;
-                  }
-                  
-                  return true;
-                }).map((o) {
-                  final name = o['customer_name'] ?? 'Guest';
-                  final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
-                  
-                  // Map DB status to UI status
-                  String uiStatus = dbStatus;
-                  if (dbStatus == 'Done' || dbStatus == 'Ready') uiStatus = 'Ready';
-                  
-                  return {
-                    'db_id': o['id'].toString(),
-                    'id': '#${o['transaction_id'] ?? o['id']}',
-                    'customer': name,
-                    'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at'])),
-                    'amount': _currencyFormat.format(o['total_amount']),
-                    'status': uiStatus,
-                    'internal_status': dbStatus,
-                    'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                    'color': Colors.blue,
-                  };
-                }).toList();
+                    // Combine regular orders and paid advance orders for the table
+                    List<Map<String, dynamic>> combinedTransactions = [];
+                    
+                    // Add regular orders
+                    combinedTransactions.addAll(allOrders.where((o) {
+                      final date = DateTime.tryParse(o['created_at'] ?? '');
+                      if (date == null) return false;
+                      
+                      if (_transactionPeriod == 'Daily') {
+                        if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                      } else if (_transactionPeriod == 'Weekly') {
+                        if (now.difference(date).inDays > 7) return false;
+                      } else if (_transactionPeriod == 'Monthly') {
+                        if (date.year != now.year || date.month != now.month) return false;
+                      } else if (_transactionPeriod == 'Yearly') {
+                        if (date.year != now.year) return false;
+                      }
+                      
+                      return true;
+                    }).map((o) {
+                      final name = o['customer_name'] ?? 'Guest';
+                      final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
+                      
+                      // Map DB status to UI status
+                      String uiStatus = dbStatus;
+                      if (dbStatus == 'Done' || dbStatus == 'Ready') uiStatus = 'Ready';
+                      
+                      return {
+                        'db_id': o['id'].toString(),
+                        'id': '#${o['transaction_id'] ?? o['id']}',
+                        'customer': name,
+                        'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at'])),
+                        'amount': _currencyFormat.format(o['total_amount']),
+                        'status': uiStatus,
+                        'internal_status': dbStatus,
+                        'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                        'color': Colors.blue,
+                        'type': 'Regular',
+                      };
+                    }).toList());
+                    
+                    // Add paid advance orders
+                    combinedTransactions.addAll(allAdvanceOrders.where((o) {
+                      final date = DateTime.tryParse(o['order_date'] ?? '');
+                      if (date == null) return false;
+                      
+                      // Only include paid advance orders
+                      final isPaid = o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
+                      if (!isPaid) return false;
+                      
+                      if (_transactionPeriod == 'Daily') {
+                        if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                      } else if (_transactionPeriod == 'Weekly') {
+                        if (now.difference(date).inDays > 7) return false;
+                      } else if (_transactionPeriod == 'Monthly') {
+                        if (date.year != now.year || date.month != now.month) return false;
+                      } else if (_transactionPeriod == 'Yearly') {
+                        if (date.year != now.year) return false;
+                      }
+                      
+                      return true;
+                    }).map((o) {
+                      final name = o['customer_name'] ?? 'Guest';
+                      final status = o['status']?.toString().toLowerCase() ?? 'pending';
+                      
+                      return {
+                        'db_id': o['id'].toString(),
+                        'id': '#AO-${o['id']}',
+                        'customer': name,
+                        'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['order_date'] ?? '')),
+                        'amount': _currencyFormat.format(o['total_price']),
+                        'status': status[0].toUpperCase() + status.substring(1),
+                        'internal_status': status,
+                        'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                        'color': Colors.green,
+                        'type': 'Advance',
+                      };
+                    }).toList());
+                    
+                    final tableTransactions = combinedTransactions;
 
-                return FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Padding(
-                    padding: EdgeInsets.all(isDesktop ? 32 : 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _header(tableTransactions, metrics),
-                        const SizedBox(height: 32),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _summaryCards(isDesktop, metrics),
-                                const SizedBox(height: 32),
-                                _chartCard(chartValues),
-                                const SizedBox(height: 32),
-                                _transactionsSection(tableTransactions),
-                                const SizedBox(height: 32),
-                                _insightsCard(metrics),
-                                const SizedBox(height: 32),
-                              ],
+                    return FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Padding(
+                        padding: EdgeInsets.all(isDesktop ? 32 : 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _header(tableTransactions, metrics),
+                            const SizedBox(height: 32),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _summaryCards(isDesktop, metrics),
+                                    const SizedBox(height: 32),
+                                    _chartCard(chartValues),
+                                    const SizedBox(height: 32),
+                                    _transactionsSection(tableTransactions),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               }
             );
@@ -1006,6 +1125,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       return matchesStatus && matchesSearch;
     }).toList();
 
+    // Calculate pagination
+    final totalPages = (filteredTransactions.length / _itemsPerPage).ceil();
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = startIndex + _itemsPerPage;
+    final paginatedTransactions = filteredTransactions.skip(startIndex).take(_itemsPerPage).toList();
+
     return Column(
       children: [
         if (ResponsiveUtils.isMobile(context))
@@ -1050,7 +1175,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                         items: ['All Status', 'Ready', 'Pending', 'Cancelled']
                             .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                             .toList(),
-                        onChanged: (v) => setState(() => _statusFilter = v!),
+                        onChanged: (v) {
+                          setState(() {
+                            _statusFilter = v!;
+                            _currentPage = 1; // Reset to first page when filter changes
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -1071,7 +1201,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                         items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
                             .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                             .toList(),
-                        onChanged: (v) => setState(() => _transactionPeriod = v!),
+                        onChanged: (v) {
+                          setState(() {
+                            _transactionPeriod = v!;
+                            _currentPage = 1; // Reset to first page when filter changes
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -1099,6 +1234,11 @@ class _SalesReportPageState extends State<SalesReportPage>
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(vertical: 10),
                     ),
+                    onChanged: (value) {
+                      setState(() {
+                        _currentPage = 1; // Reset to first page when search changes
+                      });
+                    },
                   ),
                 ),
               ),
@@ -1119,7 +1259,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                   items: ['All Status', 'Ready', 'Pending', 'Cancelled']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                       .toList(),
-                  onChanged: (v) => setState(() => _statusFilter = v!),
+                  onChanged: (v) {
+                    setState(() {
+                      _statusFilter = v!;
+                      _currentPage = 1; // Reset to first page when filter changes
+                    });
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -1137,7 +1282,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                   items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                       .toList(),
-                  onChanged: (v) => setState(() => _transactionPeriod = v!),
+                  onChanged: (v) {
+                    setState(() {
+                      _transactionPeriod = v!;
+                      _currentPage = 1; // Reset to first page when filter changes
+                    });
+                  },
                 ),
               ),
             ],
@@ -1153,14 +1303,22 @@ class _SalesReportPageState extends State<SalesReportPage>
               style: const TextStyle(color: Color(0xFF64748B))
             ),
           )
-        else if (ResponsiveUtils.isMobile(context))
-          ...filteredTransactions.map((t) => _transactionCard(t))
         else
           Column(
             children: [
-              _transactionTableHeader(),
-              const Divider(height: 32, color: Color(0xFFF1F5F9)),
-              ...filteredTransactions.map((t) => _transactionRow(t)),
+              if (ResponsiveUtils.isMobile(context))
+                ...paginatedTransactions.map((t) => _transactionCard(t))
+              else
+                Column(
+                  children: [
+                    _transactionTableHeader(),
+                    const Divider(height: 32, color: Color(0xFFF1F5F9)),
+                    ...paginatedTransactions.map((t) => _transactionRow(t)),
+                  ],
+                ),
+              const SizedBox(height: 24),
+              if (totalPages > 1)
+                _paginationControls(totalPages, filteredTransactions.length),
             ],
           ),
       ],
@@ -1353,6 +1511,168 @@ class _SalesReportPageState extends State<SalesReportPage>
         textAlign: TextAlign.center,
       ),
     );
+  }
+
+  Widget _paginationControls(int totalPages, int totalItems) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final startItem = (_currentPage - 1) * _itemsPerPage + 1;
+    final endItem = (_currentPage * _itemsPerPage).clamp(1, totalItems);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          // Page info
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Showing $startItem-$endItem of $totalItems transactions',
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 12,
+                ),
+              ),
+              if (!isMobile)
+                Text(
+                  'Page $_currentPage of $totalPages',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Page navigation
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Previous button
+              IconButton(
+                onPressed: _currentPage > 1
+                    ? () => setState(() => _currentPage--)
+                    : null,
+                icon: const Icon(Icons.chevron_left, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: _currentPage > 1
+                      ? const Color(0xFF3B82F6)
+                      : const Color(0xFFE2E8F0),
+                  foregroundColor: _currentPage > 1
+                      ? Colors.white
+                      : const Color(0xFF94A3B8),
+                  minimumSize: const Size(36, 36),
+                ),
+              ),
+              
+              // Page numbers (show max 5 pages)
+              if (!isMobile) ...[
+                const SizedBox(width: 8),
+                ..._buildPageNumbers(totalPages),
+                const SizedBox(width: 8),
+              ],
+              
+              // Next button
+              IconButton(
+                onPressed: _currentPage < totalPages
+                    ? () => setState(() => _currentPage++)
+                    : null,
+                icon: const Icon(Icons.chevron_right, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: _currentPage < totalPages
+                      ? const Color(0xFF3B82F6)
+                      : const Color(0xFFE2E8F0),
+                  foregroundColor: _currentPage < totalPages
+                      ? Colors.white
+                      : const Color(0xFF94A3B8),
+                  minimumSize: const Size(36, 36),
+                ),
+              ),
+            ],
+          ),
+          
+          // Mobile page indicator
+          if (isMobile)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Page $_currentPage of $totalPages',
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers(int totalPages) {
+    final List<Widget> pageNumbers = [];
+    final maxVisiblePages = 5;
+    
+    int startPage = 1;
+    int endPage = totalPages;
+    
+    if (totalPages > maxVisiblePages) {
+      final halfVisible = maxVisiblePages ~/ 2;
+      
+      if (_currentPage <= halfVisible) {
+        endPage = maxVisiblePages;
+      } else if (_currentPage >= totalPages - halfVisible) {
+        startPage = totalPages - maxVisiblePages + 1;
+      } else {
+        startPage = _currentPage - halfVisible;
+        endPage = _currentPage + halfVisible;
+      }
+    }
+    
+    for (int i = startPage; i <= endPage; i++) {
+      pageNumbers.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: InkWell(
+            onTap: () => setState(() => _currentPage = i),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: i == _currentPage
+                    ? const Color(0xFF3B82F6)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: i == _currentPage
+                    ? null
+                    : Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Center(
+                child: Text(
+                  '$i',
+                  style: TextStyle(
+                    color: i == _currentPage
+                        ? Colors.white
+                        : const Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: i == _currentPage
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return pageNumbers;
   }
 
 
