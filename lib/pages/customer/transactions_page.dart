@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class TransactionsPage extends StatefulWidget {
   final List<dynamic> initialTransactions;
@@ -112,7 +113,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         color: AppTheme.primaryColor,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: ResponsiveUtils.getResponsivePadding(context).copyWith(top: 24, bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

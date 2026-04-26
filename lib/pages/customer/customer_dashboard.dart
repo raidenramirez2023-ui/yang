@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:yang_chow/utils/app_theme.dart';
 
@@ -294,14 +295,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    return Scaffold(
-      backgroundColor: isDesktop ? Colors.white : const Color(0xFFF9F9FF),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: isDesktop ? Colors.white : AppTheme.navColor,
+        systemNavigationBarIconBrightness: isDesktop ? Brightness.dark : Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: isDesktop ? AppTheme.backgroundColor : AppTheme.navColor,
 
-      appBar: isDesktop
-          ? null
-          : _buildDashboardAppBar(_getAppBarTitle()),
+        appBar: isDesktop
+            ? null
+            : _buildDashboardAppBar(_getAppBarTitle()),
 
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+        body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      ),
     );
   }
 
@@ -332,11 +340,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   PreferredSizeWidget _buildDashboardAppBar(String title) {
     return AppBar(
-      backgroundColor: const Color(0xFFF9F9FF),
+      backgroundColor: AppTheme.navColor,
 
       elevation: 0,
-
       scrolledUnderElevation: 0,
+      shadowColor: Colors.transparent,
 
       automaticallyImplyLeading: false,
 
@@ -344,18 +352,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
       title: Text(
         title,
-
-        style: const TextStyle(
-          color: Color(0xFF1D1B1E),
-
-          fontWeight: FontWeight.bold,
+        style: GoogleFonts.lora(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 20,
         ),
       ),
 
       actions: [
         _buildNotificationIcon(),
         IconButton(
-          icon: const Icon(Icons.person_outline_rounded, color: Color(0xFF1D1B1E)),
+          icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
           onPressed: () => setState(() => _selectedIndex = 5),
           tooltip: 'Account',
         ),
@@ -397,7 +404,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               icon: const Icon(
                 Icons.notifications_none_rounded,
 
-                color: Color(0xFF1D1B1E),
+                color: Colors.white,
               ),
 
               onPressed: () {
@@ -430,7 +437,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     shape: BoxShape.circle,
 
                     border: Border.all(
-                      color: const Color(0xFFF9F9FF),
+                      color: AppTheme.backgroundColor,
 
                       width: 2,
                     ),
@@ -771,13 +778,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // White Sidebar
+        // Vivid Red Sidebar
         Container(
           width: 280,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.navColor,
             border: Border(
-              right: BorderSide(color: Colors.grey.shade200, width: 1),
+              right: BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 1),
             ),
           ),
           child: Column(
@@ -794,29 +801,27 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Yang Chow',
-                      style: TextStyle(
-                        color: AppTheme.darkGrey,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.lora(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.2)),
+              const SizedBox(height: 16),
 
               // Navigation Items
               ...List.generate(5, (index) {
                 final icons = [
                   Icons.home_rounded,
-
                   Icons.event_available_rounded,
-
                   Icons.chat_bubble_rounded,
-
                   Icons.monetization_on_rounded,
-
                   Icons.assignment_rounded,
                 ];
 
@@ -829,41 +834,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 ];
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     decoration: BoxDecoration(
                       color: _selectedIndex == index
-                          ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                          ? Colors.white.withValues(alpha: 0.25)
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: ListTile(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       leading: Icon(
                         icons[index],
                         color: _selectedIndex == index
-                            ? AppTheme.primaryColor
-                            : Colors.grey.shade600,
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.65),
                       ),
                       title: Text(
                         labels[index],
                         style: TextStyle(
                           color: _selectedIndex == index
-                              ? AppTheme.primaryColor
-                              : Colors.grey.shade600,
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.65),
                           fontWeight: _selectedIndex == index
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          fontSize: 15,
                         ),
                       ),
                       onTap: () {
                         HapticFeedback.selectionClick();
                         setState(() => _selectedIndex = index);
                       },
-                      hoverColor: AppTheme.primaryColor.withValues(alpha: 0.08),
+                      hoverColor: Colors.white.withValues(alpha: 0.1),
                     ),
                   ),
                 );
@@ -877,7 +883,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         // Main Content
         Expanded(
           child: Container(
-            color: const Color(0xFFF5F5F5),
+            color: AppTheme.backgroundColor,
 
             child: Column(
               children: [
@@ -885,39 +891,35 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 Container(
                   padding: const EdgeInsets.all(24),
 
-                  color: Colors.white,
+                  color: AppTheme.navColor,
 
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
+                      // Centered Title
                       Text(
                         _getAppBarTitle(),
-                        style: const TextStyle(
+                        style: GoogleFonts.lora(
                           fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E1E1E),
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
                         ),
                       ),
-
+                      
+                      // Actions on right
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           _buildNotificationIcon(),
-
                           const SizedBox(width: 4),
-
                           IconButton(
                             onPressed: () => setState(() => _selectedIndex = 5),
-
                             icon: const Icon(
                               Icons.person_outline_rounded,
-
-                              color: Color(0xFF1E1E1E),
+                              color: Colors.white,
                             ),
-
                             tooltip: 'Account',
                           ),
-
                           const SizedBox(width: 8),
                         ],
                       ),
@@ -957,24 +959,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       children: [
         // Main Content
         Expanded(
-          child: Container(
-            color: Colors.transparent,
-            child: RefreshIndicator(
+          child: RefreshIndicator(
               onRefresh: _handleRefresh,
               color: AppTheme.primaryColor,
               child: Padding(
-                padding: ResponsiveUtils.getResponsivePadding(context),
+                padding: EdgeInsets.zero,
                 child: _buildContent(),
               ),
             ),
-          ),
         ),
 
         // Modern Animated Mobile Navigation at Bottom (Floating Icons Design)
         Container(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
+          decoration: BoxDecoration(
+            color: AppTheme.navColor,
           ),
           child: Container(
             height: 52,
@@ -984,7 +983,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
                   _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
@@ -1020,7 +1019,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withValues(alpha: 0.15)
+              ? Colors.white.withValues(alpha: 0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
@@ -1032,7 +1031,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               duration: const Duration(milliseconds: 300),
               child: Icon(
                 icon,
-                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
+                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
                 size: 24,
               ),
             ),
@@ -1041,7 +1040,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               Text(
                 label,
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                   letterSpacing: 0.2,
@@ -1055,25 +1054,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildContent() {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (Widget child, Animation<double> animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.02, 0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: KeyedSubtree(
-        key: ValueKey<int>(_selectedIndex),
-        child: _getSectionWidget(),
+    return Container(
+      color: AppTheme.backgroundColor,
+      padding: const EdgeInsets.only(top: 8), // Reduced from 12
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.02, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(_selectedIndex),
+          child: _getSectionWidget(),
+        ),
       ),
     );
   }
@@ -1207,6 +1210,76 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
+  Widget _buildActionCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomeSection() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -1221,7 +1294,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: ResponsiveUtils.isMobile(context)
+                    ? const BorderRadius.vertical(bottom: Radius.circular(20))
+                    : BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: AppTheme.primaryColor.withValues(alpha: 0.3),
@@ -1313,12 +1388,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
 
-          // ── Quick Actions (moved above menu for immediate discoverability) ──
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: AppTheme.cardDecoration(),
+          // ── Quick Actions ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1330,20 +1404,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 Row(
                   children: [
                     Expanded(
-                      child: _buildQuickActionButton(
-                        onTap: () => setState(() => _selectedIndex = 1),
+                      child: _buildActionCard(
                         icon: Icons.add_circle_outline_rounded,
-                        label: 'New Reservation',
-                        isPrimary: true,
+                        iconColor: AppTheme.primaryColor,
+                        title: 'New Reservation',
+                        subtitle: 'Book a table',
+                        onTap: () => setState(() => _selectedIndex = 1),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: _buildQuickActionButton(
-                        onTap: () => setState(() => _selectedIndex = 5),
+                      child: _buildActionCard(
                         icon: Icons.person_outline_rounded,
-                        label: 'My Account',
-                        isPrimary: false,
+                        iconColor: Colors.grey.shade600,
+                        title: 'My Account',
+                        subtitle: 'Profile & settings',
+                        onTap: () => setState(() => _selectedIndex = 5),
                       ),
                     ),
                   ],
@@ -1352,19 +1428,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
 
           // ── Products & Pricing menu grid ────────────────────────────────
           _buildIntegratedMenu(),
 
           // ── Feedback section (conditional) ──────────────────────────────
           if (_isEligibleForReview) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
             _buildFeedbackSection(),
           ],
 
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16), // Reduced from 24
         ],
       ),
     );
@@ -1565,7 +1641,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       physics: const AlwaysScrollableScrollPhysics(),
 
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1592,7 +1668,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
 
             // Reservation Type Selection
             Row(
@@ -1645,7 +1721,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16), // Reduced from 24
 
             // Sub-selection for Advance Order (Dine In / Pick Up)
             if (_reservationType == 'Advance Order') ...[
@@ -1657,7 +1733,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16), // Reduced from 24
             ],
 
             // Form Card
@@ -2154,7 +2230,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 ),
                               ),
 
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 16),
 
                               // Extra Time Toggle
                               if (_reservationType == 'Event Place') 
@@ -2219,7 +2295,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                                   fontSize: 14,
 
-                                                  color: Color(0xFF1D1B1E),
+                                                  color: AppTheme.darkGrey,
                                                 ),
                                               ),
 
@@ -2229,7 +2305,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                                 style: TextStyle(
                                                   fontSize: 11,
 
-                                                  color: Color(0xFF6B6B6B),
+                                                  color: AppTheme.mediumGrey,
                                                 ),
                                               ),
                                             ],
@@ -2282,7 +2358,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 ),
                               ),
 
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 24), // Reduced from 32
 
                               // Special Requests Field (if enabled)
                               if (_enableSpecialRequests) ...[
@@ -2383,7 +2459,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   ),
                                 ),
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 24), // Reduced from 32
                               ],
 
                               // Submit Button
@@ -2465,7 +2541,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24), // Reduced from 32
           ],
         ),
       ),
@@ -2914,7 +2990,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2923,7 +2999,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E1E1E),
+                  color: AppTheme.darkGrey,
                 ),
               ),
               InkWell(
@@ -2935,18 +3011,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(
                     children: [
-                      Text(
-                        'See All Menu',
+                      const Text(
+                        'See all',
                         style: TextStyle(
                           color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
                         ),
                       ),
                       const SizedBox(width: 4),
                       const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 12,
+                        Icons.chevron_right_rounded,
+                        size: 16,
                         color: AppTheme.primaryColor,
                       ),
                     ],
@@ -3109,7 +3185,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 10,
-                            color: Color(0xFF1E293B),
+                            color: AppTheme.darkGrey,
                             height: 1.2,
                           ),
                         ),
@@ -3120,7 +3196,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
+                                  color: AppTheme.lightGrey,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -3130,7 +3206,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   style: const TextStyle(
                                     fontSize: 6.5,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF64748B),
+                                    color: AppTheme.mediumGrey,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -3147,7 +3223,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               child: Icon(
                                 Icons.arrow_forward_ios_rounded,
                                 size: 12,
-                                color: isHovered ? Colors.white : const Color(0xFFCBD5E1),
+                                color: isHovered ? Colors.white : AppTheme.mediumGrey.withValues(alpha: 0.4),
                               ),
                             ),
                           ],
@@ -3172,7 +3248,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       width: double.infinity,
       height: double.infinity,
       errorBuilder: (context, error, stackTrace) => Container(
-        color: const Color(0xFFF1F5F9),
+        color: AppTheme.lightGrey,
         child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
       ),
     );
@@ -3766,7 +3842,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                           color: isDestructive
                               ? Colors.red.shade600
-                              : const Color(0xFF1D1B1E),
+                              : AppTheme.darkGrey,
                         ),
                       ),
 
@@ -3804,7 +3880,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3813,7 +3889,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1D1B1E),
+                color: AppTheme.darkGrey,
                 height: 1.2,
                 letterSpacing: -0.5,
               ),
@@ -5103,8 +5179,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
 
     return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -5140,6 +5218,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           ...quotations.map((reservation) => _buildQuotationCard(reservation)),
         ],
       ),
+    ),
     );
   }
 

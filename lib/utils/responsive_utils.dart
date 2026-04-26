@@ -82,9 +82,9 @@ class ResponsiveUtils {
     if (width < mobileBreakpoint) {
       return const EdgeInsets.all(16);
     } else if (width < tabletBreakpoint) {
-      return const EdgeInsets.all(24);
+      return const EdgeInsets.all(20);
     } else {
-      return const EdgeInsets.all(32);
+      return const EdgeInsets.all(24);
     }
   }
 
@@ -94,9 +94,9 @@ class ResponsiveUtils {
     if (width < mobileBreakpoint) {
       return const EdgeInsets.all(16);
     } else if (width < tabletBreakpoint) {
-      return const EdgeInsets.all(24);
+      return const EdgeInsets.all(20);
     } else {
-      return const EdgeInsets.all(32);
+      return const EdgeInsets.all(24);
     }
   }
 
@@ -106,9 +106,9 @@ class ResponsiveUtils {
     if (width < mobileBreakpoint) {
       return const EdgeInsets.all(16);
     } else if (width < tabletBreakpoint) {
-      return const EdgeInsets.all(24);
+      return const EdgeInsets.all(20);
     } else {
-      return const EdgeInsets.all(32); // Give breathing room on desktop
+      return const EdgeInsets.all(24); // Give breathing room on desktop
     }
   }
 

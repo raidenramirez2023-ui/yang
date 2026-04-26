@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/menu_item.dart';
 import '../../services/menu_service.dart';
 import '../../utils/responsive_utils.dart';
+import 'package:yang_chow/utils/app_theme.dart';
 
 class CustomerMenuPage extends StatefulWidget {
   const CustomerMenuPage({super.key});
@@ -34,13 +35,13 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Products & Pricing',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+            color: AppTheme.darkGrey,
           ),
         ),
         backgroundColor: Colors.white,
@@ -156,7 +157,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: Color(0xFF1E293B),
+                      color: AppTheme.darkGrey,
                     ),
                   ),
                   Text(
@@ -183,7 +184,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
       width: double.infinity,
       height: double.infinity,
       errorBuilder: (context, error, stackTrace) => Container(
-        color: const Color(0xFFF1F5F9),
+        color: AppTheme.lightGrey,
         child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
       ),
     );

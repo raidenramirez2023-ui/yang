@@ -368,7 +368,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
             fontWeight: FontWeight.bold,
 
-            color: Color(0xFF1E1E1E),
+            color: AppTheme.darkGrey,
 
           ),
 
