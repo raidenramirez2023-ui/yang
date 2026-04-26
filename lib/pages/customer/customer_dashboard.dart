@@ -2395,7 +2395,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 child: ElevatedButton(
                                   onPressed: _isLoading
                                       ? null
-                                      : _submitReservation,
+                                      : _showConfirmationDialog,
 
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryColor,
@@ -3252,7 +3252,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                           padding: EdgeInsets.all(20),
 
                           child: Image.asset(
-                            'assets/images/newgcash.png',
+                            'assets/images/newgcash.jpg',
 
                             fit: BoxFit.contain,
                           ),
@@ -3631,12 +3631,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
             const SizedBox(height: 16),
 
-            const Text(
-              'Choose your preferred payment method:',
-
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-
             const SizedBox(height: 12),
 
             SizedBox(
@@ -3649,37 +3643,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   _proceedToGCashPayment(reservation, depositAmount);
                 },
 
-                icon: const Icon(Icons.account_balance_wallet),
-
-                label: const Text('Pay with GCash'),
-
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-
-                  foregroundColor: Colors.white,
-
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            SizedBox(
-              width: double.infinity,
-
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-
-                  _proceedToQRPayment(reservation, depositAmount);
-                },
-
-                icon: const Icon(Icons.qr_code_scanner),
+                icon: const Icon(Icons.qr_code_2_rounded),
 
                 label: const Text('Pay with GCash QR'),
 
-                style: OutlinedButton.styleFrom(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+
+                  foregroundColor: Colors.white,
+
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -4748,6 +4720,100 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
+  void _showConfirmationDialog() {
+    String date = _dateController.text.trim();
+    String startTime = _startTimeController.text.trim();
+    String guests = _guestsController.text.trim();
+
+    // Check if required fields are filled
+    bool hasRequiredFields = true;
+
+    if (_reservationType == 'Event Place') {
+      if (_selectedEventType == null) hasRequiredFields = false;
+      if (date.isEmpty) hasRequiredFields = false;
+      if (startTime.isEmpty) hasRequiredFields = false;
+      if (_selectedBaseDuration == null) hasRequiredFields = false;
+      if (guests.isEmpty) hasRequiredFields = false;
+      if (_selectedMenuItems.isEmpty) hasRequiredFields = false;
+    } else {
+      if (date.isEmpty) hasRequiredFields = false;
+      if (startTime.isEmpty) hasRequiredFields = false;
+      if (_advanceOrderType == 'Dine In' && guests.isEmpty) hasRequiredFields = false;
+      if (_selectedMenuItems.isEmpty) hasRequiredFields = false;
+    }
+
+    if (!hasRequiredFields) {
+      _showSnackBar('Please fill in all required fields', Colors.red);
+      return;
+    }
+
+    final String title = _reservationType == 'Event Place'
+        ? 'Are you sure you want to Confirm Reservation?'
+        : 'Are you sure you want to Confirm Order?';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: AppTheme.primaryColor,
+              size: 28,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey.shade700,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              child: const Text('No', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _submitReservation();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Yes', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _submitReservation() async {
     String date = _dateController.text.trim();
 
@@ -5400,7 +5466,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               SizedBox(height: 16),
 
               // Action Buttons
-              if (needsDepositPayment && reservation['_db_table'] == 'advance_orders')
+              if (needsDepositPayment)
                 SizedBox(
                   width: double.infinity,
 
@@ -5410,7 +5476,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     icon: Icon(Icons.payment, size: 18),
 
                     label: Text(
-                      'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})',
+                      reservation['_db_table'] == 'advance_orders'
+                          ? 'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})'
+                          : 'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
                     ),
 
                     style: ElevatedButton.styleFrom(

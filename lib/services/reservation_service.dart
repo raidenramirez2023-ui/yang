@@ -1185,6 +1185,7 @@ class ReservationService {
     required String table, // 'reservations' or 'advance_orders'
     double? paymentAmount,
     String? paymentReference,
+    String? receiptUrl,
   }) async {
     try {
       final updates = <String, dynamic>{
@@ -1201,12 +1202,24 @@ class ReservationService {
         if (paymentReference != null) {
           updates['payment_reference'] = paymentReference;
         }
+        if (receiptUrl != null) {
+          updates['receipt_url'] = receiptUrl;
+        }
         // Set status to pending admin approval on deposit paid
         if (paymentStatus == 'deposit_paid') {
           updates['status'] = 'pending_admin_approval';
         }
       } else {
         // advance_orders: only update payment_status + status, never overwrite total_price
+        if (paymentAmount != null) {
+          updates['deposit_amount'] = paymentAmount;
+        }
+        if (paymentReference != null) {
+          updates['payment_reference'] = paymentReference;
+        }
+        if (receiptUrl != null) {
+          updates['receipt_url'] = receiptUrl;
+        }
         if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
           updates['status'] = 'pending'; // Send to kitchen
         } else if (paymentStatus == 'pending_verification') {

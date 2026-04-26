@@ -54,7 +54,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                 color: Colors.white,
                 child: Center(
                   child: Image.asset(
-                    'assets/images/gcash_qr.png',
+                    'assets/images/newgcash.png',
                     width: MediaQuery.of(context).size.width * 0.95,
                     height: MediaQuery.of(context).size.height * 0.60,
                     fit: BoxFit.contain,
@@ -65,7 +65,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                           Icon(Icons.error, color: Colors.red, size: 64),
                           SizedBox(height: 16),
                           Text('QR Code not found'),
-                          Text('Please add gcash_qr.png to assets/images/'),
+                          Text('Please add newgcash.jpg to assets/images/'),
                         ],
                       );
                     },
