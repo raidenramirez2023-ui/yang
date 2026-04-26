@@ -29,18 +29,15 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
   bool _paymentCompleted = false;
   bool _isConfirmed = false;
   String? _paymentUrl;
-  final TextEditingController _amountDepositController = TextEditingController();
   File? _receiptImage;
   String? _receiptImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
-  double _displayedAmount = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _displayedAmount = widget.depositAmount;
     _initializeGCashPayment();
   }
 
@@ -126,27 +123,10 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
   void _handlePaymentSuccess() async {
     if (_paymentCompleted) return;
 
-    // Validate deposit amount for advance orders
-    if (widget.table == 'advance_orders') {
-      if (_amountDepositController.text.isEmpty) {
-        _showErrorDialog('Please enter the deposit amount.');
-        return;
-      }
-      if (_receiptImageUrl == null) {
-        _showErrorDialog('Please upload your GCash receipt.');
-        return;
-      }
-      final depositAmount = double.tryParse(_amountDepositController.text) ?? 0.0;
-      final minimumDeposit = widget.depositAmount * 0.5;
-      final maximumDeposit = widget.depositAmount;
-      if (depositAmount < minimumDeposit) {
-        _showErrorDialog('Minimum deposit amount is 50% of total price (PHP ${minimumDeposit.toStringAsFixed(2)}).');
-        return;
-      }
-      if (depositAmount > maximumDeposit) {
-        _showErrorDialog('Maximum deposit amount is PHP ${maximumDeposit.toStringAsFixed(2)}.');
-        return;
-      }
+    // Validate receipt upload for both advance orders and reservations
+    if (_receiptImageUrl == null) {
+      _showErrorDialog('Please upload your GCash receipt.');
+      return;
     }
 
     setState(() {
@@ -154,23 +134,21 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     });
 
     try {
-      // Get the deposit amount from input field for advance orders, otherwise use widget.depositAmount
-      final depositAmount = widget.table == 'advance_orders'
-          ? double.tryParse(_amountDepositController.text) ?? widget.depositAmount
-          : widget.depositAmount;
+      // Use widget.depositAmount directly for both advance orders and reservations
+      final depositAmount = widget.depositAmount;
 
       debugPrint('Attempting to update payment status for ${widget.table} with ID: ${widget.reservationId}');
       debugPrint('Deposit amount: $depositAmount');
       debugPrint('Receipt URL: $_receiptImageUrl');
 
-      // Update payment status with receipt_url
+      // Update payment status with receipt_url for both advance_orders and reservations
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
         paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
         table: widget.table,
         paymentAmount: depositAmount,
         paymentReference: 'GCASH_${DateTime.now().millisecondsSinceEpoch}',
-        receiptUrl: widget.table == 'advance_orders' ? _receiptImageUrl : null,
+        receiptUrl: _receiptImageUrl,
       );
 
       debugPrint('Payment status update result: $success');
@@ -492,18 +470,13 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                               ),
                             ),
                             SizedBox(height: 4),
-                            Builder(
-                              builder: (context) {
-                                debugPrint('Building display: widget.table=${widget.table}, _displayedAmount=$_displayedAmount, widget.depositAmount=${widget.depositAmount}');
-                                return Text(
-                                  'PHP ${(widget.table == 'advance_orders' ? _displayedAmount : widget.depositAmount).toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                );
-                              },
+                            Text(
+                              'PHP ${widget.depositAmount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
                             ),
                           ],
                         ),
@@ -547,7 +520,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         ),
                       ),
                       SizedBox(height: 24),
-                      // Amount Deposit field for advance orders
+                      // Amount Deposit display for advance orders
                       if (widget.table == 'advance_orders') ...[
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -568,26 +541,32 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                                 ),
                               ),
                               SizedBox(height: 8),
-                              TextField(
-                                controller: _amountDepositController,
-                                keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                onChanged: (value) {
-                                  debugPrint('Amount Deposit changed: $value');
-                                  final enteredAmount = double.tryParse(value);
-                                  if (enteredAmount != null) {
-                                    debugPrint('Updating _displayedAmount to: $enteredAmount');
-                                    setState(() {
-                                      _displayedAmount = enteredAmount;
-                                    });
-                                  }
-                                },
-                                decoration: InputDecoration(
-                                  hintText: 'Enter deposit amount',
-                                  prefixText: 'PHP ',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'PHP ',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      widget.depositAmount.toStringAsFixed(2),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -595,6 +574,99 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         ),
                         SizedBox(height: 16),
                         // Upload receipt button
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upload your receipt',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              if (_receiptImageUrl != null) ...[
+                                Container(
+                                  width: double.infinity,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppTheme.primaryColor),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      _receiptImageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.broken_image, color: Colors.grey),
+                                              SizedBox(height: 8),
+                                              Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                : null,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Receipt uploaded successfully',
+                                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ] else ...[
+                                ElevatedButton.icon(
+                                  onPressed: _pickReceiptImage,
+                                  icon: Icon(Icons.upload_file),
+                                  label: Text('Choose Receipt Image'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: Size(double.infinity, 48),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Supported formats: PNG, JPG, JPEG',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                      ],
+                      // Upload receipt for reservations (Event Place)
+                      if (widget.table == 'reservations') ...[
                         Container(
                           width: double.infinity,
                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
