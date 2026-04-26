@@ -93,7 +93,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -480,7 +480,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       width: double.infinity,
       height: double.infinity,
       errorBuilder: (context, error, stackTrace) => Container(
-        color: const Color(0xFFF1F5F9),
+        color: AppTheme.lightGrey,
         child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
       ),
     );

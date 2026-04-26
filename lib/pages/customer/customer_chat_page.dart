@@ -142,11 +142,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFF5F7FA,
-      ), // Professional business background
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
         automaticallyImplyLeading: false,
@@ -272,11 +270,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: AppTheme.backgroundColor,
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [const Color(0xFFF5F7FA), const Color(0xFFECF0F1)],
+                  colors: [AppTheme.backgroundColor, AppTheme.lightGrey],
                 ),
               ),
               child: _isLoading
@@ -556,7 +554,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       border: !isFromCustomer ||
                               messageText == ChatService.unsentMessageSentinel
                           ? Border.all(
-                              color: const Color(0xFFECF0F1),
+                              color: AppTheme.lightGrey,
                               width: 1,
                             )
                           : null,
@@ -664,12 +662,12 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
   Widget _buildBusinessInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFFFFF),
-        border: Border(top: BorderSide(color: Color(0xFFECF0F1), width: 1)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppTheme.lightGrey, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF000000),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 4,
             offset: Offset(0, -1),
           ),
@@ -690,7 +688,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 size: 24,
               ),
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFF5F7FA),
+                backgroundColor: AppTheme.lightGrey,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -702,9 +700,9 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FA),
+                color: AppTheme.lightGrey,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFECF0F1)),
+                border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
               ),
               child: TextField(
                 controller: _messageController,

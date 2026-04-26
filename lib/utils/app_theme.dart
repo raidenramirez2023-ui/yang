@@ -27,12 +27,13 @@ class AppTheme {
 
   static const Color primaryLight = Color(0xFFFF5F52);
 
-  // Neutral Colors (Cooler undertones)
-  static const Color darkGrey = Color(0xFF1C1C1E);
-  static const Color mediumGrey = Color(0xFF8E8E93);
-  static const Color lightGrey = Color(0xFFE5E5EA);
+  // Neutral Colors (Warmer undertones for red theme)
+  static const Color darkGrey = Color(0xFF2C1E1E);
+  static const Color mediumGrey = Color(0xFF9E8E8E);
+  static const Color lightGrey = Color(0xFFF0E8E8);
   static const Color white = Color(0xFFFFFFFF);
-  static const Color backgroundColor = Color(0xFFF9F9FF); // Cooler modern background
+  static const Color backgroundColor = Color(0xFFFFF9F9); // Subtle off-white red background
+  static const Color navColor = Color(0xFFB71C1C); // Deep Crimson for nav & header
 
   // Accent Colors
   static const Color successGreen = Color(0xFF34C759);

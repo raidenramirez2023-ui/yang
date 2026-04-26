@@ -74,7 +74,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -125,7 +125,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: AppTheme.lightGrey,
                 borderRadius: BorderRadius.circular(25),
               ),
               child: TextField(
@@ -352,7 +352,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
+                                  color: AppTheme.lightGrey,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -371,7 +371,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                             Icon(
                               Icons.arrow_forward_ios_rounded,
                               size: 10,
-                              color: isHovered ? AppTheme.primaryColor : const Color(0xFFCBD5E1),
+                              color: isHovered ? AppTheme.primaryColor : AppTheme.mediumGrey.withValues(alpha: 0.4),
                             ),
                           ],
                         ),

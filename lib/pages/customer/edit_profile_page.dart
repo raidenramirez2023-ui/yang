@@ -139,7 +139,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1D1B1E),
+                    color: AppTheme.darkGrey,
                   ),
                 ),
               ),
@@ -521,7 +521,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       style: const TextStyle(
                                         fontSize: 40,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1D1B1E),
+                                        color: AppTheme.darkGrey,
                                       ),
                                     ),
                                   ),
@@ -537,7 +537,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                       style: const TextStyle(
                                         fontSize: 40,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF1D1B1E),
+                                        color: AppTheme.darkGrey,
                                       ),
                                     ),
                                   ),
@@ -557,7 +557,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 style: const TextStyle(
                                   fontSize: 40,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1D1B1E),
+                                  color: AppTheme.darkGrey,
                                 ),
                               ),
                             ),
@@ -764,7 +764,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           fontSize: 11,
           letterSpacing: 1.2,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF6B6B6B),
+          color: AppTheme.mediumGrey,
         ),
       ),
     );
