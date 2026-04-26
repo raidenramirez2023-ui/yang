@@ -621,7 +621,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             _currencyFormat.format(data['revenue']),
             Icons.payments_rounded,
             const Color(0xFF4F46E5),
-            '+12.5%',
+            '',
             200,
           ),
           const SizedBox(width: 16),
@@ -630,7 +630,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             data['orders'].toString(),
             Icons.shopping_bag_rounded,
             const Color(0xFF10B981),
-            '+8.2%',
+            '',
             200,
           ),
           const SizedBox(width: 16),
@@ -639,7 +639,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             _currencyFormat.format(data['avgOrder']),
             Icons.analytics_rounded,
             const Color(0xFFF59E0B),
-            '+3.1%',
+            '',
             200,
           ),
           const SizedBox(width: 16),
@@ -648,7 +648,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             data['customers'].toString(),
             Icons.people_alt_rounded,
             const Color(0xFFEC4899),
-            '+5.4%',
+            '',
             200,
           ),
           const SizedBox(width: 16),
@@ -1505,35 +1505,36 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
                     size: _isHovered ? 22 : 20,
                   ),
                 ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: widget.growth.contains('+') 
-                        ? const Color(0xFFF0FDF4)
-                        : const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: _isHovered ? [
-                      BoxShadow(
-                        color: widget.growth.contains('+') 
-                            ? const Color(0xFF16A34A).withValues(alpha: 0.2)
-                            : const Color(0xFFDC2626).withValues(alpha: 0.2),
-                        blurRadius: 6,
-                        offset: const Offset(0, 1),
-                      ),
-                    ] : null,
-                  ),
-                  child: Text(
-                    widget.growth,
-                    style: TextStyle(
+                if (widget.growth.isNotEmpty)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
                       color: widget.growth.contains('+') 
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFDC2626),
-                      fontSize: _isHovered ? 11 : 10,
-                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                          ? const Color(0xFFF0FDF4)
+                          : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: _isHovered ? [
+                        BoxShadow(
+                          color: widget.growth.contains('+') 
+                              ? const Color(0xFF16A34A).withValues(alpha: 0.2)
+                              : const Color(0xFFDC2626).withValues(alpha: 0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 1),
+                        ),
+                      ] : null,
+                    ),
+                    child: Text(
+                      widget.growth,
+                      style: TextStyle(
+                        color: widget.growth.contains('+') 
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
+                        fontSize: _isHovered ? 11 : 10,
+                        fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 16),

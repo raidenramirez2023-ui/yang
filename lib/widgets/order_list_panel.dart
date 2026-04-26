@@ -109,7 +109,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     )
                   else
                     ...widget.cart.map(_buildCartItem),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -588,7 +588,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
         title: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -612,19 +612,19 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     alignment: Alignment.centerLeft,
                     child: Text('Customer Details (Optional):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   _buildModalField(nameController, 'Customer Name', Icons.person_outlined),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   _buildModalField(addressController, 'Address', Icons.location_on_outlined),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(vertical: 4),
                     child: Divider(color: _border),
                   ),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text('Select Type:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   _buildDiscountItem(
                     'Senior Citizen', 
                     Icons.elderly, 
@@ -639,22 +639,15 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     addressController,
                     setModalState,
                   ),
-                  _buildDiscountItem(
-                    'Student', 
-                    Icons.school, 
-                    nameController, 
-                    addressController,
-                    setModalState,
-                  ),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(vertical: 4),
                     child: Divider(color: _border),
                   ),
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Other / Custom Reason:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
+                    child: Text('Other:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _grey)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   TextField(
                     controller: otherController,
                     style: const TextStyle(fontSize: 14),
@@ -675,10 +668,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: _indigo),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 40,
