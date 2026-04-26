@@ -516,9 +516,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                       final date = DateTime.tryParse(o['order_date'] ?? '');
                       if (date == null) return false;
                       
-                      // Only include paid advance orders
-                      final isPaid = o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
-                      if (!isPaid) return false;
+                      // Include all advance orders (remove payment status filter to show all)
+                      // Only filter by date period
                       
                       if (_transactionPeriod == 'Daily') {
                         if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
@@ -535,6 +534,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                       final name = o['customer_name'] ?? 'Guest';
                       final status = o['status']?.toString().toLowerCase() ?? 'pending';
                       
+
                       return {
                         'db_id': o['id'].toString(),
                         'id': '#AO-${o['id']}',
@@ -1364,28 +1364,10 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           Expanded(
             flex: 3,
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: Supabase.instance.client
-                  .from('order_items')
-                  .select('item_name, quantity')
-                  .eq('order_id', t['db_id']),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text('');
-                }
-                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Text('No items', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11));
-                }
-                
-                final items = snapshot.data!;
-                final itemsStr = items.map((i) => '${i['item_name']} x${i['quantity']}').join(', ');
-                
-                return Text(
-                  itemsStr,
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                );
+            child: Builder(
+              builder: (context) {
+                // Use a more stable approach for items display
+                return _ItemsDisplay(orderId: t['db_id']);
               },
             ),
           ),
@@ -1439,28 +1421,9 @@ class _SalesReportPageState extends State<SalesReportPage>
             ],
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<Map<String, dynamic>>>(
-            future: Supabase.instance.client
-                .from('order_items')
-                .select('item_name, quantity')
-                .eq('order_id', t['db_id']),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Text('Loading items...', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12));
-              }
-              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No items', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12));
-              }
-              
-              final items = snapshot.data!;
-              final itemsStr = items.map((i) => '${i['item_name']} x${i['quantity']}').join(', ');
-              
-              return Text(
-                itemsStr,
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              );
+          Builder(
+            builder: (context) {
+              return _ItemsDisplay(orderId: t['db_id']);
             },
           ),
           const SizedBox(height: 12),
@@ -1674,66 +1637,72 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     return pageNumbers;
   }
+}
 
+// ── Items Display Widget ─────────────────────────────────────────────────────
+class _ItemsDisplay extends StatefulWidget {
+  final String orderId;
 
-  /// ================= INSIGHTS CARD =================
-  Widget _insightsCard(Map<String, dynamic> data) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF2563EB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Business Insights',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your revenue has grown by 12.5% compared to the previous period. The increase is primarily driven by a surge in "Total Customers" which grew by 15.7%. Consider focusing on customer retention strategies to maintain this upward momentum throughout the quarter.',
-                      style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.9), height: 1.5),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF2563EB),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
-            ),
-            child: const Text('View Detailed Analysis', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+  const _ItemsDisplay({required this.orderId});
+
+  @override
+  _ItemsDisplayState createState() => _ItemsDisplayState();
+}
+
+class _ItemsDisplayState extends State<_ItemsDisplay> {
+  late Future<List<Map<String, dynamic>>> _itemsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _itemsFuture = _fetchItems();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchItems() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('order_items')
+          .select('item_name, quantity')
+          .eq('order_id', widget.orderId);
+      
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error fetching items: $e');
+      return [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _itemsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text(
+            'Loading...',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+          );
+        }
+        
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Text(
+            'No items',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+          );
+        }
+        
+        final items = snapshot.data!;
+        final itemsStr = items
+            .map((i) => '${i['item_name']} x${i['quantity']}')
+            .join(', ');
+        
+        return Text(
+          itemsStr,
+          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        );
+      },
     );
   }
 }

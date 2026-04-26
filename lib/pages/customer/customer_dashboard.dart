@@ -3993,51 +3993,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                      (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')) ...[
                                    const Divider(height: 32),
                                    _buildProgressStepper(reservation['status'] ?? 'pending'),
-                                   if ((reservation['status'] ?? '').toString().toLowerCase() == 'ready') ...[
-                                     const SizedBox(height: 24),
-                                     Center(
-                                       child: Column(
-                                         children: [
-                                           const Text(
-                                             'PICKUP QR CODE',
-                                             style: TextStyle(
-                                               fontSize: 10, 
-                                               fontWeight: FontWeight.w800, 
-                                               color: AppTheme.mediumGrey, 
-                                               letterSpacing: 1.5
-                                             ),
-                                           ),
-                                           const SizedBox(height: 16),
-                                           Container(
-                                             padding: const EdgeInsets.all(16),
-                                             decoration: BoxDecoration(
-                                               color: Colors.white,
-                                               borderRadius: BorderRadius.circular(16),
-                                               border: Border.all(color: Colors.grey.shade100),
-                                               boxShadow: [
-                                                 BoxShadow(
-                                                   color: Colors.black.withValues(alpha: 0.05),
-                                                   blurRadius: 15,
-                                                   offset: const Offset(0, 8),
-                                                 ),
-                                               ],
-                                             ),
-                                             child: QrImageView(
-                                               data: reservation['id'].toString(),
-                                               version: QrVersions.auto,
-                                               size: 160.0,
-                                               foregroundColor: AppTheme.darkGrey,
-                                             ),
-                                           ),
-                                           const SizedBox(height: 16),
-                                           const Text(
-                                             'Show this to the counter for pickup',
-                                             style: TextStyle(fontSize: 13, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                   ],
                                  ],
                               ],
                             ),
@@ -4055,13 +4010,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildProgressStepper(String status) {
-    final steps = ['Paid', 'Preparing', 'Ready', 'Done'];
+    final steps = ['Paid', 'Preparing', 'Ready'];
     int currentStep = 0;
     
     final s = status.toLowerCase();
     if (s == 'preparing') currentStep = 1;
     else if (s == 'ready') currentStep = 2;
-    else if (s == 'done' || s == 'completed') currentStep = 3;
+    else if (s == 'done' || s == 'completed') currentStep = 2;
     
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
