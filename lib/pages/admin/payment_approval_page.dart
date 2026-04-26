@@ -171,6 +171,65 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     }
   }
 
+  void _viewReceiptImage(String receiptUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: const Text('GCash Receipt'),
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Image.network(
+                    receiptUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('Failed to load receipt image', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -387,6 +446,24 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           _buildDetailRow('Email', payment['customer_email'] ?? 'N/A', Icons.email),
           _buildDetailRow('Total Price', 'PHP ${(payment['total_price'] ?? 0).toStringAsFixed(2)}', Icons.monetization_on),
           _buildDetailRow('Deposit Paid', 'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}', Icons.account_balance_wallet, isHighlight: true),
+          if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
+              icon: const Icon(Icons.receipt_long, size: 18),
+              label: const Text('View Receipt', style: TextStyle(fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                foregroundColor: AppTheme.primaryColor,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class GCashPaymentPage extends StatefulWidget {
   final String reservationId;
@@ -28,12 +29,18 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
   bool _paymentCompleted = false;
   bool _isConfirmed = false;
   String? _paymentUrl;
+  final TextEditingController _amountDepositController = TextEditingController();
+  File? _receiptImage;
+  String? _receiptImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
+  double _displayedAmount = 0.0;
 
   @override
   void initState() {
     super.initState();
+    _displayedAmount = widget.depositAmount;
     _initializeGCashPayment();
   }
 
@@ -55,30 +62,125 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     }
   }
 
+  Future<void> _pickReceiptImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        // Check MIME type instead of file extension (more reliable)
+        final mimeType = await image.mimeType;
+        if (mimeType == null || 
+            !mimeType.startsWith('image/') ||
+            !['image/png', 'image/jpeg', 'image/jpg'].contains(mimeType.toLowerCase())) {
+          _showErrorDialog('Please select a PNG, JPG, or JPEG image file.');
+          return;
+        }
+
+        setState(() {
+          _receiptImage = File(image.path);
+        });
+
+        // Upload to Supabase storage
+        await _uploadReceiptToSupabase(image);
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to pick image: $e');
+    }
+  }
+
+  Future<void> _uploadReceiptToSupabase(XFile image) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final fileName = 'gcash_receipt_${DateTime.now().millisecondsSinceEpoch}.${image.path.split('.').last}';
+      final filePath = 'receipts/$fileName';
+
+      final fileBytes = await image.readAsBytes();
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(filePath, fileBytes);
+
+      final imageUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      setState(() {
+        _receiptImageUrl = imageUrl;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorDialog('Failed to upload receipt: $e');
+    }
+  }
+
 
   void _handlePaymentSuccess() async {
     if (_paymentCompleted) return;
-    
+
+    // Validate deposit amount for advance orders
+    if (widget.table == 'advance_orders') {
+      if (_amountDepositController.text.isEmpty) {
+        _showErrorDialog('Please enter the deposit amount.');
+        return;
+      }
+      if (_receiptImageUrl == null) {
+        _showErrorDialog('Please upload your GCash receipt.');
+        return;
+      }
+      final depositAmount = double.tryParse(_amountDepositController.text) ?? 0.0;
+      final minimumDeposit = widget.depositAmount * 0.5;
+      final maximumDeposit = widget.depositAmount;
+      if (depositAmount < minimumDeposit) {
+        _showErrorDialog('Minimum deposit amount is 50% of total price (PHP ${minimumDeposit.toStringAsFixed(2)}).');
+        return;
+      }
+      if (depositAmount > maximumDeposit) {
+        _showErrorDialog('Maximum deposit amount is PHP ${maximumDeposit.toStringAsFixed(2)}.');
+        return;
+      }
+    }
+
     setState(() {
       _paymentCompleted = true;
     });
 
     try {
-      // Update payment status
+      // Get the deposit amount from input field for advance orders, otherwise use widget.depositAmount
+      final depositAmount = widget.table == 'advance_orders'
+          ? double.tryParse(_amountDepositController.text) ?? widget.depositAmount
+          : widget.depositAmount;
+
+      debugPrint('Attempting to update payment status for ${widget.table} with ID: ${widget.reservationId}');
+      debugPrint('Deposit amount: $depositAmount');
+      debugPrint('Receipt URL: $_receiptImageUrl');
+
+      // Update payment status with receipt_url
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
         paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
         table: widget.table,
-        paymentAmount: widget.depositAmount,
+        paymentAmount: depositAmount,
         paymentReference: 'GCASH_${DateTime.now().millisecondsSinceEpoch}',
+        receiptUrl: widget.table == 'advance_orders' ? _receiptImageUrl : null,
       );
+
+      debugPrint('Payment status update result: $success');
 
       if (!success) {
         throw Exception('Failed to update payment status');
       }
 
       // Send confirmation email
-      await _sendPaymentConfirmationEmail();
+      await _sendPaymentConfirmationEmail(depositAmount);
 
       if (mounted) {
         _showSuccessDialog();
@@ -86,12 +188,12 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     } catch (e) {
       debugPrint('Error updating payment status: $e');
       if (mounted) {
-        _showErrorDialog('Payment was successful but failed to update reservation. Please contact support.');
+        _showErrorDialog('Payment was successful but failed to update reservation. Error: $e');
       }
     }
   }
 
-  Future<void> _sendPaymentConfirmationEmail() async {
+  Future<void> _sendPaymentConfirmationEmail(double depositAmount) async {
     try {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser != null) {
@@ -100,7 +202,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           customerName: currentUser.userMetadata?['name'] ?? 'Customer',
           eventType: 'Event',
           eventDate: 'TBD',
-          depositAmount: widget.depositAmount,
+          depositAmount: depositAmount,
         );
       }
     } catch (e) {
@@ -125,7 +227,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your GCash payment of PHP ${widget.depositAmount.toStringAsFixed(2)} has been successfully processed.',
+              'Your GCash payment has been successfully processed.',
               style: TextStyle(fontSize: 16),
             ),
             if (widget.table == 'reservations') ...[
@@ -356,7 +458,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                       Text(
-                        'Pay with GCash',
+                        'Pay with GCash QR',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -365,7 +467,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Complete your payment using GCash wallet',
+                        'Complete your payment using GCash QR code',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,
@@ -383,20 +485,25 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         child: Column(
                           children: [
                             Text(
-                              'Payment Amount',
+                              widget.table == 'advance_orders' ? 'Total Price' : 'Payment Amount',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
                               ),
                             ),
                             SizedBox(height: 4),
-                            Text(
-                              'PHP ${widget.depositAmount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
+                            Builder(
+                              builder: (context) {
+                                debugPrint('Building display: widget.table=${widget.table}, _displayedAmount=$_displayedAmount, widget.depositAmount=${widget.depositAmount}');
+                                return Text(
+                                  'PHP ${(widget.table == 'advance_orders' ? _displayedAmount : widget.depositAmount).toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -440,6 +547,145 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         ),
                       ),
                       SizedBox(height: 24),
+                      // Amount Deposit field for advance orders
+                      if (widget.table == 'advance_orders') ...[
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Amount Deposit',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              TextField(
+                                controller: _amountDepositController,
+                                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                onChanged: (value) {
+                                  debugPrint('Amount Deposit changed: $value');
+                                  final enteredAmount = double.tryParse(value);
+                                  if (enteredAmount != null) {
+                                    debugPrint('Updating _displayedAmount to: $enteredAmount');
+                                    setState(() {
+                                      _displayedAmount = enteredAmount;
+                                    });
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Enter deposit amount',
+                                  prefixText: 'PHP ',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        // Upload receipt button
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upload your receipt',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              if (_receiptImageUrl != null) ...[
+                                Container(
+                                  width: double.infinity,
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppTheme.primaryColor),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      _receiptImageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.broken_image, color: Colors.grey),
+                                              SizedBox(height: 8),
+                                              Text('Failed to load image', style: TextStyle(color: Colors.grey)),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                                : null,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Receipt uploaded successfully',
+                                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ] else ...[
+                                ElevatedButton.icon(
+                                  onPressed: _pickReceiptImage,
+                                  icon: Icon(Icons.upload_file),
+                                  label: Text('Choose Receipt Image'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: Size(double.infinity, 48),
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Supported formats: PNG, JPG, JPEG',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                      ],
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -486,7 +732,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Click "Open GCash Payment" below',
+                                      'Open your GCash app',
                                       style: TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -512,13 +758,26 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Confirm the payment amount',
+                                      'Scan the QR code',
                                       style: TextStyle(fontSize: 12),
                                     ),
                                   ),
                                 ],
                               ),
                               SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Confirm the payment amount',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                                                            SizedBox(height: 3),
                               Row(
                                 children: [
                                   Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -533,33 +792,6 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                               ),
                             ],
                           ),
-                        ),
-                        SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Please use the QR code above to pay manually.'))
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.account_balance_wallet),
-                                    SizedBox(width: 8),
-                                    Text('Open GCash Payment'),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                       const SizedBox(height: 16),
