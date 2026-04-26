@@ -8,12 +8,14 @@ class GCashQRPaymentPage extends StatefulWidget {
   final String reservationId;
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
+  final String table; // 'reservations' or 'advance_orders'
 
   const GCashQRPaymentPage({
     super.key,
     required this.reservationId,
     required this.depositAmount,
     required this.onPaymentSuccess,
+    this.table = 'reservations',
   });
 
   @override
@@ -98,7 +100,7 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _handleTestPayment(),
                         icon: const Icon(Icons.payment),
-                        label: Text('Test Pay 50% (PHP ${widget.depositAmount.toStringAsFixed(2)})'),
+                        label: Text('Test Pay (PHP ${widget.depositAmount.toStringAsFixed(2)})'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
@@ -136,10 +138,11 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
     });
 
     try {
-      // Update reservation payment status
+      // Update payment status
       final success = await _reservationService.updatePaymentStatus(
-        reservationId: widget.reservationId,
-        paymentStatus: 'deposit_paid',
+        id: widget.reservationId,
+        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'paid',
+        table: widget.table,
         paymentAmount: widget.depositAmount,
         paymentReference: 'TEST_PAYMENT_${DateTime.now().millisecondsSinceEpoch}',
       );

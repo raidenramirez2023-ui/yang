@@ -9,12 +9,14 @@ class GCashPaymentPage extends StatefulWidget {
   final String reservationId;
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
+  final String table; // 'reservations' or 'advance_orders'
 
   const GCashPaymentPage({
     super.key,
     required this.reservationId,
     required this.depositAmount,
     required this.onPaymentSuccess,
+    this.table = 'reservations',
   });
 
   @override
@@ -24,6 +26,7 @@ class GCashPaymentPage extends StatefulWidget {
 class _GCashPaymentPageState extends State<GCashPaymentPage> {
   bool _isLoading = false;
   bool _paymentCompleted = false;
+  bool _isConfirmed = false;
   String? _paymentUrl;
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
@@ -40,12 +43,10 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     });
 
     try {
-      // Show QR code for payment
+      // QR code is now displayed directly on the page
       setState(() {
         _isLoading = false;
       });
-      
-      _showQRPaymentDialog();
     } catch (e) {
       _showErrorDialog('Failed to initialize payment: $e');
       setState(() {
@@ -54,24 +55,6 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     }
   }
 
-  Future<void> _launchGCashPayment() async {
-    if (_paymentUrl == null) return;
-
-    try {
-      final uri = Uri.parse(_paymentUrl!);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-          webOnlyWindowName: '_blank',
-        );
-      } else {
-        throw 'Could not launch GCash payment URL';
-      }
-    } catch (e) {
-      _showErrorDialog('Failed to open GCash payment. Please try again.');
-    }
-  }
 
   void _handlePaymentSuccess() async {
     if (_paymentCompleted) return;
@@ -81,10 +64,11 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     });
 
     try {
-      // Update reservation payment status (this will also update reservation status to confirmed)
+      // Update payment status
       final success = await _reservationService.updatePaymentStatus(
-        reservationId: widget.reservationId,
-        paymentStatus: 'deposit_paid',
+        id: widget.reservationId,
+        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
+        table: widget.table,
         paymentAmount: widget.depositAmount,
         paymentReference: 'GCASH_${DateTime.now().millisecondsSinceEpoch}',
       );
@@ -144,35 +128,62 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
               'Your GCash payment of PHP ${widget.depositAmount.toStringAsFixed(2)} has been successfully processed.',
               style: TextStyle(fontSize: 16),
             ),
-            SizedBox(height: 12),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.pending_actions, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your payment is being reviewed by admin.',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
+            if (widget.table == 'reservations') ...[
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.pending_actions, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your payment is being reviewed by admin.',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Once approved, your reservation will be confirmed and you\'ll receive a confirmation email.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+              SizedBox(height: 8),
+              Text(
+                'Once approved, your reservation will be confirmed and you\'ll receive a confirmation email.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ] else ...[
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.successGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.restaurant_menu_rounded, color: AppTheme.successGreen, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Order sent to kitchen! You can track your order in the dashboard.',
+                        style: TextStyle(
+                          color: AppTheme.successGreen,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             SizedBox(height: 8),
             Text(
               'Thank you for choosing GCash!',
@@ -344,20 +355,6 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Icon(
-                          Icons.account_balance_wallet,
-                          color: AppTheme.primaryColor,
-                          size: 30,
-                        ),
-                      ),
-                      SizedBox(height: 16),
                       Text(
                         'Pay with GCash',
                         style: TextStyle(
@@ -404,105 +401,185 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 20),
+                      SizedBox(height: 24),
+                      // GCash QR Code Image
                       Container(
-                        padding: EdgeInsets.all(12),
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        height: MediaQuery.of(context).size.width * 0.9,
+                        padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'How to pay with GCash:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Click "Open GCash Payment" below',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Login to your GCash account',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Confirm the payment amount',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Complete the payment',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 15,
+                              offset: Offset(0, 8),
                             ),
                           ],
                         ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/images/newgcash.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.grey.shade300),
+                                    SizedBox(height: 12),
+                                    Text('Scan QR Code', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                      SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _launchGCashPayment,
-                              style: ElevatedButton.styleFrom(
-                               backgroundColor: AppTheme.primaryColor,
-                               foregroundColor: Colors.white,
-                               padding: EdgeInsets.symmetric(vertical: 14),
-                             ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                      SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                        ),
+                        child: CheckboxListTile(
+                          value: _isConfirmed,
+                          onChanged: (val) => setState(() => _isConfirmed = val ?? false),
+                          title: const Text(
+                            'I confirm that I have successfully transferred the payment via GCash.',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                          activeColor: AppTheme.primaryColor,
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      if (widget.table == 'reservations') ...[
+                        SizedBox(height: 24),
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'How to pay with GCash:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Row(
                                 children: [
-                                  Icon(Icons.account_balance_wallet),
+                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
                                   SizedBox(width: 8),
-                                  Text('Open GCash Payment'),
+                                  Expanded(
+                                    child: Text(
+                                      'Click "Open GCash Payment" below',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
+                              SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Login to your GCash account',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Confirm the payment amount',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Complete the payment',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      SizedBox(height: 16),
+                        ),
+                        SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Please use the QR code above to pay manually.'))
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.account_balance_wallet),
+                                    SizedBox(width: 8),
+                                    Text('Open GCash Payment'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 16),
                       TextButton(
-                        onPressed: _handlePaymentSuccess,
-                        child: Text('I already completed the payment'),
+                        onPressed: _isConfirmed ? _handlePaymentSuccess : null,
+                        style: TextButton.styleFrom(
+                          foregroundColor: _isConfirmed ? AppTheme.primaryColor : Colors.grey,
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: _isConfirmed ? AppTheme.primaryColor : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Text(
+                          'I already completed the payment',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isConfirmed ? AppTheme.primaryColor : Colors.grey,
+                          ),
+                        ),
                       ),
                     ],
                     ),
@@ -568,90 +645,4 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
     );
   }
 
-  void _showQRPaymentDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        insetPadding: EdgeInsets.zero,
-        backgroundColor: Colors.transparent,
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height,
-          child: Stack(
-            children: [
-              // Full screen QR code
-              Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  height: MediaQuery.of(context).size.width * 0.85,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // QR Code takes most of the space
-                      Expanded(
-                        flex: 3,
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Image.asset(
-                            'assets/images/newgcash.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      // Amount and info at bottom
-                      Expanded(
-                        flex: 1,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Amount: PHP ${widget.depositAmount.toStringAsFixed(2)}',
-                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
-                                style: TextStyle(fontSize: 14, color: Colors.grey),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Close button
-              Positioned(
-                top: 50,
-                right: 20,
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: Colors.white, size: 30),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -5,7 +5,6 @@ import 'menu_service.dart';
 /// Service to handle menu-based reservation pricing
 class MenuReservationService {
   static final MenuReservationService _instance = MenuReservationService._internal();
-  static const double _depositPercentage = 50.0; // 50% deposit requirement
   
   MenuReservationService._internal();
 
@@ -57,13 +56,16 @@ class MenuReservationService {
     }
   }
 
-  /// Calculate deposit amount (50% of total menu price)
-  double calculateMenuDepositAmount(double totalMenuPrice) {
-    return totalMenuPrice * (_depositPercentage / 100);
+  /// Calculate payment amount (100% for advance orders, 50% for others)
+  double calculateMenuDepositAmount(double totalMenuPrice, {String? reservationType}) {
+    if (reservationType == 'Advance Order') {
+      return totalMenuPrice; // 100% for Advance Orders
+    }
+    return totalMenuPrice * 0.5; // 50% for Event Place / others
   }
 
   /// Get menu pricing breakdown for display
-  Map<String, dynamic> getMenuPricingBreakdown(Map<String, int> selectedItems) {
+  Map<String, dynamic> getMenuPricingBreakdown(Map<String, int> selectedItems, {String? reservationType}) {
     final menu = MenuService.getMenu();
     final List<Map<String, dynamic>> itemBreakdown = [];
     double totalPrice = 0.0;
@@ -105,13 +107,14 @@ class MenuReservationService {
       });
     });
 
-    final depositAmount = calculateMenuDepositAmount(totalPrice);
+    final depositAmount = calculateMenuDepositAmount(totalPrice, reservationType: reservationType);
+    final double depositPercent = (reservationType == 'Advance Order') ? 100.0 : 50.0;
 
     return {
       'items': itemBreakdown,
       'totalPrice': totalPrice,
       'depositAmount': depositAmount,
-      'depositPercentage': _depositPercentage,
+      'depositPercentage': depositPercent,
       'remainingBalance': totalPrice - depositAmount,
       'itemCount': selectedItems.values.fold(0, (sum, qty) => sum + qty),
     };
@@ -188,16 +191,6 @@ class MenuReservationService {
     return totalMenuPrice / guestCount;
   }
 
-  /// Check if menu selection is reasonable for guest count
-  bool isMenuSelectionReasonable(Map<String, int> selectedItems, int guestCount) {
-    final totalItems = selectedItems.values.fold(0, (sum, qty) => sum + qty);
-    
-    // Rule of thumb: 1-2 items per guest should be reasonable
-    final minItems = guestCount;
-    final maxItems = guestCount * 3;
-    
-    return totalItems >= minItems && totalItems <= maxItems;
-  }
 
   /// Get menu items grouped by category for selection UI
   Map<String, List<MenuItem>> getMenuItemsByCategory() {

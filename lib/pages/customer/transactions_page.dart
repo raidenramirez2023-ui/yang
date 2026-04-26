@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class TransactionsPage extends StatefulWidget {
   final List<dynamic> initialTransactions;
@@ -27,15 +28,48 @@ class _TransactionsPageState extends State<TransactionsPage> {
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser == null) return;
 
-      final response = await Supabase.instance.client
-          .from('reservations')
-          .select('*')
-          .eq('customer_email', currentUser.email!)
-          .order('created_at', ascending: false);
+      final results = await Future.wait([
+        Supabase.instance.client
+            .from('reservations')
+            .select('*')
+            .eq('customer_email', currentUser.email!)
+            .order('created_at', ascending: false),
+        Supabase.instance.client
+            .from('advance_orders')
+            .select('*')
+            .eq('customer_email', currentUser.email!)
+            .order('created_at', ascending: false),
+      ]);
+
+      final reservations = List<Map<String, dynamic>>.from(results[0]).map((r) {
+        return {...r, '_db_table': 'reservations'};
+      }).toList();
+
+      final advanceOrders = List<Map<String, dynamic>>.from(results[1]).where((o) {
+        // Only show advance orders that have been paid
+        final ps = o['payment_status']?.toString() ?? '';
+        return ps == 'paid' || ps == 'fully_paid';
+      }).map((o) {
+        return {
+          ...o,
+          'event_type': 'Advance Order (${o['order_type']})',
+          'event_date': o['order_date'],
+          'start_time': o['order_time'],
+          'duration_hours': 0,
+          '_db_table': 'advance_orders',
+        };
+      }).toList();
+
+      final combined = [...reservations, ...advanceOrders];
+      combined.sort((a, b) {
+        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toIso8601String());
+        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toIso8601String());
+        return bTime.compareTo(aTime);
+      });
 
       if (mounted) {
         setState(() {
-          _transactions = List<Map<String, dynamic>>.from(response);
+          _transactions = combined;
           _isLoading = false;
         });
       }
@@ -198,10 +232,14 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   _buildDetailRow(Icons.calendar_today_rounded, 'Date', tx['event_date']),
                   const SizedBox(height: 12),
                   _buildDetailRow(Icons.access_time_rounded, 'Time', tx['start_time']),
-                  const SizedBox(height: 12),
-                  _buildDetailRow(Icons.people_alt_rounded, 'Guests', '${tx['number_of_guests']} guests'),
-                  const SizedBox(height: 12),
-                  _buildDetailRow(Icons.timer_rounded, 'Duration', '${tx['duration_hours']} hours'),
+                  if (tx['number_of_guests'] != null) ...[
+                    const SizedBox(height: 12),
+                    _buildDetailRow(Icons.people_alt_rounded, 'Guests', '${tx['number_of_guests']} guests'),
+                  ],
+                  if (tx['_db_table'] == 'reservations') ...[
+                    const SizedBox(height: 12),
+                    _buildDetailRow(Icons.timer_rounded, 'Duration', '${tx['duration_hours']} hours'),
+                  ],
                   
                   const Divider(height: 32),
                   
@@ -216,20 +254,33 @@ class _TransactionsPageState extends State<TransactionsPage> {
                             style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            paymentStatus.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: paymentStatus == 'paid' ? AppTheme.successGreen : AppTheme.warningOrange,
-                            ),
-                          ),
+                          _buildPaymentBadge(paymentStatus),
                         ],
                       ),
-                      Text(
-                        'Ref: ${tx['id'].toString().substring(0, 8).toUpperCase()}',
-                        style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey.withValues(alpha: 0.7), fontStyle: FontStyle.italic),
-                      ),
+                      if (tx['_db_table'] == 'advance_orders' && tx['total_price'] != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              'TOTAL PAID',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '₱${(tx['total_price'] as num).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.successGreen,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          'Ref: ${tx['id'].toString().substring(0, 8).toUpperCase()}',
+                          style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey.withValues(alpha: 0.7), fontStyle: FontStyle.italic),
+                        ),
                     ],
                   ),
                 ],
@@ -262,6 +313,40 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
+  Widget _buildPaymentBadge(String paymentStatus) {
+    final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+    final isDepositPaid = paymentStatus == 'deposit_paid';
+    final color = isPaid
+        ? AppTheme.successGreen
+        : isDepositPaid
+            ? Colors.blue
+            : AppTheme.warningOrange;
+    final label = isPaid
+        ? 'PAID'
+        : isDepositPaid
+            ? 'DEPOSIT PAID'
+            : paymentStatus.toUpperCase();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          isPaid ? Icons.verified_rounded : Icons.pending_rounded,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatusChip(String status) {
     Color color;
     IconData icon;
@@ -274,6 +359,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
       case 'confirmed':
         color = AppTheme.successGreen;
         icon = Icons.check_circle_rounded;
+        break;
+      case 'paid':
+      case 'fully_paid':
+        color = AppTheme.successGreen;
+        icon = Icons.verified_rounded;
         break;
       case 'cancelled':
         color = AppTheme.errorRed;

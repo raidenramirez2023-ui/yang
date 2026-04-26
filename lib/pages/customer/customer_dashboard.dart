@@ -38,6 +38,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:yang_chow/models/menu_item.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   const CustomerDashboardPage({super.key});
@@ -121,6 +122,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   String? _selectedExtraTime;
 
   final List<String> _eventTypes = AppConstants.eventTypes;
+  String _reservationType = 'Event Place';
+  String _advanceOrderType = 'Dine In';
 
   @override
   void initState() {
@@ -188,19 +191,49 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
       if (currentUser == null) return;
 
-      final response = await Supabase.instance.client
-          .from('reservations')
-          .select('*')
-          .eq('customer_email', currentUser.email!)
-          .order('created_at', ascending: false);
+      // Fetch from both tables in parallel
+      final results = await Future.wait([
+        Supabase.instance.client
+            .from('reservations')
+            .select('*')
+            .eq('customer_email', currentUser.email!)
+            .order('created_at', ascending: false),
+        Supabase.instance.client
+            .from('advance_orders')
+            .select('*')
+            .eq('customer_email', currentUser.email!)
+            .order('created_at', ascending: false),
+      ]);
 
-      final newReservations = List<Map<String, dynamic>>.from(response);
+      final reservations = List<Map<String, dynamic>>.from(results[0]).map((r) {
+        return {...r, '_db_table': 'reservations'};
+      }).toList();
+
+      final advanceOrders = List<Map<String, dynamic>>.from(results[1]).map((o) {
+        return {
+          ...o,
+          'event_type': 'Advance Order (${o['order_type']})',
+          'event_date': o['order_date'],
+          'start_time': o['order_time'],
+          'duration_hours': 0,
+          '_db_table': 'advance_orders',
+        };
+      }).toList();
+
+      final combined = [...reservations, ...advanceOrders];
+
+      // Sort combined results by created_at descending
+      combined.sort((a, b) {
+        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toIso8601String());
+        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toIso8601String());
+        return bTime.compareTo(aTime);
+      });
 
       setState(() {
-        customerReservations = newReservations;
+        customerReservations = combined;
       });
     } catch (e) {
-      debugPrint('Error loading customer reservations: $e');
+      debugPrint('Error loading customer records: $e');
     }
   }
 
@@ -241,6 +274,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
       MaterialPageRoute(
         builder: (context) => MenuSelectionPage(
+          reservationType: _reservationType,
+
           guestCount: guestCount,
 
           initialSelection: _selectedMenuItems,
@@ -1068,6 +1103,44 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
+  Widget _buildSubSelectionButton(String label, IconData icon) {
+    final isSelected = _advanceOrderType == label;
+    return GestureDetector(
+      onTap: () => setState(() => _advanceOrderType = label),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActionButton({
     required VoidCallback onTap,
 
@@ -1419,6 +1492,74 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
 
 
+  Duration _calculateDynamicLeadTime() {
+    // Advance orders require at least a 24-hour lead time
+    const baseLeadTime = Duration(days: 1);
+    
+    if (_selectedMenuItems.isEmpty) return baseLeadTime;
+    
+    int totalItems = _selectedMenuItems.values.fold(0, (sum, qty) => sum + qty);
+    int extraMinutes = (totalItems / 5).floor() * 15;
+    
+    // Add extra time for large orders on top of the 24-hour base
+    return baseLeadTime + Duration(minutes: extraMinutes);
+  }
+
+  Future<bool> _checkCapacity(DateTime selectedDateTime) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDateTime);
+    final timeStr = _startTimeController.text.trim();
+    
+    try {
+      final response = await Supabase.instance.client
+          .from('advance_orders')
+          .select('id, selected_menu_items')
+          .eq('order_date', dateStr)
+          .eq('order_time', timeStr)
+          .filter('payment_status', 'in', '("paid", "fully_paid")');
+          
+      final orders = response as List;
+      if (orders.length >= 10) return false; // 10 orders per hour limit
+      
+      int largeOrders = 0;
+      for (var order in orders) {
+        final items = order['selected_menu_items'] as Map<String, dynamic>? ?? {};
+        int count = 0;
+        items.values.forEach((qty) => count += (qty as num).toInt());
+        if (count > 10) largeOrders++;
+      }
+      return largeOrders < 3; // 3 large orders per hour limit
+    } catch (e) {
+      debugPrint('Error checking capacity: $e');
+      return true; // Fallback to allow if error
+    }
+  }
+
+  Future<String?> _validateInventoryStock() async {
+    if (_selectedMenuItems.isEmpty) return null;
+    try {
+      final response = await Supabase.instance.client
+          .from('inventory')
+          .select('name, quantity');
+          
+      final inventory = { for (var item in response as List) item['name'].toString() : (item['quantity'] as num?)?.toInt() ?? 0 };
+      
+      for (var entry in _selectedMenuItems.entries) {
+        final itemName = entry.key;
+        final requestedQty = entry.value;
+        
+        if (inventory.containsKey(itemName)) {
+          if (inventory[itemName]! < requestedQty) {
+            return 'Sorry, we only have ${inventory[itemName]} $itemName in stock.';
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error validating inventory: $e');
+      return null; // Fallback to allow if error
+    }
+  }
+
   Widget _buildReservationsSection() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -1431,9 +1572,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           children: [
             // ── Section header ──────────────────────────────────────────
-            const Text(
-              'Reserve Your Space',
-              style: TextStyle(
+            Text(
+              _reservationType == 'Event Place' ? 'Reserve Your Space' : 'Advance Order Food',
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.darkGrey,
@@ -1445,13 +1586,79 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             const SizedBox(height: 6),
 
             Text(
-              'Curate your next memorable moment with ease.',
+              _reservationType == 'Event Place' 
+                  ? 'Curate your next memorable moment with ease.'
+                  : 'Order ahead and have your favorite meals ready for dinein or pickup.',
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
 
             const SizedBox(height: 24),
 
+            // Reservation Type Selection
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _reservationType = 'Event Place'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _reservationType == 'Event Place'
+                          ? AppTheme.primaryColor
+                          : Colors.white,
+                      foregroundColor: _reservationType == 'Event Place'
+                          ? Colors.white
+                          : AppTheme.primaryColor,
+                      side: BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 1.5,
+                      ),
+                      elevation: _reservationType == 'Event Place' ? 4 : 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Event Place'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => setState(() => _reservationType = 'Advance Order'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _reservationType == 'Advance Order'
+                          ? AppTheme.primaryColor
+                          : Colors.white,
+                      foregroundColor: _reservationType == 'Advance Order'
+                          ? Colors.white
+                          : AppTheme.primaryColor,
+                      side: BorderSide(
+                        color: AppTheme.primaryColor,
+                        width: 1.5,
+                      ),
+                      elevation: _reservationType == 'Advance Order' ? 4 : 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Advance Order'),
+                  ),
+                ),
+              ],
+            ),
 
+            const SizedBox(height: 24),
+
+            // Sub-selection for Advance Order (Dine In / Pick Up)
+            if (_reservationType == 'Advance Order') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSubSelectionButton('Dine In', Icons.restaurant_rounded),
+                  const SizedBox(width: 16),
+                  _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Form Card
             Container(
@@ -1498,57 +1705,56 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                             crossAxisAlignment: CrossAxisAlignment.start,
 
                             children: [
-                              // Event Type
-                              _buildFormLabel('EVENT TYPE'),
+                              if (_reservationType == 'Event Place') ...[
+                                // Event Type
+                                _buildFormLabel('EVENT TYPE'),
 
-                              const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                              _buildStyledDropdown<String>(
-                                value: _selectedEventType,
+                                _buildStyledDropdown<String>(
+                                  value: _selectedEventType,
 
-                                hint: 'Select event type',
+                                  hint: 'Select event type',
 
-                                icon: Icons.celebration_rounded,
+                                  icon: Icons.celebration_rounded,
 
-                                items: _eventTypes,
+                                  items: _eventTypes,
 
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedEventType = val;
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedEventType = val;
 
-                                    _eventController.text = val ?? '';
-                                  });
-                                },
-                              ),
+                                      _eventController.text = val ?? '';
+                                    });
+                                  },
+                                ),
 
-                              const SizedBox(height: 24),
+                                const SizedBox(height: 24),
+                              ],
 
                               // Date
-                              _buildFormLabel('DATE'),
+                              _buildFormLabel(_reservationType == 'Event Place' ? 'DATE' : (_advanceOrderType == 'Dine In' ? 'DINING DATE' : 'PICKUP DATE')),
 
                               const SizedBox(height: 8),
 
                               _buildStyledTextField(
                                 controller: _dateController,
 
-                                hint: 'mm/dd/yyyy',
+                                hint: 'Select a date',
 
                                 icon: Icons.calendar_month_rounded,
 
                                 readOnly: true,
 
                                 onTap: () async {
-                                  final minDate = DateTime.now().add(
-                                    const Duration(days: 4),
-                                  );
+                                  final minDate = _reservationType == 'Advance Order'
+                                      ? DateTime.now().add(const Duration(days: 1))
+                                      : DateTime.now().add(const Duration(days: 4));
 
                                   DateTime? pickedDate = await showDatePicker(
                                     context: context,
-
                                     initialDate: minDate,
-
                                     firstDate: minDate,
-
                                     lastDate: DateTime.now().add(
                                       const Duration(days: 365),
                                     ),
@@ -1566,7 +1772,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               const SizedBox(height: 24),
 
                               // Start Time
-                              _buildFormLabel('START TIME'),
+                              _buildFormLabel(_reservationType == 'Event Place' ? 'START TIME' : (_advanceOrderType == 'Dine In' ? 'DINING TIME' : 'PICKUP TIME')),
 
                               const SizedBox(height: 8),
 
@@ -1580,45 +1786,67 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 readOnly: true,
 
                                 onTap: () async {
+                                  final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
+                                  final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
+
                                   TimeOfDay? pickedTime = await showTimePicker(
                                     context: context,
-
-                                    initialTime: TimeOfDay(
-                                      hour: _operatingHoursStart,
-
-                                      minute: 0,
-                                    ),
+                                    initialTime: TimeOfDay(hour: startHour, minute: 0),
                                   );
 
                                   if (pickedTime != null) {
-                                    // Validate against configurable operating hours
-
-                                    if (pickedTime.hour <
-                                            _operatingHoursStart ||
-                                        pickedTime.hour > _operatingHoursEnd ||
-                                        (pickedTime.hour ==
-                                                _operatingHoursEnd &&
-                                            pickedTime.minute > 0)) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Please select a time between ${_operatingHoursStart.toString().padLeft(2, '0')}:00 and ${_operatingHoursEnd.toString().padLeft(2, '0')}:00',
-                                            ),
-
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-
+                                    // Validate against operating hours
+                                    if (pickedTime.hour < startHour ||
+                                        pickedTime.hour > endHour ||
+                                        (pickedTime.hour == endHour && pickedTime.minute > 0)) {
+                                      _showSnackBar(
+                                        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+                                        Colors.red,
+                                      );
                                       return;
                                     }
 
+                                    // Check dynamic lead time for same-day Advance Orders
+                                    if (_reservationType == 'Advance Order') {
+                                      final now = DateTime.now();
+                                      final selectedDateStr = _dateController.text.trim();
+                                      if (selectedDateStr.isNotEmpty) {
+                                        try {
+                                          final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
+                                          final isToday = selectedDate.year == now.year &&
+                                              selectedDate.month == now.month &&
+                                              selectedDate.day == now.day;
+
+                                          if (isToday) {
+                                            final selectedDateTime = DateTime(
+                                              now.year,
+                                              now.month,
+                                              now.day,
+                                              pickedTime.hour,
+                                              pickedTime.minute,
+                                            );
+                                            final leadTime = _calculateDynamicLeadTime();
+                                            final minSelectableTime = now.add(leadTime);
+
+                                            if (selectedDateTime.isBefore(minSelectableTime)) {
+                                              final h = leadTime.inHours;
+                                              final m = leadTime.inMinutes % 60;
+                                              final leadTimeStr = h > 0 ? '$h hour${h > 1 ? "s" : ""} ${m > 0 ? "and $m min" : ""}' : '$m minutes';
+                                              _showSnackBar(
+                                                'For this order size, please select a time at least $leadTimeStr from now.',
+                                                Colors.red,
+                                              );
+                                              return;
+                                            }
+                                          }
+                                        } catch (e) {
+                                          debugPrint('Error validating lead time: $e');
+                                        }
+                                      }
+                                    }
+
                                     setState(() {
-                                      _startTimeController.text = pickedTime
-                                          .format(context);
+                                      _startTimeController.text = pickedTime.format(context);
                                     });
                                   }
                                 },
@@ -1626,48 +1854,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                               const SizedBox(height: 24),
 
-                              // Duration
-                              _buildFormLabel('DURATION'),
+                              if (_reservationType == 'Event Place') ...[
+                                // Duration
+                                _buildFormLabel('DURATION'),
 
-                              const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                              _buildStyledDropdown<String>(
-                                value: _selectedBaseDuration,
+                                _buildStyledDropdown<String>(
+                                  value: _selectedBaseDuration,
 
-                                hint: 'Select duration',
+                                  hint: 'Select duration',
 
-                                icon: Icons.timer_rounded,
+                                  icon: Icons.timer_rounded,
 
-                                items: _baseDurations,
+                                  items: _baseDurations,
 
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedBaseDuration = val;
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _selectedBaseDuration = val;
 
-                                    _updateDurationText();
-                                  });
-                                },
-                              ),
+                                      _updateDurationText();
+                                    });
+                                  },
+                                ),
 
-                              const SizedBox(height: 24),
+                                const SizedBox(height: 24),
+                              ],
 
                               // Number of Guests
-                              _buildFormLabel('GUESTS'),
+                              if (_reservationType == 'Event Place' || (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In')) ...[
+                                _buildFormLabel('GUESTS'),
 
-                              const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                              _buildStyledTextField(
-                                controller: _guestsController,
-                                hint: 'Enter number of guests',
-                                icon: Icons.people_alt_rounded,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                helperText: '$_minGuestCount–$_maxGuestCount guests allowed',
-                              ),
+                                _buildStyledTextField(
+                                  controller: _guestsController,
+                                  hint: 'Enter number of guests',
+                                  icon: Icons.people_alt_rounded,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  helperText: _reservationType == 'Event Place'
+                                      ? '$_minGuestCount–$_maxGuestCount guests allowed'
+                                      : '1–80 guests allowed',
+                                ),
 
-                              const SizedBox(height: 24),
+                                const SizedBox(height: 24),
+                              ],
 
                               // Menu Selection
                               _buildFormLabel('MENU SELECTION'),
@@ -1852,8 +2086,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                                       .spaceBetween,
 
                                               children: [
-                                                const Text(
-                                                  '50% Deposit Required:',
+                                                Text(
+                                                  _reservationType == 'Advance Order' ? 'Full Payment Required:' : '50% Deposit Required:',
 
                                                   style: TextStyle(
                                                     fontSize: 12,
@@ -1863,7 +2097,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                                 ),
 
                                                 Text(
-                                                  'PHP ${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems)))}',
+                                                  'PHP ${NumberFormat("#,##0.00").format(_menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
 
                                                   style: const TextStyle(
                                                     fontSize: 12,
@@ -1923,18 +2157,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               const SizedBox(height: 24),
 
                               // Extra Time Toggle
-                              Container(
-                                padding: const EdgeInsets.all(16),
+                              if (_reservationType == 'Event Place') 
+                                Container(
+                                  padding: const EdgeInsets.all(16),
 
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
 
-                                  borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(16),
 
-                                  border: Border.all(
-                                    color: Colors.grey.shade100,
+                                    border: Border.all(
+                                      color: Colors.grey.shade100,
+                                    ),
                                   ),
-                                ),
 
                                 child: Column(
                                   children: [
@@ -2051,7 +2286,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                               // Special Requests Field (if enabled)
                               if (_enableSpecialRequests) ...[
-                                _buildFormLabel('SPECIAL REQUESTS'),
+                                _buildFormLabel(_reservationType == 'Event Place' ? 'SPECIAL REQUESTS' : 'PREPARATION NOTES'),
 
                                 const SizedBox(height: 8),
 
@@ -2080,7 +2315,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                         decoration: InputDecoration(
                                           hintText:
-                                              'Enter any special requests (dietary restrictions, accessibility needs, celebration requirements, etc.)',
+                                              _reservationType == 'Event Place'
+                                               ? 'Enter any special requests (dietary restrictions, accessibility needs, celebration requirements, etc.)'
+                                               : 'Enter any preparation notes (no spice, utensils needed, allergy warnings, etc.)'
+,
 
                                           hintStyle: TextStyle(
                                             color: Colors.grey.shade400,
@@ -2133,11 +2371,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                       const SizedBox(height: 8),
 
                                       Text(
-                                        'Examples: Vegetarian guests | Wheelchair access needed | Birthday surprise setup | High chair for baby',
-
+                                        _reservationType == 'Event Place'
+                                            ? 'Examples: Vegetarian guests | Wheelchair access needed | Birthday surprise setup | High chair for baby'
+                                            : 'Examples: No spicy food | Separate sauces | Extra napkins | Allergy to peanuts',
                                         style: TextStyle(
                                           fontSize: 11,
-
                                           color: Colors.grey.shade500,
                                         ),
                                       ),
@@ -2189,15 +2427,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                                 ),
                                           ),
                                         )
-                                      : const Row(
+                                      : Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
 
                                           children: [
                                             Text(
-                                              'Confirm Reservation',
+                                              _reservationType == 'Event Place' ? 'Confirm Reservation' : 'Confirm Order',
 
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 fontSize: 16,
 
                                                 fontWeight: FontWeight.bold,
@@ -2206,9 +2444,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                               ),
                                             ),
 
-                                            SizedBox(width: 8),
+                                            const SizedBox(width: 8),
 
-                                            Icon(
+                                            const Icon(
                                               Icons.arrow_forward_rounded,
 
                                               size: 20,
@@ -2948,11 +3186,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       MaterialPageRoute(
         builder: (context) => GCashPaymentPage(
           reservationId: reservation['id'],
-
           depositAmount: depositAmount,
-
+          table: reservation['_db_table'] ?? 'reservations',
           onPaymentSuccess: () {
-            _updateReservationPaymentStatus(reservation['id'], depositAmount);
+            _updateReservationPaymentStatus(reservation['id'], depositAmount, reservation['_db_table'] ?? 'reservations');
           },
         ),
       ),
@@ -3140,13 +3377,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Future<void> _updateReservationPaymentStatus(
     String reservationId,
     double depositAmount,
+    String table,
   ) async {
     try {
       await _reservationService.updatePaymentStatus(
-        reservationId: reservationId,
-
-        paymentStatus: 'deposit_paid',
-
+        id: reservationId,
+        paymentStatus: table == 'advance_orders' ? 'paid' : 'deposit_paid',
+        table: table,
         paymentAmount: depositAmount,
       );
 
@@ -3255,12 +3492,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         );
 
         final depositAmount = _menuReservationService
-            .calculateMenuDepositAmount(totalMenuPrice);
+            .calculateMenuDepositAmount(totalMenuPrice, reservationType: _reservationType);
 
         _showSuccessDialog(
           'Reservation created successfully!\n\n'
           'Total Menu Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n'
-          '50% Deposit Required: PHP ${NumberFormat('#,##0.00').format(depositAmount)}\n\n'
+          '${_reservationType == 'Advance Order' ? 'Full Payment Required' : '50% Deposit Required'}: PHP ${NumberFormat('#,##0.00').format(depositAmount)}\n\n'
           'You will receive a price quotation shortly and can proceed with payment.',
         );
       } else {
@@ -3283,7 +3520,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         return 'DEPOSIT PAID';
 
       case 'paid':
-        return 'FULLY PAID';
+      case 'fully_paid':
+        return 'PAID';
 
       case 'unpaid':
         return 'DEPOSIT DUE';
@@ -3304,7 +3542,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         return Colors.green;
 
       case 'paid':
-        return Colors.blue;
+      case 'fully_paid':
+        return Colors.green;
 
       case 'unpaid':
         return Colors.orange;
@@ -3343,7 +3582,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           children: [
             Text(
-              'Complete your reservation by paying the 50% deposit.',
+              reservation['_db_table'] == 'advance_orders'
+                  ? 'Complete your order by paying the full amount.'
+                  : 'Complete your reservation by paying the 50% deposit.',
 
               style: TextStyle(color: Colors.grey.shade600),
             ),
@@ -3365,10 +3606,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
                 children: [
-                  const Text(
-                    'Deposit Amount:',
+                  Text(
+                    reservation['_db_table'] == 'advance_orders' 
+                        ? 'Total Amount:' 
+                        : 'Deposit Amount:',
 
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
 
                   Text(
@@ -3679,14 +3922,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   children: [
                                     _buildStatusChip(reservation['status'] ?? 'pending'),
                                     const SizedBox(width: 8),
-                                    if (reservation['status'] == 'confirmed' &&
+                                    if (reservation['_db_table'] == 'advance_orders' &&
+                                        reservation['status'] == 'confirmed' &&
                                         reservation['payment_status'] != 'paid')
                                       IconButton(
                                         onPressed: () => _showPaymentDialog(reservation),
                                         icon: const Icon(Icons.payment_rounded, color: AppTheme.successGreen, size: 22),
-                                        tooltip: 'Pay Reservation Fee',
+                                        tooltip: 'Pay for Order',
                                       ),
-                                    if (reservation['payment_status'] == 'paid')
+                                    if (reservation['payment_status'] == 'paid' || 
+                                        reservation['payment_status'] == 'fully_paid')
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
@@ -3702,8 +3947,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                           ),
                                         ),
                                       ),
-                                    if (reservation['status'] == 'confirmed' ||
-                                        reservation['status'] == 'pending')
+                                    if ((reservation['status'] == 'confirmed' ||
+                                        reservation['status'] == 'pending') &&
+                                        !(reservation['_db_table'] == 'advance_orders' && 
+                                          (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')))
                                       PopupMenuButton<String>(
                                         icon: const Icon(Icons.more_vert_rounded, color: AppTheme.mediumGrey),
                                         onSelected: (String value) {
@@ -3749,10 +3996,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 _buildActivityDetailRow(Icons.calendar_today_rounded, 'Date', reservation['event_date']),
                                 const SizedBox(height: 12),
                                 _buildActivityDetailRow(Icons.access_time_rounded, 'Time', reservation['start_time']),
-                                const SizedBox(height: 12),
-                                _buildActivityDetailRow(Icons.people_alt_rounded, 'Guests', '${reservation['number_of_guests']} guests'),
-                                const SizedBox(height: 12),
-                                _buildActivityDetailRow(Icons.timer_rounded, 'Duration', '${reservation['duration_hours']} hours'),
+                                if (reservation['number_of_guests'] != null) ...[
+                                  const SizedBox(height: 12),
+                                  _buildActivityDetailRow(Icons.people_alt_rounded, 'Guests', '${reservation['number_of_guests']} guests'),
+                                ],
+                                if (reservation['_db_table'] == 'reservations') ...[
+                                  const SizedBox(height: 12),
+                                  _buildActivityDetailRow(Icons.timer_rounded, 'Duration', '${reservation['duration_hours']} hours'),
+                                ],
                                 const Divider(height: 32),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3761,10 +4012,61 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                       'Booked on: ${_formatLocalDateTime(reservation['created_at'])}',
                                       style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
                                     ),
-                                    if (reservation['payment_status'] == 'paid')
+                                    if (reservation['payment_status'] == 'paid' ||
+                                        reservation['payment_status'] == 'fully_paid')
                                       const Icon(Icons.verified_rounded, color: AppTheme.successGreen, size: 16),
                                   ],
                                 ),
+                                if (reservation['_db_table'] == 'advance_orders' && 
+                                     (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')) ...[
+                                   const Divider(height: 32),
+                                   _buildProgressStepper(reservation['status'] ?? 'pending'),
+                                   if ((reservation['status'] ?? '').toString().toLowerCase() == 'ready') ...[
+                                     const SizedBox(height: 24),
+                                     Center(
+                                       child: Column(
+                                         children: [
+                                           const Text(
+                                             'PICKUP QR CODE',
+                                             style: TextStyle(
+                                               fontSize: 10, 
+                                               fontWeight: FontWeight.w800, 
+                                               color: AppTheme.mediumGrey, 
+                                               letterSpacing: 1.5
+                                             ),
+                                           ),
+                                           const SizedBox(height: 16),
+                                           Container(
+                                             padding: const EdgeInsets.all(16),
+                                             decoration: BoxDecoration(
+                                               color: Colors.white,
+                                               borderRadius: BorderRadius.circular(16),
+                                               border: Border.all(color: Colors.grey.shade100),
+                                               boxShadow: [
+                                                 BoxShadow(
+                                                   color: Colors.black.withValues(alpha: 0.05),
+                                                   blurRadius: 15,
+                                                   offset: const Offset(0, 8),
+                                                 ),
+                                               ],
+                                             ),
+                                             child: QrImageView(
+                                               data: reservation['id'].toString(),
+                                               version: QrVersions.auto,
+                                               size: 160.0,
+                                               foregroundColor: AppTheme.darkGrey,
+                                             ),
+                                           ),
+                                           const SizedBox(height: 16),
+                                           const Text(
+                                             'Show this to the counter for pickup',
+                                             style: TextStyle(fontSize: 13, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+                                           ),
+                                         ],
+                                       ),
+                                     ),
+                                   ],
+                                 ],
                               ],
                             ),
                           ),
@@ -3776,6 +4078,94 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProgressStepper(String status) {
+    final steps = ['Paid', 'Preparing', 'Ready', 'Done'];
+    int currentStep = 0;
+    
+    final s = status.toLowerCase();
+    if (s == 'preparing') currentStep = 1;
+    else if (s == 'ready') currentStep = 2;
+    else if (s == 'done' || s == 'completed') currentStep = 3;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ORDER PROGRESS',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: List.generate(steps.length, (index) {
+              final isActive = index <= currentStep;
+              final isCompleted = index < currentStep;
+              
+              return Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 2.5, 
+                            color: index == 0 
+                                ? Colors.transparent 
+                                : (isActive ? AppTheme.primaryColor : Colors.grey.shade200)
+                          )
+                        ),
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: isActive ? AppTheme.primaryColor : Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isActive ? AppTheme.primaryColor : Colors.grey.shade300, 
+                              width: 2.5
+                            ),
+                            boxShadow: isActive ? [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              )
+                            ] : null,
+                          ),
+                          child: isCompleted 
+                            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                            : (isActive ? Center(child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))) : null),
+                        ),
+                        Expanded(
+                          child: Container(
+                            height: 2.5, 
+                            color: index == steps.length - 1 
+                                ? Colors.transparent 
+                                : (index < currentStep ? AppTheme.primaryColor : Colors.grey.shade200)
+                          )
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      steps[index],
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        color: isActive ? AppTheme.darkGrey : AppTheme.mediumGrey,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -3804,6 +4194,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildStatusChip(String status) {
     Color color;
     IconData icon;
+    String label = status.toUpperCase();
 
     switch (status.toLowerCase()) {
       case 'pending':
@@ -3813,6 +4204,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       case 'confirmed':
         color = AppTheme.successGreen;
         icon = Icons.check_circle_rounded;
+        break;
+      case 'preparing':
+        color = AppTheme.infoBlue;
+        icon = Icons.local_fire_department_rounded;
+        label = 'PREPARING';
+        break;
+      case 'ready':
+        color = AppTheme.successGreen;
+        icon = Icons.restaurant_rounded;
+        label = 'READY';
+        break;
+      case 'done':
+        color = AppTheme.mediumGrey;
+        icon = Icons.check_circle_rounded;
+        label = 'COMPLETED';
         break;
       case 'cancelled':
         color = AppTheme.errorRed;
@@ -3836,7 +4242,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
-            status.toUpperCase(),
+            label,
             style: TextStyle(
               color: color,
               fontSize: 10,
@@ -3910,23 +4316,38 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           return;
         }
 
-        // Cancel the reservation
+        // Cancel the record in the appropriate table
+        if (reservation['_db_table'] == 'advance_orders') {
+          await _reservationService.cancelAdvanceOrder(
+            orderId: reservation['id'],
 
-        await _reservationService.cancelReservation(
-          reservationId: reservation['id'],
+            customerEmail: currentUser.email!,
 
-          customerEmail: currentUser.email!,
+            customerName: currentUser.userMetadata?['name'] ?? 'Customer',
 
-          customerName: currentUser.userMetadata?['name'] ?? 'Customer',
+            orderType: reservation['order_type'] ?? 'Pick Up',
 
-          eventType: eventType,
+            orderDate: reservation['order_date'] ?? eventDate,
 
-          eventDate: eventDate,
+            cancellationReason: selectedReason!,
+          );
+        } else {
+          await _reservationService.cancelReservation(
+            reservationId: reservation['id'],
 
-          cancellationReason: selectedReason!,
+            customerEmail: currentUser.email!,
 
-          isAdminCancel: false,
-        );
+            customerName: currentUser.userMetadata?['name'] ?? 'Customer',
+
+            eventType: eventType,
+
+            eventDate: eventDate,
+
+            cancellationReason: selectedReason!,
+
+            isAdminCancel: false,
+          );
+        }
 
         // Send in-app notification to customer
 
@@ -4335,8 +4756,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     String guests = _guestsController.text.trim();
 
     // Validation
-
-    if (_selectedEventType == null) {
+    if (_reservationType == 'Event Place' && _selectedEventType == null) {
       _showSnackBar('Please select an event type', Colors.red);
 
       return;
@@ -4354,33 +4774,43 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       return;
     }
 
-    if (_selectedBaseDuration == null) {
+    if (_reservationType == 'Event Place' && _selectedBaseDuration == null) {
       _showSnackBar('Please select a base duration', Colors.red);
 
       return;
     }
 
-    if (guests.isEmpty) {
+    // Guest Validation
+    bool needsGuests = _reservationType == 'Event Place' ||
+        (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In');
+
+    if (needsGuests && guests.isEmpty) {
       _showSnackBar('Please enter the number of guests', Colors.red);
 
       return;
     }
 
-    int guestCount = int.tryParse(guests) ?? 0;
+    int guestCount = needsGuests ? (int.tryParse(guests) ?? 0) : 0;
 
-    if (guestCount < _minGuestCount || guestCount > _maxGuestCount) {
-      _showSnackBar(
-        'Number of guests must be between $_minGuestCount and $_maxGuestCount',
+    if (needsGuests) {
+      int min = _reservationType == 'Event Place' ? _minGuestCount : 1;
+      int max = _reservationType == 'Event Place' ? _maxGuestCount : 80;
 
-        Colors.red,
-      );
+      if (guestCount < min || guestCount > max) {
+        _showSnackBar(
+          'Number of guests must be between $min and $max',
+          Colors.red,
+        );
 
-      return;
+        return;
+      }
     }
 
-    double totalDuration = double.tryParse(_durationController.text) ?? 0.0;
+    double totalDuration = _reservationType == 'Event Place' 
+        ? (double.tryParse(_durationController.text) ?? 0.0)
+        : 0.0;
 
-    if (totalDuration == 0) {
+    if (_reservationType == 'Event Place' && totalDuration == 0) {
       _showSnackBar('Invalid duration selected', Colors.red);
 
       return;
@@ -4399,31 +4829,59 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         return;
       }
 
-      // Check if menu selection is reasonable for guest count
-
-      if (!_menuReservationService.isMenuSelectionReasonable(
-        _selectedMenuItems,
-        guestCount,
-      )) {
-        _showSnackBar(
-          'Menu selection may not be suitable for $guestCount guests',
-          Colors.orange,
-        );
-      }
     }
 
-    // Parse date string to proper format
-
-    List<String> dateParts = date.split('/');
-
-    if (dateParts.length != 3) {
+    String formattedDate;
+    try {
+      final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
+      formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+    } catch (e) {
       _showSnackBar('Invalid date format', Colors.red);
-
       return;
     }
 
-    String formattedDate =
-        "${dateParts[2]}-${dateParts[0].padLeft(2, '0')}-${dateParts[1].padLeft(2, '0')}";
+    // Capacity Check
+    if (_reservationType == 'Advance Order') {
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
+        // We need a full DateTime to check capacity
+        // Parsing the startTime text to get hour/minute
+        final timeFmt = DateFormat.jm(); // e.g. "10:00 AM"
+        final parsedTime = timeFmt.parse(startTime);
+        final selectedDateTime = DateTime(
+          parsedDate.year,
+          parsedDate.month,
+          parsedDate.day,
+          parsedTime.hour,
+          parsedTime.minute,
+        );
+
+        setState(() => _isLoading = true);
+        final hasCapacity = await _checkCapacity(selectedDateTime);
+        setState(() => _isLoading = false);
+
+        if (!hasCapacity) {
+          _showSnackBar(
+            'Sorry, this time slot is fully booked. Please choose another time.',
+            Colors.orange,
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error in capacity check: $e');
+      }
+    }
+
+    // Inventory Check
+    if (_reservationType == 'Advance Order') {
+      setState(() => _isLoading = true);
+      final inventoryError = await _validateInventoryStock();
+      setState(() => _isLoading = false);
+      if (inventoryError != null) {
+        _showSnackBar(inventoryError, Colors.red);
+        return;
+      }
+    }
 
     // Check if customer already has a reservation for this date
 
@@ -4470,34 +4928,87 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     setState(() => _isLoading = true);
 
     try {
-      // Parse date string to proper format
-
-      List<String> dateParts = date.split('/');
-
-      if (dateParts.length != 3) {
+      String formattedDate;
+      try {
+        final parsedDate = DateFormat('MMMM d, yyyy').parse(date);
+        formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+      } catch (e) {
         throw Exception('Invalid date format');
       }
 
-      String formattedDate =
-          "${dateParts[2]}-${dateParts[0].padLeft(2, '0')}-${dateParts[1].padLeft(2, '0')}";
+      // Create record in the appropriate table
+      if (_reservationType == 'Advance Order') {
+        final totalMenuPrice = _menuReservationService.calculateMenuTotalPrice(
+          _selectedMenuItems,
+        );
 
-      // Create reservation using the new reservation service
+        // Create the advance order
+        final response = await _reservationService.createAdvanceOrder(
+          customerEmail: currentUser.email ?? '',
+          customerName: currentUser.userMetadata?['name'] ?? 
+                        currentUser.userMetadata?['full_name'] ?? 
+                        'Customer',
+          orderType: _advanceOrderType,
+          orderDate: formattedDate,
+          orderTime: startTime,
+          numberOfGuests: _advanceOrderType == 'Dine In' ? guestCount : null,
+          selectedMenuItems: _selectedMenuItems,
+          totalPrice: totalMenuPrice,
+          preparationNotes: _specialRequestsController.text.trim(),
+        );
 
-      await _createReservationWithoutPayment(
-        currentUser,
+        final String orderId = response['id'].toString();
 
-        _selectedEventType!,
+        if (!mounted) return;
 
-        formattedDate,
+        setState(() {
+          _isLoading = false;
+        });
 
-        startTime,
+        // Redirect immediately to payment page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GCashPaymentPage(
+              reservationId: orderId,
+              depositAmount: totalMenuPrice,
+              table: 'advance_orders',
+              onPaymentSuccess: () {
+                if (mounted) {
+                  setState(() {
+                    _selectedMenuItems.clear();
+                    _selectedIndex = 0; // Go to home/activity
+                  });
+                  _loadCustomerReservations();
+                  _showSuccessDialog(
+                    'Advance Order paid and confirmed successfully!\n\n'
+                    'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
+                    'Your order is now being processed by the kitchen.',
+                  );
+                }
+              },
+            ),
+          ),
+        );
+      } else {
+        String finalEventType = _selectedEventType!;
 
-        totalDuration,
+        await _createReservationWithoutPayment(
+          currentUser,
 
-        guestCount,
+          finalEventType,
 
-        _specialRequestsController.text.trim(),
-      );
+          formattedDate,
+
+          startTime,
+
+          totalDuration,
+
+          guestCount,
+
+          _specialRequestsController.text.trim(),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -4870,7 +5381,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     _buildPricingRow('Total Price', totalPrice, Colors.black),
 
                     _buildPricingRow(
-                      'Deposit (50%)',
+                      reservation['_db_table'] == 'advance_orders' 
+                          ? 'Full Payment' 
+                          : 'Deposit (50%)',
                       depositAmount,
                       AppTheme.successGreen,
                     ),
@@ -4887,7 +5400,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               SizedBox(height: 16),
 
               // Action Buttons
-              if (needsDepositPayment)
+              if (needsDepositPayment && reservation['_db_table'] == 'advance_orders')
                 SizedBox(
                   width: double.infinity,
 
@@ -4897,7 +5410,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     icon: Icon(Icons.payment, size: 18),
 
                     label: Text(
-                      'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
+                      'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})',
                     ),
 
                     style: ElevatedButton.styleFrom(

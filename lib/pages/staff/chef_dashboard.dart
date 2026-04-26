@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/services/notification_service.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
@@ -40,32 +42,54 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
   // ── Real-time new-order notifications ───────────────────
   void _listenForNewOrders() {
+    // Regular orders
     _orderStream = Supabase.instance.client
         .from('orders')
         .stream(primaryKey: ['id'])
         .order('created_at', ascending: false)
         .listen((rows) {
           if (!mounted) return;
+          _refreshPendingCount(rows, isAdvance: false);
+        });
 
-          // Count orders whose kitchen status is Pending (not yet tracked = Pending)
-          _refreshPendingCount(rows);
+    // Advance orders
+    Supabase.instance.client
+        .from('advance_orders')
+        .stream(primaryKey: ['id'])
+        .listen((rows) {
+          if (!mounted) return;
+          _refreshPendingCount(rows, isAdvance: true);
         });
   }
 
-  Future<void> _refreshPendingCount(List<Map<String, dynamic>> orders) async {
+  int _pendingRegular = 0;
+  int _pendingAdvance = 0;
+
+  Future<void> _refreshPendingCount(List<Map<String, dynamic>> orders, {required bool isAdvance}) async {
     try {
       int pending = 0;
       for (final o in orders) {
-        final ks = o['kitchen_status']?.toString() ?? 'Pending';
-        if (ks == 'Pending') pending++;
+        final ks = o[isAdvance ? 'status' : 'kitchen_status']?.toString() ?? 'Pending';
+        final ps = o['payment_status']?.toString() ?? 'unpaid';
+        if ((ks == 'Pending' || ks == 'pending') && (ps == 'paid' || ps == 'fully_paid')) pending++;
       }
 
       if (!mounted) return;
-      final isNew = pending > _lastSeenPendingCount;
-      setState(() => _pendingOrderCount = pending);
+      
+      setState(() {
+        if (isAdvance) {
+          _pendingAdvance = pending;
+        } else {
+          _pendingRegular = pending;
+        }
+        _pendingOrderCount = _pendingRegular + _pendingAdvance;
+      });
 
-      if (isNew && _currentTab != 0) {
-        _lastSeenPendingCount = pending;
+      final totalPending = _pendingRegular + _pendingAdvance;
+      final isNew = totalPending > _lastSeenPendingCount;
+
+      if (isNew && _currentTab != (isAdvance ? 1 : 0)) {
+        _lastSeenPendingCount = totalPending;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -77,7 +101,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  '$pending new order${pending == 1 ? '' : 's'} in the kitchen!',
+                  '$totalPending total pending order${totalPending == 1 ? '' : 's'} in the kitchen!',
                 ),
               ],
             ),
@@ -90,7 +114,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
           ),
         );
       } else {
-        _lastSeenPendingCount = pending;
+        _lastSeenPendingCount = totalPending;
       }
     } catch (_) {}
   }
@@ -109,6 +133,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 onPageChanged: (idx) => setState(() => _currentTab = idx),
                 children: const [
                   _KitchenOrdersTab(),
+                  _AdvanceOrdersTab(),
                   _FinishedOrdersTab(),
                   _InventoryRequestTab(),
                   _StockViewTab(),
@@ -237,6 +262,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   Widget _buildBottomNav() {
     const items = [
       (Icons.restaurant, 'Kitchen'),
+      (Icons.event_note, 'Advance'),
       (Icons.check_circle_outline, 'Finished'),
       (Icons.inventory_2_outlined, 'Requests'),
       (Icons.bar_chart, 'Stock'),
@@ -252,7 +278,8 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         children: List.generate(items.length, (i) {
           final selected = _currentTab == i;
           final (icon, label) = items[i];
-          final hasBadge = i == 0 && _pendingOrderCount > 0;
+          final hasBadge = (i == 0 && _pendingRegular > 0) || (i == 1 && _pendingAdvance > 0);
+          final badgeCount = i == 0 ? _pendingRegular : _pendingAdvance;
 
           return Expanded(
             child: GestureDetector(
@@ -290,7 +317,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
-                                '$_pendingOrderCount',
+                                '$badgeCount',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 8,
@@ -378,7 +405,6 @@ class _KitchenOrdersTab extends StatefulWidget {
 }
 
 class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
-  // Kitchen status for each order (order_id → status)
   final Map<String, String> _kitchenStatus = {};
 
   static const _statusOrder = ['Pending', 'Preparing', 'Ready', 'Done'];
@@ -388,12 +414,6 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
     'Ready': Color(0xFF4CAF50),
     'Done': Color(0xFF9E9E9E),
   };
-
-  @override
-  void initState() {
-    super.initState();
-    // No separate table to load; kitchen_status is a column on orders
-  }
 
   Future<void> _updateStatus(String orderId, String newStatus) async {
     setState(() => _kitchenStatus[orderId] = newStatus);
@@ -418,93 +438,197 @@ class _KitchenOrdersTabState extends State<_KitchenOrdersTab> {
           .from('orders')
           .stream(primaryKey: ['id'])
           .order('created_at', ascending: true),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryColor),
-          );
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
         }
-        final rawOrders = snap.data ?? [];
 
-        // Sync local cache from DB column (kitchen_status on orders)
-        for (final o in rawOrders) {
+        final ordersRaw = snapshot.data ?? [];
+        
+        // Sync local cache
+        for (final o in ordersRaw) {
           final id = o['id'].toString();
           if (!_kitchenStatus.containsKey(id)) {
             _kitchenStatus[id] = o['kitchen_status']?.toString() ?? 'Pending';
           }
         }
 
-        final orders = rawOrders.where((o) {
+        final orders = ordersRaw.where((o) {
           final ks = _kitchenStatus[o['id'].toString()] ?? 'Pending';
-          return ks != 'Done' && ks != 'Ready';
+          final ps = o['payment_status']?.toString() ?? 'unpaid';
+          return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
         }).toList();
 
         if (orders.isEmpty) {
-          return _buildEmptyState(
-            Icons.check_circle_outline,
-            'All clear!',
-            'No active orders in the kitchen.',
-          );
-        }
-
-        // Group by kitchen status (only Pending and Preparing remain in kitchen)
-        final grouped = <String, List<Map<String, dynamic>>>{};
-        for (final s in ['Pending', 'Preparing']) {
-          grouped[s] = orders
-              .where(
-                (o) => (_kitchenStatus[o['id'].toString()] ?? 'Pending') == s,
-              )
-              .toList();
+          return _buildEmptyState(Icons.restaurant, 'Kitchen Clear', 'No active orders at the moment.');
         }
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            // Determine columns based on screen width
-            int cols = 5;
-            if (constraints.maxWidth < 600) {
-              cols = 2;
-            } else if (constraints.maxWidth < 900) {
-              cols = 3;
-            } else if (constraints.maxWidth < 1100) {
-              cols = 4;
-            }
-
+            int cols = constraints.maxWidth < 600 ? 2 : (constraints.maxWidth < 900 ? 3 : (constraints.maxWidth < 1100 ? 4 : 5));
             return GridView.builder(
               padding: const EdgeInsets.all(16),
-              physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 1.05, // Restored squat aspect ratio ensuring exactly 2 rows fit fully
+                childAspectRatio: 1.05,
               ),
               itemCount: orders.length,
               itemBuilder: (_, i) {
                 final o = orders[i];
+                final id = o['id'].toString();
                 return FittedBox(
                   fit: BoxFit.contain,
                   alignment: Alignment.topCenter,
                   child: SizedBox(
                     width: 330,
                     height: 330 / 1.05,
-                child: _KitchenOrderCard(
-                  order: o,
-                  kitchenStatus: _kitchenStatus[o['id'].toString()] ?? 'Pending',
-                  onStatusChanged: (ns) => _updateStatus(o['id'].toString(), ns),
-                  statusOrder: _statusOrder,
-                  statusColors: _statusColors,
-                ),
-              ),
+                    child: _KitchenOrderCard(
+                      order: o,
+                      kitchenStatus: _kitchenStatus[id] ?? 'Pending',
+                      onStatusChanged: (ns) => _updateStatus(id, ns),
+                      statusOrder: _statusOrder,
+                      statusColors: _statusColors,
+                      isAdvanceOrder: false,
+                    ),
+                  ),
+                );
+              },
             );
-          },
-        );
           },
         );
       },
     );
   }
+}
+
+class _AdvanceOrdersTab extends StatefulWidget {
+  const _AdvanceOrdersTab();
+
+  @override
+  State<_AdvanceOrdersTab> createState() => _AdvanceOrdersTabState();
+}
+
+class _AdvanceOrdersTabState extends State<_AdvanceOrdersTab> {
+  final Map<String, String> _kitchenStatus = {};
+
+  static const _statusOrder = ['Pending', 'Preparing', 'Ready', 'Done'];
+  static const _statusColors = {
+    'Pending': Color(0xFFFFA726),
+    'Preparing': Color(0xFF2196F3),
+    'Ready': Color(0xFF4CAF50),
+    'Done': Color(0xFF9E9E9E),
+  };
+
+  Future<void> _updateStatus(String orderId, String newStatus) async {
+    setState(() => _kitchenStatus[orderId] = newStatus);
+    try {
+      await Supabase.instance.client
+          .from('advance_orders')
+          .update({'status': newStatus.toLowerCase()})
+          .eq('id', orderId);
+
+      if (newStatus == 'Ready' || newStatus == 'Done') {
+        try {
+          final orderData = await Supabase.instance.client
+              .from('advance_orders')
+              .select('customer_email, order_type, id')
+              .eq('id', orderId)
+              .single();
+          
+          if (orderData['customer_email'] != null) {
+            await NotificationService.sendNotification(
+              recipientEmail: orderData['customer_email'],
+              actorName: 'Kitchen',
+              actionType: newStatus.toLowerCase(),
+              reservationId: orderId,
+              eventType: 'Advance Order (${orderData['order_type']})',
+            );
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
 
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: Supabase.instance.client
+          .from('advance_orders')
+          .stream(primaryKey: ['id'])
+          .order('order_date', ascending: true),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+        }
+
+        final raw = snapshot.data ?? [];
+        final orders = raw.map((o) {
+          final status = o['status']?.toString().toLowerCase();
+          return {
+            ...o,
+            '_is_advance': true,
+            'kitchen_status': status == 'preparing' ? 'Preparing' :
+                             status == 'ready' ? 'Ready' :
+                             status == 'done' ? 'Done' : 'Pending',
+          };
+        }).where((o) {
+          final ks = o['kitchen_status'];
+          final ps = o['payment_status']?.toString().toLowerCase();
+          return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
+        }).toList();
+
+        if (orders.isEmpty) {
+          return _buildEmptyState(Icons.event_note, 'No Advance Orders', 'Future orders will appear here.');
+        }
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            int cols = constraints.maxWidth < 600 ? 2 : (constraints.maxWidth < 900 ? 3 : (constraints.maxWidth < 1100 ? 4 : 5));
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.05,
+              ),
+              itemCount: orders.length,
+              itemBuilder: (_, i) {
+                final o = orders[i];
+                final id = o['id'].toString();
+                return FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: 330,
+                    height: 330 / 1.05,
+                    child: _KitchenOrderCard(
+                      order: o,
+                      kitchenStatus: o['kitchen_status'] ?? 'Pending',
+                      onStatusChanged: (ns) => _updateStatus(id, ns),
+                      statusOrder: _statusOrder,
+                      statusColors: _statusColors,
+                      isAdvanceOrder: true,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 // ── Order Card ───────────────────────────────────────────
@@ -514,6 +638,7 @@ class _KitchenOrderCard extends StatefulWidget {
   final ValueChanged<String> onStatusChanged;
   final List<String> statusOrder;
   final Map<String, Color> statusColors;
+  final bool isAdvanceOrder;
 
   const _KitchenOrderCard({
     required this.order,
@@ -521,6 +646,7 @@ class _KitchenOrderCard extends StatefulWidget {
     required this.onStatusChanged,
     required this.statusOrder,
     required this.statusColors,
+    required this.isAdvanceOrder,
   });
 
   @override
@@ -548,15 +674,30 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
   }
 
   Future<void> _loadItems() async {
-    try {
-      final rows = await Supabase.instance.client
-          .from('order_items')
-          .select('item_name, quantity, unit_price')
-          .eq('order_id', widget.order['id'].toString());
+    if (widget.isAdvanceOrder) {
+      // For advance orders, items are in selected_menu_items JSON column
+      final selectedItems = widget.order['selected_menu_items'] as Map<String, dynamic>? ?? {};
+      final List<Map<String, dynamic>> items = [];
+      selectedItems.forEach((name, qty) {
+        items.add({
+          'item_name': name,
+          'quantity': qty,
+        });
+      });
       if (mounted) {
-        setState(() => _items = List<Map<String, dynamic>>.from(rows));
+        setState(() => _items = items);
       }
-    } catch (_) {}
+    } else {
+      try {
+        final rows = await Supabase.instance.client
+            .from('order_items')
+            .select('item_name, quantity, unit_price')
+            .eq('order_id', widget.order['id'].toString());
+        if (mounted) {
+          setState(() => _items = List<Map<String, dynamic>>.from(rows));
+        }
+      } catch (_) {}
+    }
   }
 
   @override
@@ -597,8 +738,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           insetPadding: EdgeInsets.zero,
           child: Center(
             child: Container(
-              width: size.width * 0.40,
-              height: size.height * 0.80,
+              width: size.width * 0.45,
+              height: size.height * 0.85,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -619,9 +760,27 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Order ${_formatOrderId(widget.order)}',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1E293B)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                widget.isAdvanceOrder ? 'ADVANCE ORDER' : 'Order ${_formatOrderId(widget.order)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  color: widget.isAdvanceOrder ? AppTheme.primaryColor : const Color(0xFF1E293B),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              if (widget.isAdvanceOrder)
+                                Text(
+                                  'Scheduled: ${widget.order['order_date']} at ${widget.order['order_time']}',
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                ),
+                            ],
+                          ),
                         ),
                         InkWell(
                           onTap: () => Navigator.pop(ctx),
@@ -631,6 +790,42 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                       ],
                     ),
                   ),
+                  if (widget.isAdvanceOrder && widget.order['preparation_notes'] != null && widget.order['preparation_notes'].toString().isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.yellow.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.yellow.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.note_alt_outlined, size: 14, color: Colors.orange.shade800),
+                              const SizedBox(width: 6),
+                              Text(
+                                'SPECIAL NOTES',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.orange.shade800,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.order['preparation_notes'],
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
+                    ),
                   Expanded(
                     child: ListView.separated(
                       padding: const EdgeInsets.all(16),
@@ -733,6 +928,28 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     ),
                   ),
                 ),
+                if (widget.isAdvanceOrder && 
+                    (widget.order['payment_status'] == 'paid' || 
+                     widget.order['payment_status'] == 'fully_paid')) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: const Text(
+                      'PAID',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 9,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -794,12 +1011,15 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                'Table ${widget.order['table_number']}',
+                                widget.isAdvanceOrder 
+                                  ? '${widget.order['order_type']}'
+                                  : 'Table ${widget.order['table_number']}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
@@ -1099,7 +1319,33 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           .inFilter('kitchen_status', ['Ready', 'Done'])
           .order('created_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(orders);
+      final advanceOrdersRaw = await Supabase.instance.client
+          .from('advance_orders')
+          .select()
+          .inFilter('status', ['ready', 'done'])
+          .order('created_at', ascending: false);
+
+      final List<Map<String, dynamic>> advanceOrders = advanceOrdersRaw.map((o) {
+        return {
+          ...o,
+          '_is_advance': true,
+          'kitchen_status': o['status']?.toString().toLowerCase() == 'ready' ? 'Ready' : 'Done',
+        };
+      }).toList();
+
+      final List<Map<String, dynamic>> combined = [
+        ...List<Map<String, dynamic>>.from(orders),
+        ...advanceOrders
+      ];
+      
+      // Sort by creation time
+      combined.sort((a, b) {
+        final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(0);
+        final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(0);
+        return bTime.compareTo(aTime);
+      });
+
+      return combined;
     } catch (_) {
       return [];
     }
@@ -1357,16 +1603,22 @@ class _FinishedOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final customer = order['customer_name']?.toString() ?? 'GUEST USER';
-    final total = (order['total_amount'] as num?)?.toDouble() ?? 0;
+    final isAdvance = order['_is_advance'] == true;
+    final orderId = isAdvance 
+        ? 'ADV-${order['id'].toString().substring(0, 4)}' 
+        : _formatOrderId(order);
+    final customer = order['customer_name']?.toString() ?? 'Guest';
+    final total = (order['total_price'] ?? order['total_amount'] ?? 0.0).toDouble();
+    
     final createdAt = order['created_at'] != null
         ? DateTime.tryParse(order['created_at'].toString())
         : null;
-    final timeStr = createdAt != null
-        ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
-        : '—';
-    final orderId = _formatOrderId(order);
+    final timeStr = isAdvance 
+        ? '${order['order_date']} ${order['order_time']}'
+        : (createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—');
+    
     final tableNumber = order['table_number']?.toString();
+    final orderType = order['order_type']?.toString();
     final numberOfGuests = order['number_of_guests'];
 
     return Container(
@@ -1406,8 +1658,8 @@ class _FinishedOrderCard extends StatelessWidget {
                 ),
                 child: Text(
                   orderId,
-                  style: const TextStyle(
-                    color: AppTheme.successGreen,
+                  style: TextStyle(
+                    color: isAdvance ? AppTheme.primaryColor : AppTheme.successGreen,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -1445,10 +1697,10 @@ class _FinishedOrderCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.access_time,
                       size: 14,
-                      color: Color(0xFF94A3B8),
+                      color: isAdvance ? AppTheme.primaryColor.withValues(alpha: 0.6) : const Color(0xFF94A3B8),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -1480,7 +1732,27 @@ class _FinishedOrderCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                if (tableNumber != null && tableNumber.isNotEmpty)
+                if (isAdvance && orderType != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        orderType == 'Pickup' ? Icons.shopping_bag_outlined : Icons.restaurant,
+                        size: 14,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        orderType.toUpperCase(),
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                if (!isAdvance && tableNumber != null && tableNumber.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

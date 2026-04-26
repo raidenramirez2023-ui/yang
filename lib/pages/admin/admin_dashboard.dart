@@ -23,12 +23,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   final _supabase = Supabase.instance.client;
   late Stream<List<Map<String, dynamic>>> _ordersStream;
+  late Stream<List<Map<String, dynamic>>> _advanceOrdersStream;
   late Stream<List<Map<String, dynamic>>> _inventoryStream;
   late Stream<List<Map<String, dynamic>>> _reservationsStream;
 
   // ── KPI data (now derived from streams) ──────────────────────────────────
   double _dailyRevenue = 0.0;
   int _totalOrders = 0;
+  int _totalAdvanceOrders = 0;
   int _totalCustomers = 0;
   int _reservations = 0;
   int _pendingReservations = 0;
@@ -41,6 +43,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   double _revenueGrowth = 0.0;
   double _orderGrowth = 0.0;
   double _customerGrowth = 0.0;
+  
+  // ── Advance Order Performance ──────────────────────────────────
+  double _advanceOrderRevenueTotal = 0.0;
+  int _completedAdvanceOrdersCount = 0;
+  int _cancelledAdvanceOrdersCount = 0;
+  double _advanceCancellationRate = 0.0;
+  Map<String, int> _popularAdvanceItems = {};
 
   // ── Confirmed Events Analytics Data ───────────────────────────────
   final Map<String, int> _eventTypeDistribution = {};
@@ -121,6 +130,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           }).toList(),
         );
 
+    _advanceOrdersStream = _supabase
+        .from('advance_orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+
     _inventoryStream = _supabase.from('inventory').stream(primaryKey: ['id']);
     _reservationsStream = _supabase
         .from('reservations')
@@ -153,6 +167,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   void _processData(
     List<Map<String, dynamic>> allOrders,
+    List<Map<String, dynamic>> allAdvanceOrders,
     List<Map<String, dynamic>> allInventory,
     List<Map<String, dynamic>> allReservations,
   ) {
@@ -217,24 +232,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final now = DateTime.now();
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-    // Get ALL orders for today (comprehensive daily revenue)
+    // Get ALL orders and advance orders for today (comprehensive daily revenue)
     final todayOrders = allOrders.where((o) {
       final createdAt = o['created_at']?.toString() ?? '';
       return createdAt.startsWith(todayStr);
     }).toList();
 
-    // Calculate total daily revenue from ALL orders today (preserve decimal values)
+    final todayAdvanceOrders = allAdvanceOrders.where((o) {
+      final orderDate = o['order_date']?.toString() ?? '';
+      final isPaid = o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
+      // Only count if scheduled for today AND paid
+      return orderDate == todayStr && isPaid;
+    }).toList();
+
+    // Calculate total daily revenue from ALL orders today
     _dailyRevenue = todayOrders.fold(0.0, (sum, o) {
       final amount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
       return sum + amount;
+    }) + todayAdvanceOrders.fold(0.0, (sum, o) {
+      final amount = (o['total_price'] as num?)?.toDouble() ?? 0.0;
+      return sum + amount;
     });
+    
     _totalOrders = todayOrders.length;
+    _totalAdvanceOrders = todayAdvanceOrders.length;
 
-    // Count completed orders as customer count (each non-pending order = 1 customer)
-    _totalCustomers = todayOrders.where((o) {
+    // Count completed orders as customer count
+    final regularCustomers = todayOrders.where((o) {
       final status = o['kitchen_status']?.toString() ?? 'Pending';
-      return status != 'Pending'; // Count everything except Pending
+      return status != 'Pending';
     }).length;
+    
+    final advanceCustomers = todayAdvanceOrders.where((o) {
+      final status = o['status']?.toString().toLowerCase() ?? 'pending';
+      return status != 'pending';
+    }).length;
+    
+    _totalCustomers = regularCustomers + advanceCustomers;
 
     // Reservations (Events) - Count all active confirmed and pending reservations
     final confirmedReservations = allReservations.where((r) {
@@ -245,25 +279,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     final pendingReservations = allReservations.where((r) {
       final status = (r['status']?.toString() ?? '').toLowerCase();
-      return status == 'pending';
+      return status == 'pending' || status == 'pending_admin_approval';
     }).toList();
-    _pendingReservations = pendingReservations.length;
+    
+    final pendingAdvanceVerification = allAdvanceOrders.where((o) {
+      final status = (o['status']?.toString() ?? '').toLowerCase();
+      return status == 'awaiting_verification';
+    }).toList();
+
+    _pendingReservations = pendingReservations.length + pendingAdvanceVerification.length;
 
     // Weekly Revenue Calculation
-    _weeklyRevenue = _processChartData(allOrders);
+    _weeklyRevenue = _processChartData(allOrders, allAdvanceOrders);
 
     // Kitchen Status Counts (Real-time from today's orders)
-    _pendingOrders = todayOrders
-        .where(
-          (o) => (o['kitchen_status']?.toString() ?? 'Pending') == 'Pending',
-        )
-        .length;
-    _preparingOrders = todayOrders
-        .where((o) => (o['kitchen_status']?.toString() ?? '') == 'Preparing')
-        .length;
-    _readyOrders = todayOrders
-        .where((o) => (o['kitchen_status']?.toString() ?? '') == 'Ready')
-        .length;
+    final pendingRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? 'Pending') == 'Pending').length;
+    final pendingAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? 'pending') == 'pending').length;
+    _pendingOrders = pendingRegular + pendingAdvance;
+
+    final preparingRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? '') == 'Preparing').length;
+    final preparingAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'preparing').length;
+    _preparingOrders = preparingRegular + preparingAdvance;
+
+    final readyRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? '') == 'Ready').length;
+    final readyAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'ready').length;
+    _readyOrders = readyRegular + readyAdvance;
 
     // Growth Calculations (vs Yesterday) - Compare total daily revenue
     final yesterday = now.subtract(const Duration(days: 1));
@@ -318,6 +358,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       final q = (i['quantity'] as num?)?.toInt() ?? 0;
       return q > 0 && q < 10;
     }).length;
+
+    // Process Advance Order Performance (Historical)
+    _advanceOrderRevenueTotal = allAdvanceOrders
+        .where((o) => o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid')
+        .fold(0.0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0));
+    
+    _completedAdvanceOrdersCount = allAdvanceOrders
+        .where((o) => o['status'] == 'done' || o['status'] == 'completed')
+        .length;
+    
+    _cancelledAdvanceOrdersCount = allAdvanceOrders
+        .where((o) => o['status'] == 'cancelled')
+        .length;
+    
+    final totalAdvAttempts = allAdvanceOrders.length;
+    _advanceCancellationRate = totalAdvAttempts > 0 
+        ? (_cancelledAdvanceOrdersCount / totalAdvAttempts) * 100 
+        : 0.0;
+    
+    _popularAdvanceItems.clear();
+    for (var o in allAdvanceOrders) {
+      if (o['status'] == 'done' || o['status'] == 'completed') {
+        final items = o['selected_menu_items'] as Map<String, dynamic>? ?? {};
+        items.forEach((name, qty) {
+          _popularAdvanceItems[name] = (_popularAdvanceItems[name] ?? 0) + (qty as num).toInt();
+        });
+      }
+    }
 
     _lastUpdated = DateTime.now();
     // Update Recent Activity
@@ -804,57 +872,82 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
   }
 
-  List<double> _processChartData(List<Map<String, dynamic>> orders) {
+  List<double> _processChartData(
+    List<Map<String, dynamic>> orders,
+    List<Map<String, dynamic>> advanceOrders,
+  ) {
     final now = DateTime.now();
     Map<int, double> periodData = {};
 
-    for (var order in orders) {
-      final date = DateTime.tryParse(order['created_at'] ?? '');
-      if (date == null) continue;
+    // Helper to process a list of orders
+    void processList(List<Map<String, dynamic>> list, bool isAdvance) {
+      for (var order in list) {
+        final dateStr = isAdvance 
+            ? order['order_date'] // Base advance orders on scheduled date
+            : order['created_at'];
+        
+        final date = DateTime.tryParse(dateStr ?? '');
+        if (date == null) continue;
 
-      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+        if (isAdvance) {
+          final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
+          if (!isPaid) continue;
+        }
 
-      // Apply period-specific filtering
-      switch (_selectedPeriod) {
-        case 'Daily':
-          // Today's hourly data (real-time) - business hours 10:00 AM to 8:00 PM only
-          final orderHour = date.hour;
-          if (date.year == now.year &&
-              date.month == now.month &&
-              date.day == now.day &&
-              orderHour >= 10 &&
-              orderHour < 20) {
-            // Only 10:00 AM to 8:00 PM
-            final key = orderHour - 10; // 0 = 10:00, 1 = 11:00, ..., 10 = 20:00
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Weekly':
-          // Last 7 days - group by day of week (Monday=0, Tuesday=1, etc.)
-          final dailyDiff = now.difference(date).inDays;
-          if (dailyDiff >= 0 &&
-              dailyDiff < 7 &&
-              date.year.toString() == _selectedYear) {
-            final key = date.weekday - 1; // 0 = Monday, 6 = Sunday
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Monthly':
-          // All months of selected year
-          if (date.year.toString() == _selectedYear) {
-            final key = date.month - 1; // 0 = Jan, 11 = Dec
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
-        case 'Annually':
-          // Years 2016 to current year
-          if (date.year >= 2016 && date.year <= now.year) {
-            final key = date.year - 2016; // 0 = 2016, 10 = 2026
-            periodData[key] = (periodData[key] ?? 0) + amount;
-          }
-          break;
+        final amount = isAdvance 
+            ? (order['total_price'] as num?)?.toDouble() ?? 0.0
+            : (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+
+        // Apply period-specific filtering
+        switch (_selectedPeriod) {
+          case 'Daily':
+            // If we have order_time, we could parse it, but for simple daily chart, today is enough
+            if (date.year == now.year && date.month == now.month && date.day == now.day) {
+               if (isAdvance) {
+                 // Distribute advance orders at their scheduled hour
+                 try {
+                    final timeStr = order['order_time']?.toString() ?? '12:00 PM';
+                    final hour = DateFormat.jm().parse(timeStr).hour;
+                    if (hour >= 10 && hour < 20) {
+                      final key = hour - 10;
+                      periodData[key] = (periodData[key] ?? 0) + amount;
+                    }
+                 } catch (_) {
+                    periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
+                 }
+               } else {
+                  if (date.hour >= 10 && date.hour < 20) {
+                    final key = date.hour - 10;
+                    periodData[key] = (periodData[key] ?? 0) + amount;
+                  }
+               }
+            }
+            break;
+          case 'Weekly':
+            final dailyDiff = now.difference(date).inDays;
+            if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == _selectedYear) {
+              final key = date.weekday - 1;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+          case 'Monthly':
+            if (date.year.toString() == _selectedYear) {
+              final key = date.month - 1;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+          case 'Annually':
+            if (date.year >= 2016 && date.year <= now.year) {
+              final key = date.year - 2016;
+              periodData[key] = (periodData[key] ?? 0) + amount;
+            }
+            break;
+        }
       }
     }
+
+    processList(orders, false);
+    processList(advanceOrders, true);
 
     // Convert to list based on selected period
     if (_selectedPeriod == 'Daily') {
@@ -946,16 +1039,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       stream: _ordersStream,
       builder: (context, orderSnapshot) {
         return StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _inventoryStream,
-          builder: (context, invSnapshot) {
+          stream: _advanceOrdersStream,
+          builder: (context, advanceSnapshot) {
             return StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _reservationsStream,
-              builder: (context, resSnapshot) {
-                final allOrders = orderSnapshot.data ?? [];
-                final allInventory = invSnapshot.data ?? [];
-                final allReservations = resSnapshot.data ?? [];
+              stream: _inventoryStream,
+              builder: (context, invSnapshot) {
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _reservationsStream,
+                  builder: (context, resSnapshot) {
+                    final allOrders = orderSnapshot.data ?? [];
+                    final allAdvanceOrders = advanceSnapshot.data ?? [];
+                    final allInventory = invSnapshot.data ?? [];
+                    final allReservations = resSnapshot.data ?? [];
 
-                _processData(allOrders, allInventory, allReservations);
+                    _processData(
+                      allOrders,
+                      allAdvanceOrders,
+                      allInventory,
+                      allReservations,
+                    );
 
                 return FadeTransition(
                   opacity: _fadeIn,
@@ -1014,11 +1116,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             const SizedBox(height: AppTheme.xl),
 
                             const SizedBox(height: AppTheme.md),
-                            _buildConfirmedEventsAnalytics(
-                              context,
-                              isDesktop || isTablet,
-                            ),
-                            const SizedBox(height: AppTheme.xl),
+                             _buildConfirmedEventsAnalytics(
+                               context,
+                               isDesktop || isTablet,
+                             ),
+                             const SizedBox(height: AppTheme.xl),
+
+                             // ── Advance Order Performance Section ───────────────────────
+                             _buildSectionTitle(context, 'Advance Order Performance'),
+                             const SizedBox(height: AppTheme.md),
+                             _buildAdvanceOrderPerformance(context),
+                             const SizedBox(height: AppTheme.xl),
 
                             // ── Monthly Event Schedule ──────────────────────────────────
                             _buildSectionTitle(context, 'Monthly Event Schedule'),
@@ -1078,14 +1186,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           child: _buildNewReservationNotification(),
                         ),
 
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      );
+    },
     );
   }
 
@@ -1189,7 +1299,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         isHighlight: true,
       ),
       _KpiData(
-        label: 'TOTAL ORDERS',
+        label: 'REGULAR ORDERS',
         value: '$_totalOrders',
         icon: Icons.shopping_cart_outlined,
         color: AppTheme.infoBlue,
@@ -1197,6 +1307,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             '${_orderGrowth >= 0 ? '+' : ''}${_orderGrowth.toStringAsFixed(1)}%',
         subPositive: _orderGrowth >= 0,
         showProgress: true,
+      ),
+      _KpiData(
+        label: 'ADVANCE ORDERS',
+        value: '$_totalAdvanceOrders',
+        icon: Icons.event_note_outlined,
+        color: const Color(0xFF8B5CF6),
+        sub: 'Paid',
+        subPositive: _totalAdvanceOrders > 0,
+        extra: 'Today',
       ),
       _KpiData(
         label: 'CUSTOMERS TODAY',
@@ -2375,6 +2494,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               .toList(),
         ),
       ),
+    );
+  }
+
+  Widget _buildAdvanceOrderPerformance(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem(
+                'Total AO Revenue',
+                '₱${NumberFormat('#,##0.00').format(_advanceOrderRevenueTotal)}',
+                Icons.account_balance_wallet_outlined,
+                AppTheme.primaryColor,
+              ),
+              _buildStatItem(
+                'AO Completed',
+                '$_completedAdvanceOrdersCount',
+                Icons.check_circle_outline,
+                AppTheme.successGreen,
+              ),
+              _buildStatItem(
+                'Cancellation Rate',
+                '${_advanceCancellationRate.toStringAsFixed(1)}%',
+                Icons.cancel_outlined,
+                AppTheme.errorRed,
+              ),
+            ],
+          ),
+          const Divider(height: 40),
+          const Text(
+            'Popular Advance Order Items',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_popularAdvanceItems.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('No completed advance orders yet', style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12)),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _popularAdvanceItems.entries.map((e) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        e.key,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          e.value.toString(),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.mediumGrey),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+        ),
+      ],
     );
   }
 
@@ -3714,7 +3944,7 @@ class _KpiCardState extends State<_KpiCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(AppTheme.xl),
+        padding: const EdgeInsets.all(AppTheme.lg),
         decoration: BoxDecoration(
           color: AppTheme.white,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -3767,22 +3997,27 @@ class _KpiCardState extends State<_KpiCard> {
                   ),
                 ),
                 if (widget.data.subPositive != null || !widget.data.showProgress)
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 200),
-                    style: TextStyle(
-                      color: widget.data.sub == 'High'
-                          ? AppTheme.errorRed
-                          : (widget.data.subPositive == true
-                                ? AppTheme.successGreen
-                                : AppTheme.mediumGrey),
-                      fontSize: _isHovered ? 13 : 12,
-                      fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                  Flexible(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      textAlign: TextAlign.end,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: widget.data.sub == 'High'
+                            ? AppTheme.errorRed
+                            : (widget.data.subPositive == true
+                                  ? AppTheme.successGreen
+                                  : AppTheme.mediumGrey),
+                        fontSize: _isHovered ? 12 : 11,
+                        fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+                      ),
+                      child: Text(widget.data.sub),
                     ),
-                    child: Text(widget.data.sub),
                   ),
               ],
             ),
-            const SizedBox(height: AppTheme.xl),
+            const SizedBox(height: AppTheme.lg),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
               style: const TextStyle(
@@ -3791,7 +4026,11 @@ class _KpiCardState extends State<_KpiCard> {
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
-              child: Text(widget.data.label),
+              child: Text(
+                widget.data.label,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
             const SizedBox(height: 4),
             AnimatedDefaultTextStyle(
@@ -3802,7 +4041,11 @@ class _KpiCardState extends State<_KpiCard> {
                 color: AppTheme.darkGrey,
                 letterSpacing: _isHovered ? -1.2 : -1,
               ),
-              child: Text(widget.data.value),
+              child: Text(
+                widget.data.value,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
             const SizedBox(height: AppTheme.md),
             if (widget.data.showProgress)
@@ -3830,7 +4073,7 @@ class _KpiCardState extends State<_KpiCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(AppTheme.xl),
+        padding: const EdgeInsets.all(AppTheme.lg),
         decoration: BoxDecoration(
           color: AppTheme.primaryColor,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -3877,18 +4120,25 @@ class _KpiCardState extends State<_KpiCard> {
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
-                  child: Text(widget.data.label),
+                  child: Text(
+                    widget.data.label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   style: TextStyle(
-                    fontSize: _isHovered ? 38 : 36,
+                    fontSize: _isHovered ? 36 : 34,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: _isHovered ? -1.2 : -1,
                   ),
-                  child: Text(widget.data.value),
+                  child: Text(
+                    widget.data.value,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -3907,14 +4157,18 @@ class _KpiCardState extends State<_KpiCard> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
-                        fontSize: _isHovered ? 13 : 12,
-                        fontWeight: FontWeight.w500,
+                    Flexible(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                          fontSize: _isHovered ? 12 : 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        child: Text(widget.data.sub),
                       ),
-                      child: Text(widget.data.sub),
                     ),
                   ],
                 ),

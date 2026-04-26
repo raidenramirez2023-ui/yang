@@ -27,9 +27,19 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     });
 
     try {
-      final pendingPayments = await _reservationService.getReservationsPendingApproval();
+      final reservations = await _reservationService.getReservationsPendingApproval();
+      final advanceOrders = await _reservationService.getAdvanceOrdersPendingApproval();
+      
+      // Tag each item with its source table
+      final taggedReservations = reservations.map((e) => {...e, '_table': 'reservations'}).toList();
+      final taggedAdvanceOrders = advanceOrders.map((e) => {...e, '_table': 'advance_orders'}).toList();
+      
       setState(() {
-        _pendingPayments = pendingPayments;
+        _pendingPayments = [...taggedReservations, ...taggedAdvanceOrders];
+        // Sort by date, newest first
+        _pendingPayments.sort((a, b) => 
+          (b['created_at'] as String).compareTo(a['created_at'] as String)
+        );
         _isLoading = false;
       });
     } catch (e) {
@@ -47,10 +57,11 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     }
   }
 
-  Future<void> _approvePayment(String reservationId) async {
+  Future<void> _approvePayment(String id, String table) async {
     try {
       final success = await _reservationService.approvePendingPayment(
-        reservationId: reservationId,
+        id: id,
+        table: table,
       );
 
       if (success && mounted) {
@@ -81,7 +92,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     }
   }
 
-  void _showRejectDialog(String reservationId) {
+  void _showRejectDialog(Map<String, dynamic> payment) {
     final TextEditingController reasonController = TextEditingController();
 
     showDialog(
@@ -111,7 +122,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _rejectPayment(reservationId, reasonController.text);
+              _rejectPayment(payment['id'], payment['_table'], reasonController.text);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -124,10 +135,11 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
-  Future<void> _rejectPayment(String reservationId, String reason) async {
+  Future<void> _rejectPayment(String id, String table, String reason) async {
     try {
       final success = await _reservationService.rejectPendingPayment(
-        reservationId: reservationId,
+        id: id,
+        table: table,
         reason: reason,
       );
 
@@ -325,8 +337,11 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   Widget _buildPaymentCard(Map<String, dynamic> payment, BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
 
+    final String table = payment['_table'] ?? 'reservations';
+    final bool isAdvanceOrder = table == 'advance_orders';
+
     // Common info containers
-    Widget eventDetails = Container(
+    Widget orderDetails = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -336,15 +351,19 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Event Details',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey),
+          Text(
+            isAdvanceOrder ? 'Advance Order Details' : 'Reservation Details',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey),
           ),
           const SizedBox(height: 12),
-          _buildDetailRow('Event Type', payment['event_type'] ?? 'N/A', Icons.event),
-          _buildDetailRow('Date', payment['event_date'] ?? 'N/A', Icons.calendar_today),
-          _buildDetailRow('Time', '${payment['start_time']} (${payment['duration_hours']}h)', Icons.access_time),
-          _buildDetailRow('Guests', '${payment['number_of_guests']} people', Icons.people),
+          if (!isAdvanceOrder)
+            _buildDetailRow('Event Type', payment['event_type'] ?? 'N/A', Icons.event),
+          if (isAdvanceOrder)
+            _buildDetailRow('Order Type', payment['order_type'] ?? 'N/A', Icons.fastfood_rounded, isHighlight: true),
+          _buildDetailRow('Date', (isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A', Icons.calendar_today),
+          _buildDetailRow('Time', isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours']}h)', Icons.access_time),
+          if (!isAdvanceOrder || (payment['number_of_guests'] != null && payment['number_of_guests'] > 0))
+            _buildDetailRow('Guests', '${payment['number_of_guests']} people', Icons.people),
         ],
       ),
     );
@@ -460,14 +479,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 
                 // Responsive content layout
                 if (isMobile) ...[
-                  eventDetails,
+                  orderDetails,
                   const SizedBox(height: 16),
                   paymentDetails,
                 ] else ...[
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: eventDetails),
+                      Expanded(child: orderDetails),
                       const SizedBox(width: 16),
                       Expanded(child: paymentDetails),
                     ],
@@ -484,13 +503,13 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   children: [
                     if (isMobile) Expanded(
                       child: _buildActionButton(
-                        onPressed: () => _showRejectDialog(payment['id']),
+                        onPressed: () => _showRejectDialog(payment),
                         icon: Icons.cancel_outlined,
                         label: 'Reject',
                         isPrimary: false,
                       ),
                     ) else _buildActionButton(
-                      onPressed: () => _showRejectDialog(payment['id']),
+                      onPressed: () => _showRejectDialog(payment),
                       icon: Icons.cancel_outlined,
                       label: 'Reject',
                       isPrimary: false,
@@ -498,13 +517,13 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     const SizedBox(width: 16),
                     if (isMobile) Expanded(
                       child: _buildActionButton(
-                        onPressed: () => _approvePayment(payment['id']),
+                        onPressed: () => _approvePayment(payment['id'], table),
                         icon: Icons.check_circle_outline,
                         label: 'Approve',
                         isPrimary: true,
                       ),
                     ) else _buildActionButton(
-                      onPressed: () => _approvePayment(payment['id']),
+                      onPressed: () => _approvePayment(payment['id'], table),
                       icon: Icons.check_circle_outline,
                       label: 'Approve Payment',
                       isPrimary: true,
