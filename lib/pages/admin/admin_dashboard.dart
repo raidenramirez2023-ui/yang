@@ -1183,9 +1183,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         value: _formatNumber(_dailyRevenue),
         icon: Icons.payments_rounded,
         color: AppTheme.primaryColor,
-        sub:
-            '${_revenueGrowth >= 0 ? '+' : ''}${_revenueGrowth.toStringAsFixed(1)}% from yesterday',
-        subPositive: _revenueGrowth >= 0,
+        sub: '',
+        subPositive: null,
         isHighlight: true,
       ),
       _KpiData(
@@ -1193,9 +1192,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         value: '$_totalOrders',
         icon: Icons.shopping_cart_outlined,
         color: AppTheme.infoBlue,
-        sub:
-            '${_orderGrowth >= 0 ? '+' : ''}${_orderGrowth.toStringAsFixed(1)}%',
-        subPositive: _orderGrowth >= 0,
+        sub: '',
+        subPositive: null,
         showProgress: true,
       ),
       _KpiData(
@@ -1203,10 +1201,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         value: '$_totalCustomers',
         icon: Icons.people_outline,
         color: AppTheme.successGreen,
-        sub:
-            '${_customerGrowth >= 0 ? '+' : ''}${_customerGrowth.toStringAsFixed(1)}%',
-        subPositive: _customerGrowth >= 0,
-        extra: 'from yesterday',
+        sub: '',
+        subPositive: null,
       ),
       _KpiData(
         label: 'CONFIRMED EVENTS',
@@ -3766,7 +3762,7 @@ class _KpiCardState extends State<_KpiCard> {
                     size: 22,
                   ),
                 ),
-                if (widget.data.subPositive != null || !widget.data.showProgress)
+                if (widget.data.sub.isNotEmpty)
                   AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 200),
                     style: TextStyle(
@@ -3890,34 +3886,36 @@ class _KpiCardState extends State<_KpiCard> {
                   ),
                   child: Text(widget.data.value),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(6),
+                if (widget.data.sub.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          Icons.trending_up,
+                          color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                          size: _isHovered ? 16 : 14,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.trending_up,
-                        color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
-                        size: _isHovered ? 16 : 14,
+                      const SizedBox(width: 8),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+                          fontSize: _isHovered ? 13 : 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        child: Text(widget.data.sub),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
-                        fontSize: _isHovered ? 13 : 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      child: Text(widget.data.sub),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
             AnimatedPositioned(
