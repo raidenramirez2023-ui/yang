@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 
 
@@ -15401,46 +15401,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
   String _formatNumber(dynamic n) {
-
-
-
     final numValue = n is double ? n : (n as int).toDouble();
 
-
-
     if (numValue >= 1000000) {
-
-
-
-      return '₱${(numValue / 1000000).toStringAsFixed(1)}m';
-
-
-
+      return '₱${(numValue / 1000000).toStringAsFixed(2)}m';
     }
 
-
-
-    if (numValue >= 10000) {
-
-
-
-      return '₱${(numValue / 1000).toStringAsFixed(0)}k';
-
-
-
-    }
-
-
-
-    // For amounts under 10k, show the exact amount with proper formatting
-
-
-
-    return '₱${numValue.toStringAsFixed(numValue.truncate() == numValue ? 0 : 1)}';
-
-
-
+    // Always show exact amount with centavos using comma separators
+    final formatter = NumberFormat('#,##0.00', 'en_US');
+    return '₱${formatter.format(numValue)}';
   }
+
 
 
 
@@ -16788,7 +16759,10 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
-              child: Text(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
 
 
 
@@ -16796,14 +16770,15 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
-                overflow: TextOverflow.ellipsis,
 
 
 
-                maxLines: 1,
 
 
 
+
+
+                ),
               ),
 
 
@@ -17164,7 +17139,10 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
-                  child: Text(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
 
 
 
@@ -17172,10 +17150,11 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
-                    overflow: TextOverflow.ellipsis,
 
 
 
+
+                    ),
                   ),
 
 
