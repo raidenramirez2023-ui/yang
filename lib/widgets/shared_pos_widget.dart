@@ -1061,6 +1061,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
             'kitchen_status': 'Pending',
             'total_amount': total,
             'payment_method': paymentMethod,
+            'payment_status': amountPaid >= total ? 'paid' : 'partially_paid',
             'amount_paid': amountPaid,
             'change_due': changeDue,
             'item_count': cartSnapshot.fold(0, (s, c) => s + c.quantity),
