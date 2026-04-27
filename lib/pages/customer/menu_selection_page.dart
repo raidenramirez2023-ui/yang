@@ -205,27 +205,6 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Cost per Guest:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                      Text(
-                        'PHP ${_fmt.format(_menuService.calculateCostPerGuest(_totalPrice, widget.guestCount))}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF059669),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
