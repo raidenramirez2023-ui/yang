@@ -631,7 +631,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: color.withValues(alpha: 0.1),
+                        backgroundColor: color.withOpacity(0.1),
 
                         child: Icon(icon, color: color, size: 20),
                       ),
@@ -827,7 +827,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           decoration: BoxDecoration(
             color: AppTheme.navColor,
             border: Border(
-              right: BorderSide(color: Colors.white.withValues(alpha: 0.15), width: 1),
+              right: BorderSide(color: Colors.white.withOpacity(0.15), width: 1),
             ),
           ),
           child: Column(
@@ -855,7 +855,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   ],
                 ),
               ),
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.2)),
+              Divider(height: 1, color: Colors.white.withOpacity(0.2)),
               const SizedBox(height: 16),
 
               // Navigation Items
@@ -882,7 +882,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     duration: const Duration(milliseconds: 300),
                     decoration: BoxDecoration(
                       color: _selectedIndex == index
-                          ? Colors.white.withValues(alpha: 0.25)
+                          ? Colors.white.withOpacity(0.25)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -894,14 +894,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         icons[index],
                         color: _selectedIndex == index
                             ? Colors.white
-                            : Colors.white.withValues(alpha: 0.65),
+                            : Colors.white.withOpacity(0.65),
                       ),
                       title: Text(
                         labels[index],
                         style: TextStyle(
                           color: _selectedIndex == index
                               ? Colors.white
-                              : Colors.white.withValues(alpha: 0.65),
+                              : Colors.white.withOpacity(0.65),
                           fontWeight: _selectedIndex == index
                               ? FontWeight.w700
                               : FontWeight.w500,
@@ -912,7 +912,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         HapticFeedback.selectionClick();
                         setState(() => _selectedIndex = index);
                       },
-                      hoverColor: Colors.white.withValues(alpha: 0.1),
+                      hoverColor: Colors.white.withOpacity(0.1),
                     ),
                   ),
                 );
@@ -1062,7 +1062,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.white.withValues(alpha: 0.2)
+              ? Colors.white.withOpacity(0.2)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
@@ -1074,7 +1074,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               duration: const Duration(milliseconds: 300),
               child: Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
                 size: 24,
               ),
             ),
@@ -1157,7 +1157,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
+          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
@@ -1253,7 +1253,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
+                        color: Colors.black.withOpacity(0.15),
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       ),
@@ -1273,8 +1273,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withValues(alpha: 0.1),
-                                Colors.black.withValues(alpha: 0.8),
+                                Colors.black.withOpacity(0.1),
+                                Colors.black.withOpacity(0.8),
                               ],
                               stops: const [0.0, 0.4, 1.0],
                             ),
@@ -1304,7 +1304,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                 Text(
                                   item.description!,
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
+                                    color: Colors.white.withOpacity(0.9),
                                     fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 12,
                                     fontWeight: FontWeight.w400,
                                   ),
@@ -1333,7 +1333,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               height: 6,
               width: _currentHeroPage == index ? 24 : 6,
               decoration: BoxDecoration(
-                color: _currentHeroPage == index ? AppTheme.primaryColor : Colors.grey.withValues(alpha: 0.3),
+                color: _currentHeroPage == index ? AppTheme.primaryColor : Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -1362,7 +1362,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     : BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    color: AppTheme.primaryColor.withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -1379,7 +1379,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       height: 110,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.07),
+                        color: Colors.white.withOpacity(0.07),
                       ),
                     ),
                   ),
@@ -1391,7 +1391,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       height: 70,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: Colors.white.withOpacity(0.05),
                       ),
                     ),
                   ),
@@ -1404,9 +1404,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                           width: ResponsiveUtils.isMobile(context) ? 60 : 80,
                           height: ResponsiveUtils.isMobile(context) ? 60 : 80,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: Colors.white.withOpacity(0.2),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
                             image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
                                 ? DecorationImage(
                                     image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
@@ -1437,7 +1437,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                             Text(
                               'Ready for a premium dining experience?',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: Colors.white.withOpacity(0.9),
                                 fontSize: 14,
                               ),
                             ),
@@ -1489,7 +1489,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.stars_rounded, color: AppTheme.primaryColor, size: 28),
@@ -1515,7 +1515,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         : 'How was your recent event with us?',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.mediumGrey.withValues(alpha: 0.8),
+                        color: AppTheme.mediumGrey.withOpacity(0.8),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1555,7 +1555,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       '"${_customerReview!['review_text']}"',
                       style: TextStyle(
                         fontStyle: FontStyle.italic,
-                        color: AppTheme.darkGrey.withValues(alpha: 0.7),
+                        color: AppTheme.darkGrey.withOpacity(0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -1773,7 +1773,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withOpacity(0.04),
 
                     blurRadius: 20,
 
@@ -2509,7 +2509,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                     elevation: 2,
 
                                     shadowColor: AppTheme.primaryColor
-                                        .withValues(alpha: 0.3),
+                                        .withOpacity(0.3),
 
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14),
@@ -2612,7 +2612,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         hintText: hint,
         helperText: helperText,
         helperStyle: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withOpacity(0.7), size: 22),
       ),
     );
   }
@@ -2629,7 +2629,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppTheme.darkGrey),
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withOpacity(0.7), size: 22),
         suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.mediumGrey),
       ),
       icon: const SizedBox.shrink(),
@@ -2668,9 +2668,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryLight.withValues(alpha: 0.1),
+                        color: AppTheme.primaryLight.withOpacity(0.1),
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1), width: 3),
+                        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1), width: 3),
                         image: currentUser?.userMetadata?['avatar_url'] != null
                             ? DecorationImage(
                                 image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
@@ -3109,7 +3109,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -3137,9 +3137,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.white.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            border: Border.all(color: Colors.white.withOpacity(0.3)),
                           ),
                           child: Text(
                             '₱${_fmt.format(item.price)}',
@@ -3493,11 +3493,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               padding: const EdgeInsets.all(16),
 
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.05),
+                color: Colors.green.withOpacity(0.05),
 
                 borderRadius: BorderRadius.circular(8),
 
-                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                border: Border.all(color: Colors.green.withOpacity(0.2)),
               ),
 
               child: Row(
@@ -3603,7 +3603,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
 
             blurRadius: 10,
 
@@ -3631,7 +3631,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   decoration: BoxDecoration(
                     color: isDestructive
                         ? Colors.red.shade50
-                        : AppTheme.primaryColor.withValues(alpha: 0.07),
+                        : AppTheme.primaryColor.withOpacity(0.07),
 
                     shape: BoxShape.circle,
                   ),
@@ -3734,7 +3734,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                        color: AppTheme.primaryColor.withOpacity(0.05),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -3774,7 +3774,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         children: [
                           Container(
                             padding: const EdgeInsets.all(16),
-                            color: AppTheme.primaryColor.withValues(alpha: 0.03),
+                            color: AppTheme.primaryColor.withOpacity(0.03),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -3805,7 +3805,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.successGreen.withValues(alpha: 0.1),
+                                          color: AppTheme.successGreen.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: const Text(
@@ -3937,7 +3937,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    color: AppTheme.primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -4017,7 +4017,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                             ),
                             boxShadow: isActive ? [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                color: AppTheme.primaryColor.withOpacity(0.2),
                                 blurRadius: 6,
                                 offset: const Offset(0, 3),
                               )
@@ -4059,7 +4059,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildActivityDetailRow(IconData icon, String label, String? value) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppTheme.primaryColor.withValues(alpha: 0.6)),
+        Icon(icon, size: 18, color: AppTheme.primaryColor.withOpacity(0.6)),
         const SizedBox(width: 12),
         Text(
           '$label:',
@@ -4118,9 +4118,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
+        border: Border.all(color: color.withOpacity(0.15)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -4317,7 +4317,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               padding: const EdgeInsets.all(12),
 
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
+                color: Colors.blue.withOpacity(0.1),
 
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -4946,8 +4946,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         });
 
         // Redirect immediately to payment page
-        Navigator.push(
-          context,
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             builder: (context) => GCashPaymentPage(
               reservationId: orderId,
@@ -5027,9 +5026,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         margin: EdgeInsets.only(bottom: 24),
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.1),
+          color: Colors.orange.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
         ),
         child: Row(
           children: [
@@ -5083,7 +5082,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -5124,7 +5123,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
 
-        side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
       ),
 
       child: Container(
@@ -5133,7 +5132,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           gradient: LinearGradient(
             colors: [
-              AppTheme.primaryColor.withValues(alpha: 0.05),
+              AppTheme.primaryColor.withOpacity(0.05),
 
               Colors.white,
             ],
@@ -5158,7 +5157,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     padding: EdgeInsets.all(8),
 
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
 
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -5209,7 +5208,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       color: _getPaymentStatusColor(
                         paymentStatus,
                         true,
-                      ).withValues(alpha: 0.1),
+                      ).withOpacity(0.1),
 
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -5236,7 +5235,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 padding: EdgeInsets.all(12),
 
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.05),
+                  color: Colors.grey.withOpacity(0.05),
 
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -5272,12 +5271,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   padding: EdgeInsets.all(12),
 
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                    color: AppTheme.primaryColor.withOpacity(0.05),
 
                     borderRadius: BorderRadius.circular(8),
 
                     border: Border.all(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      color: AppTheme.primaryColor.withOpacity(0.2),
                     ),
                   ),
 
@@ -5324,12 +5323,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 padding: EdgeInsets.all(12),
 
                 decoration: BoxDecoration(
-                  color: AppTheme.successGreen.withValues(alpha: 0.05),
+                  color: AppTheme.successGreen.withOpacity(0.05),
 
                   borderRadius: BorderRadius.circular(8),
 
                   border: Border.all(
-                    color: AppTheme.successGreen.withValues(alpha: 0.2),
+                    color: AppTheme.successGreen.withOpacity(0.2),
                   ),
                 ),
 
@@ -5418,12 +5417,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   padding: EdgeInsets.all(12),
 
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
+                    color: Colors.orange.withOpacity(0.1),
 
                     borderRadius: BorderRadius.circular(8),
 
                     border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
+                      color: Colors.orange.withOpacity(0.3),
                     ),
                   ),
 
@@ -5458,12 +5457,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   padding: EdgeInsets.all(12),
 
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
+                    color: Colors.orange.withOpacity(0.1),
 
                     borderRadius: BorderRadius.circular(8),
 
                     border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
+                      color: Colors.orange.withOpacity(0.3),
                     ),
                   ),
 
@@ -5498,12 +5497,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   padding: EdgeInsets.all(12),
 
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: Colors.green.withOpacity(0.1),
 
                     borderRadius: BorderRadius.circular(8),
 
                     border: Border.all(
-                      color: Colors.green.withValues(alpha: 0.3),
+                      color: Colors.green.withOpacity(0.3),
                     ),
                   ),
 

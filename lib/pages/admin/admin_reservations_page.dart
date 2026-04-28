@@ -475,10 +475,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       width: 240,
       decoration: BoxDecoration(
         color: AppTheme.white,
-        border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
+        border: Border(right: BorderSide(color: Colors.grey.withOpacity(0.1))),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
           ),
         ],
@@ -520,10 +520,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isSelected ? color.withValues(alpha: 0.1) : Colors.transparent,
+                          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
+                            color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
                           ),
                         ),
                         child: Row(
@@ -548,7 +548,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.08),
+                                  color: isSelected ? color.withOpacity(0.15) : Colors.grey.withOpacity(0.08),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -605,7 +605,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -676,7 +676,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          color: AppTheme.primaryColor.withOpacity(0.2),
                           blurRadius: 20,
                           spreadRadius: 5 * value,
                         )
@@ -736,7 +736,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     dataRowMinHeight: isMobile ? 48 : 64,
                     dataRowMaxHeight: isMobile ? 64 : 80,
                     dividerThickness: 0.5,
-                    headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withValues(alpha: 0.04)),
+                    headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
                     headingTextStyle: TextStyle(
                       color: AppTheme.darkGrey,
                       fontWeight: FontWeight.bold,
@@ -839,7 +839,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          color: AppTheme.primaryColor.withOpacity(0.2),
                           blurRadius: 20,
                           spreadRadius: 5 * value,
                         )
@@ -901,7 +901,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 margin: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                  side: BorderSide(color: Colors.grey.withOpacity(0.2)),
                 ),
                 child: InkWell(
                   onTap: () {},
@@ -912,12 +912,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Container(
                   width: 105,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.02),
+                    color: Colors.grey.withOpacity(0.02),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(AppTheme.radiusLg),
                       bottomLeft: Radius.circular(AppTheme.radiusLg),
                     ),
-                    border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.15), style: BorderStyle.solid)),
+                    border: Border(right: BorderSide(color: Colors.grey.withOpacity(0.15), style: BorderStyle.solid)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
@@ -999,7 +999,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         ResponsiveUtils.verticalSpace(context, mobile: 12, tablet: 14, desktop: 16),
                         
                         // Divider
-                        Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
+                        Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
                         
                         ResponsiveUtils.verticalSpace(context, mobile: 8, tablet: 10, desktop: 12),
                         
@@ -1035,7 +1035,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -1048,7 +1048,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             Container(
               padding: const EdgeInsets.all(AppTheme.lg),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                color: AppTheme.primaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1354,10 +1354,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         decoration: BoxDecoration(
           color: AppTheme.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               offset: const Offset(0, 2),
               blurRadius: 4,
             ),
@@ -1439,9 +1439,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.lightGrey.withValues(alpha: 0.5),
+        color: AppTheme.lightGrey.withOpacity(0.5),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1465,7 +1465,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: isMobile ? 14 : 16, color: AppTheme.primaryColor.withValues(alpha: 0.7)),
+        Icon(icon, size: isMobile ? 14 : 16, color: AppTheme.primaryColor.withOpacity(0.7)),
         SizedBox(width: isMobile ? 4 : 8),
         Flexible(
           child: Text(
@@ -1519,7 +1519,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ),
         ),
       ),
-      backgroundColor: color.withValues(alpha: 0.1),
+      backgroundColor: color.withOpacity(0.1),
       avatar: Icon(
         icon, 
         size: ResponsiveUtils.getResponsiveIconSize(context, mobile: 12, tablet: 14, desktop: 16), 
@@ -1585,9 +1585,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             margin: const EdgeInsets.only(right: 6),
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.1),
+              color: Colors.grey.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+              border: Border.all(color: Colors.grey.withOpacity(0.15)),
             ),
             child: const Text(
               'COMPLETED',
@@ -1633,14 +1633,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           child: InkWell(
             onTap: onPressed,
             borderRadius: BorderRadius.circular(20),
-            hoverColor: color.withValues(alpha: 0.12),
+            hoverColor: color.withOpacity(0.12),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.05),
+                color: color.withOpacity(0.05),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withValues(alpha: 0.15), width: 1.2),
+                border: Border.all(color: color.withOpacity(0.15), width: 1.2),
               ),
               child: Icon(icon, size: 18, color: color),
             ),
@@ -1718,9 +1718,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                    color: AppTheme.lightGrey.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
                   ),
                   child: Column(
                     children: [
@@ -1820,13 +1820,13 @@ class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
           boxShadow: [
             if (_isHovered)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               )
             else
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
+                color: Colors.black.withOpacity(0.02),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),

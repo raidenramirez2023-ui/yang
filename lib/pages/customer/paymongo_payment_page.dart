@@ -146,9 +146,9 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
+                color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
@@ -251,7 +251,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.9),
+                color: Colors.orange.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -305,7 +305,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
             )
           : _paymentCompleted
               ? Container(
-                  color: Colors.green.withValues(alpha: 0.1),
+                  color: Colors.green.withOpacity(0.1),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -378,9 +378,9 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
                       Container(
                         padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
                         ),
                         child: Column(
                           children: [
@@ -444,7 +444,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
                     offset: Offset(0, -2),
                   ),

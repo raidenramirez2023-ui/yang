@@ -420,17 +420,17 @@ class _AdminChatPageState extends State<AdminChatPage> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppTheme.primaryColor.withValues(alpha: 0.1)
+            ? AppTheme.primaryColor.withOpacity(0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isSelected
-            ? Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3))
+            ? Border.all(color: AppTheme.primaryColor.withOpacity(0.3))
             : null,
       ),
       child: ListTile(
         onTap: () => _selectConversation(conversation),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
           child: Icon(Icons.person, color: AppTheme.primaryColor),
         ),
         title: Row(
@@ -493,7 +493,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -541,7 +541,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   child: const Icon(Icons.person, color: AppTheme.primaryColor),
                 ),
                 const SizedBox(width: 12),
@@ -737,7 +737,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     ),
                     decoration: BoxDecoration(
                       color: messageText == ChatService.unsentMessageSentinel
-                          ? Colors.grey.withValues(alpha: 0.1)
+                          ? Colors.grey.withOpacity(0.1)
                           : isFromCustomer
                               ? Colors.grey.shade100
                               : AppTheme.primaryColor,
@@ -863,7 +863,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

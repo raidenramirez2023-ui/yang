@@ -191,7 +191,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withOpacity(0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -285,7 +285,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: Colors.black.withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
@@ -361,7 +361,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withOpacity(0.3),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -389,7 +389,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
+                        color: Colors.black.withOpacity(0.4),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -459,7 +459,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   Text(
                     '$totalUnread unread message${totalUnread > 1 ? 's' : ''}',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: Colors.white.withOpacity(0.8),
                       fontSize: 7,
                     ),
                     maxLines: 1,
@@ -598,7 +598,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                   child: Icon(Icons.person, color: AppTheme.primaryColor),
                 ),
                 title: Text(
@@ -673,7 +673,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 }),
               ),
               CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                 child: Icon(Icons.person, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 12),
@@ -916,7 +916,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                     style: TextStyle(
                       color: isFromCustomer
                           ? Colors.grey.shade600
-                          : Colors.white.withValues(alpha: 0.8),
+                          : Colors.white.withOpacity(0.8),
                       fontSize: 11,
                     ),
                   ),

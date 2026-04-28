@@ -191,7 +191,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                         ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.successGreen.withValues(alpha: 0.1),
+                        color: AppTheme.successGreen.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -271,7 +271,7 @@ class _OtpPasswordResetPageState extends State<OtpPasswordResetPage> {
                       ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(

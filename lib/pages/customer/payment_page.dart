@@ -328,7 +328,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
           decoration: BoxDecoration(
 
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withOpacity(0.1),
 
             shape: BoxShape.circle,
 
@@ -473,7 +473,7 @@ class _PaymentPageState extends State<PaymentPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withOpacity(0.3),
                         blurRadius: 20,
                         offset: Offset(0, 10),
                       ),
@@ -527,7 +527,7 @@ class _PaymentPageState extends State<PaymentPage> {
                   onPressed: () => Navigator.pop(context),
                   icon: Icon(Icons.close, color: Colors.white, size: 30),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    backgroundColor: Colors.black.withOpacity(0.5),
                   ),
                 ),
               ),

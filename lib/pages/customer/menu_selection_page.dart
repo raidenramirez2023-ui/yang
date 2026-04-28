@@ -221,7 +221,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -303,7 +303,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -333,7 +333,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
@@ -358,10 +358,10 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
+          color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
           ),
         ),
         child: Row(
@@ -397,7 +397,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 15,
             offset: const Offset(0, -5),
           ),
@@ -529,7 +529,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
+                        color: Colors.black.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(

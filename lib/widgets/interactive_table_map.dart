@@ -77,10 +77,10 @@ class _InteractiveTableMapState extends State<InteractiveTableMap> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.white.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4),
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
                 ],
               ),
               child: Column(
@@ -133,7 +133,7 @@ class _InteractiveTableMapState extends State<InteractiveTableMap> {
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 2)] : null,
+            boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)] : null,
           ),
           child: Center(
             child: Text(
@@ -145,7 +145,7 @@ class _InteractiveTableMapState extends State<InteractiveTableMap> {
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withValues(alpha: 0.2))),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), border: Border.all(color: color.withOpacity(0.2))),
           child: Text('$capacity pax', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: color)),
         ),
       ],

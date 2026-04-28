@@ -266,7 +266,7 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
               width: 110,
               height: 110,
               decoration: BoxDecoration(
-                color: AppTheme.successGreen.withValues(alpha: 0.1),
+                color: AppTheme.successGreen.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -348,8 +348,8 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.15),
-                    AppTheme.primaryColor.withValues(alpha: 0.04),
+                    AppTheme.primaryColor.withOpacity(0.15),
+                    AppTheme.primaryColor.withOpacity(0.04),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -357,7 +357,7 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                    color: AppTheme.primaryColor.withOpacity(0.12),
                     blurRadius: 24,
                     spreadRadius: 4,
                   ),
@@ -531,10 +531,10 @@ class _EmailOtpVerificationPageState extends State<EmailOtpVerificationPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.04),
+        color: AppTheme.primaryColor.withOpacity(0.04),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: AppTheme.primaryColor.withValues(alpha: 0.12)),
+            color: AppTheme.primaryColor.withOpacity(0.12)),
       ),
       child: Row(
         children: [

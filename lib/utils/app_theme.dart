@@ -112,10 +112,10 @@ class AppTheme {
           }),
           overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.hovered)) {
-              return primaryColor.withValues(alpha: 0.04);
+              return primaryColor.withOpacity(0.04);
             }
             if (states.contains(WidgetState.pressed)) {
-              return primaryColor.withValues(alpha: 0.12);
+              return primaryColor.withOpacity(0.12);
             }
             return null;
           }),
@@ -138,7 +138,7 @@ class AppTheme {
           }),
           overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.hovered)) {
-              return primaryColor.withValues(alpha: 0.04);
+              return primaryColor.withOpacity(0.04);
             }
             return null;
           }),
@@ -257,7 +257,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
+          color: Colors.black.withOpacity(0.04),
           blurRadius: 16,
           offset: const Offset(0, 4),
         ),
@@ -272,12 +272,12 @@ class AppTheme {
       borderRadius: BorderRadius.circular(30),
       boxShadow: [
         BoxShadow(
-          color: primaryColor.withValues(alpha: 0.12),
+          color: primaryColor.withOpacity(0.12),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
+          color: Colors.black.withOpacity(0.04),
           blurRadius: 8,
           offset: const Offset(0, -2),
         ),

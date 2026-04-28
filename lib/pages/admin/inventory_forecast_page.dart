@@ -369,10 +369,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         decoration: BoxDecoration(
           color: AppTheme.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+          border: Border.all(color: AppTheme.lightGrey.withOpacity(0.2)),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.darkGrey.withValues(alpha: 0.08),
+              color: AppTheme.darkGrey.withOpacity(0.08),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -397,10 +397,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+        border: Border.all(color: AppTheme.lightGrey.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.08),
+            color: AppTheme.darkGrey.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -513,7 +513,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 borderData: FlBorderData(
                   show: true,
                   border: Border.all(
-                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                    color: AppTheme.lightGrey.withOpacity(0.3),
                   ),
                 ),
                 barGroups: barGroups,
@@ -571,7 +571,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                    color: AppTheme.darkGrey.withOpacity(0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -1006,12 +1006,12 @@ class _ForecastCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.1),
+            color: AppTheme.darkGrey.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: riskColor.withValues(alpha: 0.3), width: 2),
+        border: Border.all(color: riskColor.withOpacity(0.3), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,9 +1049,9 @@ class _ForecastCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: riskColor.withValues(alpha: 0.1),
+                  color: riskColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: riskColor.withValues(alpha: 0.3)),
+                  border: Border.all(color: riskColor.withOpacity(0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

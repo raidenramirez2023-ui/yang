@@ -273,7 +273,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                color: AppTheme.primaryColor.withOpacity(0.2),
                                 blurRadius: 20,
                                 spreadRadius: 5 * value,
                               )
@@ -348,9 +348,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: AppTheme.successGreen.withValues(alpha: 0.05),
+                    color: AppTheme.successGreen.withOpacity(0.05),
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.2), width: 2),
+                    border: Border.all(color: AppTheme.successGreen.withOpacity(0.2), width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: AppTheme.successGreen.withValues(alpha: 0.1 * value),
@@ -430,9 +430,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     Widget paymentDetails = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.03),
+        color: AppTheme.primaryColor.withOpacity(0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,13 +453,13 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               icon: const Icon(Icons.receipt_long, size: 18),
               label: const Text('View Receipt', style: TextStyle(fontSize: 13)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                 foregroundColor: AppTheme.primaryColor,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                  side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
               ),
             ),
@@ -530,9 +530,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
+                        color: Colors.orange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -633,7 +633,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               backgroundColor: AppTheme.successGreen,
               foregroundColor: Colors.white,
               elevation: 4,
-              shadowColor: AppTheme.successGreen.withValues(alpha: 0.4),
+              shadowColor: AppTheme.successGreen.withOpacity(0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -661,10 +661,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isHighlight ? AppTheme.primaryColor.withValues(alpha: 0.04) : Colors.white,
+        color: isHighlight ? AppTheme.primaryColor.withOpacity(0.04) : Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isHighlight ? AppTheme.primaryColor.withValues(alpha: 0.15) : Colors.grey.shade200,
+          color: isHighlight ? AppTheme.primaryColor.withOpacity(0.15) : Colors.grey.shade200,
         ),
       ),
       child: Row(
@@ -673,7 +673,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isHighlight ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.grey.shade50,
+              color: isHighlight ? AppTheme.primaryColor.withOpacity(0.1) : Colors.grey.shade50,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 16, color: isHighlight ? AppTheme.primaryColor : Colors.grey.shade500),
@@ -738,13 +738,13 @@ class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
           boxShadow: [
             if (_isHovered)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               )
             else
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: Colors.black.withOpacity(0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),

@@ -12,19 +12,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:yang_chow/utils/responsive_utils.dart';
 
-
-
 import 'package:yang_chow/services/menu_service.dart';
 
-
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:yang_chow/services/reservation_service.dart';
 
-
-
 import 'package:intl/intl.dart';
-
-
 
 import 'package:yang_chow/models/menu_item.dart';
 
@@ -514,15 +508,49 @@ class _LandingPageState extends State<LandingPage>
 
 
       // 3. Fetch Latest Reviews and Total Count/Average
-
-
-
       final reviewsResponse = await _reservationService.getAllReviews(limit: 6);
-
-
-
       
-
+      // Enrich reviews with real customer profile info
+      List<Map<String, dynamic>> enrichedReviews = [];
+      try {
+        if (reviewsResponse.isNotEmpty) {
+          final emails = reviewsResponse
+              .map((r) => r['customer_email']?.toString())
+              .where((e) => e != null && e.isNotEmpty)
+              .cast<String>()
+              .toSet()
+              .toList();
+              
+          if (emails.isNotEmpty) {
+            final usersResponse = await Supabase.instance.client
+                .from('users')
+                .select('email, firstname, lastname, avatar_url')
+                .inFilter('email', emails);
+                
+            final userMap = {for (var u in usersResponse) u['email']: u};
+            
+            enrichedReviews = reviewsResponse.map((r) {
+              final email = r['customer_email'];
+              final user = userMap[email];
+              // Create a mutable copy to avoid potential "unmodifiable map" errors
+              final newReview = Map<String, dynamic>.from(r);
+              if (user != null) {
+                final fname = user['firstname'] ?? '';
+                final lname = user['lastname'] ?? '';
+                final fullName = '$fname $lname'.trim();
+                newReview['name'] = fullName.isNotEmpty ? fullName : 'Customer';
+                newReview['avatar_url'] = user['avatar_url'];
+              }
+              return newReview;
+            }).toList();
+          } else {
+            enrichedReviews = List<Map<String, dynamic>>.from(reviewsResponse);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error enriching reviews with profiles: $e');
+        enrichedReviews = List<Map<String, dynamic>>.from(reviewsResponse);
+      }
 
 
       // Calculate exact average from all reviews to ensure 100% accuracy
@@ -677,7 +705,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-          _reviews = reviewsResponse;
+          _reviews = enrichedReviews;
 
 
 
@@ -2053,7 +2081,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    color: const Color(0xFFC62828).withValues(alpha: 0.9),
+                    color: const Color(0xFFC62828).withOpacity(0.9),
 
 
 
@@ -2069,7 +2097,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
 
 
 
@@ -2248,7 +2276,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            top: 0, // Always fixed at the top
+            top: (_isNavbarVisible && !_isMobileMenuOpen) ? 0 : -100,
 
 
 
@@ -2276,7 +2304,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    ? const Color(0xFFC62828).withValues(alpha: 0.98)
+                    ? const Color(0xFFC62828).withOpacity(0.98)
 
 
 
@@ -2296,7 +2324,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withOpacity(0.1),
 
 
 
@@ -2425,13 +2453,7 @@ class _LandingPageState extends State<LandingPage>
 
 
                 onTap: _scrollToTop,
-
-
-
-                child: const Row(
-
-
-
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
 
 
@@ -2441,65 +2463,20 @@ class _LandingPageState extends State<LandingPage>
 
 
                     Text(
-
-
-
                       'Yang',
-
-
-
-                      style: TextStyle(
-
-
-
+                      style: GoogleFonts.lora(
                         color: Colors.white,
-
-
-
                         fontWeight: FontWeight.w900,
-
-
-
                         fontSize: 24,
-
-
-
                       ),
-
-
-
                     ),
-
-
-
                     Text(
-
-
-
                       'Chow',
-
-
-
-                      style: TextStyle(
-
-
-
+                      style: GoogleFonts.lora(
                         color: Colors.white,
-
-
-
                         fontWeight: FontWeight.w900,
-
-
-
                         fontSize: 24,
-
-
-
                       ),
-
-
-
                     ),
 
 
@@ -2740,17 +2717,8 @@ class _LandingPageState extends State<LandingPage>
 
 
         child: Text(
-
-
-
           label,
-
-
-
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-
-
-
+          style: GoogleFonts.lora(fontWeight: FontWeight.w600, fontSize: 14),
         ),
 
 
@@ -2823,7 +2791,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.5),
+              color: Colors.black.withOpacity(0.5),
 
 
 
@@ -2863,19 +2831,10 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                width: screenWidth * 0.5, // Half-screen width
-
-
-
+                width: screenWidth * 0.75, // Better width for mobile visibility
                 height: double.infinity, // Full-screen height
-
-
-
                 decoration: const BoxDecoration(
-
-
-
-                  color: Color(0xFFF5F5DC),
+                  color: Color(0xFFFAFAFA), // Cleaner off-white background
 
 
 
@@ -2916,101 +2875,71 @@ class _LandingPageState extends State<LandingPage>
 
 
                   child: Column(
-
-
-
                     children: [
-
-
+                      // Integrated Header for Mobile Menu
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 20),
+                        color: const Color(0xFFC62828),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Yang',
+                                  style: GoogleFonts.lora(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                                Text(
+                                  'Chow',
+                                  style: GoogleFonts.lora(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.close, color: Colors.white),
+                              onPressed: _toggleMobileMenu,
+                            ),
+                          ],
+                        ),
+                      ),
 
                       // Scrollable Links Tray
-
-
-
                       Expanded(
-
-
-
                         child: SingleChildScrollView(
-
-
-
                           physics: const BouncingScrollPhysics(),
-
-
-
                           child: Padding(
-
-
-
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-
-
-
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
                             child: Column(
-
-
-
                               crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
                               children: [
-
-
-
-                                const SizedBox(height: 80), // Space for nav bar area
-
-
-
                                 _mobileMenuItem('Home', _scrollToTop),
-
-
-
-                                _mobileMenuItem('About', () => _scrollToSection(_aboutKey)),
-
-
-
-                                const SizedBox(height: 24),
-
-
-
-                                _mobileMenuItem('Updates', () => _scrollToSection(_updatesKey)),
-
-
-
-                                _mobileMenuItem('Services', () => _scrollToSection(_servicesKey)),
-
-
-
-                                _mobileMenuItem('Reviews', () => _scrollToSection(_reviewsKey)),
-
-
-
-                                _mobileMenuItem('Map', () => _scrollToSection(_mapKey)),
-
-
-
-                                _mobileMenuItem('Contact', () => _scrollToSection(_contactKey)),
-
-
-
+                                _mobileMenuItem('About',
+                                    () => _scrollToSection(_aboutKey)),
+                                _mobileMenuItem('Updates',
+                                    () => _scrollToSection(_updatesKey)),
+                                _mobileMenuItem('Services',
+                                    () => _scrollToSection(_servicesKey)),
+                                _mobileMenuItem('Reviews',
+                                    () => _scrollToSection(_reviewsKey)),
+                                _mobileMenuItem('Map',
+                                    () => _scrollToSection(_mapKey)),
+                                _mobileMenuItem('Contact',
+                                    () => _scrollToSection(_contactKey)),
                               ],
-
-
-
                             ),
-
-
-
                           ),
-
-
-
                         ),
-
-
-
                       ),
 
 
@@ -3156,129 +3085,38 @@ class _LandingPageState extends State<LandingPage>
 
 
   Widget _mobileMenuItem(String title, VoidCallback onTap) {
-
-
-
-    bool isHovered = false;
-
-
-
-    return StatefulBuilder(builder: (context, setState) {
-
-
-
-      return MouseRegion(
-
-
-
-        onEnter: (_) => setState(() => isHovered = true),
-
-
-
-        onExit: (_) => setState(() => isHovered = false),
-
-
-
-        child: AnimatedContainer(
-
-
-
-          duration: const Duration(milliseconds: 200),
-
-
-
-          decoration: BoxDecoration(
-
-
-
-            color: isHovered 
-
-
-
-                ? const Color(0xFFC62828).withValues(alpha: 0.05) 
-
-
-
-                : Colors.transparent,
-
-
-
-            borderRadius: BorderRadius.circular(8),
-
-
-
-          ),
-
-
-
-          child: ListTile(
-
-
-
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-
-
-
-            visualDensity: VisualDensity.compact,
-
-
-
-            title: AnimatedDefaultTextStyle(
-
-
-
-              duration: const Duration(milliseconds: 200),
-
-
-
-              style: TextStyle(
-
-
-
-                fontSize: 18,
-
-
-
-                fontWeight: isHovered ? FontWeight.w700 : FontWeight.w600,
-
-
-
-                color: isHovered ? const Color(0xFFC62828) : const Color(0xFF3E2723),
-
-
-
-              ),
-
-
-
-              child: Text(title),
-
-
-
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.grey.withOpacity(0.1),
+              width: 1,
             ),
-
-
-
-            onTap: onTap,
-
-
-
           ),
-
-
-
         ),
-
-
-
-      );
-
-
-
-    });
-
-
-
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.lora(
+                color: const Color(0xFF1E1E1E),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF9E9E9E),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -3703,7 +3541,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                          Colors.black.withValues(alpha: 0.2),
+                          Colors.black.withOpacity(0.2),
 
 
 
@@ -3819,7 +3657,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Colors.black.withOpacity(0.15),
 
 
 
@@ -4027,7 +3865,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: Colors.black.withValues(alpha: 0.15),
+                color: Colors.black.withOpacity(0.15),
 
 
 
@@ -4115,7 +3953,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            shadowColor: Colors.black.withValues(alpha: 0.2),
+            shadowColor: Colors.black.withOpacity(0.2),
 
 
 
@@ -4275,7 +4113,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -4891,7 +4729,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withOpacity(0.1),
 
 
 
@@ -5267,7 +5105,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -5572,437 +5410,124 @@ class _LandingPageState extends State<LandingPage>
 
 
   Widget _buildUpdateCard(
-
-
-
     String? imagePath,
-
-
-
     String title,
-
-
-
     String date,
-
-
-
     String description,
-
-
-
     String tag,
-
-
-
     Color tagColor,
-
-
-
   ) {
-
-
-
     bool isHovered = false;
+    bool isExpanded = false;
 
-
-
-    return StatefulBuilder(builder: (context, setState) {
-
-
-
+    return StatefulBuilder(builder: (context, setLocalState) {
       return MouseRegion(
-
-
-
-        onEnter: (_) => setState(() => isHovered = true),
-
-
-
-        onExit: (_) => setState(() => isHovered = false),
-
-
-
+        onEnter: (_) => setLocalState(() => isHovered = true),
+        onExit: (_) => setLocalState(() => isHovered = false),
         child: AnimatedContainer(
-
-
-
           duration: const Duration(milliseconds: 200),
-
-
-
           transform: Matrix4.translationValues(0, isHovered ? -6 : 0, 0),
-
-
-
           decoration: BoxDecoration(
-
-
-
             color: Colors.white,
-
-
-
             borderRadius: BorderRadius.circular(20),
-
-
-
             boxShadow: [
-
-
-
               BoxShadow(
-
-
-
                 color: Colors.black.withValues(alpha: isHovered ? 0.12 : 0.05),
-
-
-
                 blurRadius: isHovered ? 24 : 12,
-
-
-
                 offset: const Offset(0, 8),
-
-
-
               )
-
-
-
             ],
-
-
-
           ),
-
-
-
           child: Column(
-
-
-
             crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
             children: [
-
-
-
               // Image
-
-
-
               ClipRRect(
-
-
-
                 borderRadius:
-
-
-
                     const BorderRadius.vertical(top: Radius.circular(20)),
-
-
-
                 child: SizedBox(
-
-
-
                   height: 200,
-
-
-
                   width: double.infinity,
-
-
-
                   child: imagePath != null && imagePath.startsWith('http')
-
-
-
                       ? Image.network(
-
-
-
                           imagePath,
-
-
-
                           fit: BoxFit.cover,
-
-
-
                           errorBuilder: (context, error, stackTrace) =>
-
-
-
                               Image.asset('assets/images/YCFriedRice.jpg',
-
-
-
                                   fit: BoxFit.cover),
-
-
-
                         )
-
-
-
                       : Image.asset(
-
-
-
                           imagePath ?? 'assets/images/YCFriedRice.jpg',
-
-
-
                           fit: BoxFit.cover,
-
-
-
                         ),
-
-
-
                 ),
-
-
-
               ),
-
-
-
               Padding(
-
-
-
                 padding: const EdgeInsets.all(20),
-
-
-
                 child: Column(
-
-
-
                   crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
                   children: [
-
-
-
                     Row(
-
-
-
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-
-
                       children: [
-
-
-
                         Container(
-
-
-
                           padding: const EdgeInsets.symmetric(
-
-
-
                               horizontal: 12, vertical: 4),
-
-
-
                           decoration: BoxDecoration(
-
-
-
-                            color: tagColor.withValues(alpha: 0.1),
-
-
-
+                            color: tagColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
-
-
-
                           ),
-
-
-
                           child: Text(tag,
-
-
-
                               style: TextStyle(
-
-
-
                                   color: tagColor,
-
-
-
                                   fontWeight: FontWeight.bold,
-
-
-
                                   fontSize: 11)),
-
-
-
                         ),
-
-
-
                         Text(date,
-
-
-
                             style: const TextStyle(
-
-
-
                                 color: Color(0xFF9E9E9E), fontSize: 11)),
-
-
-
                       ],
-
-
-
                     ),
-
-
-
                     const SizedBox(height: 12),
-
-
-
                     Text(title,
-
-
-
                         style: const TextStyle(
-
-
-
                             fontSize: 17,
-
-
-
                             fontWeight: FontWeight.bold,
-
-
-
                             color: Color(0xFF1E1E1E))),
-
-
-
                     const SizedBox(height: 8),
-
-
-
                     Text(description,
-
-
-
+                        maxLines: isExpanded ? null : 2,
+                        overflow: isExpanded
+                            ? TextOverflow.visible
+                            : TextOverflow.ellipsis,
                         style: const TextStyle(
-
-
-
                             fontSize: 13,
-
-
-
                             color: Color(0xFF555555),
-
-
-
                             height: 1.6)),
-
-
-
                     const SizedBox(height: 16),
-
-
-
                     TextButton.icon(
-
-
-
-                      onPressed: () {},
-
-
-
-                      icon: const Text('Read More',
-
-
-
-                          style: TextStyle(
-
-
-
+                      onPressed: () =>
+                          setLocalState(() => isExpanded = !isExpanded),
+                      icon: Text(isExpanded ? 'Read Less' : 'Read More',
+                          style: const TextStyle(
                               color: Color(0xFFC62828),
-
-
-
                               fontWeight: FontWeight.bold,
-
-
-
                               fontSize: 13)),
-
-
-
-                      label: const Icon(Icons.arrow_forward_rounded,
-
-
-
-                          color: Color(0xFFC62828), size: 14),
-
-
-
+                      label: Icon(
+                          isExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.arrow_forward_rounded,
+                          color: const Color(0xFFC62828),
+                          size: 14),
                     )
-
-
-
                   ],
-
-
-
                 ),
-
-
-
               )
-
-
-
             ],
-
-
-
           ),
-
-
-
         ),
-
-
-
       );
-
-
-
     });
-
-
-
   }
 
 
@@ -6203,7 +5728,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -6787,7 +6312,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    ? const Color(0xFFC62828).withValues(alpha: 0.3)
+                    ? const Color(0xFFC62828).withOpacity(0.3)
 
 
 
@@ -6811,7 +6336,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                            const Color(0xFFC62828).withValues(alpha: 0.08),
+                            const Color(0xFFC62828).withOpacity(0.08),
 
 
 
@@ -6859,7 +6384,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: const Color(0xFFC62828).withValues(alpha: 0.1),
+                  color: const Color(0xFFC62828).withOpacity(0.1),
 
 
 
@@ -6988,25 +6513,11 @@ class _LandingPageState extends State<LandingPage>
 
 
     final reviews = _reviews.map((r) => _buildReviewCard(
-
-
-
             r['name'] ?? 'Anonymous',
-
-
-
             r['location'] ?? 'Philippines',
-
-
-
             r['review_text'] ?? '',
-
-
-
             (r['rating'] as num?)?.toInt() ?? 5,
-
-
-
+            avatarUrl: r['avatar_url'],
           )).toList();
 
 
@@ -7063,7 +6574,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -7343,7 +6854,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withOpacity(0.06),
 
 
 
@@ -7584,10 +7095,8 @@ class _LandingPageState extends State<LandingPage>
 
 
   Widget _buildReviewCard(
-
-
-
-      String name, String location, String review, int stars) {
+      String name, String location, String review, int stars,
+      {String? avatarUrl}) {
 
 
 
@@ -7623,7 +7132,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
 
 
 
@@ -7760,45 +7269,21 @@ class _LandingPageState extends State<LandingPage>
 
 
                   CircleAvatar(
-
-
-
                     radius: isDesktop ? 16 : 14,
-
-
-
-                    backgroundColor: const Color(0xFFC62828).withValues(alpha: 0.15),
-
-
-
-                    child: Text(
-
-
-
-                      name.isNotEmpty ? name.substring(0, 1) : 'A',
-
-
-
-                      style: TextStyle(
-
-
-
-                          color: const Color(0xFFC62828),
-
-
-
-                          fontWeight: FontWeight.bold,
-
-
-
-                          fontSize: isDesktop ? 14 : 12),
-
-
-
-                    ),
-
-
-
+                    backgroundColor:
+                        const Color(0xFFC62828).withOpacity(0.15),
+                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: (avatarUrl == null || avatarUrl.isEmpty)
+                        ? Text(
+                            name.isNotEmpty ? name.substring(0, 1) : 'A',
+                            style: TextStyle(
+                                color: const Color(0xFFC62828),
+                                fontWeight: FontWeight.bold,
+                                fontSize: isDesktop ? 14 : 12),
+                          )
+                        : null,
                   ),
 
 
@@ -7887,7 +7372,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: const Color(0xFFC62828).withValues(alpha: 0.2),
+                color: const Color(0xFFC62828).withOpacity(0.2),
 
 
 
@@ -8003,7 +7488,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -8163,7 +7648,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                        color: Colors.black.withValues(alpha: 0.2),
+                        color: Colors.black.withOpacity(0.2),
 
 
 
@@ -8367,7 +7852,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                                              color: Colors.black.withValues(alpha: 0.1),
+                                              color: Colors.black.withOpacity(0.1),
 
 
 
@@ -8551,7 +8036,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                                      color: Colors.blue.withValues(alpha: 0.2),
+                                      color: Colors.blue.withOpacity(0.2),
 
 
 
@@ -8979,7 +8464,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withOpacity(0.3),
 
 
 
@@ -9115,7 +8600,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
 
 
 
@@ -9247,7 +8732,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withOpacity(0.15),
 
 
 
@@ -10018,17 +9503,26 @@ class _LandingPageState extends State<LandingPage>
 
 
                               SizedBox(
-
-
-
                                 width: 200,
-
-
-
                                 child: _buildContactItem(Icons.email_rounded, 'Email', 'admn.pagsanjan\n@gmail.com'),
-
-
-
+                              ),
+                              SizedBox(
+                                width: 200,
+                                child: _buildSocialContactItem(
+                                  Icons.share_rounded,
+                                  'Social Media',
+                                  [
+                                    GestureDetector(
+                                      onTap: () async {
+                                        final Uri url = Uri.parse('https://www.facebook.com/yangchow.pagsanjan.2013');
+                                        if (await canLaunchUrl(url)) {
+                                          await launchUrl(url, mode: LaunchMode.inAppWebView);
+                                        }
+                                      },
+                                      child: const Icon(Icons.facebook, color: Colors.white, size: 20),
+                                    ),
+                                  ],
+                                ),
                               ),
 
 
@@ -10078,6 +9572,22 @@ class _LandingPageState extends State<LandingPage>
 
 
                               _buildContactItem(Icons.email_rounded, 'Email', 'admn.pagsanjan\n@gmail.com'),
+                              const SizedBox(height: 20),
+                              _buildSocialContactItem(
+                                Icons.share_rounded,
+                                'Social Media',
+                                [
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final Uri url = Uri.parse('https://www.facebook.com/yangchow.pagsanjan.2013');
+                                      if (await canLaunchUrl(url)) {
+                                        await launchUrl(url, mode: LaunchMode.inAppWebView);
+                                      }
+                                    },
+                                    child: const Icon(Icons.facebook, color: Colors.white, size: 20),
+                                  ),
+                                ],
+                              ),
 
 
 
@@ -10086,54 +9596,11 @@ class _LandingPageState extends State<LandingPage>
 
 
                           ),
-
-
-
                       ],
-
-
-
                     ),
-
-
-
                     const SizedBox(height: 40),
-
-
-
-                    // Footer Links - Centered Layout
-
-
-
-                    Column(
-
-
-
-                      children: [
-
-
-
-                        _buildFooterCol1(),
-
-
-
-                      ],
-
-
-
-                    ),
-
-
-
-                    const SizedBox(height: 30),
-
-
-
-                    const Divider(color: Colors.white24),
-
-
-
-                    const SizedBox(height: 12),
+                    const Divider(color: Colors.white24, thickness: 0.5),
+                    const SizedBox(height: 20),
 
 
 
@@ -10322,264 +9789,82 @@ class _LandingPageState extends State<LandingPage>
 
 
   Widget _buildContactItem(IconData icon, String label, String value) {
-
-
-
     return Row(
-
-
-
       crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
       children: [
-
-
-
         Container(
-
-
-
           padding: const EdgeInsets.all(10),
-
-
-
           decoration: BoxDecoration(
-
-
-
-            color: Colors.white.withValues(alpha: 0.15),
-
-
-
+            color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(8),
-
-
-
           ),
-
-
-
           child: Icon(icon, color: Colors.white, size: 20),
-
-
-
         ),
-
-
-
         const SizedBox(width: 14),
-
-
-
         Expanded(
-
-
-
           child: Column(
-
-
-
             crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
             children: [
-
-
-
               Text(label,
-
-
-
                   style: const TextStyle(
-
-
-
                       color: Colors.white70,
-
-
-
                       fontSize: 12,
-
-
-
                       fontWeight: FontWeight.bold,
-
-
-
                       letterSpacing: 1)),
-
-
-
               const SizedBox(height: 4),
-
-
-
               Text(value,
-
-
-
                   style: const TextStyle(
-
-
-
                       color: Colors.white,
-
-
-
                       fontSize: 13,
-
-
-
                       height: 1.5)),
-
-
-
             ],
-
-
-
           ),
-
-
-
         ),
-
-
-
       ],
-
-
-
     );
-
-
-
   }
 
-
-
-
-
-
-
-
-
-  Widget _buildFooterCol1() {
-
-
-
-    return Column(
-
-
-
-      crossAxisAlignment: CrossAxisAlignment.center,
-
-
-
+  Widget _buildSocialContactItem(
+      IconData mainIcon, String label, List<Widget> socialIcons) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
-
-
-        const Text(
-
-
-
-          'Social Media Page',
-
-
-
-          style: TextStyle(
-
-
-
-              fontSize: 20,
-
-
-
-              fontWeight: FontWeight.bold,
-
-
-
-              color: Colors.white),
-
-
-
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(mainIcon, color: Colors.white, size: 20),
         ),
-
-
-
-        const SizedBox(height: 20),
-
-
-
-        Row(
-
-
-
-          mainAxisAlignment: MainAxisAlignment.center,
-
-
-
-          children: [
-
-
-
-            GestureDetector(
-
-
-
-              onTap: () async {
-
-
-
-                final Uri url = Uri.parse('https://www.facebook.com/yangchow.pagsanjan.2013');
-
-
-
-                if (await canLaunchUrl(url)) {
-
-
-
-                  await launchUrl(url, mode: LaunchMode.inAppWebView);
-
-
-
-                }
-
-
-
-              },
-
-
-
-              child: Icon(Icons.facebook, color: Colors.white, size: 20),
-
-
-
-            ),
-
-
-
-          ],
-
-
-
-        )
-
-
-
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
+              const SizedBox(height: 8),
+              Row(children: socialIcons),
+            ],
+          ),
+        ),
       ],
-
-
-
     );
-
-
-
   }
+
+
+
+
+
+
+
+
+
 
 
 

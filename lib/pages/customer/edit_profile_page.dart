@@ -503,7 +503,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         color: const Color(0xFFFFDAD6),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
+                            color: Colors.black.withOpacity(0.08),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
@@ -695,7 +695,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           color: AppTheme.backgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -711,7 +711,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey.shade300,
               elevation: 2,
-              shadowColor: AppTheme.primaryColor.withValues(alpha: 0.3),
+              shadowColor: AppTheme.primaryColor.withOpacity(0.3),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),

@@ -89,7 +89,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.successGreen.withValues(alpha: 0.1),
+                          color: AppTheme.successGreen.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -322,7 +322,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          color: AppTheme.primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -916,7 +916,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           controller: _tabController,
           indicatorColor: AppTheme.white,
           labelColor: AppTheme.white,
-          unselectedLabelColor: AppTheme.white.withValues(alpha: 0.7),
+          unselectedLabelColor: AppTheme.white.withOpacity(0.7),
           labelStyle: ResponsiveUtils.isMobile(context)
               ? const TextStyle(fontSize: 12)
               : const TextStyle(fontSize: 14),
@@ -962,7 +962,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                color: AppTheme.darkGrey.withOpacity(0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1143,13 +1143,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                            color: AppTheme.darkGrey.withOpacity(0.1),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
                         ],
                         border: Border.all(
-                          color: stockColor.withValues(alpha: 0.3),
+                          color: stockColor.withOpacity(0.3),
                           width: 2,
                         ),
                       ),
@@ -1176,7 +1176,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: stockColor.withValues(alpha: 0.1),
+                                    color: stockColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
@@ -1205,10 +1205,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: stockColor.withValues(alpha: 0.1),
+                                color: stockColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: stockColor.withValues(alpha: 0.3),
+                                  color: stockColor.withOpacity(0.3),
                                 ),
                               ),
                               child: Row(
@@ -1262,13 +1262,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               end: Alignment.bottomRight,
               colors: [
                 AppTheme.successGreen,
-                AppTheme.successGreen.withValues(alpha: 0.8),
+                AppTheme.successGreen.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.successGreen.withValues(alpha: 0.3),
+                color: AppTheme.successGreen.withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1328,7 +1328,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                color: AppTheme.darkGrey.withOpacity(0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -1502,7 +1502,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                            color: AppTheme.darkGrey.withOpacity(0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -1629,14 +1629,14 @@ class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: _isHovered 
-                ? AppTheme.successGreen.withValues(alpha: 0.05)
+                ? AppTheme.successGreen.withOpacity(0.05)
                 : AppTheme.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: _isHovered
-                    ? AppTheme.successGreen.withValues(alpha: 0.2)
-                    : AppTheme.darkGrey.withValues(alpha: 0.1),
+                    ? AppTheme.successGreen.withOpacity(0.2)
+                    : AppTheme.darkGrey.withOpacity(0.1),
                 blurRadius: _isHovered ? 12 : 8,
                 offset: const Offset(0, 4),
               ),
@@ -1644,7 +1644,7 @@ class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
             border: Border.all(
               color: _isHovered
                   ? AppTheme.successGreen
-                  : AppTheme.successGreen.withValues(alpha: 0.3),
+                  : AppTheme.successGreen.withOpacity(0.3),
               width: _isHovered ? 2 : 1,
             ),
           ),
@@ -1656,7 +1656,7 @@ class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.successGreen.withValues(alpha: 0.1),
+                      color: AppTheme.successGreen.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(

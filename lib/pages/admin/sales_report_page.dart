@@ -902,7 +902,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             TextSpan(
                               text: '\n$dayLabel',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
+                                color: Colors.white.withOpacity(0.8),
                                 fontSize: 11,
                                 fontWeight: FontWeight.normal,
                               ),
@@ -966,12 +966,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                   horizontalInterval: 1000,
                   verticalInterval: 1,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                    color: const Color(0xFFF1F5F9).withOpacity(0.5),
                     strokeWidth: 1,
                     dashArray: [3, 3],
                   ),
                   getDrawingVerticalLine: (value) => FlLine(
-                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.3),
+                    color: const Color(0xFFF1F5F9).withOpacity(0.3),
                     strokeWidth: 1,
                     dashArray: [2, 4],
                   ),
@@ -979,7 +979,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 borderData: FlBorderData(
                   show: true,
                   border: Border.all(
-                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                    color: const Color(0xFFF1F5F9).withOpacity(0.5),
                     width: 1,
                   ),
                 ),
@@ -1006,7 +1006,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     ),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.red.withValues(alpha: 0.3),
+                      color: Colors.red.withOpacity(0.3),
                     ),
                   ),
                 ],
@@ -1354,7 +1354,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
+                  backgroundColor: (t['color'] as Color).withOpacity(0.1),
                   child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
@@ -1404,7 +1404,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
+                    backgroundColor: (t['color'] as Color).withOpacity(0.1),
                     child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 12),
@@ -1757,7 +1757,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
             ),
             if (_isHovered)
               BoxShadow(
-                color: widget.color.withValues(alpha: 0.15),
+                color: widget.color.withOpacity(0.15),
                 blurRadius: 30,
                 offset: const Offset(0, 0),
               ),
@@ -1782,7 +1782,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: _isHovered ? [
                       BoxShadow(
-                        color: widget.color.withValues(alpha: 0.3),
+                        color: widget.color.withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -1806,8 +1806,8 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
                       boxShadow: _isHovered ? [
                         BoxShadow(
                           color: widget.growth.contains('+') 
-                              ? const Color(0xFF16A34A).withValues(alpha: 0.2)
-                              : const Color(0xFFDC2626).withValues(alpha: 0.2),
+                              ? const Color(0xFF16A34A).withOpacity(0.2)
+                              : const Color(0xFFDC2626).withOpacity(0.2),
                           blurRadius: 6,
                           offset: const Offset(0, 1),
                         ),
@@ -1929,7 +1929,7 @@ class _AnimatedChartState extends State<_AnimatedChart>
                           TextSpan(
                             text: '\n$dayLabel',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Colors.white.withOpacity(0.8),
                               fontSize: 11,
                               fontWeight: FontWeight.normal,
                             ),
@@ -1992,12 +1992,12 @@ class _AnimatedChartState extends State<_AnimatedChart>
                 horizontalInterval: 1000,
                 verticalInterval: 1,
                 getDrawingHorizontalLine: (value) => FlLine(
-                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                  color: const Color(0xFFF1F5F9).withOpacity(0.5),
                   strokeWidth: 1,
                   dashArray: [3, 3],
                 ),
                 getDrawingVerticalLine: (value) => FlLine(
-                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.3),
+                  color: const Color(0xFFF1F5F9).withOpacity(0.3),
                   strokeWidth: 1,
                   dashArray: [2, 4],
                 ),
@@ -2005,7 +2005,7 @@ class _AnimatedChartState extends State<_AnimatedChart>
               borderData: FlBorderData(
                 show: true,
                 border: Border.all(
-                  color: const Color(0xFFF1F5F9).withValues(alpha: 0.5),
+                  color: const Color(0xFFF1F5F9).withOpacity(0.5),
                   width: 1,
                 ),
               ),
