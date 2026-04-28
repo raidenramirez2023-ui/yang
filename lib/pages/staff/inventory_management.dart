@@ -631,13 +631,13 @@ class _InventoryPageState extends State<InventoryPage> {
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.white.withValues(alpha: 0.4)
-              : AppTheme.white.withValues(alpha: 0.15),
+              ? AppTheme.white.withOpacity(0.4)
+              : AppTheme.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isSelected
-                ? AppTheme.white.withValues(alpha: 0.8)
-                : AppTheme.white.withValues(alpha: 0.3),
+                ? AppTheme.white.withOpacity(0.8)
+                : AppTheme.white.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -705,7 +705,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    color: AppTheme.primaryColor.withOpacity(0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -733,7 +733,7 @@ class _InventoryPageState extends State<InventoryPage> {
                       const Spacer(),
                       Icon(
                         Icons.refresh_rounded,
-                        color: AppTheme.white.withValues(alpha: 0.8),
+                        color: AppTheme.white.withOpacity(0.8),
                         size: 14,
                       ),
                     ],
@@ -837,7 +837,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                    color: AppTheme.darkGrey.withOpacity(0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -1039,19 +1039,19 @@ class _InventoryPageState extends State<InventoryPage> {
                               end: Alignment.bottomRight,
                               colors: [
                                 AppTheme.white,
-                                AppTheme.lightGrey.withValues(alpha: 0.3),
+                                AppTheme.lightGrey.withOpacity(0.3),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                                color: AppTheme.darkGrey.withOpacity(0.1),
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                             border: Border.all(
-                              color: stockColor.withValues(alpha: 0.3),
+                              color: stockColor.withOpacity(0.3),
                               width: 1.5,
                             ),
                           ),

@@ -2081,7 +2081,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    color: const Color(0xFFC62828).withValues(alpha: 0.9),
+                    color: const Color(0xFFC62828).withOpacity(0.9),
 
 
 
@@ -2097,7 +2097,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
 
 
 
@@ -2304,7 +2304,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    ? const Color(0xFFC62828).withValues(alpha: 0.98)
+                    ? const Color(0xFFC62828).withOpacity(0.98)
 
 
 
@@ -2324,7 +2324,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withOpacity(0.1),
 
 
 
@@ -2791,7 +2791,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.5),
+              color: Colors.black.withOpacity(0.5),
 
 
 
@@ -3093,7 +3093,7 @@ class _LandingPageState extends State<LandingPage>
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Colors.grey.withValues(alpha: 0.1),
+              color: Colors.grey.withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -3541,7 +3541,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                          Colors.black.withValues(alpha: 0.2),
+                          Colors.black.withOpacity(0.2),
 
 
 
@@ -3657,7 +3657,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: Colors.black.withOpacity(0.15),
 
 
 
@@ -3865,7 +3865,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: Colors.black.withValues(alpha: 0.15),
+                color: Colors.black.withOpacity(0.15),
 
 
 
@@ -3953,7 +3953,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            shadowColor: Colors.black.withValues(alpha: 0.2),
+            shadowColor: Colors.black.withOpacity(0.2),
 
 
 
@@ -4113,7 +4113,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -4729,7 +4729,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withOpacity(0.1),
 
 
 
@@ -5105,7 +5105,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -5474,7 +5474,7 @@ class _LandingPageState extends State<LandingPage>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
-                            color: tagColor.withValues(alpha: 0.1),
+                            color: tagColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(tag,
@@ -5728,7 +5728,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -6312,7 +6312,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    ? const Color(0xFFC62828).withValues(alpha: 0.3)
+                    ? const Color(0xFFC62828).withOpacity(0.3)
 
 
 
@@ -6336,7 +6336,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                            const Color(0xFFC62828).withValues(alpha: 0.08),
+                            const Color(0xFFC62828).withOpacity(0.08),
 
 
 
@@ -6384,7 +6384,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: const Color(0xFFC62828).withValues(alpha: 0.1),
+                  color: const Color(0xFFC62828).withOpacity(0.1),
 
 
 
@@ -6574,7 +6574,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -6854,7 +6854,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withOpacity(0.06),
 
 
 
@@ -7132,7 +7132,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
 
 
 
@@ -7271,7 +7271,7 @@ class _LandingPageState extends State<LandingPage>
                   CircleAvatar(
                     radius: isDesktop ? 16 : 14,
                     backgroundColor:
-                        const Color(0xFFC62828).withValues(alpha: 0.15),
+                        const Color(0xFFC62828).withOpacity(0.15),
                     backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                         ? NetworkImage(avatarUrl)
                         : null,
@@ -7372,7 +7372,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: const Color(0xFFC62828).withValues(alpha: 0.2),
+                color: const Color(0xFFC62828).withOpacity(0.2),
 
 
 
@@ -7488,7 +7488,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: Colors.white.withOpacity(0.1),
 
 
 
@@ -7648,7 +7648,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                        color: Colors.black.withValues(alpha: 0.2),
+                        color: Colors.black.withOpacity(0.2),
 
 
 
@@ -7852,7 +7852,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                                              color: Colors.black.withValues(alpha: 0.1),
+                                              color: Colors.black.withOpacity(0.1),
 
 
 
@@ -8036,7 +8036,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                                      color: Colors.blue.withValues(alpha: 0.2),
+                                      color: Colors.blue.withOpacity(0.2),
 
 
 
@@ -8464,7 +8464,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withOpacity(0.3),
 
 
 
@@ -8600,7 +8600,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
 
 
 
@@ -8732,7 +8732,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Colors.black.withOpacity(0.15),
 
 
 
@@ -9795,7 +9795,7 @@ class _LandingPageState extends State<LandingPage>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: Colors.white, size: 20),
@@ -9832,7 +9832,7 @@ class _LandingPageState extends State<LandingPage>
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(mainIcon, color: Colors.white, size: 20),

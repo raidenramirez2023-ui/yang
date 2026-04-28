@@ -197,7 +197,7 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.receipt_long_outlined,
-                    size: 64, color: _grey.withValues(alpha: 0.4)),
+                    size: 64, color: _grey.withOpacity(0.4)),
                 const SizedBox(height: 16),
                 const Text(
                   'No orders found',
@@ -295,7 +295,7 @@ class _OrderCardState extends State<_OrderCard> {
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -319,7 +319,7 @@ class _OrderCardState extends State<_OrderCard> {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: _red.withValues(alpha: 0.08),
+                      color: _red.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.receipt_long, color: _red, size: 20),

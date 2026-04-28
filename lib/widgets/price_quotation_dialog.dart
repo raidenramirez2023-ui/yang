@@ -407,7 +407,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
                     decoration: BoxDecoration(
 
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
 
                       borderRadius: BorderRadius.circular(8),
 
@@ -533,11 +533,11 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
       decoration: BoxDecoration(
 
-        color: AppTheme.lightGrey.withValues(alpha: 0.3),
+        color: AppTheme.lightGrey.withOpacity(0.3),
 
         borderRadius: BorderRadius.circular(12),
 
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
 
       ),
 
@@ -792,9 +792,9 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
         Container(
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.05),
+            color: AppTheme.primaryColor.withOpacity(0.05),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -881,11 +881,11 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
       decoration: BoxDecoration(
 
-        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+        color: AppTheme.primaryColor.withOpacity(0.05),
 
         borderRadius: BorderRadius.circular(12),
 
-        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
 
       ),
 

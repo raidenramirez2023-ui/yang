@@ -221,7 +221,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -298,7 +298,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                          color: AppTheme.primaryColor.withOpacity(0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
@@ -469,11 +469,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              color: AppTheme.primaryColor.withOpacity(0.1),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -514,7 +514,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               borderRadius: BorderRadius.circular(25),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                  color: AppTheme.primaryColor.withOpacity(0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -565,7 +565,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
@@ -601,7 +601,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                     ),
                     decoration: BoxDecoration(
                       color: messageText == ChatService.unsentMessageSentinel
-                          ? Colors.grey.withValues(alpha: 0.1)
+                          ? Colors.grey.withOpacity(0.1)
                           : isFromCustomer
                               ? AppTheme.primaryColor
                               : const Color(0xFFFFFFFF),
@@ -622,7 +622,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                           : null,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
+                          color: Colors.black.withOpacity(0.05),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
@@ -759,7 +759,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 2,
                     offset: const Offset(0, 1),
                   ),
@@ -781,7 +781,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         border: Border(top: BorderSide(color: AppTheme.lightGrey, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 4,
             offset: Offset(0, -1),
           ),
@@ -914,7 +914,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   ? null
                   : [
                       BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                        color: AppTheme.primaryColor.withOpacity(0.3),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -1007,7 +1007,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
               end: Alignment.bottomRight,
               colors: [
                 Colors.white,
-                AppTheme.primaryColor.withValues(alpha: 0.05),
+                AppTheme.primaryColor.withOpacity(0.05),
               ],
             ),
           ),
@@ -1021,7 +1021,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -1067,11 +1067,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    color: AppTheme.primaryColor.withOpacity(0.1),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -1108,10 +1108,10 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    color: AppTheme.primaryColor.withOpacity(0.2),
                   ),
                 ),
                 child: Row(
@@ -1173,7 +1173,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: AppTheme.primaryColor, size: 20),

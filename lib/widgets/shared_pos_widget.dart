@@ -811,7 +811,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                               color: const Color(0xFFF5F6FA),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: isAvailable ? const Color(0xFFE5E7EB) : Colors.red.withValues(alpha: 0.3),
+                                color: isAvailable ? const Color(0xFFE5E7EB) : Colors.red.withOpacity(0.3),
                                 width: isAvailable ? 1 : 2,
                               ),
                             ),
@@ -859,7 +859,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: stockColor.withValues(alpha: 0.1),
+                                          color: stockColor.withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
@@ -1573,7 +1573,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
+                                    color: Colors.black.withOpacity(0.2),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   ),
@@ -1831,7 +1831,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
               : Border.all(color: const Color(0xFFE5E7EB)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1932,7 +1932,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withOpacity(0.6),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

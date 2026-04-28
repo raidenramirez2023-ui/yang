@@ -107,7 +107,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -217,10 +217,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         ResponsiveUtils.getResponsiveFontSize(context, mobile: 16, tablet: 20, desktop: 24),
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.successGreen.withValues(alpha: 0.1),
+                        color: AppTheme.successGreen.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         border: Border.all(
-                          color: AppTheme.successGreen.withValues(alpha: 0.3),
+                          color: AppTheme.successGreen.withOpacity(0.3),
                         ),
                       ),
                       child: Column(

@@ -152,7 +152,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.withValues(alpha: 0.05),
+      backgroundColor: Colors.grey.withOpacity(0.05),
       body: Padding(
         padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
@@ -209,7 +209,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -284,13 +284,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: (staff['color'] as Color).withValues(alpha: 0.3),
+          color: (staff['color'] as Color).withOpacity(0.3),
           width: 2,
         ),
       ),
@@ -313,7 +313,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 width: 45,
                 height: 45,
                 decoration: BoxDecoration(
-                  color: (staff['color'] as Color).withValues(alpha: 0.1),
+                  color: (staff['color'] as Color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: ClipRRect(
@@ -365,10 +365,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: (staff['color'] as Color).withValues(alpha: 0.1),
+                        color: (staff['color'] as Color).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: (staff['color'] as Color).withValues(alpha: 0.2),
+                          color: (staff['color'] as Color).withOpacity(0.2),
                           width: 1,
                         ),
                       ),
@@ -410,7 +410,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
+                      color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -466,7 +466,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ClipRRect(
@@ -498,7 +498,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

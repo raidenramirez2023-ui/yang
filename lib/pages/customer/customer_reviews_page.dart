@@ -464,7 +464,7 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : AppTheme.lightGrey.withValues(alpha: 0.3),
+                color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : AppTheme.lightGrey.withOpacity(0.3),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -516,10 +516,10 @@ class _CustomerReviewsPageState extends State<CustomerReviewsPage> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.05),
+              color: AppTheme.primaryColor.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.rate_review_rounded, size: 64, color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+            child: Icon(Icons.rate_review_rounded, size: 64, color: AppTheme.primaryColor.withOpacity(0.4)),
           ),
           const SizedBox(height: 24),
           const Text(

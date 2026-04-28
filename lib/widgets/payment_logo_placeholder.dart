@@ -47,7 +47,7 @@ class PaymentLogoPlaceholder extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: iconColor.withValues(alpha: 0.1),
+        color: iconColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(

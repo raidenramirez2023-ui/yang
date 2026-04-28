@@ -151,7 +151,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.05),
+              color: AppTheme.primaryColor.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -191,7 +191,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             // Card Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              color: AppTheme.primaryColor.withValues(alpha: 0.03),
+              color: AppTheme.primaryColor.withOpacity(0.03),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -265,7 +265,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       else
                         Text(
                           'Ref: ${tx['id'].toString().substring(0, 8).toUpperCase()}',
-                          style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey.withValues(alpha: 0.7), fontStyle: FontStyle.italic),
+                          style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey.withOpacity(0.7), fontStyle: FontStyle.italic),
                         ),
                     ],
                   ),
@@ -281,7 +281,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget _buildDetailRow(IconData icon, String label, String? value) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppTheme.primaryColor.withValues(alpha: 0.6)),
+        Icon(icon, size: 18, color: AppTheme.primaryColor.withOpacity(0.6)),
         const SizedBox(width: 12),
         Text(
           '$label:',
@@ -363,9 +363,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.1)),
+        border: Border.all(color: color.withOpacity(0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -46,9 +46,9 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -145,7 +145,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
+        color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
@@ -153,7 +153,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

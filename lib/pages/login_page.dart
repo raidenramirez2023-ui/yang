@@ -605,7 +605,7 @@ class _LoginPageState extends State<LoginPage> {
                 fit: BoxFit.cover,
               ),
             ),
-            child: Container(color: AppTheme.primaryColor.withValues(alpha: 0.85)),
+            child: Container(color: AppTheme.primaryColor.withOpacity(0.85)),
           ),
         ),
         Row(
@@ -670,7 +670,7 @@ class _LoginPageState extends State<LoginPage> {
                 fit: BoxFit.cover,
               ),
             ),
-            child: Container(color: AppTheme.primaryColor.withValues(alpha: 0.85)),
+            child: Container(color: AppTheme.primaryColor.withOpacity(0.85)),
           ),
         ),
         Center(
@@ -723,7 +723,7 @@ class _LoginPageState extends State<LoginPage> {
                 fit: BoxFit.cover,
               ),
             ),
-            child: Container(color: AppTheme.primaryColor.withValues(alpha: 0.85)),
+            child: Container(color: AppTheme.primaryColor.withOpacity(0.85)),
           ),
         ),
         SafeArea(

@@ -482,11 +482,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
 
         borderRadius: BorderRadius.circular(8),
 
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
 
       ),
 
@@ -646,7 +646,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         borderRadius: BorderRadius.circular(8),
 
-        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+        border: Border.all(color: statusColor.withOpacity(0.3)),
 
       ),
 
@@ -688,7 +688,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 decoration: BoxDecoration(
 
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.withOpacity(0.1),
 
                   borderRadius: BorderRadius.circular(12),
 
@@ -1335,7 +1335,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 BoxShadow(
 
-                  color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                  color: AppTheme.darkGrey.withOpacity(0.1),
 
                   blurRadius: 4,
 
@@ -1367,7 +1367,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         decoration: BoxDecoration(
 
-                          color: AppTheme.white.withValues(alpha: 0.2),
+                          color: AppTheme.white.withOpacity(0.2),
 
                           borderRadius: BorderRadius.circular(8),
 
@@ -1522,7 +1522,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       BoxShadow(
 
-                        color: AppTheme.darkGrey.withValues(alpha: 0.1),
+                        color: AppTheme.darkGrey.withOpacity(0.1),
 
                         blurRadius: 2,
 
@@ -1718,7 +1718,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       decoration: BoxDecoration(
 
-                        color: AppTheme.white.withValues(alpha: 0.2),
+                        color: AppTheme.white.withOpacity(0.2),
 
                         borderRadius: BorderRadius.circular(16),
 
@@ -1924,7 +1924,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           icon,
 
-          color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
+          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
 
           size: 20,
 
@@ -1936,7 +1936,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           style: TextStyle(
 
-            color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
+            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
 
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
 
@@ -1954,7 +1954,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         ),
 
-        tileColor: isSelected ? AppTheme.white.withValues(alpha: 0.2) : Colors.transparent,
+        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
 
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
 
@@ -2048,7 +2048,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           icon,
 
-          color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
+          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
 
           size: 24,
 
@@ -2060,7 +2060,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           style: TextStyle(
 
-            color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.7),
+            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
 
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
 
@@ -2078,7 +2078,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         ),
 
-        tileColor: isSelected ? AppTheme.white.withValues(alpha: 0.2) : Colors.transparent,
+        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
 
       ),
 
@@ -2204,9 +2204,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    color: AppTheme.primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
@@ -2502,17 +2502,17 @@ class _HoverableActionCardState extends State<_HoverableActionCard> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _isHovered ? widget.color.withValues(alpha: 0.1) : AppTheme.white,
+            color: _isHovered ? widget.color.withOpacity(0.1) : AppTheme.white,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: _isHovered ? widget.color : widget.color.withValues(alpha: 0.3),
+              color: _isHovered ? widget.color : widget.color.withOpacity(0.3),
               width: _isHovered ? 2 : 1,
             ),
             boxShadow: [
               BoxShadow(
                 color: _isHovered 
-                    ? widget.color.withValues(alpha: 0.2)
-                    : AppTheme.darkGrey.withValues(alpha: 0.05),
+                    ? widget.color.withOpacity(0.2)
+                    : AppTheme.darkGrey.withOpacity(0.05),
                 blurRadius: _isHovered ? 8 : 4,
                 offset: const Offset(0, 2),
               ),
@@ -2524,7 +2524,7 @@ class _HoverableActionCardState extends State<_HoverableActionCard> {
                 duration: const Duration(milliseconds: 200),
                 padding: EdgeInsets.all(_isHovered ? 4 : 0),
                 decoration: BoxDecoration(
-                  color: _isHovered ? widget.color.withValues(alpha: 0.15) : Colors.transparent,
+                  color: _isHovered ? widget.color.withOpacity(0.15) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(

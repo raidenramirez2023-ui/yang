@@ -813,7 +813,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? _indigo.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? _indigo.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: isSelected ? _indigo : _border),
         ),

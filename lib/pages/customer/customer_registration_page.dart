@@ -709,7 +709,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withValues(alpha: 0.85),
+              color: AppTheme.primaryColor.withOpacity(0.85),
             ),
           ),
         ),
@@ -771,7 +771,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withValues(alpha: 0.85),
+              color: AppTheme.primaryColor.withOpacity(0.85),
             ),
           ),
         ),
@@ -828,7 +828,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withValues(alpha: 0.85),
+              color: AppTheme.primaryColor.withOpacity(0.85),
             ),
           ),
         ),
@@ -1104,7 +1104,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               elevation: 4,
-              shadowColor: AppTheme.primaryColor.withValues(alpha: 0.35),
+              shadowColor: AppTheme.primaryColor.withOpacity(0.35),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
