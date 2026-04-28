@@ -14,51 +14,97 @@ class RecipeService {
     'YangChow 1': {
       'menu_item_name': 'YangChow 1',
       'ingredients': [
-        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Pork', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Rice', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Groceries'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Vegetables'},
+        {'name': 'YC Rice', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Squid', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Chicken Stock', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Pancit Canton/200Grams', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Pre-mix'},
+        {'name': 'Chicken Marinated (Whole chicken)', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Sweet and Sour Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Onion', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Buchi', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Davids'},
       ],
     },
     'YangChow 2': {
       'menu_item_name': 'YangChow 2',
       'ingredients': [
-        {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Wonton Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
-        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'YC Rice', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Buttered Chicken 5x350Grams', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Lumpia Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Siomai Meat (Lumpiang Shanghai)', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Bihon', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+        {'name': 'Cabbage', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Buchi', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Davids'},
       ],
     },
     'YangChow 3': {
       'menu_item_name': 'YangChow 3',
       'ingredients': [
-        {'name': 'Seafood', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Rice', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Groceries'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Vegetables'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'YC Rice', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Corn', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Pancit Canton/200Grams', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Pre-mix'},
+        {'name': 'Chicken Marinated (Whole chicken)', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Flour', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Lumpia Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Siomai Meat (Lumpiang Shanghai)', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Onion', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Buchi', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Davids'},
       ],
     },
     'YangChow 4': {
       'menu_item_name': 'YangChow 4',
       'ingredients': [
-        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Pork', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Beef', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Seafood', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Rice', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Groceries'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Vegetables'},
+        {'name': 'YC Rice', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Bihon', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+        {'name': 'Chicken Marinated (Whole chicken)', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Flour', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Lumpia Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Siomai Meat (Lumpiang Shanghai)', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Patatim', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Roasting'},
+        {'name': 'Cuapao', 'quantity': 1.0, 'unit': 'order', 'category': 'Davids'},
+        {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Buchi', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Davids'},
       ],
     },
     'Overload Meal': {
       'menu_item_name': 'Overload Meal',
       'ingredients': [
-        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Pork', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Rice', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Chicken Marinated (Whole chicken)', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Squid', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Chicken Stock', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Sweet and Sour Pork 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Sweet and Sour Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Tofu', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Lechon Macau', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Roasting'},
+        {'name': 'Spices', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Tausi Sauce', 'quantity': 1.0, 'unit': 'gram', 'category': 'Sauces'},
+        {'name': 'Spicy Spareribs 5x300', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Lemon Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
       ],
     },
 
@@ -66,12 +112,10 @@ class RecipeService {
     'Broccoli Leaves with Oyster Sauce': {
       'menu_item_name': 'Broccoli Leaves with Oyster Sauce',
       'ingredients': [
-        {'name': 'Sea Cucumber', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
         {'name': 'Beef Broth', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Rice Wine', 'quantity': 1.0, 'unit': 'bot', 'category': 'Groceries'},
         {'name': 'White Pepper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
@@ -82,9 +126,15 @@ class RecipeService {
     'Broccoli Flower with Oyster Sauce': {
       'menu_item_name': 'Broccoli Flower with Oyster Sauce',
       'ingredients': [
-        {'name': 'Oyster', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Flour', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Beef Broth', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Rice Wine', 'quantity': 1.0, 'unit': 'bot', 'category': 'Groceries'},
+        {'name': 'White Pepper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+        {'name': 'Potato Starch', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Sesame Oil', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Taiwan Pechay with Oyster Sauce': {
@@ -92,14 +142,14 @@ class RecipeService {
       'ingredients': [
         {'name': 'Taiwan Pechay', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Spinach/Polanchay Stir Fried': {
       'menu_item_name': 'Spinach/Polanchay Stir Fried',
       'ingredients': [
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
@@ -108,7 +158,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Sea Cucumber', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
@@ -116,7 +166,7 @@ class RecipeService {
       'menu_item_name': 'Lohanchay',
       'ingredients': [
         {'name': 'Cabbage', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
@@ -126,6 +176,7 @@ class RecipeService {
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
         {'name': 'Onion', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Carrots', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
@@ -133,7 +184,7 @@ class RecipeService {
       'menu_item_name': 'Chinese Kangkong with Garlic',
       'ingredients': [
         {'name': 'Kangkong', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
@@ -142,10 +193,10 @@ class RecipeService {
     'YC Special Noodles': {
       'menu_item_name': 'YC Special Noodles',
       'ingredients': [
-        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Lo Mein Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
       ],
     },
 
@@ -153,57 +204,59 @@ class RecipeService {
     'Chicken Corn Soup': {
       'menu_item_name': 'Chicken Corn Soup',
       'ingredients': [
-        {'name': 'Cream Corn', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Cream Corn', 'quantity': 1.0, 'unit': 'can', 'category': 'Groceries'},
+        {'name': 'Sliced Chicken 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
       ],
     },
     'Hot & Sour Soup': {
       'menu_item_name': 'Hot & Sour Soup',
       'ingredients': [
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Tofu', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vinegar', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Tofu', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Vinegar', 'quantity': 1.0, 'unit': 'bot', 'category': 'Groceries'},
       ],
     },
     'Hototay Soup': {
       'menu_item_name': 'Hototay Soup',
       'ingredients': [
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Carrots', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Vinegar', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Vinegar', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Minced Beef with Egg White Soup': {
       'menu_item_name': 'Minced Beef with Egg White Soup',
       'ingredients': [
-        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
-        {'name': 'Beef', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Soup Stock', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
+        {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Nido Soup with Quail Egg': {
       'menu_item_name': 'Nido Soup with Quail Egg',
       'ingredients': [
-        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Rice Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Soup Stock', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
     'Spinach Seafood Soup': {
       'menu_item_name': 'Spinach Seafood Soup',
       'ingredients': [
         {'name': 'Mixed Seafood', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Chicken Stock', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Soup Stock', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
     'Crab Meat Corn Soup': {
       'menu_item_name': 'Crab Meat Corn Soup',
       'ingredients': [
-        {'name': 'Corn', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Chicken', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Crab Stick', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Cream Corn', 'quantity': 1.0, 'unit': 'can', 'category': 'Groceries'},
+        {'name': 'Soup Stock', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
 
@@ -211,73 +264,83 @@ class RecipeService {
     'Salt & Pepper Squid': {
       'menu_item_name': 'Salt & Pepper Squid',
       'ingredients': [
-        {'name': 'Squid', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Chicken Stock', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Slice Squid 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Iodized Salt', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Bell Pepper', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Broccoli Flower with Squid': {
       'menu_item_name': 'Broccoli Flower with Squid',
       'ingredients': [
         {'name': 'Slice Squid 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Broccoli Flower with Shrimp': {
       'menu_item_name': 'Broccoli Flower with Shrimp',
       'ingredients': [
         {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Steamed Fish Fillet with Oyster Sauce': {
       'menu_item_name': 'Steamed Fish Fillet with Oyster Sauce',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Fish Fillet with Salt & Pepper': {
       'menu_item_name': 'Fish Fillet with Salt & Pepper',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Iodized Salt', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Bell Pepper', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Sweet and Sour Fish Fillet': {
       'menu_item_name': 'Sweet and Sour Fish Fillet',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Sweet and Sour Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
       ],
     },
     'Fish Fillet with Tausi Sauce': {
       'menu_item_name': 'Fish Fillet with Tausi Sauce',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Spices', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Tausi Sauce', 'quantity': 1.0, 'unit': 'gram', 'category': 'Sauces'},
       ],
     },
     'Fish Fillet with Broccoli Flower': {
       'menu_item_name': 'Fish Fillet with Broccoli Flower',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Onion', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Broccoli Flower', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Fish Fillet with Sweet Corn': {
       'menu_item_name': 'Fish Fillet with Sweet Corn',
       'ingredients': [
-        {'name': 'Fish', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Cream Corn', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Fish Fillet 5x250', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Cream Corn', 'quantity': 1.0, 'unit': 'can', 'category': 'Groceries'},
       ],
     },
     'Hot Shrimp Salad': {
@@ -285,15 +348,15 @@ class RecipeService {
       'ingredients': [
         {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Camaron Rebusado': {
       'menu_item_name': 'Camaron Rebusado',
       'ingredients': [
         {'name': 'Camaron', 'quantity': 1.0, 'unit': 'gram', 'category': 'Sauces'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Shrimp with Scramble Egg': {
@@ -301,7 +364,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
         {'name': 'Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
 
@@ -318,7 +381,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Roast Pork Asado', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Roasting'},
         {'name': 'Asado Sauce', 'quantity': 1.0, 'unit': 'bot', 'category': 'Sauces'},
-        {'name': 'Sugar', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Brown Sugar', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Roast Chicken': {
@@ -349,8 +412,8 @@ class RecipeService {
       'menu_item_name': 'Soyed Taufo',
       'ingredients': [
         {'name': 'Tofu', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
-        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
 
@@ -388,8 +451,8 @@ class RecipeService {
       'menu_item_name': 'Spareribs Ampalaya with Tausi',
       'ingredients': [
         {'name': 'Spicy Spareribs 5x300', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Ampalaya', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
-        {'name': 'Tausi', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
+        {'name': 'Ampalaya', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Tausi Sauce', 'quantity': 1.0, 'unit': 'gram', 'category': 'Sauces'},
       ],
     },
     'Spareribs with Salt and Pepper': {
@@ -421,7 +484,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Pancit Canton/200Grams', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Pre-mix'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Seafood Canton': {
@@ -430,7 +493,7 @@ class RecipeService {
         {'name': 'Pancit Canton/200Grams', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Pre-mix'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Slice Squid 5x200', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Mixed Seafood', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
       ],
     },
     'Sliced Beef Hofan': {
@@ -504,14 +567,14 @@ class RecipeService {
     'Wanton Noodles': {
       'menu_item_name': 'Wanton Noodles',
       'ingredients': [
-        {'name': 'Wonton', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Wonton Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Beef Brisket & Wonton Noodles': {
       'menu_item_name': 'Beef Brisket & Wonton Noodles',
       'ingredients': [
-        {'name': 'Wonton', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Wonton Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
       ],
     },
@@ -552,8 +615,9 @@ class RecipeService {
       'menu_item_name': 'Minced Pork with Eggplant in Hot Pot',
       'ingredients': [
         {'name': 'Premium Seafood', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Premium Broth', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Talong', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Fish Fillet with Taufo in Hot Pot': {
@@ -561,7 +625,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Mixed Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
         {'name': 'Tofu', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Hot Pot Broth', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
+        {'name': 'Fish Fillet 5x250g', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
       ],
     },
     'Lechon Kawali in Hot Pot': {
@@ -576,7 +640,8 @@ class RecipeService {
       'menu_item_name': 'Seafood Taufo in Hot Pot',
       'ingredients': [
         {'name': 'Mixed Seafood', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Tofu', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Hot Pot Broth', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
       ],
     },
@@ -584,7 +649,7 @@ class RecipeService {
       'menu_item_name': 'Beef Brisket with Raddish in Hot Pot',
       'ingredients': [
         {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Hot Pot Broth', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
       ],
     },
@@ -593,7 +658,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Roast Pork Asado', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Roasting'},
         {'name': 'Tofu', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'gram', 'category': 'Vegetables'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
         {'name': 'Hot Pot Broth', 'quantity': 1.0, 'unit': 'ml', 'category': 'Groceries'},
       ],
     },
@@ -662,13 +727,15 @@ class RecipeService {
       'menu_item_name': 'Siomai with Shrimp',
       'ingredients': [
         {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Wonton Wrapper', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Siomai Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
     'Quail Egg Siomai': {
       'menu_item_name': 'Quail Egg Siomai',
       'ingredients': [
         {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
+        {'name': 'Siomai Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
         {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
@@ -774,6 +841,7 @@ class RecipeService {
       'menu_item_name': 'Beef Balls Congee',
       'ingredients': [
         {'name': 'Lugaw', 'quantity': 1.0, 'unit': 'pack', 'category': 'Roasting'},
+        {'name': 'Beef Campto', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
         {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
@@ -790,7 +858,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Lugaw', 'quantity': 1.0, 'unit': 'pack', 'category': 'Roasting'},
         {'name': 'Century Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
-        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
+        {'name': 'Ginger', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
     'Fresh Egg': {
