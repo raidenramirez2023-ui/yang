@@ -38,6 +38,9 @@ class _OrderListPanelState extends State<OrderListPanel> {
   String _discountLabel = 'None';
   String _discountCustomerName = '';
   String _discountCustomerAddress = '';
+  
+  // Map to manage TextEditingController for each cart item
+  final Map<String, TextEditingController> _quantityControllers = {};
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
@@ -59,7 +62,29 @@ class _OrderListPanelState extends State<OrderListPanel> {
     _noteController.dispose();
     _guestCountController.dispose();
     _tableNumberController.dispose();
+    // Dispose all quantity controllers
+    for (final controller in _quantityControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  // Get or create controller for a specific item
+  TextEditingController _getQuantityController(CartItem item) {
+    final key = item.item.name;
+    if (!_quantityControllers.containsKey(key)) {
+      _quantityControllers[key] = TextEditingController(text: '${item.quantity}');
+    }
+    return _quantityControllers[key]!;
+  }
+
+  // Update controller text when quantity changes
+  void _updateQuantityController(CartItem item) {
+    final key = item.item.name;
+    final controller = _quantityControllers[key];
+    if (controller != null && controller.text != '${item.quantity}') {
+      controller.text = '${item.quantity}';
+    }
   }
 
   double get _subtotal => widget.cart.fold(
@@ -75,6 +100,16 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // Clean up controllers for items that are no longer in cart
+    final currentItems = widget.cart.map((item) => item.item.name).toSet();
+    _quantityControllers.removeWhere((key, controller) {
+      if (!currentItems.contains(key)) {
+        controller.dispose();
+        return true;
+      }
+      return false;
+    });
+
     return Container(
       width: widget.isMobile ? double.infinity : 360,
       decoration: const BoxDecoration(
@@ -108,7 +143,11 @@ class _OrderListPanelState extends State<OrderListPanel> {
                       ),
                     )
                   else
-                    ...widget.cart.map(_buildCartItem),
+                    ...widget.cart.map((item) {
+                      // Update controller text before building
+                      _updateQuantityController(item);
+                      return _buildCartItem(item);
+                    }),
                   const SizedBox(height: 4),
                 ],
               ),
@@ -365,15 +404,49 @@ class _OrderListPanelState extends State<OrderListPanel> {
                           () => widget.onQuantityDecreased(item),
                         ),
                         SizedBox(
-                          width: 32,
-                          child: Center(
-                            child: Text(
-                              '${item.quantity}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                          width: 40,
+                          height: 26,
+                          child: TextField(
+                            controller: _getQuantityController(item),
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            ),
+                            onSubmitted: (value) {
+                              final newQuantity = int.tryParse(value) ?? 1;
+                              if (newQuantity > 0 && newQuantity != item.quantity) {
+                                // Calculate the difference and update accordingly
+                                final currentQuantity = item.quantity;
+                                if (newQuantity > currentQuantity) {
+                                  // Increase by the difference
+                                  for (int i = 0; i < (newQuantity - currentQuantity); i++) {
+                                    widget.onQuantityIncreased(item);
+                                  }
+                                } else if (newQuantity < currentQuantity) {
+                                  // Decrease by the difference
+                                  for (int i = 0; i < (currentQuantity - newQuantity); i++) {
+                                    widget.onQuantityDecreased(item);
+                                  }
+                                }
+                              } else if (newQuantity <= 0) {
+                                // Reset to 1 if invalid quantity
+                                _getQuantityController(item).text = '${item.quantity}';
+                              }
+                            },
+                            onChanged: (value) {
+                              // Optional: Real-time validation or feedback
+                              final enteredValue = int.tryParse(value);
+                              if (enteredValue != null && enteredValue < 0) {
+                                _getQuantityController(item).text = '0';
+                              }
+                            },
                           ),
                         ),
                         _qtyBtn(
@@ -652,7 +725,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
                     controller: otherController,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Enter valid ID or reason...',
+                      hintText: 'Enter valid ID...',
                       hintStyle: const TextStyle(fontSize: 13, color: _grey),
                       filled: true,
                       fillColor: _bg,
