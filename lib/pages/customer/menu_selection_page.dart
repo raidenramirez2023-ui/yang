@@ -6,6 +6,8 @@ import '../../services/menu_reservation_service.dart';
 import '../../services/menu_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/recipe_service.dart';
 
 class MenuSelectionPage extends StatefulWidget {
   final String reservationType;
@@ -38,6 +40,9 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   double _totalPrice = 0.0;
   double _depositAmount = 0.0;
 
+  final Map<String, num> _inventoryCache = {};
+  bool _isFetchingInventory = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +54,88 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     }
     
     _updatePricing();
+    _fetchInventory();
+  }
+
+  Future<void> _fetchInventory() async {
+    if (_isFetchingInventory) return;
+    if (mounted) setState(() => _isFetchingInventory = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final data = await supabase.from('kitchen_inventory').select('name, quantity');
+      if (data != null) {
+        final Map<String, num> newCache = {};
+        for (var item in data) {
+          final name = item['name']?.toString().toLowerCase() ?? '';
+          newCache[name] = (item['quantity'] as num?) ?? 0;
+        }
+        if (mounted) {
+          setState(() {
+            _inventoryCache.clear();
+            _inventoryCache.addAll(newCache);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching inventory for Menu Selection: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingInventory = false);
+    }
+  }
+
+  bool _isStockAvailable(String itemName, int requestedQuantity) {
+    final recipeData = RecipeService.recipeDatabase[itemName];
+    if (recipeData == null) return true;
+
+    final List ingredients = recipeData['ingredients'];
+    for (final ing in ingredients) {
+      final String ingName = ing['name'].toString().toLowerCase();
+      
+      num? stock;
+      if (_inventoryCache.containsKey(ingName)) {
+        stock = _inventoryCache[ingName];
+      } else {
+        for (final entry in _inventoryCache.entries) {
+          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
+            stock = entry.value;
+            break;
+          }
+        }
+      }
+
+      if (stock != null) {
+        // Calculate required ingredient quantity based on recipe and order quantity
+        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
+        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
+        
+        // Check if required quantity exceeds current stock
+        if (requiredQty > stock) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return false;
+        }
+        
+        // Check if stock is zero - no stock available
+        if (stock <= 0) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   @override
@@ -66,8 +153,11 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   }
 
   void _addToSelection(MenuItem item) {
+    int currentQty = selectedItems[item.name] ?? 0;
+    if (!_isStockAvailable(item.name, currentQty + 1)) return;
+    
     setState(() {
-      selectedItems[item.name] = (selectedItems[item.name] ?? 0) + 1;
+      selectedItems[item.name] = currentQty + 1;
     });
     _updatePricing();
   }
