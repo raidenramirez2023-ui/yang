@@ -24,11 +24,11 @@ class RecipeService {
     'YangChow 2': {
       'menu_item_name': 'YangChow 2',
       'ingredients': [
-        {'name': 'Beef', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Fresh'},
-        {'name': 'Noodles', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Groceries'},
-        {'name': 'Soy Sauce', 'quantity': 1.0, 'unit': 'ml', 'category': 'Sauces'},
-        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilos', 'category': 'Vegetables'},
-        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Fresh'},
+        {'name': 'Slice Beef 5x120', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Wonton Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
+        {'name': 'Eggs', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
       ],
     },
     'YangChow 3': {
@@ -1161,8 +1161,9 @@ class RecipeService {
 
         if (matchingItem != null) {
           final int currentQty = (matchingItem['quantity'] as num?)?.toInt() ?? 0;
-          // Calculate deduction - always deduct only 1 unit per ingredient, regardless of order quantity
-          final int deduction = 1;
+          // Calculate deduction based on ingredient quantity from recipe and order quantity
+          final double ingredientQtyPerUnit = ingredient.quantity;
+          final int deduction = (ingredientQtyPerUnit * orderQuantity).round();
           final int newQty = (currentQty - deduction).clamp(0, 999999).toInt();
 
           await Supabase.instance.client
@@ -1170,7 +1171,7 @@ class RecipeService {
               .update({'quantity': newQty})
               .eq('id', matchingItem['id']);
           
-          debugPrint('Auto-Inventory: Deducted $deduction unit of "${matchingItem['name']}" for "$menuItemName" (ordered: $orderQuantity). New stock: $newQty');
+          debugPrint('Auto-Inventory: Deducted $deduction unit of "${matchingItem['name']}" for "$menuItemName" (ordered: $orderQuantity, recipe qty per unit: $ingredientQtyPerUnit). New stock: $newQty');
         } else {
           debugPrint('Auto-Inventory: No matching inventory item found for ingredient "${ingredient.name}"');
         }
@@ -1219,12 +1220,21 @@ class RecipeService {
 
           if (matchingItem != null) {
             final num currentStock = (matchingItem['quantity'] as num?) ?? 0;
-            // The limit is: orderQuantity <= currentStock - 1
-            final num maxAllowed = currentStock - 1;
             
-            if (cartItem.quantity > maxAllowed) {
+            // Calculate required ingredient quantity based on recipe and order quantity
+            final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
+            final double requiredQty = ingredientQtyPerUnit * cartItem.quantity;
+            
+            // Check if required quantity exceeds current stock
+            if (requiredQty > currentStock) {
               final String itemName = cartItem.item.name;
-              return 'Max limit due to stock! Only ${maxAllowed.toInt()} available for $itemName.';
+              return 'No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${currentStock.toInt()} available.';
+            }
+            
+            // Check if stock is zero - no stock available
+            if (currentStock <= 0) {
+              final String itemName = cartItem.item.name;
+              return 'No stock available for $itemName. No ${ing['name']} available.';
             }
           }
         }
