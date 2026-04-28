@@ -19,7 +19,6 @@ class MenuService {
     'Chicken',
     'Beef',
     'Appetizer',
-    'Drinks',
   ];
 
   static final Map<String, List<String>> categoryImages = {
@@ -170,22 +169,6 @@ class MenuService {
       'assets/images/JellyFCE.jpg',
       'assets/images/JellyFish.jpg',
       'assets/images/Calamares.jpg',
-    ],
-    'Drinks': [
-      'assets/images/NatureSpring.jpg',
-      'assets/images/Lipton.jpg',
-      'assets/images/7UPCan.jpg',
-      'assets/images/PepsiRegBottle.jpg',
-      'assets/images/PepsiMaxCan.jpg',
-      'assets/images/MirindaCan.jpg',
-      'assets/images/MountainDCan.jpg',
-      'assets/images/MugRBCan.jpg',
-      'assets/images/SanMigLBot.jpg',
-      'assets/images/7UPliter.jpg',
-      'assets/images/Mirindaliter.jpg',
-      'assets/images/MountainDliter.jpg',
-      'assets/images/PepsiRegliter.jpg',
-      'assets/images/PepsiMaxliter.jpg',
     ],
     'default': ['assets/images/YCFriedRice.jpg'],
   };
@@ -393,24 +376,6 @@ class MenuService {
       item('Jelly Fish with Century Egg', 278.80, 'Appetizer', Colors.orange, customImagePath: 'assets/images/JellyFCE.jpg', description: 'A traditional Chinese appetizer featuring chilled jelly fish and century egg.'),
       item('Jelly Fish', 198.80, 'Appetizer', Colors.pink, customImagePath: 'assets/images/JellyFish.jpg', description: 'Chilled jelly fish seasoned with sesame oil and spices.'),
       item('Calamares', 298.80, 'Appetizer', Colors.deepOrange, customImagePath: 'assets/images/Calamares.jpg', description: 'Deep-fried battered squid rings served with a dipping sauce.'),
-    ]);
-
-    // Drinks
-    menu['Drinks']!.addAll([
-      item('Natures Spring 350ML', 20.80, 'Drinks', Colors.orange, customImagePath: 'assets/images/NatureSpring.jpg', description: 'Refreshing bottled mineral water.'),
-      item('Lipton Iced Tea Lemon Can', 78.80, 'Drinks', Colors.pink, customImagePath: 'assets/images/Lipton.jpg', description: 'Refreshing lemon-flavored iced tea.'),
-      item('7UP Can', 78.80, 'Drinks', Colors.deepOrange, customImagePath: 'assets/images/7UPCan.jpg', description: 'Crisp and clear lemon-lime soda.'),
-      item('Pepsi Regular Bottle', 78.80, 'Drinks', Colors.orange, customImagePath: 'assets/images/PepsiRegBottle.jpg', description: 'Classic cola refreshment.'),
-      item('Pepsi Max Can', 78.80, 'Drinks', Colors.pink, customImagePath: 'assets/images/PepsiMaxCan.jpg', description: 'Maximum taste, zero sugar.'),
-      item('Mirinda Can', 78.80, 'Drinks', Colors.pink, customImagePath: 'assets/images/MirindaCan.jpg', description: 'Fun and fruity orange soda.'),
-      item('Mountain Dew Can', 78.80, 'Drinks', Colors.deepOrange, customImagePath: 'assets/images/MountainDCan.jpg', description: 'Bold and refreshing citrus soda.'),
-      item('Mug Root Beer Can', 78.80, 'Drinks', Colors.orange, customImagePath: 'assets/images/MugRBCan.jpg', description: 'Classic creamy root beer.'),
-      item('San Mig Light Bottle', 78.80, 'Drinks', Colors.deepOrange, customImagePath: 'assets/images/SanMigLBot.jpg', description: 'Light and crisp beer.'),
-      item('7UP 1.5 Liter', 108.80, 'Drinks', Colors.orange, customImagePath: 'assets/images/7UPliter.jpg', description: 'Large bottle of lemon-lime soda.'),
-      item('Mirinda 1.5 Liter', 108.80, 'Drinks', Colors.pink, customImagePath: 'assets/images/Mirindaliter.jpg', description: 'Large bottle of orange soda.'),
-      item('Mountain Dew 1.5 Liter', 108.80, 'Drinks', Colors.deepOrange, customImagePath: 'assets/images/MountainDliter.jpg', description: 'Large bottle of citrus soda.'),
-      item('Pepsi Regular 1.5 Liter', 108.80, 'Drinks', Colors.orange, customImagePath: 'assets/images/PepsiRegliter.jpg', description: 'Large bottle of classic cola.'),
-      item('Pepsi Max 1.5 Liter', 108.80, 'Drinks', Colors.pink, customImagePath: 'assets/images/PepsiMaxliter.jpg', description: 'Large bottle of zero-sugar cola.'),
     ]);
 
     return menu;
