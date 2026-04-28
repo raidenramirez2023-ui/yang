@@ -2,7 +2,31 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 import 'dart:async';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10,7 +34,31 @@ import 'package:fl_chart/fl_chart.dart';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 import 'package:flutter/material.dart';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -18,11 +66,47 @@ import 'package:yang_chow/utils/app_theme.dart';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 import 'package:yang_chow/utils/responsive_utils.dart';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -38,7 +122,55 @@ import 'package:intl/intl.dart';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class AdminDashboardPage extends StatefulWidget {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -50,11 +182,59 @@ class AdminDashboardPage extends StatefulWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   @override
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -66,7 +246,43 @@ class AdminDashboardPage extends StatefulWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class _AdminDashboardPageState extends State<AdminDashboardPage>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -74,11 +290,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   late AnimationController _controller;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   late Animation<double> _fadeIn;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -90,7 +342,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   final _supabase = Supabase.instance.client;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -98,11 +386,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   late Stream<List<Map<String, dynamic>>> _advanceOrdersStream;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   late Stream<List<Map<String, dynamic>>> _inventoryStream;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -114,7 +438,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── KPI data (now derived from streams) ──────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -122,7 +482,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _totalOrders = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -130,7 +514,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _totalCustomers = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -138,7 +546,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _pendingReservations = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -146,7 +578,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _pendingOrders = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -154,7 +610,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _readyOrders = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -162,7 +642,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _lowStock = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -170,7 +674,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Advance Order Performance ──────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -178,7 +706,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   bool _showEventReservationPerformance = false;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -186,11 +738,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _cancelledAdvanceOrdersCount = 0;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   double _advanceCancellationRate = 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -202,7 +790,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Event Reservation Performance ───────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -210,7 +834,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _completedEventReservationsCount = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -218,12 +866,63 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   double _eventCancellationRate = 0.0;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Map<String, int> _popularEventItems = {};
+
+
+
   Map<String, int> _popularEventTypes = {};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -235,7 +934,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final Map<String, int> _eventTypeDistribution = {};
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -243,7 +966,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -251,7 +998,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _totalConfirmedGuests = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -259,7 +1030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _averageGuestsPerEvent = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -271,7 +1066,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Real-time Event Status Analytics ───────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -279,7 +1110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final List<Map<String, dynamic>> _ongoingEvents = [];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -287,7 +1142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Map<String, dynamic> _nextEvent = {};
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -295,7 +1174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -303,7 +1206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -311,7 +1238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -319,7 +1270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -327,7 +1302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // Recent activity (now derived from streams)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -335,7 +1334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ignore: unused_field
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -343,11 +1366,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   int _previousOrderCount = 0;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   bool? _showNewOrderNotification;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -359,11 +1418,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Real-time event conflict detection ───────────────────────────────
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final Map<String, List<Map<String, dynamic>>> _eventsByDate = {};
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -375,7 +1482,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Real-time reservation tracking ───────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -383,7 +1526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   bool? _showNewReservationNotification;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -395,7 +1562,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── UI State Variables ───────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -403,7 +1606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   DateTime? _focusedMonth;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -411,7 +1638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final String _selectedYear = '2026'; // New year selector state
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -419,7 +1670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   static const int _itemsPerPage = 10;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -429,11 +1704,53 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   @override
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   void initState() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -445,7 +1762,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Initialize state variables
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -453,11 +1806,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _showNewOrderNotification = false;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _showNewReservationNotification = false;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -469,7 +1858,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Enhanced real-time streams with immediate updates
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -477,7 +1902,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .from('orders')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -485,7 +1934,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .order('created_at', ascending: false)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -493,7 +1966,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           (events) => events.map((order) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -501,7 +1998,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             return {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -509,7 +2030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               'total_amount': order['total_amount'] ?? 0.0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -517,7 +2062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   order['created_at']?.toString() ??
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -525,7 +2094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               'customer_name': order['customer_name'] ?? 'Guest',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -533,11 +2126,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             };
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }).toList(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -549,7 +2178,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     _advanceOrdersStream = _supabase
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -557,11 +2222,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .stream(primaryKey: ['id'])
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .order('created_at', ascending: false);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -573,7 +2286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _reservationsStream = _supabase
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -581,7 +2318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .stream(primaryKey: ['id'])
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -593,7 +2354,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     _controller = AnimationController(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -601,7 +2398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       duration: const Duration(milliseconds: 700),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -609,7 +2430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -621,7 +2466,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Initialize real-time timer for countdown updates
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -629,7 +2510,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (mounted) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -637,7 +2542,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           _updateRealtimeData();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -645,7 +2574,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -653,7 +2606,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -665,7 +2654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   void dispose() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -673,11 +2686,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _realtimeTimer?.cancel();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     super.dispose();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -689,7 +2738,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   void _processData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -697,7 +2782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> allAdvanceOrders,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -705,7 +2814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> allReservations,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -713,7 +2846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Check for new orders (real-time detection)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -721,7 +2878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (_previousOrderCount > 0 && currentOrderCount > _previousOrderCount) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -729,7 +2910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final newOrders = allOrders
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -737,7 +2942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           .toList();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -745,11 +2974,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final amount = (newOrder['total_amount'] as num?)?.toDouble() ?? 0.0;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _newOrderAmount = '₱${amount.toStringAsFixed(2)}';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -761,7 +3026,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // Auto-hide notification after 3 seconds
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -769,7 +3070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (mounted) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -777,7 +3102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _showNewOrderNotification = false;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -785,7 +3134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -793,11 +3166,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -809,7 +3218,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Check for new reservations (real-time detection)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -817,7 +3262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (_previousReservationCount > 0 &&
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -825,7 +3294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       // New reservation detected!
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -833,7 +3326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           .take(currentReservationCount - _previousReservationCount)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -841,7 +3358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       for (var newReservation in newReservations) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -849,11 +3390,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final eventType = newReservation['event_type'] ?? 'Event';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final eventDate = newReservation['event_date'] ?? 'Unknown';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -865,11 +3442,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         _newReservationInfo =
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             '$customerName booked $eventType on $eventDate at $startTime';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -881,7 +3506,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // Auto-hide notification after 5 seconds
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -889,7 +3550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (mounted) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -897,7 +3582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _showNewReservationNotification = false;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -905,7 +3614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -913,11 +3646,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -929,7 +3698,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Process events for conflict detection
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -941,11 +3746,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // KPI Data
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -957,7 +3810,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Get ALL orders and advance orders for today (comprehensive daily revenue)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -965,11 +3854,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final createdAt = o['created_at']?.toString() ?? '';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return createdAt.startsWith(todayStr);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -981,7 +3906,115 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
-    final todayAdvanceOrders = allAdvanceOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    final paidAdvanceOrders = allAdvanceOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      final isPaid = o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      // Count ALL paid advance orders regardless of date
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      return isPaid;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Also get today's paid advance orders for revenue calculation
+
+
+
+    final todayPaidAdvanceOrders = allAdvanceOrders.where((o) {
 
 
 
@@ -993,7 +4026,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
-      // Only count if scheduled for today AND paid
+      // Only count if scheduled for today AND paid (for revenue)
 
 
 
@@ -1013,7 +4046,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
     final regularRevenue = todayOrders.fold(0.0, (sum, o) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1021,7 +4076,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return sum + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1029,11 +4108,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
 
 
 
-    final advanceRevenue = todayAdvanceOrders.fold(0.0, (sum, o) {
+
+
+
+
+
+
+
+
+
+
+
+
+    final advanceRevenue = todayPaidAdvanceOrders.fold(0.0, (sum, o) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1041,7 +4156,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return sum + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1049,7 +4188,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1057,15 +4220,63 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     print('DEBUG: Today regular revenue: ₱${regularRevenue}');
 
 
 
-    print('DEBUG: Today advance orders count: ${todayAdvanceOrders.length}');
 
 
 
-    print('DEBUG: Today advance revenue: ₱${advanceRevenue}');
+
+
+
+
+
+
+
+
+
+    print('DEBUG: Today advance orders count: ${todayPaidAdvanceOrders.length}');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    print('DEBUG: Today advance revenue (separate from daily): ₱${advanceRevenue}');
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1073,7 +4284,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
-    _dailyRevenue = regularRevenue + advanceRevenue + (() {
+
+
+
+
+
+
+
+
+
+
+
+
+    _dailyRevenue = regularRevenue + (() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1081,7 +4316,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final todayEventReservations = allReservations.where((r) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1089,7 +4348,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final paymentStatus = r['payment_status']?.toString() ?? '';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1097,11 +4380,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1109,7 +4428,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         if (isToday || isPaid) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1117,7 +4460,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1125,7 +4492,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         return isToday && isPaid;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1133,7 +4524,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1141,7 +4556,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1149,11 +4588,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       });
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1161,7 +4636,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       print('DEBUG: Today event revenue: ₱${eventRevenue}');
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1169,7 +4668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return eventRevenue;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1177,7 +4700,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1185,7 +4732,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
-    _totalAdvanceOrders = todayAdvanceOrders.length;
+
+
+
+
+
+
+
+
+
+
+
+
+    _totalAdvanceOrders = paidAdvanceOrders.length;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1197,7 +4780,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final regularCustomers = todayOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1205,7 +4812,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return status != 'Pending';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1213,11 +4844,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
 
 
 
-    final advanceCustomers = todayAdvanceOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
+    final advanceCustomers = todayPaidAdvanceOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1225,7 +4892,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return status != 'pending';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1233,7 +4924,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1245,7 +4960,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Reservations (Events) - Count all active confirmed and pending reservations
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1253,7 +5004,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final status = (r['status']?.toString() ?? '').toLowerCase();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1261,7 +5036,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1273,7 +5072,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     final pendingReservations = allReservations.where((r) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1281,11 +5116,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return status == 'pending' || status == 'pending_admin_approval';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1293,7 +5164,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final pendingAdvanceVerification = allAdvanceOrders.where((o) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1301,11 +5196,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return status == 'awaiting_verification';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1321,7 +5264,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Weekly Revenue Calculation
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1333,7 +5312,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Kitchen Status Counts (Real-time from today's orders)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1341,7 +5356,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
-    final pendingAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? 'pending') == 'pending').length;
+
+
+
+
+
+
+
+
+
+
+
+
+    final pendingAdvance = todayPaidAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? 'pending') == 'pending').length;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1353,11 +5392,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     final preparingRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? '') == 'Preparing').length;
 
 
 
-    final preparingAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'preparing').length;
+
+
+
+
+
+
+
+
+
+
+
+
+    final preparingAdvance = todayPaidAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'preparing').length;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1369,11 +5456,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     final readyRegular = todayOrders.where((o) => (o['kitchen_status']?.toString() ?? '') == 'Ready').length;
 
 
 
-    final readyAdvance = todayAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'ready').length;
+
+
+
+
+
+
+
+
+
+
+
+
+    final readyAdvance = todayPaidAdvanceOrders.where((o) => (o['status']?.toString().toLowerCase() ?? '') == 'ready').length;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1385,7 +5520,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Inventory Alerts (Real-time)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1393,7 +5564,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((i) => ((i['quantity'] as num?)?.toInt() ?? 0) == 0)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1401,7 +5596,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _lowStock = allInventory.where((i) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1409,7 +5628,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return q > 0 && q < 10;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1421,7 +5664,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Process Advance Order Performance (Historical)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1429,7 +5708,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((o) => o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1437,7 +5740,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1445,7 +5772,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((o) => o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1453,7 +5804,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1461,7 +5836,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((o) => o['status'] == 'cancelled')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1469,7 +5868,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1477,7 +5900,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _advanceCancellationRate = totalAdvAttempts > 0 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1485,7 +5932,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         : 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1493,7 +5964,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _popularAdvanceItems.clear();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1501,7 +5996,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1509,7 +6028,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         items.forEach((name, qty) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1517,7 +6060,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         });
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1525,7 +6092,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1537,7 +6140,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final paidEventReservations = allReservations.where((r) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1545,7 +6172,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1553,11 +6204,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final totalPrice = r['total_price'];
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1565,7 +6252,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (isPaid) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1573,7 +6284,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1581,7 +6316,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return isPaid;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1589,7 +6348,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1597,7 +6380,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1605,11 +6412,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1617,11 +6460,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     print('DEBUG: Total event revenue: ₱${_eventReservationRevenueTotal}');
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1629,7 +6508,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((r) => r['status'] == 'completed')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1637,7 +6540,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1645,7 +6572,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .where((r) => r['status'] == 'cancelled')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1653,7 +6604,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1661,7 +6636,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _eventCancellationRate = totalEventAttempts > 0 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1669,7 +6668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         : 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1677,27 +6700,123 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Calculate popular event items from completed paid events
+
+
+
     _popularEventItems.clear();
+
+
+
     for (var r in allReservations) {
+
+
+
       if (r['status'] == 'completed' && (r['payment_status'] == 'paid' || r['payment_status'] == 'fully_paid')) {
+
+
+
         final items = r['selected_menu_items'] as Map<String, dynamic>? ?? {};
+
+
+
         items.forEach((name, qty) {
+
+
+
           _popularEventItems[name] = (_popularEventItems[name] ?? 0) + (qty as num).toInt();
+
+
+
         });
+
+
+
       }
+
+
+
     }
+
+
+
+
+
+
 
     // Calculate popular event types based on completed events
+
+
+
     _popularEventTypes.clear();
+
+
+
     for (var r in allReservations) {
+
+
+
       if (r['status'] == 'completed') {
+
+
+
         final eventType = r['event_type']?.toString() ?? 'Unknown';
+
+
+
         _popularEventTypes[eventType] = (_popularEventTypes[eventType] ?? 0) + 1;
+
+
+
       }
+
+
+
     }
 
+
+
+
+
+
+
         print('DEBUG: Total paid events count: ${paidEventReservations.length}');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1709,7 +6828,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Update Recent Activity
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1721,7 +6864,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Process Confirmed Events Analytics
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1733,7 +6912,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Process Real-time Event Status
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1741,7 +6956,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1753,7 +7004,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> allReservations,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1761,7 +7036,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Filter only confirmed reservations
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1769,7 +7068,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final status = (r['status']?.toString() ?? '').toLowerCase();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1777,7 +7100,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1789,7 +7148,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _eventTypeDistribution.clear();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1797,7 +7180,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _averageEventDuration = 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1805,7 +7212,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _averageGuestsPerEvent = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1813,11 +7244,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1829,7 +7308,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1837,7 +7340,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (var reservation in confirmedReservations) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1845,7 +7372,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         reservation['event_date']?.toString() ?? '',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1853,7 +7404,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventDate != null && eventDate.year == now.year) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1861,7 +7436,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _monthlyEventTrends[monthIndex] = _monthlyEventTrends[monthIndex] + 1.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1869,7 +7468,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1881,7 +7516,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _eventTypeDistribution.clear();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1889,7 +7548,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final eventDate = DateTime.tryParse(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1897,7 +7580,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1905,7 +7612,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final eventType = reservation['event_type']?.toString() ?? 'Unknown';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1913,7 +7644,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             (_eventTypeDistribution[eventType] ?? 0) + 1;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1921,7 +7676,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1933,7 +7724,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     double totalDuration = 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1941,7 +7756,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (var reservation in confirmedReservations) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1949,7 +7788,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (duration != null && duration > 0) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1957,7 +7820,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         validDurations++;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1965,7 +7852,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1973,7 +7884,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? totalDuration / validDurations
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1985,7 +7920,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // 4. Guest Count Analytics
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1993,7 +7964,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (var reservation in confirmedReservations) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2001,7 +7996,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _totalConfirmedGuests += guests;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2009,11 +8028,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _averageGuestsPerEvent = confirmedReservations.isNotEmpty
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? (_totalConfirmedGuests / confirmedReservations.length).round()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2025,7 +8080,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // 5. Top Event Types (sorted by count)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2033,7 +8124,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _eventTypeDistribution.entries
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2041,7 +8156,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               (entry) => {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2049,7 +8188,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 'count': entry.value,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2057,7 +8220,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ? ((entry.value /
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2065,7 +8252,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     (a, b) => a + b,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2073,7 +8284,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               100)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2081,7 +8316,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     : '0.0',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2089,7 +8348,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2097,11 +8380,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int))
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ..take(5); // Top 5 event types
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2113,11 +8432,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   void _processRealtimeEventStatus(List<Map<String, dynamic>> allReservations) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2129,7 +8496,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Filter confirmed reservations
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2137,11 +8540,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final status = (r['status']?.toString() ?? '').toLowerCase();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return status == 'confirmed';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2153,7 +8592,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Clear previous lists
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2161,7 +8636,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _ongoingEvents.clear();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2169,7 +8668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _nextEvent = {};
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2177,11 +8700,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _totalExpectedGuestsToday = 0;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _currentGuestsOnSite = 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2193,7 +8752,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Process each confirmed reservation
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2201,7 +8796,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final eventDate = reservation['event_date']?.toString();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2209,11 +8828,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final duration =
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           (reservation['duration_hours'] as num?)?.toDouble() ?? 4.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2225,11 +8880,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventDate != null && startTime != null) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         DateTime eventStart;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2241,7 +8944,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         try {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2249,7 +8988,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (startTime.toUpperCase().contains('AM') ||
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2257,7 +9020,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             DateTime parsedTime = DateFormat.jm().parse(startTime.trim());
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2265,7 +9052,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             eventStart = DateTime(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2273,7 +9084,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               parsedDate.month,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2281,7 +9116,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               parsedTime.hour,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2289,7 +9148,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2297,7 +9180,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             String timeStr = startTime;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2305,11 +9212,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             eventStart = DateTime.parse('${eventDate}T$timeStr');
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2325,7 +9280,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           // Add enhanced data to reservation
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2333,7 +9324,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ...reservation,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2341,7 +9356,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'event_end': eventEnd,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2349,7 +9388,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'time_until_end': eventEnd.difference(now),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2361,7 +9424,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           // Categorize events based on current time
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2369,11 +9468,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             // Upcoming event
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _upcomingEvents.add(enhancedReservation);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2385,7 +9520,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             // Track next event (closest upcoming)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2393,7 +9564,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 eventStart.isBefore(_nextEvent['event_start'] as DateTime)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2401,7 +9596,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2409,7 +9628,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             // Ongoing event
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2417,7 +9660,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _currentGuestsOnSite += guests;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2425,7 +9692,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             // Completed event today
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2433,7 +9724,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2445,7 +9772,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           _estimatedRevenueToday += guests * 500.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2453,7 +9804,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           // If parsing fails, skip this reservation
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2461,7 +9836,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2469,7 +9868,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2481,7 +9916,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _upcomingEvents.sort((a, b) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2489,7 +9948,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final startB = b['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2497,11 +9980,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return startA.compareTo(startB);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2513,11 +10044,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final totalVenueHours =
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         12; // Assuming 12 operational hours (10 AM to 10 PM)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2529,7 +10096,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     for (var event in _ongoingEvents) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2537,7 +10140,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final end = event['event_end'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2545,11 +10172,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         // Calculate overlap with today's operational hours
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final dayStart = DateTime(now.year, now.month, now.day, 10, 0);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2561,7 +10224,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         final overlapStart = start.isAfter(dayStart) ? start : dayStart;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2573,7 +10272,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if (overlapEnd.isAfter(overlapStart)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2581,7 +10316,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2589,7 +10348,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2601,7 +10396,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? (totalBookedHours / totalVenueHours) * 100
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2613,7 +10432,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Update countdown for next event
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2621,7 +10476,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2633,7 +10524,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // This method is called every second by the timer
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2645,11 +10560,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Recalculate current guests on site (in case events ended)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2661,7 +10624,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     for (var event in _ongoingEvents) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2669,7 +10668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventEnd != null && now.isBefore(eventEnd)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2677,7 +10700,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _currentGuestsOnSite += guests;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2685,7 +10732,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2697,7 +10780,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _ongoingEvents.removeWhere((event) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2705,7 +10812,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventEnd != null && now.isAfter(eventEnd)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2713,7 +10844,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2721,7 +10876,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           _completedEventsToday.add(event);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2729,7 +10908,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         return true;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2737,11 +10940,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return false;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2753,7 +11004,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _upcomingEvents.removeWhere((event) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2761,7 +11036,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventStart != null && now.isAfter(eventStart)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2769,7 +11068,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         if (eventEnd != null && now.isBefore(eventEnd)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2777,7 +11100,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return true;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2785,7 +11132,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2793,11 +11164,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2809,7 +11228,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (_nextEvent.isNotEmpty) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2817,11 +11260,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventStart != null) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2833,7 +11312,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if (difference.inSeconds > 0) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2841,7 +11356,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _nextEventCountdown =
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2849,11 +11388,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           } else if (difference.inHours > 0) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _nextEventCountdown =
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2861,7 +11436,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           } else if (difference.inMinutes > 0) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2869,7 +11468,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 '${difference.inMinutes}m ${difference.inSeconds % 60}s';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2877,7 +11500,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _nextEventCountdown = '${difference.inSeconds}s';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2885,7 +11532,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2893,7 +11564,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2901,7 +11596,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _nextEventCountdown = '';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2909,7 +11628,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2917,11 +11660,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2933,11 +11724,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Clear previous conflicts
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _eventsByDate.clear();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2949,7 +11776,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Group confirmed reservations by date and time
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2961,7 +11824,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     for (var reservation in allReservations) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2969,7 +11868,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           reservation['status'] == 'pending') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2977,7 +11900,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         if (eventDate != null) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2985,7 +11932,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           DateTime eventStart;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2997,7 +11968,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           try {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3005,11 +12012,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 reservation['start_time']?.toString() ?? '10:00 AM';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             final durationHours =
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3021,7 +12064,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             // Parse start time
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3029,7 +12108,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 startTime.toUpperCase().contains('PM')) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3037,7 +12140,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               final parsedDate = DateTime.parse(eventDate);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3045,7 +12172,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 parsedDate.year,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3053,7 +12204,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 parsedDate.day,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3061,7 +12236,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 parsedTime.minute,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3069,7 +12268,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3077,7 +12300,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               if (timeStr.length == 5) timeStr = '$timeStr:00';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3085,7 +12332,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3097,7 +12380,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             eventEnd = eventStart.add(Duration(hours: durationHours.toInt()));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3109,7 +12428,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             final timeSlotKey = '${eventDate}_${eventStart.hour}';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3121,7 +12476,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               eventsByDateTime[timeSlotKey] = [];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3129,7 +12508,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             eventsByDateTime[timeSlotKey]!.add({
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3137,7 +12540,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               'event_start': eventStart,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3145,7 +12572,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3157,7 +12620,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (!_eventsByDate.containsKey(eventDate)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3165,7 +12652,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3173,7 +12684,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ...reservation,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3181,7 +12716,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               'event_end': eventEnd,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3189,7 +12748,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           } catch (e) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3197,7 +12780,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (!_eventsByDate.containsKey(eventDate)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3205,7 +12812,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3213,7 +12844,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3221,11 +12876,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3237,7 +12940,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (var dateKey in eventsByDateTime.keys) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3249,7 +12976,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       if (events != null && events.length > 1) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3257,7 +13020,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         events.sort((a, b) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3265,7 +13052,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           final startB = b['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3273,7 +13084,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return startA.compareTo(startB);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3285,7 +13120,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // Check for overlapping time slots with priority
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3293,11 +13164,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           for (int j = i + 1; j < events.length; j++) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             final event1 = events[i]; // Earlier event (higher priority)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3309,7 +13216,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             if (event1['event_start'] != null &&
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3317,7 +13260,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               final start1 = event1['event_start'] as DateTime;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3325,7 +13292,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               final start2 = event2['event_start'] as DateTime;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3337,7 +13328,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               // Check if time slots overlap
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3345,7 +13372,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   (start2.isBefore(end1) && end2.isAfter(start1)) ||
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3353,7 +13404,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   // Conflict detected - add date to conflict list
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3361,7 +13436,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   if (!_conflictDates.contains(dateStr)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3369,7 +13468,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3377,7 +13500,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3385,7 +13532,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3393,7 +13564,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3401,7 +13596,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3413,7 +13644,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (_selectedPeriod == 'Daily') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3421,7 +13676,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3429,7 +13708,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '11:00',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3437,7 +13740,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '13:00',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3445,7 +13772,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '15:00',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3453,7 +13804,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '17:00',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3461,7 +13836,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '19:00',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3469,7 +13868,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3477,7 +13900,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3485,7 +13932,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Tuesday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3493,7 +13964,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Thursday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3501,7 +13996,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Saturday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3509,7 +14028,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3517,7 +14060,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3525,7 +14092,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Feb',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3533,7 +14124,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Apr',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3541,7 +14156,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Jun',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3549,7 +14188,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Aug',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3557,7 +14220,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Oct',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3565,11 +14252,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'Dec',
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3577,7 +14300,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       // Annual - 2016 to current year (2026)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3585,7 +14332,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2016',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3593,7 +14364,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2018',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3601,7 +14396,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2020',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3609,7 +14428,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2022',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3617,7 +14460,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2024',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3625,7 +14492,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         '2026',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3633,11 +14524,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3649,7 +14588,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> orders,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3657,11 +14620,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   ) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3673,7 +14672,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Helper to process a list of orders
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3681,7 +14716,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       for (var order in list) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3689,7 +14748,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ? order['order_date'] // Base advance orders on scheduled date
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3697,11 +14780,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final date = DateTime.tryParse(dateStr ?? '');
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3713,7 +14832,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if (isAdvance) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3721,11 +14876,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (!isPaid) continue;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3737,7 +14940,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ? (order['total_price'] as num?)?.toDouble() ?? 0.0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3749,7 +14976,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // Apply period-specific filtering
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3757,7 +15020,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           case 'Daily':
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3765,7 +15052,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (date.year == now.year && date.month == now.month && date.day == now.day) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3773,7 +15084,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                  // Distribute advance orders at their scheduled hour
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3781,7 +15116,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     final timeStr = order['order_time']?.toString() ?? '12:00 PM';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3789,7 +15148,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     if (hour >= 10 && hour < 20) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3797,7 +15180,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       periodData[key] = (periodData[key] ?? 0) + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3805,7 +15212,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                  } catch (_) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3813,7 +15244,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                  }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3821,7 +15276,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   if (date.hour >= 10 && date.hour < 20) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3829,7 +15308,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     periodData[key] = (periodData[key] ?? 0) + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3837,7 +15340,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3845,7 +15372,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             break;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3853,7 +15404,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             final dailyDiff = now.difference(date).inDays;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3861,7 +15436,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               final key = date.weekday - 1;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3869,11 +15468,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             break;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3881,7 +15516,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (date.year.toString() == _selectedYear) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3889,7 +15548,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               periodData[key] = (periodData[key] ?? 0) + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3897,7 +15580,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             break;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3905,7 +15612,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (date.year >= 2016 && date.year <= now.year) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3913,7 +15644,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               periodData[key] = (periodData[key] ?? 0) + amount;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3921,7 +15676,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             break;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3929,11 +15708,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3945,7 +15772,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     processList(advanceOrders, true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3957,7 +15820,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (_selectedPeriod == 'Daily') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3965,7 +15852,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         11,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3973,7 +15884,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ); // 11 business hours: 10:00-20:00
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3981,7 +15916,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return List.generate(7, (i) => periodData[i] ?? 0.0);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3989,7 +15948,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return List.generate(12, (i) => periodData[i] ?? 0.0);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3997,7 +15980,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       // For yearly, generate from 2016 to current year
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4005,7 +16012,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final yearRange = currentYear - 2016 + 1;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4013,11 +16044,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4029,7 +16108,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> recentOrders,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4037,11 +16140,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     List<Map<String, dynamic>> reservations,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   ) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4053,7 +16192,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Latest 2 Orders
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4061,7 +16236,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final o = recentOrders[i];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4069,11 +16268,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final timeStr = time != null
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ? DateFormat('HH:mm').format(time)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4085,7 +16320,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       activities.add(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4093,7 +16364,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           icon: Icons.receipt_long,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4101,7 +16396,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           title: 'Order #${o['transaction_id'] ?? o['id']} Completed',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4109,7 +16428,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           time: timeStr,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4117,11 +16460,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4133,7 +16524,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     if (reservations.isNotEmpty) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4141,7 +16556,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final status = r['status']?.toString() ?? 'pending';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4153,7 +16592,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       activities.add(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4161,7 +16636,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           icon: isConfirmed ? Icons.check_circle : Icons.event_available,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4169,7 +16668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           title: isConfirmed ? 'Reservation Confirmed' : 'New Reservation',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4177,7 +16700,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           time: 'Just now',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4185,11 +16732,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4201,7 +16796,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final lowStockItems = inventory
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4209,7 +16828,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .take(2)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4217,7 +16860,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (var item in lowStockItems) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4225,7 +16892,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         _ActivityItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4233,7 +16924,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           color: AppTheme.warningOrange,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4241,7 +16956,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           subtitle: '${item['item_name']} · ${item['quantity']} left',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4249,11 +16988,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4265,11 +17040,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     _recentActivity = activities;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4279,7 +17102,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   @override
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4287,7 +17140,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final isDesktop = ResponsiveUtils.isDesktop(context);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4299,7 +17176,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return StreamBuilder<List<Map<String, dynamic>>>(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4307,7 +17220,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       builder: (context, orderSnapshot) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4315,7 +17252,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           stream: _advanceOrdersStream,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4323,7 +17284,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             return StreamBuilder<List<Map<String, dynamic>>>(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4331,7 +17316,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               builder: (context, invSnapshot) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4339,7 +17348,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   stream: _reservationsStream,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4347,7 +17380,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     final allOrders = orderSnapshot.data ?? [];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4355,7 +17412,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     final allInventory = invSnapshot.data ?? [];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4367,7 +17448,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     _processData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4375,7 +17492,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       allAdvanceOrders,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4383,7 +17524,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       allReservations,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4395,7 +17560,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 return FadeTransition(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4403,7 +17604,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   child: Stack(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4411,7 +17636,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       SingleChildScrollView(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4419,7 +17668,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ? const EdgeInsets.all(AppTheme.md)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4427,7 +17700,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4435,7 +17732,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4443,7 +17764,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             const SizedBox(height: AppTheme.xl),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4455,7 +17812,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             _buildSectionTitle(context, 'Today\'s Overview'),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4463,11 +17844,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             _buildKpiGrid(isDesktop || isTablet),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             const SizedBox(height: AppTheme.xl),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4479,7 +17908,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ResponsiveUtils.isMobile(context)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4487,7 +17940,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4495,7 +17972,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4503,11 +18004,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4515,7 +18052,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ? Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4523,11 +18084,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         CrossAxisAlignment.start,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4535,7 +18132,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         flex: 3,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4543,7 +18164,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4551,7 +18196,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                             const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4559,7 +18228,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4567,11 +18260,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4579,7 +18308,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 : Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4587,7 +18340,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       _buildRevenueChart(context),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4595,7 +18372,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       _buildVenueStatus(context),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4603,7 +18404,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4619,7 +18456,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                             const SizedBox(height: AppTheme.md),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4627,7 +18500,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                context,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4635,11 +18532,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                              ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                              const SizedBox(height: AppTheme.xl),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4651,15 +18596,63 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                              _buildClickableSectionTitle(context, 'Advance Order Performance', () {
+
+
+
+
+
+
 
                                setState(() {
 
+
+
+
+
+
+
                                  _showEventReservationPerformance = !_showEventReservationPerformance;
+
+
+
+
+
+
 
                                });
 
+
+
+
+
+
+
                              }),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4667,93 +18660,387 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                              // Responsive layout for Advance Order and Event Reservation Performance
+
+
+
+
+
+
 
                              ResponsiveUtils.isMobile(context)
 
+
+
+
+
+
+
                                  ? Column(
+
+
+
+
+
+
 
                                      crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
+
+
+
+
                                      children: [
+
+
+
+
+
+
 
                                        _buildAdvanceOrderPerformance(context),
 
+
+
+
+
+
+
                                        
+
+
+
+
+
+
 
                                        // Event Reservation Performance (below on mobile) - only show when toggled
 
+
+
+
+
+
+
                                        if (_showEventReservationPerformance) ...[
+
+
+
+
+
+
 
                                          const SizedBox(height: AppTheme.lg),
 
+
+
+
+
+
+
                                          _buildSectionTitle(context, 'Event Reservation Performance'),
+
+
+
+
+
+
 
                                          const SizedBox(height: AppTheme.md),
 
+
+
+
+
+
+
                                          _buildEventReservationPerformance(context),
+
+
+
+
+
+
 
                                        ],
 
+
+
+
+
+
+
                                      ],
+
+
+
+
+
+
 
                                    )
 
+
+
+
+
+
+
                                  : Row(
+
+
+
+
+
+
 
                                      crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
+
+
+
+
                                      children: [
+
+
+
+
+
+
 
                                        // Advance Order Performance (left side)
 
+
+
+
+
+
+
                                        Expanded(
+
+
+
+
+
+
 
                                          flex: 1,
 
+
+
+
+
+
+
                                          child: _buildAdvanceOrderPerformance(context),
+
+
+
+
+
+
 
                                        ),
 
+
+
+
+
+
+
                                        
+
+
+
+
+
+
 
                                        // Event Reservation Performance (right side) - only show when toggled
 
+
+
+
+
+
+
                                        if (_showEventReservationPerformance) ...[
+
+
+
+
+
+
 
                                          const SizedBox(width: AppTheme.lg),
 
+
+
+
+
+
+
                                          Expanded(
+
+
+
+
+
+
 
                                            flex: 1,
 
+
+
+
+
+
+
                                            child: Column(
+
+
+
+
+
+
 
                                              crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
+
+
+
+
                                              children: [
+
+
+
+
+
+
 
                                                _buildSectionTitle(context, 'Event Reservation Performance'),
 
+
+
+
+
+
+
                                                const SizedBox(height: AppTheme.md),
+
+
+
+
+
+
 
                                                _buildEventReservationPerformance(context),
 
+
+
+
+
+
+
                                              ],
+
+
+
+
+
+
 
                                            ),
 
+
+
+
+
+
+
                                          ),
+
+
+
+
+
+
 
                                        ],
 
+
+
+
+
+
+
                                      ],
+
+
+
+
+
+
 
                                    ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                              const SizedBox(height: AppTheme.xl),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4767,7 +19054,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                             // ── Monthly Event Schedule ──────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4775,11 +19092,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             const SizedBox(height: AppTheme.md),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             _buildMonthlyOverview(context),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4791,7 +19144,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                             ResponsiveUtils.isMobile(context)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4799,7 +19188,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4807,7 +19220,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4815,11 +19252,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4827,7 +19300,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ? Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4835,11 +19332,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         CrossAxisAlignment.start,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4847,7 +19380,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         flex: 3,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4855,7 +19412,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4863,7 +19444,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                             const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4871,7 +19476,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4879,11 +19508,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4891,7 +19556,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 : Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4899,7 +19588,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       _buildOperationsMonitor(context),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4907,7 +19620,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       _buildRecentActivity(context),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4915,7 +19652,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4927,11 +19700,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4939,7 +19748,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       // Real-time notification overlay
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4947,7 +19780,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         Positioned(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4955,7 +19812,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           right: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4963,7 +19844,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4971,7 +19876,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       if (_showNewReservationNotification ?? false)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4979,7 +19908,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           top: 80,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4987,11 +19940,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           child: _buildNewReservationNotification(),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5003,7 +20004,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5011,7 +20036,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5019,7 +20068,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5027,7 +20100,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5035,7 +20132,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5043,7 +20164,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5055,7 +20212,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildGreeting(BuildContext context) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5063,7 +20244,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final greeting = hour < 12
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5071,11 +20276,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         : hour < 17
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? 'Good Afternoon'
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5087,7 +20328,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5095,7 +20372,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5103,7 +20404,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5111,7 +20436,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5119,7 +20468,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5127,7 +20500,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5135,7 +20532,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5143,7 +20564,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5151,11 +20596,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5163,7 +20644,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5171,7 +20676,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5179,11 +20708,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5191,11 +20756,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5203,7 +20804,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5211,7 +20836,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       height: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5219,7 +20868,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5227,7 +20900,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5235,7 +20932,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5243,7 +20964,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5251,7 +20996,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5259,7 +21028,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5267,7 +21060,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5279,7 +21108,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildSectionTitle(BuildContext context, String title) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5287,7 +21140,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5295,7 +21172,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           width: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5303,7 +21204,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5311,7 +21236,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             borderRadius: BorderRadius.circular(4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5319,7 +21268,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5327,7 +21300,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               end: Alignment.bottomCenter,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5335,11 +21332,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5347,7 +21380,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5355,7 +21412,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5363,7 +21444,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5371,11 +21476,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5383,11 +21524,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5395,103 +21572,427 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildClickableSectionTitle(BuildContext context, String title, VoidCallback onTap) {
+
+
+
+
+
+
 
     return InkWell(
 
+
+
+
+
+
+
       onTap: onTap,
+
+
+
+
+
+
 
       borderRadius: BorderRadius.circular(8),
 
+
+
+
+
+
+
       child: Container(
+
+
+
+
+
+
 
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
 
+
+
+
+
+
+
         decoration: BoxDecoration(
+
+
+
+
+
+
 
           borderRadius: BorderRadius.circular(8),
 
+
+
+
+
+
+
           color: _showEventReservationPerformance 
+
+
+
+
+
+
 
               ? AppTheme.primaryColor.withOpacity(0.1) 
 
+
+
+
+
+
+
               : Colors.transparent,
 
+
+
+
+
+
+
         ),
+
+
+
+
+
+
 
         child: Row(
 
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
 
             Container(
 
+
+
+
+
+
+
               width: 4,
+
+
+
+
+
+
 
               height: 18,
 
+
+
+
+
+
+
               decoration: BoxDecoration(
+
+
+
+
+
+
 
                 color: AppTheme.primaryColor,
 
+
+
+
+
+
+
                 borderRadius: BorderRadius.circular(4),
+
+
+
+
+
+
 
                 gradient: const LinearGradient(
 
+
+
+
+
+
+
                   colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+
+
+
+
+
+
 
                   begin: Alignment.topCenter,
 
+
+
+
+
+
+
                   end: Alignment.bottomCenter,
+
+
+
+
+
+
 
                 ),
 
+
+
+
+
+
+
               ),
 
+
+
+
+
+
+
             ),
+
+
+
+
+
+
 
             const SizedBox(width: AppTheme.sm + 2),
 
+
+
+
+
+
+
             Text(
+
+
+
+
+
+
 
               title,
 
+
+
+
+
+
+
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
+
+
+
+
+
+
 
                 fontWeight: FontWeight.bold,
 
+
+
+
+
+
+
                 color: AppTheme.darkGrey,
+
+
+
+
+
+
 
                 letterSpacing: -0.2,
 
+
+
+
+
+
+
               ),
 
+
+
+
+
+
+
             ),
+
+
+
+
+
+
 
             const SizedBox(width: AppTheme.sm),
 
+
+
+
+
+
+
             Icon(
+
+
+
+
+
+
 
               _showEventReservationPerformance 
 
+
+
+
+
+
+
                   ? Icons.keyboard_arrow_up 
+
+
+
+
+
+
 
                   : Icons.keyboard_arrow_down,
 
+
+
+
+
+
+
               color: AppTheme.primaryColor,
+
+
+
+
+
+
 
               size: 20,
 
+
+
+
+
+
+
             ),
+
+
+
+
+
+
 
           ],
 
+
+
+
+
+
+
         ),
+
+
+
+
+
+
 
       ),
 
+
+
+
+
+
+
     );
 
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5503,7 +22004,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildKpiGrid(bool isWide) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5511,7 +22036,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _KpiData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5519,7 +22068,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         value: _formatNumber(_dailyRevenue),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5527,7 +22100,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5535,7 +22132,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         subPositive: null,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5543,11 +22164,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _KpiData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5555,7 +22212,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         value: '$_totalOrders',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5563,7 +22244,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: AppTheme.infoBlue,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5571,7 +22276,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         subPositive: null,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5579,11 +22308,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _KpiData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5591,7 +22356,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         value: '$_totalAdvanceOrders',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5599,7 +22388,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: const Color(0xFF8B5CF6),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5607,11 +22420,45 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         subPositive: _totalAdvanceOrders > 0,
 
 
 
-        extra: 'Today',
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5619,7 +22466,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       _KpiData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5627,7 +22498,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         value: '$_totalCustomers',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5635,7 +22530,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5643,11 +22562,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         subPositive: null,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5655,7 +22610,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         label: 'CONFIRMED EVENTS',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5663,7 +22642,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         icon: Icons.confirmation_number_outlined,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5671,7 +22674,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         sub: '$_pendingReservations Pending',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5679,11 +22706,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         extra: 'Total Confirmed',
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5695,7 +22758,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Mobile: single column, Tablet: 2x2 grid, Desktop: 4 columns
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5703,7 +22802,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5711,7 +22834,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .map(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5719,7 +22866,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: const EdgeInsets.only(bottom: AppTheme.md),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5727,7 +22898,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5735,7 +22930,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .toList(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5743,7 +22962,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5755,7 +23010,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5763,7 +23042,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .map(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5771,7 +23074,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5779,7 +23106,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   child: _KpiCard(data: d),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5787,7 +23138,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5795,11 +23170,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .toList(),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5811,7 +23222,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5819,11 +23266,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Row(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5831,7 +23314,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const SizedBox(width: AppTheme.md),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5839,11 +23346,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5851,7 +23394,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5859,7 +23426,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Expanded(child: _KpiCard(data: cards[2])),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5867,7 +23458,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Expanded(child: _KpiCard(data: cards[3])),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5875,7 +23490,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5883,7 +23522,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5895,11 +23558,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Revenue Chart ─────────────────────────────────────────────────────────
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildRevenueChart(BuildContext context) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5911,7 +23622,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Ensure data consistency
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5919,7 +23666,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final labelsLength = dayLabels.length;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5931,7 +23702,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     final maxRevenue = _weeklyRevenue.isEmpty
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5939,7 +23746,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         : _weeklyRevenue.reduce(max);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5947,11 +23778,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final maxY = (maxRevenue == 0 ? 1000.0 : maxRevenue * 1.2)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .clamp(1000.0, 10000000.0)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5963,7 +23830,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5971,7 +23874,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5979,7 +23906,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5987,7 +23938,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5995,7 +23970,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6003,7 +24002,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 height: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6011,7 +24034,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6019,11 +24066,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6031,7 +24114,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6039,7 +24146,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   'Revenue Analytics',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6047,7 +24178,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6055,7 +24210,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: 18,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6063,7 +24242,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6071,7 +24274,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const SizedBox(width: 16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6079,7 +24306,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6087,7 +24338,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6095,7 +24370,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             height: 240,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6103,7 +24402,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               LineChartData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6111,7 +24434,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   touchTooltipData: LineTouchTooltipData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6119,7 +24466,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         AppTheme.darkGrey.withValues(alpha: 0.95),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6127,7 +24498,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     getTooltipItems: (spots) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6135,7 +24530,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           .where((spot) => spot.x.toInt() < chartLength)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6143,7 +24562,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             final dayIndex = spot.x.toInt();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6155,7 +24598,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                             if (_selectedPeriod == 'Weekly') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6163,7 +24642,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               final weeklyLabels = [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6171,7 +24674,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 'Tuesday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6179,7 +24706,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 'Thursday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6187,7 +24738,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 'Saturday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6195,7 +24770,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6203,7 +24802,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ? weeklyLabels[dayIndex]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6211,7 +24834,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             } else if (_selectedPeriod == 'Daily') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6219,7 +24866,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               final dailyLabels = [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6227,7 +24898,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 '11:00 AM',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6235,7 +24930,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 '1:00 PM',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6243,7 +24962,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 '3:00 PM',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6251,7 +24994,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 '5:00 PM',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6259,7 +25026,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 '7:00 PM',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6267,7 +25058,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6275,7 +25090,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ? dailyLabels[dayIndex]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6283,7 +25122,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6291,7 +25154,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               dayLabel = dayIndex < dayLabels.length
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6299,7 +25186,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   : 'Month ${dayIndex + 1}';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6311,7 +25222,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                             return LineTooltipItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6319,7 +25266,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6327,7 +25298,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6335,7 +25330,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6343,7 +25362,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 TextSpan(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6351,7 +25394,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6359,7 +25426,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     fontSize: 11,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6367,7 +25458,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6375,7 +25490,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6383,7 +25522,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           })
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6391,11 +25554,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     },
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6403,7 +25602,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 titlesData: FlTitlesData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6411,11 +25634,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     sideTitles: SideTitles(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       showTitles: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6423,7 +25682,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       getTitlesWidget: (value, _) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6431,7 +25714,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         String label = '';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6439,7 +25746,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           label = '${(value / 1000000).toStringAsFixed(1)}M';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6447,7 +25778,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           label = '${(value / 1000).toStringAsFixed(0)}k';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6455,7 +25810,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           label = value.toStringAsFixed(0);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6463,7 +25842,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         return Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6471,7 +25874,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6479,7 +25906,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6487,7 +25938,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6495,7 +25970,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6503,7 +26002,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6511,11 +26034,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     sideTitles: SideTitles(showTitles: false),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6523,7 +26082,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     sideTitles: SideTitles(showTitles: false),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6531,7 +26114,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   bottomTitles: AxisTitles(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6539,7 +26146,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       showTitles: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6547,7 +26178,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       getTitlesWidget: (value, _) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6559,7 +26214,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         // Only show labels within our chart bounds
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6567,11 +26258,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           return const SizedBox.shrink();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6587,7 +26326,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         if (_selectedPeriod == 'Weekly') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6595,7 +26370,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           final weeklyLabels = [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6603,7 +26402,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             'Tue',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6611,7 +26434,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             'Thu',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6619,7 +26466,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             'Sat',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6627,7 +26498,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6635,7 +26530,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ? weeklyLabels[dayIndex]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6643,7 +26562,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         } else if (_selectedPeriod == 'Daily') {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6651,7 +26594,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           final dailyLabels = [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6659,7 +26626,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             '11a',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6667,7 +26658,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             '1p',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6675,7 +26690,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             '3p',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6683,7 +26722,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             '5p',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6691,7 +26754,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             '7p',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6699,7 +26786,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6707,7 +26818,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ? dailyLabels[dayIndex]
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6715,7 +26850,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6723,7 +26882,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           dayLabel = dayIndex < dayLabels.length
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6731,7 +26914,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               : 'M${dayIndex + 1}';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6743,7 +26950,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                         return Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6751,7 +26994,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6759,7 +27026,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6767,7 +27058,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6775,7 +27090,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6783,7 +27122,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6791,7 +27154,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6799,7 +27186,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6807,7 +27218,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6815,7 +27250,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   horizontalInterval: maxY / 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6823,7 +27282,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   getDrawingHorizontalLine: (value) => FlLine(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6831,7 +27314,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     strokeWidth: 1,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6839,7 +27346,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6847,7 +27378,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: AppTheme.lightGrey.withValues(alpha: 0.2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6855,7 +27410,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     dashArray: [2, 4],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6863,7 +27442,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6871,7 +27474,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6879,7 +27506,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: AppTheme.lightGrey.withValues(alpha: 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6887,7 +27538,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6895,7 +27570,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 lineBarsData: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6903,7 +27602,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     spots: List.generate(chartLength, (i) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6911,7 +27634,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       final revenueValue = i < _weeklyRevenue.length
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6919,7 +27666,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           : 0.0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6927,7 +27698,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     }),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6935,7 +27730,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6943,7 +27762,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     isStrokeCapRound: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6951,7 +27794,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6959,7 +27826,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         return FlDotCirclePainter(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6967,7 +27858,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6975,7 +27890,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           strokeColor: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6983,11 +27922,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       },
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6995,7 +27970,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7003,7 +28002,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7011,7 +28034,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7019,7 +28066,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 maxY: maxY,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7027,7 +28098,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7035,7 +28130,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7043,11 +28162,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7059,7 +28226,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildEventReservationPerformance(BuildContext context) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7067,7 +28258,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.all(AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7075,7 +28290,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7083,7 +28322,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7091,7 +28354,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7099,7 +28386,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _buildStatItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7107,7 +28418,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 '₱${NumberFormat('#,##0.00').format(_eventReservationRevenueTotal)}',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7115,7 +28450,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Colors.purple,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7123,7 +28482,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _buildStatItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7131,7 +28514,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 '$_completedEventReservationsCount',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7139,11 +28546,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 AppTheme.successGreen,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7151,7 +28594,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 'Cancellation Rate',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7159,7 +28626,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Icons.cancel_outlined,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7167,7 +28658,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7175,7 +28690,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7183,7 +28722,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7191,7 +28754,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7199,7 +28786,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7207,7 +28818,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7215,7 +28850,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const SizedBox(height: 16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7223,7 +28882,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const Center(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7231,7 +28914,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: EdgeInsets.all(20),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7239,7 +28946,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7247,7 +28978,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           else
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7255,7 +29010,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               spacing: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7263,10 +29042,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               children: (_popularEventTypes.entries.toList()
+
+
+
                   ..sort((a, b) => b.value.compareTo(a.value)))
+
+
+
                   .take(7)
+
+
+
                   .map((e) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7274,7 +29086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7282,7 +29118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: Colors.purple.withValues(alpha: 0.05),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7290,11 +29150,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     border: Border.all(color: Colors.purple.withValues(alpha: 0.1)),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7302,7 +29198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7310,7 +29230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7318,11 +29262,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7330,7 +29310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7338,7 +29342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7346,11 +29374,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           borderRadius: BorderRadius.circular(10),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7358,7 +29422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           e.value.toString(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7366,7 +29454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7374,7 +29486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7382,7 +29518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7390,7 +29550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7398,11 +29582,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7414,7 +29634,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Venue Status ──────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7422,7 +29678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Determine status based on current time and today's events
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7430,7 +29710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final isReserved = venueStatus['isReserved'] as bool;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7438,7 +29742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final subtitleText = venueStatus['subtitleText'] as String;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7450,7 +29778,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7458,7 +29822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7466,7 +29854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7474,7 +29886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           // Collapsible Header
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7482,7 +29918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             onTap: () {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7490,7 +29950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 _isVenueStatusExpanded = !(_isVenueStatusExpanded ?? true);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7498,7 +29982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             },
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7506,7 +30014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               padding: const EdgeInsets.all(AppTheme.md),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7514,7 +30046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: AppTheme.backgroundColor.withValues(alpha: 0.5),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7522,7 +30078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7530,7 +30110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7538,7 +30142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7546,7 +30174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7554,7 +30206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7562,7 +30238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7570,7 +30270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7578,7 +30302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       // Compact Status Badge
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7586,7 +30334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         padding: const EdgeInsets.symmetric(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7594,11 +30366,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           vertical: 6,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7606,7 +30414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: statusColor.withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7614,11 +30446,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           border: Border.all(color: statusColor, width: 1),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7626,7 +30494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7634,7 +30526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7642,7 +30558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               height: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7650,7 +30590,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: statusColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7658,11 +30622,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7670,7 +30670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7678,7 +30702,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7686,7 +30734,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7694,7 +30766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7702,7 +30798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7710,7 +30830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7718,7 +30862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7726,7 +30894,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7734,7 +30926,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7742,11 +30958,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       borderRadius: BorderRadius.circular(6),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7754,7 +31006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       (_isVenueStatusExpanded ?? true)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7762,7 +31038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           : Icons.keyboard_arrow_down,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7770,7 +31070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       size: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7778,7 +31102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7786,11 +31134,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7802,11 +31186,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           // Expanded Content
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (_isVenueStatusExpanded ?? true) ...[
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7818,7 +31250,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             // Next Event Countdown (Moved here)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7826,7 +31294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7834,7 +31326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7842,7 +31358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7850,7 +31390,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: AppTheme.primaryColor.withValues(alpha: 0.2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7858,7 +31422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7866,11 +31454,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7878,7 +31502,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7886,11 +31534,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         borderRadius: BorderRadius.circular(12),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7898,11 +31582,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           const Icon(Icons.timer, color: Colors.white, size: 24),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7910,7 +31630,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7918,7 +31662,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7926,7 +31694,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7934,7 +31726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7942,7 +31758,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7950,7 +31790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               letterSpacing: 1.0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7958,7 +31822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7966,7 +31854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7974,7 +31886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7982,7 +31918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -7990,11 +31950,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8002,7 +31998,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8010,7 +32030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8018,7 +32062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8026,7 +32094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8034,11 +32126,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8046,7 +32174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       padding: const EdgeInsets.symmetric(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8054,11 +32206,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         vertical: 6,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8066,7 +32254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: _getEventStatusColor(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8074,7 +32286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ).withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8082,7 +32318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8090,7 +32350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         _getEventStatusText(_nextEvent),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8098,7 +32382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8106,7 +32414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: _getEventStatusColor(_nextEvent),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8114,7 +32446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8122,7 +32478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8130,11 +32510,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8146,7 +32562,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             // 1. Current Status Circle Chart (Restored)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8154,7 +32606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               padding: const EdgeInsets.symmetric(vertical: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8162,7 +32638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: AppTheme.backgroundColor.withValues(alpha: 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8170,7 +32670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8178,7 +32702,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8186,7 +32734,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     height: 180,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8194,7 +32766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       alignment: Alignment.center,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8202,7 +32798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         PieChart(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8210,7 +32830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             sectionsSpace: 0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8218,7 +32862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             startDegreeOffset: -90,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8226,11 +32894,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               PieChartSectionData(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: isReserved
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8238,7 +32942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     : AppTheme.backgroundColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8246,7 +32974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 title: '',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8254,7 +33006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8262,7 +33038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: isReserved
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8270,7 +33070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     : statusColor.withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8278,7 +33102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 title: '',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8286,7 +33134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8294,11 +33166,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8306,7 +33214,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8314,7 +33246,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8322,7 +33278,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8330,7 +33310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8338,7 +33342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 letterSpacing: -0.5,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8346,7 +33374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8354,7 +33406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8362,11 +33438,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 horizontal: 20,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8374,7 +33486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 subtitleText,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8382,7 +33518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8390,7 +33550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8398,7 +33582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8406,7 +33614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8414,7 +33646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8422,11 +33678,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8434,7 +33726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8442,11 +33758,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       horizontal: AppTheme.xl,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8454,7 +33806,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       statusColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8462,7 +33838,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       isReserved ? 'Currently in use' : 'Ready for bookings',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8470,7 +33870,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8478,11 +33902,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8498,7 +33958,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8506,7 +34014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8514,7 +34046,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8526,7 +34094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Map<String, dynamic> _getVenueStatus() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8534,7 +34126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8546,7 +34162,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (todayEvents.isEmpty) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8554,7 +34206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8562,7 +34238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'statusText': 'OPEN',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8570,7 +34270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         'statusColor': AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8578,7 +34302,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8590,7 +34350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final sortedEvents = List<Map<String, dynamic>>.from(todayEvents);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8598,7 +34382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final startA = a['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8606,7 +34414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (startA == null || startB == null) return 0;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8614,7 +34446,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8626,7 +34494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     for (final event in sortedEvents) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8634,7 +34526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final eventEnd = event['event_end'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8642,7 +34558,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final eventType = event['event_type'] as String? ?? 'Event';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8654,7 +34606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         if (now.isAfter(eventStart) && now.isBefore(eventEnd)) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8662,7 +34638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8670,7 +34670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'statusText': 'BOOKED',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8678,7 +34702,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'statusColor': AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8686,7 +34734,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8694,7 +34766,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8706,7 +34814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final bufferTime = const Duration(minutes: 30);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8714,11 +34846,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final eventStart = event['event_start'] as DateTime?;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final customerName = event['customer_name'] as String? ?? 'Customer';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8730,11 +34898,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       if (eventStart != null && now.isBefore(eventStart)) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final startsIn = eventStart.difference(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8746,7 +34962,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if (startsIn <= bufferTime) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8754,7 +35006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8762,11 +35038,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'statusText': 'BOOKED',
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'subtitleText':
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8774,11 +35086,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'statusColor': AppTheme.primaryColor,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           };
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8786,7 +35134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           // Not starting yet - stay GREEN/OPEN
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8794,7 +35166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'isReserved': false,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8802,7 +35198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'subtitleText':
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8810,7 +35230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             'statusColor': AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8818,7 +35262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8826,7 +35294,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8838,7 +35342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8846,7 +35374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'statusText': 'OPEN',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8854,7 +35406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'statusColor': AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8862,7 +35438,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8874,7 +35486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   // ── Monthly Overview Section ────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8882,7 +35518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _focusedMonth ??= DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8894,7 +35554,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8902,7 +35598,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8910,7 +35630,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8918,7 +35662,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8926,7 +35694,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8934,7 +35726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8942,7 +35758,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8950,7 +35790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: 14,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8958,7 +35822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     letterSpacing: -0.2,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8966,7 +35854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8974,7 +35886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   'All events in ${DateFormat('MMMM yyyy').format(focusedMonth)}',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8982,7 +35918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8990,7 +35950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -8998,7 +35982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9006,7 +36014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             _buildMonthDropdown(focusedMonth),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9014,7 +36046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9026,7 +36082,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         // Month-Wide Event List
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9034,7 +36126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9042,7 +36158,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9054,11 +36206,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildEventScheduleList(BuildContext context) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _focusedMonth ??= DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9070,11 +36258,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9086,7 +36322,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Aggregating all events for the selected month
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9094,7 +36366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     _eventsByDate.forEach((dateKey, events) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9102,7 +36398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         for (var e in events) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9110,7 +36430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ...e,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9118,7 +36462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           });
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9126,11 +36494,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9142,11 +36558,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     monthEvents.sort((a, b) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       int dateCompare = a['date_key'].compareTo(b['date_key']);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9158,7 +36610,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       DateTime? startA = a['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9166,7 +36654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (startA != null && startB != null) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9174,7 +36686,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9186,11 +36734,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       String timeB = b['start_time']?.toString() ?? '';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return timeA.compareTo(timeB);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9202,11 +36786,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     // Pagination Logic
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final totalItems = monthEvents.length;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9218,7 +36850,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (_schedulePage >= totalPages && totalPages > 0) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9226,7 +36894,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9238,11 +36942,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final endIndex = min(startIndex + _itemsPerPage, totalItems);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final displayedEvents =
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9254,7 +36994,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9262,7 +37038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9270,7 +37070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         border: Border.all(color: AppTheme.lightGrey),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9278,7 +37102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           BoxShadow(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9286,7 +37134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             blurRadius: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9294,7 +37166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9302,7 +37198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9310,7 +37230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9318,7 +37262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           // Header
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9326,7 +37294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9334,11 +37326,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               border: Border(bottom: BorderSide(color: AppTheme.lightGrey)),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9346,7 +37374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9354,7 +37406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Icons.event_note,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9362,11 +37438,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   size: 20,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9374,7 +37486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9382,7 +37518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     'Event Queue - ${DateFormat('MMMM yyyy').format(focusedMonth)}',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9390,7 +37550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9398,7 +37582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontSize: 14,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9406,11 +37614,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9418,7 +37662,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   label: Text('${monthEvents.length}'),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9426,7 +37694,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9434,11 +37726,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9450,7 +37790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9458,7 +37822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               child: Center(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9466,7 +37854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9474,7 +37886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Icons.event_available,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9482,11 +37918,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       size: 40,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9494,7 +37966,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9502,7 +37998,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9510,7 +38030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         fontSize: 13,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9518,7 +38062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9526,7 +38094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9534,7 +38126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9542,7 +38158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ListView.separated(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9550,7 +38190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               physics: const NeverScrollableScrollPhysics(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9558,7 +38222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               separatorBuilder: (context, index) =>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9566,7 +38254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               itemBuilder: (context, index) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9574,7 +38286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 final dateKey = event['date_key'] as String;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9582,11 +38318,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     (event['status']?.toString().toLowerCase() ?? '') ==
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     'confirmed';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9598,7 +38370,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 // Parse date for display
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9606,7 +38414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 try {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9614,7 +38446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     'MMM d',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9622,11 +38478,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 } catch (e) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   displayDate = dateKey;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9638,7 +38530,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9646,7 +38574,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9654,7 +38606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ? AppTheme.primaryColor.withValues(alpha: 0.02)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9662,7 +38638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9670,7 +38670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9678,7 +38702,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9686,7 +38734,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         padding: const EdgeInsets.symmetric(vertical: 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9694,7 +38766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: isToday
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9702,7 +38798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               : AppTheme.backgroundColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9710,7 +38830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9718,11 +38862,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9730,7 +38910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9738,7 +38942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9746,7 +38974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ? Colors.white
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9754,11 +39006,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9766,7 +39054,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               displayDate.split(' ')[1],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9774,7 +39086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontSize: 13,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9782,7 +39118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: isToday
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9790,7 +39150,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     : AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9798,7 +39182,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9806,11 +39214,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9822,7 +39266,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                       // Event Info
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9830,7 +39310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9838,7 +39342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9846,7 +39374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               event['event_type'] ?? 'Event',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9854,7 +39406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9862,7 +39438,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9870,7 +39470,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9878,11 +39502,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 Icon(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9890,7 +39550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   size: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9898,7 +39582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9906,7 +39614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9914,7 +39646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9922,7 +39678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9930,7 +39710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9938,7 +39742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 Icon(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9946,7 +39774,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   size: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9954,7 +39806,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9962,7 +39838,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9970,7 +39870,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9978,7 +39902,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9986,7 +39934,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -9994,7 +39966,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10002,11 +39998,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10018,7 +40062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Icon(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10026,7 +40094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         size: 16,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10034,7 +40126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ? AppTheme.successGreen
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10042,7 +40158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10050,7 +40190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10058,11 +40222,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               },
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10074,7 +40286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (totalPages > 1)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10082,7 +40318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding:
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10090,7 +40350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 decoration: const BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10098,7 +40382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: Color(0xFFF9FAFB),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10106,7 +40414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     bottomLeft: Radius.circular(12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10114,11 +40446,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10126,7 +40494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10134,7 +40526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10142,7 +40558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10150,7 +40590,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10158,11 +40622,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10170,11 +40670,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         IconButton(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10182,11 +40718,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ? () => setState(() => _schedulePage--)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               : null,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10194,7 +40766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           iconSize: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10202,7 +40798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           constraints: const BoxConstraints(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10210,7 +40830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10218,7 +40862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         IconButton(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10226,7 +40894,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ? () => setState(() => _schedulePage++)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10234,7 +40926,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           icon: const Icon(Icons.chevron_right),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10242,7 +40958,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           padding: EdgeInsets.zero,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10250,7 +40990,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10258,7 +41022,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10266,7 +41054,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10274,7 +41086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10282,11 +41118,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10298,7 +41170,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10310,7 +41230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10318,7 +41262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10326,7 +41294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           height: 36,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10334,7 +41326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             color: color.withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10342,7 +41358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10350,7 +41390,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             title.contains('Occupied')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10358,7 +41422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 : Icons.event_available,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10366,7 +41454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             size: 18,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10374,7 +41486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10382,7 +41518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10390,7 +41550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10398,7 +41582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10406,7 +41614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10414,7 +41646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 fontSize: 13,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10422,11 +41678,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10434,7 +41726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               subtitle,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10442,7 +41758,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10450,7 +41790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10458,11 +41822,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10474,7 +41886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // Generate months from This Year - 1 to This Year + 2
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10482,7 +41918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final List<DateTime> months = [];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10490,7 +41950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       for (int m = 1; m <= 12; m++) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10498,7 +41982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10510,7 +42018,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10518,7 +42062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10526,7 +42094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         borderRadius: BorderRadius.circular(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10534,7 +42126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10542,7 +42158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         child: DropdownButton<DateTime>(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10550,7 +42190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           icon: const Icon(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10558,7 +42222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             size: 16,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10566,7 +42254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10574,7 +42286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           menuMaxHeight: 300,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10582,7 +42318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           alignment: Alignment.centerRight,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10590,7 +42350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10598,7 +42382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10606,7 +42414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           onChanged: (DateTime? newValue) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10614,7 +42446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               setState(() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10622,7 +42478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 _schedulePage = 0; // Reset page on month change
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10630,7 +42510,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10638,7 +42542,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           items: months
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10646,7 +42574,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 (date) => DropdownMenuItem<DateTime>(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10654,7 +42606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   child: Text(DateFormat('MMM yyyy').format(date)),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10662,7 +42638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10670,7 +42670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10678,11 +42702,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10694,7 +42766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10702,7 +42798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10710,7 +42830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10718,7 +42862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10726,11 +42894,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _buildStatItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10738,7 +42942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 '₱${NumberFormat('#,##0.00').format(_advanceOrderRevenueTotal)}',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10746,7 +42974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10754,7 +43006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _buildStatItem(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10762,7 +43038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 '$_completedAdvanceOrdersCount',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10770,11 +43070,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 AppTheme.successGreen,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10782,7 +43118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 'Cancellation Rate',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10790,7 +43150,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Icons.cancel_outlined,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10798,7 +43182,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10806,7 +43214,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10814,7 +43246,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10822,7 +43278,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10830,7 +43310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10838,7 +43342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10846,7 +43374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const SizedBox(height: 16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10854,7 +43406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const Center(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10862,7 +43438,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: EdgeInsets.all(20),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10870,7 +43470,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10878,89 +43502,359 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           else
+
+
+
+
+
+
 
             SizedBox(
 
+
+
+
+
+
+
               height: 150, // Fixed height for scrollable list
+
+
+
+
+
+
 
               child: ListView.builder(
 
+
+
+
+
+
+
                 itemCount: _popularAdvanceItems.entries.length,
+
+
+
+
+
+
 
                 itemBuilder: (context, index) {
 
+
+
+
+
+
+
                   final sortedEntries = _popularAdvanceItems.entries.toList()
+
+
+
+
+
+
 
                     ..sort((a, b) => b.value.compareTo(a.value));
 
+
+
+
+
+
+
                   final e = sortedEntries[index];
+
+
+
+
+
+
 
                   return Container(
 
+
+
+
+
+
+
                     margin: const EdgeInsets.only(bottom: 8),
+
+
+
+
+
+
 
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
 
+
+
+
+
+
+
                     decoration: BoxDecoration(
+
+
+
+
+
+
 
                       color: AppTheme.primaryColor.withValues(alpha: 0.05),
 
+
+
+
+
+
+
                       borderRadius: BorderRadius.circular(8),
+
+
+
+
+
+
 
                       border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
 
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
 
                     child: Row(
 
+
+
+
+
+
+
                       children: [
+
+
+
+
+
+
 
                         Expanded(
 
+
+
+
+
+
+
                           child: Text(
+
+
+
+
+
+
 
                             e.key,
 
+
+
+
+
+
+
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+
+
+
+
+
+
 
                           ),
 
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
 
                         Container(
 
+
+
+
+
+
+
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+
+
+
+
+
 
                           decoration: BoxDecoration(
 
+
+
+
+
+
+
                             color: AppTheme.primaryColor,
+
+
+
+
+
+
 
                             borderRadius: BorderRadius.circular(12),
 
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
 
                           child: Text(
 
+
+
+
+
+
+
                             '${e.value} orders',
+
+
+
+
+
+
 
                             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
 
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
 
                         ),
 
+
+
+
+
+
+
                       ],
+
+
+
+
+
+
 
                     ),
 
+
+
+
+
+
+
                   );
+
+
+
+
+
+
 
                 },
 
+
+
+
+
+
+
               ),
 
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10968,7 +43862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10976,7 +43894,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10988,7 +43942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10996,7 +43974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11004,7 +44006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11012,7 +44038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const SizedBox(width: 6),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11020,7 +44070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               label,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11028,7 +44102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11036,7 +44134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11044,7 +44166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11052,7 +44198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11060,7 +44230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11068,7 +44262,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11080,7 +44310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11088,7 +44342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11096,7 +44374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11104,7 +44406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11112,11 +44438,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             crossAxisAlignment: CrossAxisAlignment.center,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11124,7 +44486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 'Operations Monitor',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11132,7 +44518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11140,7 +44550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11148,7 +44582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const SizedBox(width: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11156,7 +44614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11164,7 +44646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: Colors.red.withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11172,7 +44678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11180,7 +44710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11188,7 +44742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11196,7 +44774,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       height: 6,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11204,7 +44806,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: Colors.red,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11212,11 +44838,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11224,7 +44886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     const Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11232,7 +44918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11240,7 +44950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11248,7 +44982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11256,7 +45014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11264,7 +45046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11272,7 +45078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11280,7 +45110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11288,11 +45142,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Expanded(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: _buildGridCard(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11300,7 +45190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   _pendingOrders.toString(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11308,7 +45222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11316,7 +45254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const SizedBox(width: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11324,7 +45286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: _buildGridCard(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11332,7 +45318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   _preparingOrders.toString(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11340,7 +45350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11348,7 +45382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const SizedBox(width: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11356,7 +45414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: _buildGridCard(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11364,7 +45446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   _readyOrders.toString(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11372,7 +45478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11380,11 +45510,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11392,7 +45558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11400,11 +45590,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Expanded(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: _buildGridCard(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11412,7 +45638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   _outOfStock.toString(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11420,11 +45670,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11432,7 +45718,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11440,7 +45750,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   'Low Stock',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11448,7 +45782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   type: 0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11456,7 +45814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11464,7 +45846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11472,7 +45878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11480,7 +45910,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11492,7 +45958,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     // type: 0 = Normal, 1 = In Prep, 2 = Out of Stock, 3 = More
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11500,7 +45990,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     Color labelColor = const Color(0xFF64748B); // Slate 500
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11512,7 +46026,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (type == 2) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11520,11 +46070,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       labelColor = const Color(0xFFB71C1C);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       valueColor = const Color(0xFFB71C1C);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11536,7 +46122,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11544,7 +46166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11552,7 +46198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         borderRadius: BorderRadius.circular(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11560,7 +46230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       clipBehavior: Clip.antiAlias,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11568,7 +46262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11576,7 +46294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Positioned(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11584,7 +46326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               top: 0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11592,7 +46358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               child: Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11600,7 +46390,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: const Color(0xFF14536E),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11608,7 +46422,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11620,7 +46470,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11628,7 +46502,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11636,11 +46534,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11648,7 +46582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11656,7 +46614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontWeight: FontWeight.w500,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11664,11 +46646,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11676,7 +46694,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11684,7 +46726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11692,7 +46758,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontWeight: FontWeight.w800,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11700,7 +46790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       height: 1.0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11708,7 +46822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11716,7 +46854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11724,7 +46886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11732,11 +46918,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11748,7 +46982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildRecentActivity(BuildContext context) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11756,7 +47014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.all(AppTheme.xl),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11764,7 +47046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11772,7 +47078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11780,7 +47110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11788,7 +47142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11796,11 +47174,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11808,11 +47222,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11820,7 +47270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 'View All Activity',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11828,7 +47302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11836,7 +47334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11844,7 +47366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11852,7 +47398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11860,7 +47430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           if (_recentActivity.isEmpty)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11868,7 +47462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               child: Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11876,7 +47494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Text('No recent activity'),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11884,7 +47526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11892,7 +47558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ListView.separated(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11900,7 +47590,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               physics: const NeverScrollableScrollPhysics(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11908,7 +47622,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               separatorBuilder: (_, _) => const SizedBox(height: 16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11916,7 +47654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   _ActivityTile(item: _recentActivity[index]),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11924,7 +47686,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11932,11 +47718,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11948,7 +47782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildConfirmedEventsAnalytics(BuildContext context, bool isWide) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11956,7 +47814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       return Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11964,7 +47846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11972,7 +47878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11980,7 +47910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Icons.event_busy,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -11988,11 +47942,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               size: 48,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12000,7 +47990,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12008,11 +48022,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12020,7 +48070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12028,7 +48102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12036,7 +48134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12044,11 +48166,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12060,7 +48230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Jan',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12068,7 +48262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Mar',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12076,7 +48294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'May',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12084,7 +48326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Jul',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12092,7 +48358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Sep',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12100,7 +48390,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Nov',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12108,7 +48422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12116,7 +48454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? 0.0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12124,11 +48486,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final maxY = (maxEvents == 0 ? 5.0 : maxEvents * 1.2)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         .clamp(5.0, 50.0)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12140,7 +48538,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12148,7 +48582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         // Live Event Status Indicators (Real-time Updates)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12156,7 +48614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12164,7 +48646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12172,7 +48678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12180,7 +48710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12188,7 +48742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12196,11 +48774,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       height: 20,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12208,7 +48822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         borderRadius: BorderRadius.circular(2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12216,7 +48854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12224,7 +48886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12232,7 +48918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12240,7 +48950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12248,7 +48982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12256,7 +49014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12264,7 +49046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         horizontal: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12272,7 +49078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12280,7 +49110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: Colors.green.withValues(alpha: 0.1),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12288,7 +49142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12296,7 +49174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12304,7 +49206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12312,7 +49238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             height: 6,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12320,7 +49270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: Colors.green,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12328,11 +49302,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12340,7 +49350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12348,7 +49382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12356,7 +49414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: Colors.green,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12364,7 +49446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12372,7 +49478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12380,7 +49510,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12388,7 +49542,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12400,7 +49578,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 // Ongoing Events
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12408,7 +49622,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12416,7 +49654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12424,7 +49686,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         height: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12432,7 +49718,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12440,11 +49750,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12452,7 +49798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12460,7 +49830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12468,7 +49862,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12476,7 +49894,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12484,7 +49926,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12492,11 +49958,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: TextStyle(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12504,7 +50006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12512,7 +50038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12520,7 +50070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12528,7 +50102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ..._ongoingEvents
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12536,7 +50134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       .map((event) => _buildLiveEventTile(event, true)),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12544,7 +50166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12552,7 +50198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12560,7 +50230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12568,7 +50262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12576,7 +50294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12584,7 +50326,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ],
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12596,7 +50374,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   const SizedBox(height: AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12608,7 +50422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 if (_upcomingEvents.isNotEmpty) ...[
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12616,7 +50454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12624,7 +50486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         width: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12632,11 +50518,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         decoration: const BoxDecoration(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.warningOrange,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12644,11 +50566,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12656,7 +50614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12664,7 +50646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12672,7 +50678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.warningOrange,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12680,7 +50710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12688,7 +50742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12696,11 +50774,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: TextStyle(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12708,7 +50822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12716,7 +50854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12724,7 +50886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12732,7 +50918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ..._upcomingEvents
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12740,7 +50950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       .map((event) => _buildLiveEventTile(event, false)),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12748,7 +50982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12756,7 +51014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12764,7 +51046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12772,7 +51078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12780,7 +51110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12788,7 +51142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12796,7 +51174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12804,11 +51206,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           const SizedBox(height: AppTheme.xl),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12820,7 +51270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         if (isWide)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12828,7 +51302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12836,7 +51334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12844,7 +51366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12852,7 +51398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12860,7 +51430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12868,7 +51462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12876,7 +51494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12884,7 +51526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             height: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12892,7 +51558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12900,11 +51590,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12912,7 +51638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12920,7 +51670,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: Theme.of(context).textTheme.titleMedium
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12928,7 +51702,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12936,11 +51734,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12948,7 +51782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12956,7 +51814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       SizedBox(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12964,7 +51846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         child: LineChart(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12972,7 +51878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             lineTouchData: LineTouchData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12980,7 +51910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 getTooltipColor: (_) =>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12988,7 +51942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 tooltipPadding: const EdgeInsets.all(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -12996,7 +51974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   return spots.map((spot) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13004,7 +52006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       '${spot.y.toInt()} events',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13012,11 +52038,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         color: Colors.white,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13024,7 +52086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13032,7 +52118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   }).toList();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13040,7 +52150,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13048,7 +52182,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13056,7 +52214,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               leftTitles: AxisTitles(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13064,7 +52246,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   showTitles: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13072,7 +52278,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   getTitlesWidget: (value, _) => Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13080,7 +52310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13088,7 +52342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       fontSize: 9,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13096,7 +52374,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13104,11 +52406,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13116,11 +52454,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 sideTitles: SideTitles(showTitles: false),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13128,11 +52502,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 sideTitles: SideTitles(showTitles: false),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13140,7 +52550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 sideTitles: SideTitles(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13148,7 +52582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   getTitlesWidget: (value, _) => Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13156,7 +52614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13164,7 +52646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13172,7 +52678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13180,7 +52710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13188,7 +52742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13196,11 +52774,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13208,7 +52822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13216,7 +52854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               horizontalInterval: maxY / 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13224,7 +52886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               getDrawingHorizontalLine: (value) => FlLine(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13232,7 +52918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   alpha: 0.3,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13240,7 +52950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 strokeWidth: 1,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13248,7 +52982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13256,7 +53014,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: AppTheme.lightGrey.withValues(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13264,7 +53046,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13272,7 +53078,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 dashArray: [2, 4],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13280,7 +53110,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13288,7 +53142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13296,7 +53174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: AppTheme.lightGrey.withValues(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13304,7 +53206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13312,7 +53238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13320,7 +53270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             lineBarsData: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13328,7 +53302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 spots: List.generate(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13336,7 +53334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   (i) => FlSpot(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13344,7 +53366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     _monthlyEventTrends[i],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13352,7 +53398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13360,7 +53430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13368,7 +53462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 isStrokeCapRound: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13376,7 +53494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13384,7 +53526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       (spot, percent, barData, index) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13392,7 +53558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           radius: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13400,7 +53590,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           strokeWidth: 2,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13408,7 +53622,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13416,7 +53654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13424,7 +53686,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13432,7 +53718,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     alpha: 0.2,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13440,7 +53750,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13448,7 +53782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13456,7 +53814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             maxY: maxY,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13464,7 +53846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13472,7 +53878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13480,11 +53910,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13496,7 +53962,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               // Event Type Distribution
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13504,7 +54006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13512,7 +54038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   decoration: _cardDecoration(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13520,7 +54070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13528,7 +54102,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13536,7 +54134,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13544,7 +54166,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             height: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13552,7 +54198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13560,11 +54230,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13572,7 +54278,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13580,7 +54310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             style: Theme.of(context).textTheme.titleMedium
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13588,7 +54342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13596,11 +54374,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13608,7 +54422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13616,7 +54454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ..._topEventTypes
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13624,7 +54486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           .map(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13632,7 +54518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               padding: const EdgeInsets.only(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13640,7 +54550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13648,7 +54582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13656,7 +54614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13664,7 +54646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13672,7 +54678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13680,7 +54710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13688,7 +54742,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                             fontSize: 12,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13696,11 +54774,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13708,7 +54822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           '${eventType['count']} events',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13716,7 +54854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                             fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13724,7 +54886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13732,7 +54918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13740,7 +54950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13748,7 +54982,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     padding: const EdgeInsets.symmetric(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13756,11 +55014,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       vertical: 4,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13768,7 +55062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       color: AppTheme.primaryColor.withValues(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13776,7 +55094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13784,7 +55126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13792,7 +55158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       '${eventType['percentage']}%',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13800,7 +55190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13808,7 +55222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13816,11 +55254,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13828,7 +55302,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13836,7 +55334,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13844,7 +55366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13852,7 +55398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13860,7 +55430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           )
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13868,7 +55462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13876,7 +55494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               // Monthly Trends Chart
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13884,7 +55526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: const EdgeInsets.all(AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13892,7 +55558,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13900,7 +55590,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13908,7 +55622,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13916,7 +55654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           width: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13924,7 +55686,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13932,7 +55718,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             borderRadius: BorderRadius.circular(2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13940,7 +55750,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13948,7 +55782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13956,7 +55814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           style: Theme.of(context).textTheme.titleMedium
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13964,7 +55846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13972,11 +55878,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13984,7 +55926,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -13992,7 +55958,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     SizedBox(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14000,7 +55990,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       child: LineChart(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14008,7 +56022,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           lineTouchData: LineTouchData(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14016,7 +56054,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               getTooltipColor: (_) =>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14024,7 +56086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               tooltipPadding: const EdgeInsets.all(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14032,7 +56118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 return spots.map((spot) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14040,7 +56150,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     '${spot.y.toInt()} events',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14048,11 +56182,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       color: Colors.white,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14060,11 +56230,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14072,11 +56278,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               },
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14084,7 +56326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14092,7 +56358,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             leftTitles: AxisTitles(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14100,7 +56390,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 showTitles: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14108,7 +56422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 getTitlesWidget: (value, _) => Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14116,7 +56454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14124,7 +56486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     fontSize: 9,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14132,7 +56518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14140,11 +56550,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14152,11 +56598,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               sideTitles: SideTitles(showTitles: false),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14164,11 +56646,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               sideTitles: SideTitles(showTitles: false),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14176,7 +56694,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               sideTitles: SideTitles(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14184,7 +56726,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 getTitlesWidget: (value, _) => Padding(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14192,7 +56758,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14200,7 +56790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14208,7 +56822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14216,7 +56854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14224,7 +56886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14232,11 +56918,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14244,7 +56966,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14252,7 +56998,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             horizontalInterval: maxY / 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14260,7 +57030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             getDrawingHorizontalLine: (value) => FlLine(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14268,7 +57062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               strokeWidth: 1,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14276,7 +57094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14284,7 +57126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.lightGrey.withValues(alpha: 0.2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14292,7 +57158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               dashArray: [2, 4],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14300,7 +57190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14308,7 +57222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14316,7 +57254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.lightGrey.withValues(alpha: 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14324,7 +57286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14332,7 +57318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           lineBarsData: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14340,7 +57350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               spots: List.generate(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14348,7 +57382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 (i) => FlSpot(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14356,7 +57414,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   _monthlyEventTrends[i],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14364,7 +57446,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14372,7 +57478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14380,7 +57510,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               isStrokeCapRound: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14388,7 +57542,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14396,7 +57574,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   return FlDotCirclePainter(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14404,7 +57606,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14412,7 +57638,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     strokeColor: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14420,11 +57670,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 },
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14432,7 +57718,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 show: true,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14440,7 +57750,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   alpha: 0.2,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14448,7 +57782,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14456,7 +57814,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14464,7 +57846,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           maxY: maxY,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14472,7 +57878,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14480,7 +57910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14488,7 +57942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14500,7 +57978,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
               // Event Type Distribution
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14508,7 +58022,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 padding: const EdgeInsets.all(AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14516,7 +58054,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14524,7 +58086,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14532,7 +58118,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14540,7 +58150,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           width: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14548,7 +58182,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14556,7 +58214,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             borderRadius: BorderRadius.circular(2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14564,7 +58246,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14572,7 +58278,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14580,7 +58310,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           style: Theme.of(context).textTheme.titleMedium
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14588,7 +58342,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14596,11 +58374,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14608,7 +58422,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14616,7 +58454,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ..._topEventTypes
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14624,7 +58486,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         .map(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14632,7 +58518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                             padding: const EdgeInsets.only(bottom: AppTheme.sm),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14640,7 +58550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14648,7 +58582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   child: Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14656,7 +58614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14664,7 +58646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14672,7 +58678,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14680,7 +58710,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           fontSize: 12,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14688,11 +58742,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14700,7 +58790,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         '${eventType['count']} events',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14708,7 +58822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                           fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14716,7 +58854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14724,7 +58886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14732,7 +58918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14740,7 +58950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   padding: const EdgeInsets.symmetric(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14748,11 +58982,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     vertical: 4,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14760,7 +59030,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     color: AppTheme.primaryColor.withValues(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14768,7 +59062,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14776,7 +59094,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14784,7 +59126,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                     '${eventType['percentage']}%',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14792,7 +59158,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       fontSize: 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14800,7 +59190,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                       color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14808,7 +59222,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14816,7 +59254,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                               ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14824,7 +59286,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14832,7 +59318,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14840,7 +59350,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14848,7 +59382,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14856,11 +59414,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14872,7 +59478,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final eventStart = event['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14880,7 +59510,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14892,11 +59558,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     Color statusColor = isOngoing
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ? AppTheme.successGreen
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14908,7 +59610,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (isOngoing && eventEnd != null) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14916,7 +59654,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       if (remaining.inHours > 0) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14924,11 +59686,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             '${remaining.inHours}h ${remaining.inMinutes % 60}m remaining';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       } else {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14936,7 +59734,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14944,7 +59766,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       final waitTime = eventStart.difference(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14952,7 +59798,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         timeText = 'Starts in ${waitTime.inHours}h ${waitTime.inMinutes % 60}m';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14960,7 +59830,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         timeText = 'Starts in ${waitTime.inMinutes}m';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14968,7 +59862,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14980,7 +59910,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.all(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14988,7 +59942,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -14996,7 +59974,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         borderRadius: BorderRadius.circular(8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15004,7 +60006,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15012,7 +60038,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15020,7 +60070,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             width: 6,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15028,11 +60102,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             decoration: BoxDecoration(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               color: statusColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15040,11 +60150,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15052,7 +60198,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15060,7 +60230,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15068,7 +60262,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15076,7 +60294,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15084,7 +60326,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: 11,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15092,11 +60358,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15104,7 +60406,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   '${event['customer_name']} · ${event['number_of_guests']} guests',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15112,7 +60438,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15120,11 +60470,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15132,7 +60518,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             timeText,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15140,7 +60550,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               fontSize: 9,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15148,7 +60582,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               color: statusColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15156,7 +60614,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15164,7 +60646,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15172,7 +60678,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15184,11 +60726,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final eventStart = event['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15200,7 +60778,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (eventStart != null && eventEnd != null) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15208,7 +60822,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         return AppTheme.successGreen; // Ongoing
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15216,7 +60854,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final waitTime = eventStart.difference(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15224,7 +60886,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return AppTheme.errorRed; // Starting soon
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15232,7 +60918,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return AppTheme.warningOrange; // Upcoming
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15240,7 +60950,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15248,11 +60982,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return AppTheme.mediumGrey; // Ended/Unknown
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15264,11 +61046,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final eventStart = event['event_start'] as DateTime?;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15280,7 +61098,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (eventStart != null && eventEnd != null) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15288,7 +61142,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         return 'LIVE NOW';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15296,7 +61174,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         final waitTime = eventStart.difference(now);
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15304,7 +61206,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return 'STARTING SOON';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15312,7 +61238,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           return 'UPCOMING';
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15320,7 +61270,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15328,11 +61302,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return 'ENDED';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15344,7 +61366,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   BoxDecoration _cardDecoration() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15352,7 +61398,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       color: AppTheme.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15360,7 +61430,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       boxShadow: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15368,7 +61462,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           color: Colors.black.withValues(alpha: 0.06),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15376,7 +61494,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           offset: const Offset(0, 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15384,7 +61526,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15392,7 +61558,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15401,16 +61603,73 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
   String _formatNumber(dynamic n) {
+
+
+
     final numValue = n is double ? n : (n as int).toDouble();
 
+
+
+
+
+
+
     if (numValue >= 1000000) {
+
+
+
       return '₱${(numValue / 1000000).toStringAsFixed(2)}m';
+
+
+
     }
 
+
+
+
+
+
+
     // Always show exact amount with centavos using comma separators
+
+
+
     final formatter = NumberFormat('#,##0.00', 'en_US');
+
+
+
     return '₱${formatter.format(numValue)}';
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15423,7 +61682,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     final now = DateTime.now();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15431,7 +61714,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'January',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15439,7 +61746,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'March',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15447,7 +61778,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'May',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15455,7 +61810,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'July',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15463,7 +61842,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'September',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15471,7 +61874,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'November',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15479,7 +61906,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15487,7 +61938,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Monday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15495,7 +61970,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Wednesday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15503,7 +62002,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Friday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15511,7 +62034,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       'Sunday',
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15519,11 +62066,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}, ${now.year}';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15535,7 +62130,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildNewOrderNotification() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15543,7 +62162,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.all(16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15551,7 +62194,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: AppTheme.successGreen,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15559,7 +62226,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         boxShadow: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15567,7 +62258,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             color: AppTheme.successGreen.withValues(alpha: 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15575,7 +62290,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             offset: const Offset(0, 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15583,11 +62322,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15595,7 +62370,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15603,7 +62402,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15611,7 +62434,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15619,11 +62466,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               borderRadius: BorderRadius.circular(8),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15631,7 +62514,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Icons.receipt_long,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15639,7 +62546,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               size: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15647,7 +62578,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15655,7 +62610,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15663,7 +62642,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15671,7 +62674,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15679,11 +62706,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: TextStyle(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15691,7 +62754,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15699,11 +62786,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15711,7 +62834,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15719,7 +62866,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15727,7 +62898,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontSize: 16,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15735,7 +62930,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15743,7 +62962,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15751,7 +62994,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15759,11 +63026,83 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15783,7 +63122,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _buildNewReservationNotification() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15791,7 +63154,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.all(16),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15799,7 +63186,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: AppTheme.infoBlue,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15807,7 +63218,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         boxShadow: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15815,7 +63250,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             color: AppTheme.infoBlue.withValues(alpha: 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15823,7 +63282,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             offset: const Offset(0, 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15831,11 +63314,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15843,7 +63362,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15851,7 +63394,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Container(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15859,7 +63426,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15867,11 +63458,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               borderRadius: BorderRadius.circular(8),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15879,7 +63506,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Icons.event_available,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15887,7 +63538,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               size: 20,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15895,7 +63570,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15903,7 +63602,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15911,7 +63634,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             mainAxisSize: MainAxisSize.min,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15919,7 +63666,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               const Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15927,11 +63698,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: TextStyle(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15939,7 +63746,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15947,11 +63778,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15959,7 +63826,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15967,7 +63858,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15975,7 +63890,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontSize: 14,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15983,7 +63922,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15991,7 +63954,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -15999,7 +63986,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16007,11 +64018,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16023,7 +64082,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget _periodSelector() {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16031,7 +64114,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       padding: const EdgeInsets.symmetric(horizontal: 12),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16039,7 +64146,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         color: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16047,11 +64178,47 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         border: Border.all(color: const Color(0xFFE2E8F0)),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16059,7 +64226,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         value: _selectedPeriod,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16067,7 +64258,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16075,7 +64290,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .map(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16083,7 +64322,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 value: e,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16091,7 +64354,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16099,7 +64386,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             .toList(),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16107,7 +64418,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16115,11 +64450,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16135,7 +64518,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class _KpiData {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16143,7 +64562,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final String value;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16151,7 +64594,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final Color color;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16159,7 +64626,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final bool? subPositive; // null = neutral
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16167,7 +64658,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final bool showProgress;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16179,7 +64694,43 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const _KpiData({
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16187,7 +64738,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     required this.value,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16195,7 +64770,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     required this.color,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16203,7 +64802,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     required this.subPositive,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16211,7 +64834,31 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     this.showProgress = false,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16219,11 +64866,59 @@ class _KpiData {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   });
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16235,7 +64930,31 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final IconData icon;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16243,11 +64962,47 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final String title;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final String subtitle;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16259,7 +65014,43 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const _ActivityItem({
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16267,7 +65058,31 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     required this.color,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16275,7 +65090,31 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     required this.subtitle,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16283,11 +65122,59 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   });
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16303,7 +65190,43 @@ class _ActivityItem {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class _KpiCard extends StatefulWidget {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16315,7 +65238,43 @@ class _KpiCard extends StatefulWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const _KpiCard({required this.data});
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16323,11 +65282,47 @@ class _KpiCard extends StatefulWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   @override
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   State<_KpiCard> createState() => _KpiCardState();
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16339,7 +65334,43 @@ class _KpiCard extends StatefulWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class _KpiCardState extends State<_KpiCard> {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16351,11 +65382,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   @override
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Widget build(BuildContext context) {
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16367,7 +65446,43 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return MouseRegion(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16375,7 +65490,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       onExit: (_) => setState(() => _isHovered = false),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16383,7 +65522,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16391,7 +65554,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         padding: const EdgeInsets.all(AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16399,7 +65586,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           color: AppTheme.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16407,7 +65618,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           boxShadow: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16415,7 +65650,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               color: Colors.black.withValues(alpha: _isHovered ? 0.08 : 0.02),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16423,11 +65682,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               offset: Offset(0, _isHovered ? 8 : 4),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16435,7 +65730,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               BoxShadow(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16443,7 +65762,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 blurRadius: 30,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16451,7 +65794,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16459,7 +65826,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           border: Border.all(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16467,7 +65858,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             width: 1,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16475,7 +65890,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16483,7 +65922,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           top: _isHovered ? 2.0 : 0.0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16491,7 +65954,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16499,7 +65986,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16507,7 +66018,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16515,7 +66050,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16523,7 +66082,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16531,7 +66114,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16539,7 +66146,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     borderRadius: BorderRadius.circular(10),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16547,7 +66178,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       BoxShadow(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16555,7 +66210,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         blurRadius: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16563,7 +66242,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16571,7 +66274,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16579,7 +66306,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     widget.data.icon, 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16587,11 +66338,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     size: 22,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16599,7 +66386,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 if (widget.data.subPositive != null || !widget.data.showProgress)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16607,7 +66418,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16615,7 +66450,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       color: widget.data.sub == 'High'
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16623,7 +66482,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                           : (widget.data.subPositive == true
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16631,7 +66514,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                                 : AppTheme.mediumGrey),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16639,7 +66546,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16647,7 +66578,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     child: Text(widget.data.sub),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16655,11 +66610,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ],
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16667,11 +66658,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             AnimatedDefaultTextStyle(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16679,7 +66706,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16687,7 +66738,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16695,7 +66770,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16703,7 +66802,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 widget.data.label,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16711,11 +66834,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 maxLines: 1,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16723,7 +66882,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const SizedBox(height: 4),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16731,7 +66914,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16739,7 +66946,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 fontSize: _isHovered ? 34 : 32,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16747,7 +66978,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: AppTheme.darkGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16755,14 +67010,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               child: FittedBox(
+
+
+
                 fit: BoxFit.scaleDown,
+
+
+
                 alignment: Alignment.centerLeft,
+
+
+
                 child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16778,8 +67078,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16787,7 +67138,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             const SizedBox(height: AppTheme.md),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16795,7 +67170,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               _buildProgressBar()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16803,7 +67202,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               AnimatedDefaultTextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16811,7 +67234,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16819,7 +67266,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   fontSize: _isHovered ? 11 : 10,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16827,7 +67298,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16835,7 +67330,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16843,7 +67362,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16851,11 +67394,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16867,7 +67458,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return MouseRegion(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16875,7 +67490,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       onExit: (_) => setState(() => _isHovered = false),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16883,7 +67522,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16891,7 +67554,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         padding: const EdgeInsets.all(AppTheme.lg),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16899,7 +67586,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           color: AppTheme.primaryColor,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16907,7 +67618,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           boxShadow: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16915,7 +67650,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               color: AppTheme.primaryColor.withValues(alpha: _isHovered ? 0.5 : 0.3),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16923,7 +67682,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               offset: Offset(0, _isHovered ? 10 : 6),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16931,7 +67714,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             if (_isHovered)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16939,7 +67746,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 color: Colors.white.withValues(alpha: 0.2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16947,7 +67778,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 offset: const Offset(0, 0),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16955,7 +67810,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16963,7 +67842,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             begin: Alignment.topLeft,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16971,7 +67874,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             colors: _isHovered ? [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16979,7 +67906,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               AppTheme.primaryDark,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16987,7 +67938,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ] : [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -16995,7 +67970,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               AppTheme.primaryDark,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17003,11 +68002,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17015,7 +68050,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           top: _isHovered ? 3.0 : 0.0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17023,7 +68082,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17031,7 +68114,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17039,7 +68146,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17047,7 +68178,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 AnimatedDefaultTextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17055,7 +68210,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17063,11 +68242,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: _isHovered ? 12 : 11,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontWeight: FontWeight.bold,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17075,7 +68290,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17083,7 +68322,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     widget.data.label,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17091,11 +68354,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     maxLines: 1,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17103,7 +68402,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 const SizedBox(height: 8),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17111,7 +68434,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17119,7 +68466,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     fontSize: _isHovered ? 36 : 34,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17127,7 +68498,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     color: Colors.white,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17135,14 +68530,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   child: FittedBox(
+
+
+
                     fit: BoxFit.scaleDown,
+
+
+
                     alignment: Alignment.centerLeft,
+
+
+
                     child: Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17154,12 +68594,63 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
                   ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17167,7 +68658,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17175,11 +68690,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     AnimatedContainer(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17187,7 +68738,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17195,11 +68770,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         borderRadius: BorderRadius.circular(6),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17207,11 +68818,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         Icons.trending_up,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         color: Colors.white.withValues(alpha: _isHovered ? 0.9 : 0.7),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17219,11 +68866,47 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17231,7 +68914,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     AnimatedDefaultTextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17239,7 +68946,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       style: TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17247,7 +68978,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                         fontSize: _isHovered ? 13 : 12,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17255,7 +69010,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17263,7 +69042,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17271,7 +69074,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17279,7 +69106,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17287,7 +69138,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               duration: const Duration(milliseconds: 200),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17295,7 +69170,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               top: _isHovered ? -5 : 0,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17303,7 +69202,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 Icons.restaurant,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17311,7 +69234,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 size: _isHovered ? 52 : 48,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17319,7 +69266,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17327,7 +69298,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17335,11 +69330,59 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17351,7 +69394,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Column(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17359,7 +69426,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         AnimatedContainer(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17367,7 +69458,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           height: _isHovered ? 6 : 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17375,7 +69490,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17383,7 +69522,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17391,7 +69554,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               BoxShadow(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17399,7 +69586,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 blurRadius: 4,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17407,7 +69618,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17415,7 +69650,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17423,7 +69682,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             alignment: Alignment.centerLeft,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17431,7 +69714,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             child: AnimatedContainer(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17439,7 +69746,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               decoration: BoxDecoration(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17447,7 +69778,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17455,7 +69810,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   BoxShadow(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17463,7 +69842,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     blurRadius: 6,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17471,7 +69874,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17479,7 +69906,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17487,7 +69938,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17495,7 +69970,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17503,7 +70002,31 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17515,11 +70038,71 @@ class _KpiCardState extends State<_KpiCard> {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   final _ActivityItem item;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17535,7 +70118,43 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   @override
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17543,7 +70162,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     return Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17551,7 +70194,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
       children: [
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17559,7 +70226,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           margin: const EdgeInsets.only(top: 6),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17567,7 +70258,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
           height: 8,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17575,7 +70290,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17583,7 +70322,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         Expanded(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17591,7 +70354,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             crossAxisAlignment: CrossAxisAlignment.start,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17599,7 +70386,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Row(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17607,11 +70418,47 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 children: [
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17619,7 +70466,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17627,7 +70498,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontSize: 14,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17635,11 +70530,47 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     ),
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17647,7 +70578,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                     item.time,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17655,7 +70610,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontSize: 11,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17663,7 +70642,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                       fontWeight: FontWeight.w500,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17671,7 +70674,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17679,7 +70706,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17687,7 +70738,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
               Text(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17695,7 +70770,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 style: const TextStyle(
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17703,7 +70802,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                   color: AppTheme.mediumGrey,
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17711,7 +70834,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
                 ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17719,7 +70866,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
             ],
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17727,7 +70898,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
         ),
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17735,7 +70930,31 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
     );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17743,5 +70962,23 @@ class _ActivityTile extends StatelessWidget {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+
+
+
+
+
 
