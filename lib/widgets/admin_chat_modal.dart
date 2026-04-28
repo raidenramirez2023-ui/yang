@@ -762,18 +762,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 itemCount: filteredMessages.length,
                 itemBuilder: (context, index) {
                   final message = filteredMessages[index];
-                  final isFromCustomer = message['is_from_customer'] ?? true;
-                  final messageText = message['message'] ?? '';
-                  final timestamp = DateTime.parse(
-                    message['created_at'],
-                  ).toLocal();
-                  final timeStr = ChatService.formatMessageTime(timestamp);
-
-                  return _buildMessageBubble(
-                    messageText,
-                    isFromCustomer,
-                    timeStr,
-                  );
+                  return _buildMessageBubble(message);
                 },
               );
             },
@@ -834,7 +823,13 @@ class _AdminChatModalState extends State<AdminChatModal> {
     );
   }
 
-  Widget _buildMessageBubble(String message, bool isFromCustomer, String time) {
+  Widget _buildMessageBubble(Map<String, dynamic> message) {
+    final isFromCustomer = message['is_from_customer'] ?? true;
+    final messageText = message['message'] ?? '';
+    final imageUrl = message['image_url'] as String?;
+    final timestamp = DateTime.parse(message['created_at']).toLocal();
+    final timeStr = ChatService.formatMessageTime(timestamp);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -861,16 +856,63 @@ class _AdminChatModalState extends State<AdminChatModal> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message,
-                    style: TextStyle(
-                      color: isFromCustomer ? Colors.black87 : Colors.white,
-                      fontSize: 14,
+                  if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
+                    if (messageText.isNotEmpty) const SizedBox(height: 8),
+                  ],
+                  if (messageText.isNotEmpty)
+                    Text(
+                      messageText,
+                      style: TextStyle(
+                        color: isFromCustomer ? Colors.black87 : Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   Text(
-                    time,
+                    timeStr,
                     style: TextStyle(
                       color: isFromCustomer
                           ? Colors.grey.shade600

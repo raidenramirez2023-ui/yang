@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ChatService {
   static final ChatService _instance = ChatService._internal();
@@ -349,6 +351,64 @@ class ChatService {
       return true;
     } catch (e) {
       debugPrint('Error clearing conversation: $e');
+      return false;
+    }
+  }
+
+  // Upload chat image to Supabase storage (using 'avatars' bucket - same as GCash receipts)
+  Future<String?> uploadChatImage(XFile imageFile, String customerEmail) async {
+    try {
+      final fileExtension = imageFile.path.split('.').last.toLowerCase();
+      final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+      final filePath = 'chat_images/$customerEmail/$fileName';
+
+      debugPrint('Uploading chat image: $filePath');
+      
+      final fileBytes = await imageFile.readAsBytes();
+
+      await _supabase.storage.from('avatars').uploadBinary(
+        filePath,
+        fileBytes,
+        fileOptions: const FileOptions(upsert: true),
+      );
+
+      final publicUrl = _supabase.storage.from('avatars').getPublicUrl(filePath);
+      debugPrint('Chat image uploaded successfully: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      debugPrint('Error uploading chat image: $e');
+      debugPrint('Error details: ${e.runtimeType}');
+      return null;
+    }
+  }
+
+  // Send message with image
+  Future<bool> sendMessageWithImage({
+    required String customerEmail,
+    required String customerName,
+    required String message,
+    required bool isFromCustomer,
+    String? imageUrl,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'customer_email': customerEmail,
+        'customer_name': customerName,
+        'message': message.isEmpty ? '📷 Image' : message,
+        'is_from_customer': isFromCustomer,
+        'is_read': false,
+      };
+
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        data['image_url'] = imageUrl;
+      }
+
+      debugPrint('Sending chat message with data: $data');
+
+      await _supabase.from('chat_messages').insert(data);
+      return true;
+    } catch (e) {
+      debugPrint('Error sending message with image: $e');
       return false;
     }
   }
