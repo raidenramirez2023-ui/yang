@@ -617,14 +617,31 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       }
 
       if (stock != null) {
-        final maxAllowed = stock - 1;
-        if (requestedQuantity > maxAllowed) {
+        // Calculate required ingredient quantity based on recipe and order quantity
+        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
+        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
+        
+        // Check if required quantity exceeds current stock
+        if (requiredQty > stock) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Max limit due to stock! Only ${maxAllowed.toInt()} available for $itemName.'),
+              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
               backgroundColor: Colors.red,
-              duration: const Duration(seconds: 1),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return false;
+        }
+        
+        // Check if stock is zero - no stock available
+        if (stock <= 0) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
             ),
           );
           return false;
@@ -1343,6 +1360,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                 Navigator.pop(context);
                                 await _generateReceipt();
                                 _mobileCustomerNameController.clear();
+                                
+                                // Clear cart and refresh inventory after order completion
+                                setState(() => cart.clear());
+                                await _fetchInventory();
                               }
                             : null,
                         style: ElevatedButton.styleFrom(
@@ -1588,6 +1609,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                                       setState(() => cart.clear());
                                       _mobileCustomerNameController.clear();
                                       _clearOrderInputs?.call();
+                                      
+                                      // Refresh inventory cache after order completion to get updated stock
+                                      await _fetchInventory();
                                     },
                               ),
                             ),
