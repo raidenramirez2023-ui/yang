@@ -67,15 +67,7 @@ class _PaymentPageState extends State<PaymentPage> {
       backgroundColor: Colors.white,
 
       appBar: AppBar(
-
         title: const Text('Payment'),
-
-        backgroundColor: AppTheme.primaryColor,
-
-        foregroundColor: Colors.white,
-
-        elevation: 0,
-
       ),
 
       body: _isProcessing

@@ -50,13 +50,18 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundColor,
       // Default typography refined for modern geometric appearance
       fontFamily: GoogleFonts.inter().fontFamily,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: white,
-        foregroundColor: darkGrey,
+      appBarTheme: AppBarTheme(
+        backgroundColor: primaryColor,
+        foregroundColor: white,
         elevation: 0,
-        scrolledUnderElevation: 2, // Modern material 3 scrolling behavior
-        centerTitle: false,
-        iconTheme: IconThemeData(color: darkGrey),
+        scrolledUnderElevation: 2,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: white),
+        titleTextStyle: GoogleFonts.lora(
+          color: white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       cardTheme: CardThemeData(
         elevation: 0, // We will use custom shadow containers or rely on M3 subtle elevations

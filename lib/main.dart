@@ -40,7 +40,7 @@ import 'pages/staff/staff_dashboard.dart';
 import 'pages/admin/pagsanjaninv_dashboard.dart';
 
 import 'pages/staff/chef_dashboard.dart';
-import 'pages/customer/all_products_page.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,7 +138,7 @@ class YangChowApp extends StatelessWidget {
 
         '/chef-dashboard': (context) => const ChefDashboardPage(),
 
-        '/all-products': (context) => const AllProductsPage(),
+
       },
     );
   }

@@ -265,7 +265,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       (Icons.event_note, 'Advance'),
       (Icons.check_circle_outline, 'Finished'),
       (Icons.inventory_2_outlined, 'Requests'),
-      (Icons.bar_chart, 'Stock'),
+      (Icons.fact_check, 'Stock'),
     ];
 
     return Container(

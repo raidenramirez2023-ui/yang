@@ -112,6 +112,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   final TextEditingController _specialRequestsController =
       TextEditingController();
 
+  // Carousel state
+  late PageController _heroPageController;
+  Timer? _heroTimer;
+  int _currentHeroPage = 0;
+
   // New state variables for form improvements
 
   String? _selectedEventType;
@@ -144,6 +149,31 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             currentUser.email!,
           );
     }
+
+    _heroPageController = PageController(initialPage: 0);
+    _startHeroTimer();
+  }
+
+  void _startHeroTimer() {
+    _heroTimer?.cancel();
+    _heroTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_heroPageController.hasClients) {
+        final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+        final List<MenuItem> items = _getTopSellingItems(allMenu);
+        
+        if (_currentHeroPage < items.length - 1) {
+          _currentHeroPage++;
+        } else {
+          _currentHeroPage = 0;
+        }
+        
+        _heroPageController.animateToPage(
+          _currentHeroPage,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
   }
 
   Future<void> _loadReviewEligibility() async {
@@ -236,6 +266,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     } catch (e) {
       debugPrint('Error loading customer records: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _heroPageController.dispose();
+    _heroTimer?.cancel();
+    _eventController.dispose();
+    _dateController.dispose();
+    _startTimeController.dispose();
+    _durationController.dispose();
+    _guestsController.dispose();
+    _specialRequestsController.dispose();
+    super.dispose();
   }
 
   Future<void> _handleRefresh() async {
@@ -1144,139 +1187,159 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
-  Widget _buildQuickActionButton({
-    required VoidCallback onTap,
-
-    required IconData icon,
-
-    required String label,
-
-    required bool isPrimary,
-  }) {
-    return Container(
-      height: 48,
-
-      decoration: BoxDecoration(
-        color: isPrimary ? AppTheme.primaryColor : Colors.white,
-
-        border: isPrimary ? null : Border.all(color: Colors.grey.shade300),
-
-        borderRadius: BorderRadius.circular(12),
-      ),
-
-      child: Material(
-        color: Colors.transparent,
-
-        child: InkWell(
-          onTap: onTap,
-
-          borderRadius: BorderRadius.circular(12),
-
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-
-              children: [
-                Icon(
-                  icon,
-
-                  color: isPrimary ? Colors.white : Colors.grey.shade600,
-
-                  size: 20,
-                ),
-
-                const SizedBox(width: 8),
-
-                Flexible(
-                  child: Text(
-                    label,
-
-                    style: TextStyle(
-                      color: isPrimary ? Colors.white : Colors.grey.shade600,
-
-                      fontWeight: FontWeight.w600,
-
-                      fontSize: 13,
-                    ),
-
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  List<MenuItem> _getTopSellingItems(Map<String, List<MenuItem>> allMenu) {
+    final List<MenuItem> flattenedItems = [];
+    for (var list in allMenu.values) {
+      flattenedItems.addAll(list);
+    }
+    
+    final List<String> topSellingNames = [
+      'YangChow 1',
+      'YangChow 3',
+      'Buttered Chicken',
+      'Lechon Macau',
+      'Pancit Canton',
+      'Yang Chow Fried Rice',
+      'Siomai with Shrimp',
+      'Sweet and Sour Pork',
+      'Broccoli Leaves with Oyster Sauce',
+    ];
+    
+    final List<MenuItem> items = [];
+    for (var name in topSellingNames) {
+      final found = flattenedItems.where((item) => item.name == name).toList();
+      if (found.isNotEmpty) {
+        items.add(found.first);
+      }
+    }
+    return items;
   }
 
-  Widget _buildActionCard({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+  Widget _buildHeroCarousel() {
+    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    final List<MenuItem> items = _getTopSellingItems(allMenu);
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        SizedBox(
+          height: ResponsiveUtils.isDesktop(context) ? 400 : 220,
+          child: PageView.builder(
+            controller: _heroPageController,
+            onPageChanged: (index) => setState(() => _currentHeroPage = index),
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return AnimatedBuilder(
+                animation: _heroPageController,
+                builder: (context, child) {
+                  double value = 1.0;
+                  if (_heroPageController.position.haveDimensions) {
+                    value = _heroPageController.page! - index;
+                    value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
+                  }
+                  return Center(
+                    child: SizedBox(
+                      height: Curves.easeOut.transform(value) * (ResponsiveUtils.isDesktop(context) ? 400 : 220),
+                      width: double.infinity,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildImageWidget(item),
+                        // Gradient Overlay
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.1),
+                                Colors.black.withValues(alpha: 0.8),
+                              ],
+                              stops: const [0.0, 0.4, 1.0],
+                            ),
+                          ),
+                        ),
+                        // Ad Content
+                        Positioned(
+                          left: 24,
+                          bottom: 24,
+                          right: 24,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+
+                              const SizedBox(height: 8),
+                              Text(
+                                item.name,
+                                style: GoogleFonts.lora(
+                                  color: Colors.white,
+                                  fontSize: ResponsiveUtils.isDesktop(context) ? 32 : 24,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (item.description != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.description!,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(items.length, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 6,
+              width: _currentHeroPage == index ? 24 : 6,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: _currentHeroPage == index ? AppTheme.primaryColor : Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(3),
               ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.darkGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 18),
-          ],
+            );
+          }),
         ),
-      ),
+      ],
     );
   }
 
@@ -1388,47 +1451,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
 
-          const SizedBox(height: 16), // Reduced from 24
+          const SizedBox(height: 16),
 
-          // ── Quick Actions ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick Actions',
-                  style: AppTheme.sectionHeaderStyle,
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionCard(
-                        icon: Icons.add_circle_outline_rounded,
-                        iconColor: AppTheme.primaryColor,
-                        title: 'New Reservation',
-                        subtitle: 'Book a table',
-                        onTap: () => setState(() => _selectedIndex = 1),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildActionCard(
-                        icon: Icons.person_outline_rounded,
-                        iconColor: Colors.grey.shade600,
-                        title: 'My Account',
-                        subtitle: 'Profile & settings',
-                        onTap: () => setState(() => _selectedIndex = 5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // Hero Advertising Carousel
+          _buildHeroCarousel(),
 
-          const SizedBox(height: 16), // Reduced from 24
+          const SizedBox(height: 16),
 
           // ── Products & Pricing menu grid ────────────────────────────────
           _buildIntegratedMenu(),
@@ -1972,8 +2000,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                     FilteringTextInputFormatter.digitsOnly,
                                   ],
                                   helperText: _reservationType == 'Event Place'
-                                      ? '$_minGuestCount–$_maxGuestCount guests allowed'
-                                      : '1–80 guests allowed',
+                                      ? '$_minGuestCount–100 guests allowed'
+                                      : '1–20 guests allowed',
                                 ),
 
                                 const SizedBox(height: 24),
@@ -2509,7 +2537,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                           children: [
                                             Text(
-                                              _reservationType == 'Event Place' ? 'Confirm Reservation' : 'Confirm Order',
+                                              _reservationType == 'Event Place' ? 'Confirm Reservation' : 'Confirm Advance Order',
 
                                               style: const TextStyle(
                                                 fontSize: 16,
@@ -2995,38 +3023,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Top Selling Menu',
+                'Featured Dishes',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.darkGrey,
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  Navigator.pushNamed(context, '/all-products');
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'See all',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],
@@ -3061,7 +3062,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       'Siomai with Shrimp',
       'Sweet and Sour Pork',
       'Broccoli Leaves with Oyster Sauce',
-      'Hot Shrimp Salad',
     ];
     
     // Filter and ensure we maintain the order of topSellingNames
@@ -3103,140 +3103,92 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildProductCard(MenuItem item) {
-    bool isHovered = false;
-    return StatefulBuilder(
-      builder: (context, setCardState) {
-        return MouseRegion(
-          onEnter: (_) => setCardState(() => isHovered = true),
-          onExit: (_) => setCardState(() => isHovered = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            transform: isHovered ? Matrix4.translationValues(0, -4, 0) : Matrix4.identity(),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: isHovered 
-                    ? AppTheme.primaryColor.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.05),
-                  blurRadius: isHovered ? 25 : 10,
-                  offset: isHovered ? const Offset(0, 10) : const Offset(0, 4),
-                ),
-              ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image Section
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              child: Stack(
+                children: [
+                  _buildImageWidget(item),
+                  // Glassmorphic Price Badge
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            '₱${_fmt.format(item.price)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          // Info Section
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image Section
-                Expanded(
-                  flex: 3,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                    child: Stack(
-                      children: [
-                        _buildImageWidget(item),
-                        // Glassmorphic Price Badge
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                                ),
-                                child: Text(
-                                  '₱${_fmt.format(item.price)}',
-                                  style: const TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.darkGrey,
                   ),
                 ),
-                
-                // Content Section
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          item.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
-                            color: AppTheme.darkGrey,
-                            height: 1.2,
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Flexible(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.lightGrey,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  item.category.toUpperCase(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 6.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.mediumGrey,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: isHovered ? AppTheme.primaryColor : Colors.transparent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 12,
-                                color: isHovered ? Colors.white : AppTheme.mediumGrey.withValues(alpha: 0.4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  item.description ?? item.category,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade500,
+                    height: 1.3,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      }
+        ],
+      ),
     );
   }
 
@@ -3267,136 +3219,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           onPaymentSuccess: () {
             _updateReservationPaymentStatus(reservation['id'], depositAmount, reservation['_db_table'] ?? 'reservations');
           },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _proceedToQRPayment(
-    Map<String, dynamic> reservation,
-    double depositAmount,
-  ) async {
-    showDialog(
-      context: context,
-
-      barrierDismissible: false,
-
-      builder: (context) => Dialog(
-        insetPadding: EdgeInsets.zero,
-
-        backgroundColor: Colors.transparent,
-
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-
-          height: MediaQuery.of(context).size.height,
-
-          child: Stack(
-            children: [
-              // Full screen QR code
-              Center(
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.85,
-
-                  height: MediaQuery.of(context).size.width * 0.85,
-
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-
-                    borderRadius: BorderRadius.circular(16),
-
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-
-                        blurRadius: 20,
-
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      // QR Code takes most of the space
-                      Expanded(
-                        flex: 3,
-
-                        child: Padding(
-                          padding: EdgeInsets.all(20),
-
-                          child: Image.asset(
-                            'assets/images/newgcash.jpg',
-
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-
-                      // Amount and info at bottom
-                      Expanded(
-                        flex: 1,
-
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-
-                          child: Column(
-                            children: [
-                              Text(
-                                'Amount: PHP ${depositAmount.toStringAsFixed(2)}',
-
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-
-                                textAlign: TextAlign.center,
-                              ),
-
-                              SizedBox(height: 8),
-
-                              Text(
-                                'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
-
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Close button
-              Positioned(
-                top: 50,
-
-                right: 20,
-
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-
-                  icon: Icon(Icons.close, color: Colors.white, size: 30),
-
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -4065,6 +3887,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                       const Icon(Icons.verified_rounded, color: AppTheme.successGreen, size: 16),
                                   ],
                                 ),
+                                if (reservation['selected_menu_items'] != null && 
+                                     (reservation['selected_menu_items'] as Map).isNotEmpty) ...[
+                                   const Divider(height: 32),
+                                   _buildActivityOrderItems(reservation),
+                                 ],
                                 if (reservation['_db_table'] == 'advance_orders' && 
                                      (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')) ...[
                                    const Divider(height: 32),
@@ -4082,6 +3909,62 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActivityOrderItems(Map<String, dynamic> reservation) {
+    final items = reservation['selected_menu_items'] as Map<String, dynamic>? ?? {};
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'ORDERED ITEMS',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.mediumGrey,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...items.entries.map((entry) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'x${entry.value}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -4780,7 +4663,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     final String title = _reservationType == 'Event Place'
         ? 'Are you sure you want to Confirm Reservation?'
-        : 'Are you sure you want to Confirm Order?';
+        : 'Are you sure you want to Confirm Advance Order?';
 
     showDialog(
       context: context,
@@ -4891,7 +4774,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     if (needsGuests) {
       int min = _reservationType == 'Event Place' ? _minGuestCount : 1;
-      int max = _reservationType == 'Event Place' ? _maxGuestCount : 80;
+      int max = _reservationType == 'Event Place' ? 100 : 20;
 
       if (guestCount < min || guestCount > max) {
         _showSnackBar(

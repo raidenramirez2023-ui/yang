@@ -197,7 +197,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 28),
             SizedBox(width: 12),
-            Text('Payment Successful!'),
+            Text('Payment Pending Approval'),
           ],
         ),
         content: Column(
@@ -205,7 +205,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your GCash payment has been successfully processed.',
+              'Your GCash payment is pending admin approval. Once verified, your order will be sent to the kitchen.',
               style: TextStyle(fontSize: 16),
             ),
             if (widget.table == 'reservations') ...[
@@ -253,7 +253,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Order sent to kitchen! You can track your order in the dashboard.',
+                        '🕐 Advance order submitted! Admin will review your payment shortly.',
                         style: TextStyle(
                           color: AppTheme.successGreen,
                           fontWeight: FontWeight.w500,
@@ -264,14 +264,6 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                 ),
               ),
             ],
-            SizedBox(height: 8),
-            Text(
-              'Thank you for choosing GCash!',
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ],
         ),
         actions: [
@@ -899,21 +891,6 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                     color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.security, color: AppTheme.primaryColor),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your GCash payment is secure and encrypted',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
                   ),
                 ],
               ),
