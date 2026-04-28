@@ -82,7 +82,6 @@ class AppConstants {
   static const List<String> eventTypes = [
     'Birthday Party',
     'Wedding',
-    'Meeting',
     'Anniversary',
     'Corporate Event',
     'Family Gathering',

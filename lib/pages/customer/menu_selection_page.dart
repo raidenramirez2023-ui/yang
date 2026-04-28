@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../models/menu_item.dart';
 import '../../services/menu_reservation_service.dart';
@@ -25,20 +26,21 @@ class MenuSelectionPage extends StatefulWidget {
 }
 
 class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
   late Map<String, List<MenuItem>> menu;
   final Map<String, int> selectedItems = {};
   final MenuReservationService _menuService = MenuReservationService();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
   
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
   double _totalPrice = 0.0;
   double _depositAmount = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: MenuService.categories.length, vsync: this);
     menu = MenuService.getMenu();
     
     // Initialize with any provided selection
@@ -51,8 +53,8 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   @override
   void dispose() {
-    _tabController.dispose();
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -90,208 +92,277 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     _updatePricing();
   }
 
+  List<MenuItem> _getFilteredItems() {
+    final List<MenuItem> allItems = [];
+    if (_selectedCategory == 'All') {
+      for (var items in menu.values) {
+        allItems.addAll(items);
+      }
+    } else {
+      allItems.addAll(menu[_selectedCategory] ?? []);
+    }
+
+    if (_searchQuery.isEmpty) {
+      return allItems;
+    }
+
+    return allItems.where((item) => 
+      item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().contains(_searchQuery.toLowerCase())
+    ).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredItems = _getFilteredItems();
+
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Select Menu Items',
-          style: const TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelColor: AppTheme.primaryColor,
-          unselectedLabelColor: AppTheme.mediumGrey,
-          indicatorColor: AppTheme.primaryColor,
-          indicatorWeight: 3,
-          tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
-        ),
-        actions: [
-          if (selectedItems.isNotEmpty)
-            IconButton(
-              onPressed: _clearSelection,
-              icon: const Icon(Icons.clear_all, color: AppTheme.primaryColor),
-              tooltip: 'Clear Selection',
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Pricing Summary Card
-            Container(
-              margin: ResponsiveUtils.getResponsiveMargin(context),
-              padding: const EdgeInsets.all(20),
-              decoration: AppTheme.cardDecoration().copyWith(
-                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1), width: 1),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Selected Items',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppTheme.darkGrey,
-                        ),
-                      ),
-                      Text(
-                        '${selectedItems.values.fold(0, (sum, qty) => sum + qty)} items',
-                        style: const TextStyle(
-                          color: AppTheme.mediumGrey,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Menu Price:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                      Text(
-                        'PHP ${_fmt.format(_totalPrice)}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.darkGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        widget.reservationType == 'Advance Order' 
-                            ? 'Full Payment Required:' 
-                            : '50% Deposit Required:',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                      Text(
-                        'PHP ${_fmt.format(_depositAmount)}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          
-          // Menu Categories
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: MenuService.categories.map((cat) {
-                final items = menu[cat] ?? [];
-                return _buildCategoryGrid(items);
-              }).toList(),
-            ),
-          ),
-          
-          // Bottom Action Bar
-          if (selectedItems.isNotEmpty)
-            Container(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).padding.bottom + 20,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeaderSection(),
+            
+            // Pricing Summary Card (Subtle version)
+            if (selectedItems.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.reservationType == 'Advance Order' 
-                              ? 'Total Amount' 
-                              : 'Deposit Required',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.mediumGrey,
-                          ),
+                          'Total: PHP ${_fmt.format(_totalPrice)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                         Text(
-                          'PHP ${_fmt.format(_depositAmount)}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
+                          'Deposit: PHP ${_fmt.format(_depositAmount)}',
+                          style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                       ],
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      final validation = _menuService.validateMenuSelection(selectedItems);
-                      if (validation != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(validation)),
-                        );
-                        return;
-                      }
-                      
-                      widget.onMenuSelected(selectedItems);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    Text(
+                      '${selectedItems.values.fold(0, (sum, qty) => sum + qty)} items',
+                      style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
                     ),
-                    child: const Text('Confirm Selection'),
+                  ],
+                ),
+              ),
+            
+            // Menu Items Grid
+            Expanded(
+              child: _buildCategoryGrid(filteredItems),
+            ),
+            
+            // Bottom Action Bar
+            if (selectedItems.isNotEmpty)
+              _buildBottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Navigation Row
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                ),
+              ),
+              Text(
+                'Select Menu Items',
+                style: GoogleFonts.lora(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Search Bar Row
+          Row(
+            children: [
+              // Red Bordered Search Bar (Now with white background for contrast)
+              Expanded(
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                   ),
-                ],
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    style: const TextStyle(color: AppTheme.darkGrey),
+                    decoration: InputDecoration(
+                      hintText: 'Search for products...',
+                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Filter and Category Chips Row
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // Filter Icon Button
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                ),
+                // "All" Category
+                _buildCategoryChip('All'),
+                // Other Categories
+                ...MenuService.categories.map((cat) => _buildCategoryChip(cat)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String category) {
+    final bool isSelected = _selectedCategory == category;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCategory = category),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(Icons.check, size: 16, color: AppTheme.primaryColor),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              category,
+              style: TextStyle(
+                color: isSelected ? AppTheme.primaryColor : Colors.white,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 15,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.reservationType == 'Advance Order' 
+                      ? 'Total Amount' 
+                      : 'Deposit Required',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.mediumGrey,
+                  ),
+                ),
+                Text(
+                  'PHP ${_fmt.format(_depositAmount)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final validation = _menuService.validateMenuSelection(selectedItems);
+              if (validation != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(validation)),
+                );
+                return;
+              }
+              
+              widget.onMenuSelected(selectedItems);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Confirm Selection'),
+          ),
         ],
       ),
     );
@@ -301,17 +372,17 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     if (items.isEmpty) {
       return const Center(
         child: Text(
-          'No items available in this category.',
+          'No items found.',
           style: TextStyle(color: Colors.grey),
         ),
       );
     }
 
     return GridView.builder(
-      padding: ResponsiveUtils.getResponsivePadding(context),
+      padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.8 : 0.72,
+        childAspectRatio: 0.72,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -391,58 +462,56 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
             flex: 2,
             child: Padding(
               padding: const EdgeInsets.all(10.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      item.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                        color: AppTheme.darkGrey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.category,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: () => _removeFromSelection(item),
+                        icon: const Icon(Icons.remove_circle_outline, size: 18),
+                        color: quantity > 0 ? AppTheme.primaryColor : AppTheme.lightGrey,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.category,
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppTheme.mediumGrey,
+                      Text(
+                        '$quantity',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          onPressed: () => _removeFromSelection(item),
-                          icon: const Icon(Icons.remove_circle_outline, size: 18),
-                          color: quantity > 0 ? AppTheme.primaryColor : AppTheme.lightGrey,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        Text(
-                          '$quantity',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => _addToSelection(item),
-                          icon: const Icon(Icons.add_circle_outline, size: 18),
-                          color: AppTheme.primaryColor,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      IconButton(
+                        onPressed: () => _addToSelection(item),
+                        icon: const Icon(Icons.add_circle_outline, size: 18),
+                        color: AppTheme.primaryColor,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

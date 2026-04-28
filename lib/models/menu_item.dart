@@ -7,6 +7,7 @@ class MenuItem {
   String? customImagePath;
   final String fallbackImagePath;
   final Color color;
+  final String? description;
 
   MenuItem({
     required this.name,
@@ -15,6 +16,7 @@ class MenuItem {
     required this.fallbackImagePath,
     required this.color,
     this.customImagePath,
+    this.description,
   });
 }
 

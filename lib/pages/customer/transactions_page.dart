@@ -92,21 +92,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Transactions',
-          style: TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.w500,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
+        title: const Text('Transactions'),
       ),
       body: RefreshIndicator(
         onRefresh: _refreshTransactions,
