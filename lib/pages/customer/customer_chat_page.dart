@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/services/chat_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CustomerChatPage extends StatefulWidget {
   const CustomerChatPage({super.key});
@@ -16,8 +19,11 @@ class CustomerChatPage extends StatefulWidget {
 class _CustomerChatPageState extends State<CustomerChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isLoading = false;
   bool _isSending = false;
+  bool _isUploading = false;
+  XFile? _selectedImage;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
 
   @override
@@ -89,7 +95,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || _isSending) return;
+    if (_messageController.text.trim().isEmpty && _selectedImage == null) return;
+    if (_isSending || _isUploading) return;
 
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
@@ -97,19 +104,44 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
     setState(() => _isSending = true);
 
     try {
-      await Supabase.instance.client.from('chat_messages').insert({
-        'customer_email': currentUser.email!,
-        'customer_name':
+      String? imageUrl;
+      
+      // Upload image if selected
+      if (_selectedImage != null) {
+        setState(() => _isUploading = true);
+        imageUrl = await ChatService().uploadChatImage(
+          _selectedImage!,
+          currentUser.email!,
+        );
+        setState(() => _isUploading = false);
+        
+        if (imageUrl == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to upload image'),
+              backgroundColor: AppTheme.errorRed,
+            ),
+          );
+          setState(() => _isSending = false);
+          return;
+        }
+      }
+
+      await ChatService().sendMessageWithImage(
+        customerEmail: currentUser.email!,
+        customerName:
             currentUser.userMetadata?['full_name'] ??
             currentUser.userMetadata?['name'] ??
             currentUser.email?.split('@')[0] ??
             'Customer',
-        'message': _messageController.text.trim(),
-        'is_from_customer': true,
-        'is_read': false,
-      });
+        message: _messageController.text.trim(),
+        isFromCustomer: true,
+        imageUrl: imageUrl,
+      );
 
       _messageController.clear();
+      setState(() => _selectedImage = null);
       _scrollToBottom();
     } catch (e) {
       debugPrint('Error sending message: $e');
@@ -121,8 +153,37 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
         ),
       );
     } finally {
-      setState(() => _isSending = false);
+      setState(() {
+        _isSending = false;
+        _isUploading = false;
+      });
     }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      
+      if (image != null) {
+        setState(() => _selectedImage = image);
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to pick image'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+    }
+  }
+
+  void _clearSelectedImage() {
+    setState(() => _selectedImage = null);
   }
 
   void _scrollToBottom() {
@@ -482,6 +543,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
   Widget _buildBusinessMessageBubble(Map<String, dynamic> message) {
     final isFromCustomer = message['is_from_customer'] ?? true;
     final messageText = message['message'] ?? '';
+    final imageUrl = message['image_url'] as String?;
     final timestamp = DateTime.parse(message['created_at']).toLocal();
     final timeStr = DateFormat('h:mm a').format(timestamp);
 
@@ -566,8 +628,57 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                         ),
                       ],
                     ),
-                    child: message['id'] == 'welcome_msg_static'
-                        ? RichText(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              imageUrl,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.lightGrey,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 150,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.lightGrey,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.broken_image,
+                                      color: AppTheme.mediumGrey,
+                                      size: 40,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (messageText.isNotEmpty) const SizedBox(height: 8),
+                        ],
+                        if (message['id'] == 'welcome_msg_static')
+                          RichText(
                             text: TextSpan(
                               style: const TextStyle(
                                 color: AppTheme.primaryColor,
@@ -591,7 +702,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                               ],
                             ),
                           )
-                        : Text(
+                        else if (messageText.isNotEmpty)
+                          Text(
                             messageText == ChatService.unsentMessageSentinel
                                 ? (isFromCustomer
                                     ? 'You unsent a message'
@@ -614,6 +726,8 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                                   : FontWeight.w400,
                             ),
                           ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -679,9 +793,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           Container(
             margin: const EdgeInsets.only(right: 12),
             child: IconButton(
-              onPressed: () {
-                // TODO: Add attachment functionality
-              },
+              onPressed: _pickImage,
               icon: const Icon(
                 Icons.attach_file,
                 color: AppTheme.mediumGrey,
@@ -698,31 +810,94 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
 
           // Message input field
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.lightGrey,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
-              ),
-              child: TextField(
-                controller: _messageController,
-                onChanged: (text) {
-                  setState(() {});
-                },
-                decoration: const InputDecoration(
-                  hintText: 'Type your message...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_selectedImage != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightGrey,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: kIsWeb
+                              ? Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.lightGrey,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.image,
+                                    color: AppTheme.mediumGrey,
+                                    size: 30,
+                                  ),
+                                )
+                              : Image.file(
+                                  File(_selectedImage!.path),
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Image selected',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _clearSelectedImage,
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppTheme.mediumGrey,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
                   ),
-                  hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGrey,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    onChanged: (text) {
+                      setState(() {});
+                    },
+                    decoration: const InputDecoration(
+                      hintText: 'Type your message...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 15),
+                    ),
+                    maxLines: 5,
+                    minLines: 1,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
                 ),
-                maxLines: 5,
-                minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
-              ),
+              ],
             ),
           ),
 
@@ -731,11 +906,11 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
           // Send button
           Container(
             decoration: BoxDecoration(
-              color: _isSending
+              color: _isSending || _isUploading
                    ? AppTheme.lightGrey
                    : AppTheme.primaryColor,
               shape: BoxShape.circle,
-              boxShadow: _isSending
+              boxShadow: _isSending || _isUploading
                   ? null
                   : [
                       BoxShadow(
@@ -747,19 +922,30 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
             ),
             child: IconButton(
               mouseCursor: SystemMouseCursors.click,
-              onPressed: _isSending ? null : _sendMessage,
-              icon: _isSending
+              onPressed: (_isSending || _isUploading) ? null : _sendMessage,
+              icon: _isUploading
                   ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppTheme.mediumGrey,
+                          AppTheme.primaryColor,
                         ),
                       ),
                     )
-                  : const Icon(Icons.send, color: Colors.white, size: 20),
+                  : _isSending
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppTheme.mediumGrey,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.send, color: Colors.white, size: 20),
             ),
           ),
         ],
