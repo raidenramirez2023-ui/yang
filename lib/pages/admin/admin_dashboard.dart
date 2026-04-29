@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'dart:async';
 
@@ -2113,7 +2113,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         color: const Color(0xFF8B5CF6),
 
-        sub: 'Paid',
+        sub: '',
 
         subPositive: _totalAdvanceOrders > 0,
       ),
@@ -2141,7 +2141,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         color: AppTheme.successGreen,
 
-        sub: '$_pendingReservations Pending',
+        sub: '',
 
         subPositive: _pendingReservations > 0,
 
