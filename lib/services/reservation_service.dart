@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1465,6 +1466,173 @@ class ReservationService {
            paymentStatus == 'unpaid';
 
   }
+
+
+
+  /// Check if a time slot is already booked for a given date
+
+  Future<bool> isTimeSlotOverlapping({
+
+    required String eventDate,
+
+    required String startTime,
+
+    required double durationHours,
+
+    String? excludeReservationId,
+
+  }) async {
+
+    try {
+
+      // 1. Fetch all non-cancelled reservations for that date
+
+      final response = await _supabase
+
+          .from('reservations')
+
+          .select('id, start_time, duration_hours')
+
+          .eq('event_date', eventDate)
+
+          .not('status', 'eq', 'cancelled');
+
+
+
+      final List<Map<String, dynamic>> existingReservations = 
+
+          List<Map<String, dynamic>>.from(response);
+
+
+
+      // 2. Parse requested time slot
+
+      final DateTime requestedStart = _parseTime(startTime);
+
+      final DateTime requestedEnd = requestedStart.add(
+
+        Duration(minutes: (durationHours * 60).toInt()),
+
+      );
+
+
+
+      // 3. Check for overlaps
+
+      for (var res in existingReservations) {
+
+        // Skip if it's the same reservation (useful for rescheduling)
+
+        if (excludeReservationId != null && res['id'].toString() == excludeReservationId) {
+
+          continue;
+
+        }
+
+
+
+        final String existingStartTimeStr = res['start_time'] ?? '';
+
+        final double existingDuration = (res['duration_hours'] as num?)?.toDouble() ?? 0.0;
+
+
+
+        if (existingStartTimeStr.isEmpty || existingDuration <= 0) continue;
+
+
+
+        final DateTime existingStart = _parseTime(existingStartTimeStr);
+
+        final DateTime existingEnd = existingStart.add(
+
+          Duration(minutes: (existingDuration * 60).toInt()),
+
+        );
+
+
+
+        // Overlap condition: (StartA < EndB) && (EndA > StartB)
+
+        if (requestedStart.isBefore(existingEnd) && requestedEnd.isAfter(existingStart)) {
+
+          return true; // Overlap found
+
+        }
+
+      }
+
+
+
+      return false; // No overlap
+
+    } catch (e) {
+
+      debugPrint('Error checking time slot overlap: $e');
+
+      return false; // Fallback to allow if error occurs
+
+    }
+
+  }
+
+
+
+  /// Helper to parse time strings like "10:00 AM" or "2:30 PM"
+
+  DateTime _parseTime(String timeStr) {
+
+    try {
+
+      final DateFormat timeFormat = DateFormat.jm(); // Matches "10:00 AM"
+
+      final DateTime parsed = timeFormat.parse(timeStr);
+
+      final DateTime now = DateTime.now();
+
+      return DateTime(now.year, now.month, now.day, parsed.hour, parsed.minute);
+
+    } catch (e) {
+
+      debugPrint('Error parsing time string "$timeStr": $e');
+
+      // Fallback: try manual parsing if DateFormat fails
+
+      final parts = timeStr.split(' ');
+
+      if (parts.length >= 1) {
+
+        final timeParts = parts[0].split(':');
+
+        int hour = int.tryParse(timeParts[0]) ?? 0;
+
+        int minute = timeParts.length > 1 ? (int.tryParse(timeParts[1]) ?? 0) : 0;
+
+        
+
+        if (parts.length > 1 && parts[1].toUpperCase() == 'PM' && hour < 12) {
+
+          hour += 12;
+
+        } else if (parts.length > 1 && parts[1].toUpperCase() == 'AM' && hour == 12) {
+
+          hour = 0;
+
+        }
+
+        
+
+        final now = DateTime.now();
+
+        return DateTime(now.year, now.month, now.day, hour, minute);
+
+      }
+
+      return DateTime.now();
+
+    }
+
+  }
+
 
 
 
