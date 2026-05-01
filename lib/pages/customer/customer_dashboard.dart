@@ -4654,26 +4654,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   /// Check if customer already has a reservation for the given date
 
-  Future<bool> _hasReservationOnDate(String formattedDate) async {
-    try {
-      final currentUser = Supabase.instance.client.auth.currentUser;
-
-      if (currentUser == null) return false;
-
-      final response = await Supabase.instance.client
-          .from('reservations')
-          .select('id')
-          .eq('customer_email', currentUser.email!)
-          .eq('event_date', formattedDate)
-          .neq('status', 'cancelled'); // Exclude cancelled reservations
-
-      return response.isNotEmpty;
-    } catch (e) {
-      debugPrint('Error checking for existing reservations: $e');
-
-      return false;
-    }
-  }
 
   void _showConfirmationDialog() {
     String date = _dateController.text.trim();
@@ -4904,14 +4884,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       }
     }
 
-    // Check if customer already has a reservation for this date
+    // Check for time slot overlap
+    setState(() => _isLoading = true);
+    bool isOverlapping = await _reservationService.isTimeSlotOverlapping(
+      eventDate: formattedDate,
+      startTime: startTime,
+      durationHours: totalDuration,
+    );
+    setState(() => _isLoading = false);
 
-    bool hasExistingReservation = await _hasReservationOnDate(formattedDate);
-
-    if (hasExistingReservation) {
+    if (isOverlapping) {
       _showSnackBar(
-        'You already have a reservation for this date. Please choose a different date.',
-
+        'This time slot is already booked. Please choose a different time or date.',
         Colors.orange,
       );
 
