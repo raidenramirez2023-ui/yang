@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/widgets/shared_pos_widget.dart';
 import 'package:yang_chow/pages/staff/staff_order_history_page.dart';
+import 'package:yang_chow/services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 class StaffDashboardPage extends StatefulWidget {
   const StaffDashboardPage({super.key});
@@ -178,5 +180,160 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
       ),
       body: const SharedPOSWidget(userRole: 'Staff'),
     );
+  }
+
+  Widget _buildNotificationIcon() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: NotificationService.getAdminNotificationsStream(),
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final hasUnread = notifications.any((n) => !n['is_read']);
+
+        return Stack(
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: Colors.black54,
+              ),
+              onPressed: () => _showNotificationsDialog(notifications),
+              tooltip: 'Notifications',
+            ),
+            if (hasUnread)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
+    NotificationService.markAllAsRead('', forAdmin: true);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Notifications'),
+        content: SizedBox(
+          width: 400,
+          height: 500,
+          child: notifications.isEmpty
+              ? const Center(child: Text('No new activity'))
+              : ListView.separated(
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final date = DateTime.parse(n['created_at']).toLocal();
+                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        child: Icon(
+                          _getIconForAction(n['action_type']),
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        _getNotificationTitle(n),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getNotificationSubtitle(n),
+                          ),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForAction(String action) {
+    switch (action) {
+      case 'stock_request':
+        return Icons.inventory_2;
+      case 'pos_order':
+        return Icons.shopping_cart;
+      case 'created':
+        return Icons.add_circle;
+      case 'cancelled':
+      case 'deleted':
+        return Icons.cancel;
+      case 'paid':
+        return Icons.payments;
+      case 'updated':
+        return Icons.edit;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  String _getNotificationTitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Stock Request';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'New Order';
+    }
+    switch (n['action_type']) {
+      case 'created':
+        return 'New Reservation';
+      case 'cancelled':
+        return 'Reservation Cancelled';
+      case 'deleted':
+        return 'Reservation Deleted';
+      case 'paid':
+        return 'Payment Received';
+      case 'updated':
+        return 'Reservation Modified';
+      default:
+        return 'Activity Alert';
+    }
+  }
+
+  String _getNotificationSubtitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'POS staff have order please process';
+    }
+    return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
   }
 }

@@ -7,6 +7,7 @@ import 'payment_panel.dart';
 import '../services/recipe_service.dart';
 import '../models/menu_item.dart';
 import '../services/menu_service.dart';
+import '../services/notification_service.dart';
 
 /// =====================
 /// MODELS
@@ -1122,6 +1123,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       
       // Refresh inventory cache after deduction
       _fetchInventory();
+
+      // Send notification to kitchen/admin
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: staffEmail.split('@')[0],
+        actionType: 'pos_order',
+        reservationId: orderId,
+        eventType: 'New POS Order ($transactionId)',
+      );
+
     } catch (e) {
       debugPrint('Supabase Error: $e');
       // Non-blocking: show a warning but don't block the receipt

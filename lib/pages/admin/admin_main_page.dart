@@ -1600,9 +1600,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
                         children: [
 
                           Text(
-
-                            '${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}',
-
+                            _getAdminNotificationSubtitle(n),
                           ),
 
                           Text(
@@ -1652,67 +1650,56 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   IconData _getIconForAction(String action) {
-
     switch (action) {
-
+      case 'stock_request':
+        return Icons.inventory_2;
+      case 'pos_order':
+        return Icons.shopping_cart;
       case 'created':
-
         return Icons.add_circle;
-
       case 'cancelled':
-
       case 'deleted':
-
         return Icons.cancel;
-
       case 'paid':
-
         return Icons.payments;
-
       case 'updated':
-
         return Icons.edit;
-
       default:
-
         return Icons.notifications;
-
     }
-
   }
 
-
+  String _getAdminNotificationSubtitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'POS staff have order please process';
+    }
+    return '${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}';
+  }
 
   String _getAdminNotificationTitle(Map<String, dynamic> n) {
-
-    switch (n['action_type']) {
-
-      case 'created':
-
-        return 'New Reservation';
-
-      case 'cancelled':
-
-        return 'Reservation Cancelled';
-
-      case 'deleted':
-
-        return 'Reservation Deleted';
-
-      case 'paid':
-
-        return 'Payment Received';
-
-      case 'updated':
-
-        return 'Reservation Modified';
-
-      default:
-
-        return 'Activity Alert';
-
+    if (n['action_type'] == 'stock_request') {
+      return 'Stock Request';
     }
-
+    if (n['action_type'] == 'pos_order') {
+      return 'New Order';
+    }
+    switch (n['action_type']) {
+      case 'created':
+        return 'New Reservation';
+      case 'cancelled':
+        return 'Reservation Cancelled';
+      case 'deleted':
+        return 'Reservation Deleted';
+      case 'paid':
+        return 'Payment Received';
+      case 'updated':
+        return 'Reservation Modified';
+      default:
+        return 'Activity Alert';
+    }
   }
 
 }
