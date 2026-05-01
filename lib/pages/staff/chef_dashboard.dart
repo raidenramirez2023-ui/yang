@@ -236,6 +236,8 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
             },
           ),
           const SizedBox(width: 8),
+          _buildNotificationIcon(),
+          const SizedBox(width: 8),
           // logout
           InkWell(
             borderRadius: BorderRadius.circular(8),
@@ -256,6 +258,170 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         ],
       ),
     );
+  }
+
+  // ── Notifications ───────────────────────────────────────
+  Widget _buildNotificationIcon() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: NotificationService.getAdminNotificationsStream(),
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final hasUnread = notifications.any((n) => !n['is_read']);
+
+        return Stack(
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => _showNotificationsDialog(notifications),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Color(0xFF64748B),
+                  size: 18,
+                ),
+              ),
+            ),
+            if (hasUnread)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
+    NotificationService.markAllAsRead('', forAdmin: true);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Notifications'),
+        content: SizedBox(
+          width: 400,
+          height: 500,
+          child: notifications.isEmpty
+              ? const Center(child: Text('No new activity'))
+              : ListView.separated(
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final date = DateTime.parse(n['created_at']).toLocal();
+                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        child: Icon(
+                          _getIconForAction(n['action_type']),
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        _getNotificationTitle(n),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getNotificationSubtitle(n),
+                          ),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForAction(String action) {
+    switch (action) {
+      case 'stock_request':
+        return Icons.inventory_2;
+      case 'pos_order':
+        return Icons.shopping_cart;
+      case 'created':
+        return Icons.add_circle;
+      case 'cancelled':
+      case 'deleted':
+        return Icons.cancel;
+      case 'paid':
+        return Icons.payments;
+      case 'updated':
+        return Icons.edit;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  String _getNotificationTitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Stock Request';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'New Order';
+    }
+    switch (n['action_type']) {
+      case 'created':
+        return 'New Reservation';
+      case 'cancelled':
+        return 'Reservation Cancelled';
+      case 'deleted':
+        return 'Reservation Deleted';
+      case 'paid':
+        return 'Payment Received';
+      case 'updated':
+        return 'Reservation Modified';
+      default:
+        return 'Activity Alert';
+    }
+  }
+
+  String _getNotificationSubtitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'POS staff have order please process';
+    }
+    return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
   }
 
   // ── Bottom Navigation ────────────────────────────────────
@@ -2027,6 +2193,15 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         'created_at': DateTime.now().toIso8601String(),
       });
 
+      // Send notification to Inventory/Admin
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: chef.split('@')[0],
+        actionType: 'stock_request',
+        reservationId: 'N/A',
+        eventType: 'Stock Request: $itemName ($qty)',
+      );
+
       if (mounted) {
         _itemCtrl.clear();
         _qtyCtrl.clear();
@@ -2806,12 +2981,44 @@ class _StockViewTabState extends State<_StockViewTab> {
 
       await Supabase.instance.client.from('kitchen_requests').insert(requests);
 
+      // Create a descriptive event type for the notification
+      String eventTypeStr;
+      if (requests.length == 1) {
+        eventTypeStr = 'Stock Request: ${requests[0]['item_name']} (${requests[0]['quantity_needed']})';
+      } else {
+        final names = requests.map((r) => r['item_name']).take(3).join(', ');
+        final suffix = requests.length > 3 ? '... +${requests.length - 3} more' : '';
+        eventTypeStr = 'Bulk Request (${requests.length} items): $names$suffix';
+      }
+
+      // Send notification to Inventory/Admin
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: chef.split('@')[0],
+        actionType: 'stock_request',
+        reservationId: 'N/A',
+        eventType: eventTypeStr,
+      );
+
       if (mounted) {
         setState(() => _submitting = false);
+        
+        final skippedCount = _availableItems.where((name) {
+          final mainStock = _itemStocks[name] ?? 0;
+          final kitchenStock = _kitchenStocks[name] ?? 0;
+          return filter(name, mainStock, kitchenStock) && pendingNames.contains(name);
+        }).length;
+
+        String msg = 'Successfully requested ${requests.length} items!';
+        if (skippedCount > 0) {
+          msg += ' ($skippedCount items skipped as they are already pending)';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully requested ${requests.length} items!'),
+            content: Text(msg),
             backgroundColor: AppTheme.successGreen,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

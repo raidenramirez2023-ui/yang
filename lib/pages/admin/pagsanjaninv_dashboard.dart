@@ -11,6 +11,8 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
+import 'package:yang_chow/services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 
 
@@ -1590,6 +1592,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         ),
 
+                      _buildNotificationIcon(AppTheme.primaryColor),
+
                     ],
 
                   ),
@@ -1627,275 +1631,140 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
   Widget _buildMobileLayout() {
-
     return Scaffold(
-
       backgroundColor: AppTheme.backgroundColor,
-
       appBar: AppBar(
-
         backgroundColor: AppTheme.primaryColor,
-
-        foregroundColor: AppTheme.white,
-
-        elevation: 0,
-
         title: Row(
-
           children: [
-
             const Icon(Icons.dashboard_rounded),
-
             const SizedBox(width: 8),
-
-            Text(_selectedIndex == 0 ? 'Inventory Dashboard' : 
-
-                 _selectedIndex == 1 ? 'Kitchen Stock Requests' :
-
-                 _selectedIndex == 2 ? 'Manage Inventory' :
-
-                 'Storage Room'),
-
+            const Text('Inventory Dashboard'),
           ],
-
         ),
-
         actions: [
-
+          _buildNotificationIcon(Colors.white),
           IconButton(
-
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDashboardData,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
-
             onPressed: _signOut,
-
           ),
-
         ],
-
       ),
-
       drawer: Drawer(
-
         child: Container(
-
           decoration: BoxDecoration(
-
             gradient: LinearGradient(
-
               begin: Alignment.topLeft,
-
               end: Alignment.bottomRight,
-
               colors: [
-
                 AppTheme.primaryColor,
-
                 AppTheme.primaryDark,
-
               ],
-
             ),
-
           ),
-
           child: Column(
-
             children: [
-
               // Header
-
               Container(
-
                 padding: const EdgeInsets.all(24),
-
                 child: Column(
-
                   children: [
-
                     Container(
-
                       padding: const EdgeInsets.all(16),
-
                       decoration: BoxDecoration(
-
                         color: AppTheme.white.withOpacity(0.2),
-
                         borderRadius: BorderRadius.circular(16),
-
                       ),
-
                       child: const Icon(
-
                         Icons.inventory_2,
-
                         color: AppTheme.white,
-
                         size: 40,
-
                       ),
-
                     ),
-
                     const SizedBox(height: 16),
-
                     const Text(
-
                       'Inventory Staff',
-
                       style: TextStyle(
-
                         fontSize: 18,
-
                         fontWeight: FontWeight.w700,
-
                         color: AppTheme.white,
-
                       ),
-
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
-
                       _userName,
-
                       style: const TextStyle(
-
                         fontSize: 14,
-
                         color: AppTheme.white,
-
                         fontWeight: FontWeight.w500,
-
                       ),
-
                     ),
-
                   ],
-
                 ),
-
               ),
-
               
-
               const Divider(color: AppTheme.white, height: 1),
-
               
-
               // Navigation Items
-
               ListView(
-
                 padding: const EdgeInsets.symmetric(vertical: 16),
-
                 shrinkWrap: true,
-
                 children: [
-
                   _buildSidebarItem(
-
                     icon: Icons.dashboard,
-
                     title: 'Dashboard',
-
                     index: 0,
-
                   ),
-
                   _buildSidebarItem(
-
                     icon: Icons.shopping_cart,
-
                     title: 'Kitchen Requests',
-
                     index: 1,
-
                   ),
-
                   _buildSidebarItem(
-
                     icon: Icons.inventory,
-
                     title: 'Manage Inventory',
-
                     index: 2,
-
                   ),
-
                   _buildSidebarItem(
-
                     icon: Icons.warehouse,
-
                     title: 'Storage Room',
-
                     index: 3,
-
                   ),
-
                 ],
-
               ),
-
               
-
               const Spacer(),
-
               
-
               // Logout Button
-
               Container(
-
                 padding: const EdgeInsets.all(16),
-
                 child: ListTile(
-
                   leading: const Icon(Icons.logout, color: AppTheme.white),
-
                   title: const Text(
-
                     'Logout',
-
                     style: TextStyle(
-
                       color: AppTheme.white,
-
                       fontWeight: FontWeight.w600,
-
                     ),
-
                   ),
-
                   onTap: _signOut,
-
                   shape: RoundedRectangleBorder(
-
                     borderRadius: BorderRadius.circular(12),
-
                   ),
-
                 ),
-
               ),
-
             ],
-
           ),
-
         ),
-
       ),
-
       body: _isLoading && _selectedIndex == 0
-
           ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-
           : _getPages()[_selectedIndex],
-
     );
-
   }
 
 
@@ -2468,6 +2337,169 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
+  Widget _buildNotificationIcon(Color iconColor) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: NotificationService.getAdminNotificationsStream(),
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final unreadCount = notifications.where((n) => !n['is_read']).length;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: Icon(
+                unreadCount > 0 ? Icons.notifications_active : Icons.notifications,
+                color: iconColor,
+              ),
+              onPressed: () => _showNotificationsDialog(notifications),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    unreadCount > 9 ? '9+' : unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
+    NotificationService.markAllAsRead('', forAdmin: true);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Inventory Notifications'),
+        content: SizedBox(
+          width: 400,
+          height: 500,
+          child: notifications.isEmpty
+              ? const Center(child: Text('No new activity'))
+              : ListView.separated(
+                  itemCount: notifications.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final date = DateTime.parse(n['created_at']).toLocal();
+                    final timeStr = DateFormat('MMM d, h:mm a').format(date);
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                        child: Icon(
+                          _getIconForAction(n['action_type']),
+                          color: AppTheme.primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        _getNotificationTitle(n),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(_getNotificationSubtitle(n)),
+                          Text(
+                            timeStr,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconForAction(String action) {
+    switch (action) {
+      case 'stock_request':
+        return Icons.inventory_2;
+      case 'pos_order':
+        return Icons.shopping_cart;
+      case 'created':
+        return Icons.add_circle;
+      case 'cancelled':
+      case 'deleted':
+        return Icons.cancel;
+      case 'paid':
+        return Icons.payments;
+      case 'updated':
+        return Icons.edit;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  String _getNotificationTitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Stock Request';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'New Order';
+    }
+    switch (n['action_type']) {
+      case 'created':
+        return 'New Reservation';
+      case 'cancelled':
+        return 'Reservation Cancelled';
+      case 'deleted':
+        return 'Reservation Deleted';
+      case 'paid':
+        return 'Payment Received';
+      case 'updated':
+        return 'Reservation Modified';
+      default:
+        return 'Activity Alert';
+    }
+  }
+
+  String _getNotificationSubtitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_request') {
+      return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'pos_order') {
+      return 'POS staff have order please process';
+    }
+    return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
+  }
 }
 
 class _HoverableActionCard extends StatefulWidget {
@@ -2550,6 +2582,7 @@ class _HoverableActionCardState extends State<_HoverableActionCard> {
     );
   }
 }
+
 
 
 
