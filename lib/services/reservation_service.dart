@@ -7,6 +7,7 @@ import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
 
 import 'package:yang_chow/services/pricing_service.dart';
+import 'package:yang_chow/services/notification_service.dart';
 
 
 
@@ -117,21 +118,26 @@ class ReservationService {
       // Send confirmation email
 
       await _emailService.sendReservationConfirmation(
-
         customerEmail: customerEmail,
-
         customerName: customerName,
-
         eventType: eventType,
-
         eventDate: eventDate,
-
         startTime: startTime,
-
         duration: durationHours,
-
         guests: numberOfGuests,
+      );
 
+      // Send in-app notification to Admin & Kitchen
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: customerName,
+        actionType: 'created',
+        reservationId: response['id'],
+        eventType: eventType,
+        customerEmail: customerEmail,
+        startTime: startTime,
+        guestCount: numberOfGuests,
+        eventDate: eventDate,
       );
 
 
@@ -245,21 +251,26 @@ class ReservationService {
       // Send confirmation email with menu details
 
       await _emailService.sendReservationConfirmation(
-
         customerEmail: customerEmail,
-
         customerName: customerName,
-
         eventType: eventType,
-
         eventDate: eventDate,
-
         startTime: startTime,
-
         duration: durationHours,
-
         guests: numberOfGuests,
+      );
 
+      // Send in-app notification to Admin & Kitchen
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: customerName,
+        actionType: 'created',
+        reservationId: response['id'],
+        eventType: eventType,
+        customerEmail: customerEmail,
+        startTime: startTime,
+        guestCount: numberOfGuests,
+        eventDate: eventDate,
       );
 
 
@@ -854,6 +865,19 @@ class ReservationService {
         startTime: orderTime,
         duration: 0.0,
         guests: numberOfGuests ?? 0,
+      );
+
+      // Send in-app notification to Admin & Kitchen
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: customerName,
+        actionType: 'created',
+        reservationId: response['id'],
+        eventType: 'Advance Order ($orderType)',
+        customerEmail: customerEmail,
+        startTime: orderTime,
+        guestCount: numberOfGuests,
+        eventDate: orderDate,
       );
 
       return response;
