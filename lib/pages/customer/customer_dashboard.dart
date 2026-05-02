@@ -22,7 +22,8 @@ import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
 import 'package:yang_chow/pages/customer/menu_selection_page.dart';
 
 import 'package:yang_chow/pages/customer/transactions_page.dart';
-import 'package:yang_chow/pages/customer/gcash_payment_page.dart';
+import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
+import 'package:yang_chow/services/paymongo_service.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 
@@ -3206,22 +3207,62 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
-  Future<void> _proceedToGCashPayment(
+  Future<void> _proceedToPayment(
     Map<String, dynamic> reservation,
     double depositAmount,
   ) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => GCashPaymentPage(
-          reservationId: reservation['id'],
-          depositAmount: depositAmount,
-          table: reservation['_db_table'] ?? 'reservations',
-          onPaymentSuccess: () {
-            _updateReservationPaymentStatus(reservation['id'], depositAmount, reservation['_db_table'] ?? 'reservations');
-          },
-        ),
-      ),
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      // Create automated PayMongo payment link
+      final response = await PayMongoService.createPaymentLink(
+        amount: depositAmount,
+        description: 'Payment for ${reservation['event_type'] ?? 'Reservation'}',
+        metadata: {
+          'reservationId': reservation['id'],
+          'customerEmail': reservation['customer_email'],
+          'table': reservation['_db_table'] ?? 'reservations',
+        },
+      );
+
+      // Close loading indicator
+      if (mounted) Navigator.of(context).pop();
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        if (!mounted) return;
+
+        // Navigate to the automated payment confirmation page
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PayMongoPaymentPage(
+              paymentUrl: response['checkoutUrl'],
+              paymentLinkId: response['data']?['data']?['id'],
+              reservationId: reservation['id'],
+              depositAmount: depositAmount,
+              table: reservation['_db_table'] ?? 'reservations',
+              onPaymentSuccess: () {
+                _updateReservationPaymentStatus(
+                  reservation['id'],
+                  depositAmount,
+                  reservation['_db_table'] ?? 'reservations',
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        throw response['error'] ?? 'Failed to generate payment link';
+      }
+    } catch (e) {
+      // Close loading indicator if it's still open
+      if (mounted) Navigator.of(context).pop();
+      _showErrorDialog('Could not start payment: $e');
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -3538,15 +3579,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 onPressed: () {
                   Navigator.pop(context);
 
-                  _proceedToGCashPayment(reservation, depositAmount);
+                  _proceedToPayment(reservation, depositAmount);
                 },
 
-                icon: const Icon(Icons.qr_code_2_rounded),
+                icon: const Icon(Icons.payment_rounded),
 
-                label: const Text('Pay with GCash QR'),
+                label: const Text('Pay with PayMongo'),
 
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: AppTheme.primaryColor,
 
                   foregroundColor: Colors.white,
 
@@ -4945,30 +4986,63 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           _isLoading = false;
         });
 
-        // Redirect immediately to payment page
-        Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-            builder: (context) => GCashPaymentPage(
-              reservationId: orderId,
-              depositAmount: totalMenuPrice,
-              table: 'advance_orders',
-              onPaymentSuccess: () {
-                if (mounted) {
-                  setState(() {
-                    _selectedMenuItems.clear();
-                    _selectedIndex = 0; // Go to home/activity
-                  });
-                  _loadCustomerReservations();
-                  _showSuccessDialog(
-                    'Advance Order paid and confirmed successfully!\n\n'
-                    'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
-                    'Your order is now being processed by the kitchen.',
-                  );
-                }
-              },
-            ),
-          ),
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
         );
+
+        try {
+          // Create automated PayMongo payment link
+          final response = await PayMongoService.createPaymentLink(
+            amount: totalMenuPrice,
+            description: 'Advance Order Payment',
+            metadata: {
+              'reservationId': orderId,
+              'table': 'advance_orders',
+            },
+          );
+
+          // Close loading indicator
+          if (mounted) Navigator.of(context).pop();
+
+          if (response['success'] == true && response['checkoutUrl'] != null) {
+            if (!mounted) return;
+
+            // Navigate immediately to payment confirmation page
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (context) => PayMongoPaymentPage(
+                  paymentUrl: response['checkoutUrl'],
+                  paymentLinkId: response['data']?['data']?['id'],
+                  reservationId: orderId,
+                  depositAmount: totalMenuPrice,
+                  table: 'advance_orders',
+                  onPaymentSuccess: () {
+                    if (mounted) {
+                      setState(() {
+                        _selectedMenuItems.clear();
+                        _selectedIndex = 0; // Go to home/activity
+                      });
+                      _loadCustomerReservations();
+                      _showSuccessDialog(
+                        'Advance Order Successfully Paid!\n\n'
+                        'Total Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n\n'
+                        'Your payment is being reviewed by Admin.',
+                      );
+                    }
+                  },
+                ),
+              ),
+            );
+          } else {
+            throw response['error'] ?? 'Failed to generate payment link';
+          }
+        } catch (e) {
+          if (mounted) Navigator.of(context).pop();
+          _showErrorDialog('Could not start payment: $e');
+        }
       } else {
         String finalEventType = _selectedEventType!;
 
