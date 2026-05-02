@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
+import 'package:yang_chow/services/paymongo_service.dart';
 
 class PayMongoPaymentPage extends StatefulWidget {
   final String paymentUrl;
+  final String? paymentLinkId; // ID for tracking the payment link
   final String reservationId;
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
@@ -15,6 +18,7 @@ class PayMongoPaymentPage extends StatefulWidget {
   const PayMongoPaymentPage({
     super.key,
     required this.paymentUrl,
+    this.paymentLinkId,
     required this.reservationId,
     required this.depositAmount,
     required this.onPaymentSuccess,
@@ -28,6 +32,7 @@ class PayMongoPaymentPage extends StatefulWidget {
 class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
   bool _isLoading = false;
   bool _paymentCompleted = false;
+  Timer? _pollingTimer; // Timer for automatic status check
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
 
@@ -35,6 +40,36 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
   void initState() {
     super.initState();
     _launchPayment();
+    if (widget.paymentLinkId != null) {
+      _startPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel(); // Important: stop the timer when leaving
+    super.dispose();
+  }
+
+  void _startPolling() {
+    // Check every 2 seconds for faster detection
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (_paymentCompleted) {
+        timer.cancel();
+        return;
+      }
+
+      try {
+        final result = await PayMongoService.retrievePaymentLink(widget.paymentLinkId!);
+        if (result['success'] == true && result['isPaid'] == true) {
+          timer.cancel();
+          debugPrint('✅ Payment detected automatically!');
+          _handlePaymentSuccess();
+        }
+      } catch (e) {
+        debugPrint('Polling error: $e');
+      }
+    });
   }
 
   Future<void> _launchPayment() async {
@@ -67,6 +102,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     
     setState(() {
       _paymentCompleted = true;
+      _isLoading = false;
     });
 
     try {
@@ -98,10 +134,39 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     }
   }
 
-  void _handlePaymentFailed() {
-    if (mounted) {
-      _showErrorDialog('Payment was cancelled or failed. You can try again.');
+  void _verifyAndHandlePayment() async {
+    if (_paymentCompleted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (widget.paymentLinkId == null) {
+        throw Exception('Tracking ID missing. Please try reopening the payment page.');
+      }
+
+      final result = await PayMongoService.retrievePaymentLink(widget.paymentLinkId!);
+      
+      if (result['success'] == true && result['isPaid'] == true) {
+        debugPrint('✅ Payment verified manually!');
+        _handlePaymentSuccess();
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        _showErrorDialog('Sorry, you are not done paying yet. Please complete the payment in the browser first.');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorDialog('Could not verify payment: $e');
     }
+  }
+
+  void _handlePaymentFailed() {
+    _showGoBackConfirmationDialog();
   }
 
   Future<void> _sendPaymentConfirmationEmail() async {
@@ -220,7 +285,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Go back to try again
+              _launchPayment(); // Reopen the payment page
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
@@ -291,7 +356,39 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
                         fontSize: 16,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Reference: ${widget.paymentLinkId?.split('_').last ?? 'N/A'}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tracking payment status...',
+                            style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       'Powered by PayMongo',
                       style: TextStyle(
@@ -403,36 +500,31 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
                           ],
                         ),
                       ),
-                      SizedBox(height: 32),
+                      const SizedBox(height: 32),
                       Row(
                         children: [
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: _handlePaymentSuccess,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.successGreen,
-                                foregroundColor: Colors.white,
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                              ),
-                              child: Text('I Completed Payment'),
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
                             child: OutlinedButton(
-                              onPressed: _handlePaymentFailed,
+                              onPressed: _showGoBackConfirmationDialog,
                               style: OutlinedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: Colors.grey.shade400),
                               ),
-                              child: Text('I Cancelled'),
+                              child: const Text('Go Back', style: TextStyle(color: Colors.black)),
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       TextButton(
                         onPressed: _launchPayment,
-                        child: Text('Reopen Payment Page'),
+                        child: const Text(
+                          'Reopen Payment Page',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -470,16 +562,16 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     );
   }
 
-  void _showCancelConfirmationDialog() {
+  void _showGoBackConfirmationDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Cancel Payment?'),
-        content: Text('Are you sure you want to cancel this payment? Your reservation will not be confirmed.'),
+        title: Text('Go Back?'),
+        content: Text('Are you sure you want to go back?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('No, Continue'),
+            child: Text('No'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -487,13 +579,17 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
               Navigator.of(context).pop(); // Close payment page
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
             ),
-            child: Text('Yes, Cancel'),
+            child: Text('Yes'),
           ),
         ],
       ),
     );
+  }
+
+  void _showCancelConfirmationDialog() {
+    _showGoBackConfirmationDialog();
   }
 }

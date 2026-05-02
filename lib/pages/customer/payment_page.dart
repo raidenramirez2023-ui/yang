@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 
 import 'package:yang_chow/utils/app_theme.dart';
-
+import 'package:yang_chow/services/paymongo_service.dart';
 import 'package:yang_chow/widgets/payment_method_selector.dart';
 
 
@@ -413,32 +413,84 @@ class _PaymentPageState extends State<PaymentPage> {
   // ── E-Wallet (GCash) ─────────────────────────────────────────────────
   Future<void> _processEWalletPayment(String type) async {
     try {
-      setState(() {
-        _isProcessing = false;
-      });
-      
-      _showQRPaymentDialog();
+      final response = await PayMongoService.createPaymentLink(
+        amount: widget.amount,
+        description: widget.description,
+        metadata: {
+          ...?widget.metadata,
+          'reservation_id': widget.metadata?['reservationId'] ?? 'unknown',
+          'payment_type': type,
+        },
+      );
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        final uri = Uri.parse(response['checkoutUrl']);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+            });
+            // Let the user know they were redirected
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Redirecting to secure payment...')),
+            );
+          }
+        } else {
+          throw 'Could not launch payment URL';
+        }
+      } else {
+        throw response['error'] ?? 'Failed to create payment link';
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Payment failed: ${e.toString()}';
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Payment failed: ${e.toString()}';
+          _isProcessing = false;
+        });
+      }
     }
   }
 
   // ── Payment Link (QRPH, Card, Bank Transfer) ────────────────────────────────
   Future<void> _processPaymentLink() async {
     try {
-      setState(() {
-        _isProcessing = false;
-      });
-      
-      _showQRPaymentDialog();
+      final response = await PayMongoService.createPaymentLink(
+        amount: widget.amount,
+        description: widget.description,
+        metadata: {
+          ...?widget.metadata,
+          'reservation_id': widget.metadata?['reservationId'] ?? 'unknown',
+        },
+      );
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        final uri = Uri.parse(response['checkoutUrl']);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          
+          if (mounted) {
+            setState(() {
+              _isProcessing = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Redirecting to PayMongo...')),
+            );
+          }
+        } else {
+          throw 'Could not launch payment URL';
+        }
+      } else {
+        throw response['error'] ?? 'Failed to create payment link';
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Payment processing failed: ${e.toString()}';
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Payment processing failed: ${e.toString()}';
+          _isProcessing = false;
+        });
+      }
     }
   }
 
