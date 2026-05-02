@@ -155,7 +155,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
         setState(() {
           _isLoading = false;
         });
-        _showErrorDialog('Sorry, you are not done paying yet. Please complete the payment in the browser first.');
+        _showErrorDialog('Sorry, you are not done paying yet. Please complete the payment first.');
       }
     } catch (e) {
       setState(() {
