@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,14 +5,16 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
 import 'package:yang_chow/services/paymongo_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 
 class PayMongoPaymentPage extends StatefulWidget {
   final String paymentUrl;
-  final String? paymentLinkId; // ID for tracking the payment link
+  final String? paymentLinkId;
   final String reservationId;
   final double depositAmount;
   final VoidCallback onPaymentSuccess;
-  final String table; // 'reservations' or 'advance_orders'
+  final String table;
 
   const PayMongoPaymentPage({
     super.key,
@@ -32,146 +33,114 @@ class PayMongoPaymentPage extends StatefulWidget {
 class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
   bool _isLoading = false;
   bool _paymentCompleted = false;
-  Timer? _pollingTimer; // Timer for automatic status check
   final ReservationService _reservationService = ReservationService();
   final EmailNotificationService _emailService = EmailNotificationService();
+  final ImagePicker _imagePicker = ImagePicker();
+  String? _receiptImageUrl;
+  Uint8List? _receiptBytes;
+  bool _isUploading = false;
 
   @override
   void initState() {
     super.initState();
     _launchPayment();
-    if (widget.paymentLinkId != null) {
-      _startPolling();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pollingTimer?.cancel(); // Important: stop the timer when leaving
-    super.dispose();
-  }
-
-  void _startPolling() {
-    // Check every 2 seconds for faster detection
-    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      if (_paymentCompleted) {
-        timer.cancel();
-        return;
-      }
-
-      try {
-        final result = await PayMongoService.retrievePaymentLink(widget.paymentLinkId!);
-        if (result['success'] == true && result['isPaid'] == true) {
-          timer.cancel();
-          debugPrint('✅ Payment detected automatically!');
-          _handlePaymentSuccess();
-        }
-      } catch (e) {
-        debugPrint('Polling error: $e');
-      }
-    });
   }
 
   Future<void> _launchPayment() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final uri = Uri.parse(widget.paymentUrl);
       if (await canLaunchUrl(uri)) {
-        await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-          webOnlyWindowName: '_blank',
-        );
-      } else {
-        throw 'Could not launch payment URL';
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      _showErrorDialog('Failed to open payment page. Please try again.');
+      _showErrorDialog('Failed to open payment page.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  void _handlePaymentSuccess() async {
-    if (_paymentCompleted) return; // Prevent multiple calls
-    
-    setState(() {
-      _paymentCompleted = true;
-      _isLoading = false;
-    });
-
+  Future<void> _pickReceiptImage() async {
     try {
-      // Update payment status
-      final success = await _reservationService.updatePaymentStatus(
-        id: widget.reservationId,
-        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'paid',
-        table: widget.table,
-        paymentAmount: widget.depositAmount,
-        paymentReference: 'PAYMONGO_${DateTime.now().millisecondsSinceEpoch}',
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
       );
 
-      if (!success) {
-        throw Exception('Failed to update payment status');
-      }
-
-      // Send confirmation email
-      await _sendPaymentConfirmationEmail();
-
-      if (mounted) {
-        // Show success dialog
-        _showSuccessDialog();
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _receiptBytes = bytes;
+          _isUploading = true;
+        });
+        await _uploadReceiptToSupabase(image.name, bytes);
       }
     } catch (e) {
-      debugPrint('Error updating payment status: $e');
-      if (mounted) {
-        _showErrorDialog('Payment was successful but failed to update reservation. Please contact support.');
-      }
+      setState(() => _isUploading = false);
+      _showErrorDialog('Failed to pick image: $e');
     }
   }
 
-  void _verifyAndHandlePayment() async {
+  Future<void> _uploadReceiptToSupabase(String originalName, Uint8List bytes) async {
+    try {
+      final extension = originalName.split('.').last;
+      final fileName = 'paymongo_receipt_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final filePath = 'receipts/$fileName';
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(filePath, bytes, fileOptions: const FileOptions(upsert: true));
+
+      final imageUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      setState(() {
+        _receiptImageUrl = imageUrl;
+        _isUploading = false;
+      });
+    } catch (e) {
+      setState(() => _isUploading = false);
+      _showErrorDialog('Failed to upload receipt: $e');
+    }
+  }
+
+  void _handleManualPaymentSubmission() async {
     if (_paymentCompleted) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (_receiptImageUrl == null) {
+      _showErrorDialog('Please upload your payment receipt.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
-      if (widget.paymentLinkId == null) {
-        throw Exception('Tracking ID missing. Please try reopening the payment page.');
-      }
+      final success = await _reservationService.updatePaymentStatus(
+        id: widget.reservationId,
+        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
+        table: widget.table,
+        paymentAmount: widget.depositAmount,
+        paymentReference: 'PAYMONGO_${widget.paymentLinkId}',
+        receiptUrl: _receiptImageUrl,
+      );
 
-      final result = await PayMongoService.retrievePaymentLink(widget.paymentLinkId!);
-      
-      if (result['success'] == true && result['isPaid'] == true) {
-        debugPrint('✅ Payment verified manually!');
-        _handlePaymentSuccess();
+      if (success) {
+        setState(() => _paymentCompleted = true);
+        await _sendPaymentConfirmationEmail();
+        if (mounted) _showSuccessDialog();
       } else {
-        setState(() {
-          _isLoading = false;
-        });
-        _showErrorDialog('Sorry, you are not done paying yet. Please complete the payment first.');
+        throw Exception('Failed to update status');
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorDialog('Could not verify payment: $e');
+      _showErrorDialog('Update failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _handlePaymentFailed() {
-    _showGoBackConfirmationDialog();
   }
 
   Future<void> _sendPaymentConfirmationEmail() async {
     try {
-      // Get reservation details for email
       final currentUser = Supabase.instance.client.auth.currentUser;
       if (currentUser != null) {
         await _emailService.sendDepositPaymentConfirmation(
@@ -183,7 +152,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
         );
       }
     } catch (e) {
-      debugPrint('Error sending payment confirmation email: $e');
+      debugPrint('Email error: $e');
     }
   }
 
@@ -192,72 +161,16 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 28),
-            SizedBox(width: 12),
-            Text('Payment Successful!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your payment of PHP ${widget.depositAmount.toStringAsFixed(2)} has been successfully processed.',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 12),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.pending_actions, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your payment is being reviewed by admin.',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Once approved, your reservation will be confirmed and you\'ll receive a confirmation email.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Thank you for your payment!',
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
+        title: Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 12), Text('Pending Approval')]),
+        content: Text('Your payment is being reviewed by admin. Once verified, your order will be processed.'),
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Go back to dashboard
-              widget.onPaymentSuccess(); // Trigger refresh
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+              widget.onPaymentSuccess();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successGreen,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successGreen, foregroundColor: Colors.white),
             child: Text('Got it!'),
           ),
         ],
@@ -269,31 +182,9 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Payment Issue'),
-          ],
-        ),
+        title: Text('Issue'),
         content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('OK'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _launchPayment(); // Reopen the payment page
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Try Again'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
       ),
     );
   }
@@ -301,295 +192,57 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Secure Payment'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.close),
-          onPressed: () {
-            _showCancelConfirmationDialog();
-          },
-        ),
-        actions: [
-          if (!_paymentCompleted)
+      appBar: AppBar(title: Text('Secure Payment'), backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(Icons.credit_card_rounded, size: 80, color: AppTheme.primaryColor),
+            SizedBox(height: 24),
+            Text('Payment Redirected', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.errorRed)),
+            SizedBox(height: 12),
+            Text('Complete the payment in your browser and return here to upload your receipt.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
+            SizedBox(height: 32),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              padding: EdgeInsets.all(24),
+              decoration: BoxDecoration(color: AppTheme.errorRed.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppTheme.errorRed.withOpacity(0.1))),
+              child: Column(
                 children: [
-                  Icon(Icons.lock, size: 14, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text(
-                    'SECURE',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Payment Amount', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                  SizedBox(height: 8),
+                  Text('PHP ${widget.depositAmount.toStringAsFixed(2)}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.errorRed)),
                 ],
               ),
             ),
-          SizedBox(width: 8),
-        ],
-      ),
-      body: _isLoading
-          ? Container(
-              color: Colors.white,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Opening secure payment...',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Reference: ${widget.paymentLinkId?.split('_').last ?? 'N/A'}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Tracking payment status...',
-                            style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Powered by PayMongo',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : _paymentCompleted
-              ? Container(
-                  color: Colors.green.withOpacity(0.1),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 64,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Payment Successful!',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Processing your reservation...',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Container(
-                  padding: EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.payment,
-                        color: AppTheme.primaryColor,
-                        size: 80,
-                      ),
-                      SizedBox(height: 24),
-                      Text(
-                        'Payment Redirected',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        'You have been redirected to PayMongo secure payment gateway.',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Complete the payment in your browser and return here to confirm.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 32),
-                      Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Payment Amount',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'PHP ${widget.depositAmount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _showGoBackConfirmationDialog,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: BorderSide(color: Colors.grey.shade400),
-                              ),
-                              child: const Text('Go Back', style: TextStyle(color: Colors.black)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: _launchPayment,
-                        child: const Text(
-                          'Reopen Payment Page',
-                          style: TextStyle(
-                            color: AppTheme.primaryColor,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-      bottomNavigationBar: !_paymentCompleted
-          ? Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
+            SizedBox(height: 32),
+            if (_receiptBytes != null)
+              Column(
                 children: [
-                  Icon(Icons.security, color: AppTheme.primaryColor),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your payment information is secure and encrypted',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
+                  ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(_receiptBytes!, height: 200, fit: BoxFit.cover)),
+                  SizedBox(height: 12),
+                  if (_isUploading) LinearProgressIndicator() else Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.check_circle, color: Colors.green, size: 16), SizedBox(width: 8), Text('Receipt Attached', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))]),
+                  TextButton.icon(onPressed: _isUploading ? null : _pickReceiptImage, icon: Icon(Icons.refresh), label: Text('Change Receipt')),
                 ],
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: _pickReceiptImage,
+                icon: Icon(Icons.upload_file),
+                label: Text('Upload Receipt Screenshot'),
+                style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 50), backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
               ),
-            )
-          : null,
-    );
-  }
-
-  void _showGoBackConfirmationDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Go Back?'),
-        content: Text('Are you sure you want to go back?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('No'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Close payment page
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: (_receiptImageUrl != null && !_isLoading) ? _handleManualPaymentSubmission : null,
+              child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text('I Completed Payment'),
+              style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 56), backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
-            child: Text('Yes'),
-          ),
-        ],
+            SizedBox(height: 16),
+            TextButton(onPressed: _launchPayment, child: Text('Reopen Payment Page')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('Go Back')),
+          ],
+        ),
       ),
     );
-  }
-
-  void _showCancelConfirmationDialog() {
-    _showGoBackConfirmationDialog();
   }
 }

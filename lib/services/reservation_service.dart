@@ -1245,9 +1245,7 @@ class ReservationService {
         if (receiptUrl != null) {
           updates['receipt_url'] = receiptUrl;
         }
-        if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
-          updates['status'] = 'pending'; // Send to kitchen
-        } else if (paymentStatus == 'pending_verification') {
+        if (paymentStatus == 'paid' || paymentStatus == 'fully_paid' || paymentStatus == 'pending_verification') {
           updates['status'] = 'awaiting_verification'; // Wait for admin
         }
       }

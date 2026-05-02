@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/reservation_service.dart';
+import 'package:yang_chow/services/ocr_service.dart';
 
 class PaymentApprovalPage extends StatefulWidget {
   const PaymentApprovalPage({super.key});
@@ -14,6 +15,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _pendingPayments = [];
   final ReservationService _reservationService = ReservationService();
+  
+  // OCR State
+  final Map<String, Map<String, dynamic>> _ocrResults = {};
+  final Map<String, bool> _analyzingState = {};
 
   @override
   void initState() {
@@ -171,6 +176,29 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     }
   }
 
+  Future<void> _analyzeReceipt(String paymentId, String imageUrl) async {
+    if (_analyzingState[paymentId] == true) return;
+
+    setState(() {
+      _analyzingState[paymentId] = true;
+    });
+
+    try {
+      final results = await OcrService.analyzeReceipt(imageUrl);
+      setState(() {
+        _ocrResults[paymentId] = results;
+      });
+    } catch (e) {
+      debugPrint('Analysis Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _analyzingState[paymentId] = false;
+        });
+      }
+    }
+  }
+
   void _viewReceiptImage(String receiptUrl) {
     showDialog(
       context: context,
@@ -185,7 +213,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               AppBar(
-                title: const Text('GCash Receipt'),
+                title: const Text('PayMongo Receipt'),
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
@@ -448,21 +476,51 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           _buildDetailRow('Deposit Paid', 'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}', Icons.account_balance_wallet, isHighlight: true),
           if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
-              icon: const Icon(Icons.receipt_long, size: 18),
-              label: const Text('View Receipt', style: TextStyle(fontSize: 13)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                foregroundColor: AppTheme.primaryColor,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
+                  icon: const Icon(Icons.receipt_long, size: 18),
+                  label: const Text('View Receipt', style: TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    foregroundColor: AppTheme.primaryColor,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _analyzingState[payment['id']] == true 
+                      ? null 
+                      : () => _analyzeReceipt(payment['id'], payment['receipt_url'].toString()),
+                  icon: _analyzingState[payment['id']] == true 
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.document_scanner, size: 18),
+                  label: Text(_analyzingState[payment['id']] == true ? 'Analyzing...' : 'Auto-Verify', style: const TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.withOpacity(0.1),
+                    foregroundColor: Colors.purple,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.purple.withOpacity(0.3)),
+                    ),
+                  ),
+                ),
+              ],
             ),
+            
+            // OCR Analysis Panel
+            if (_ocrResults.containsKey(payment['id'])) ...[
+              const SizedBox(height: 12),
+              _buildOCRPanel(payment, _ocrResults[payment['id']]!),
+            ],
           ],
         ],
       ),
@@ -593,24 +651,121 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                     const SizedBox(width: 16),
                     if (isMobile) Expanded(
-                      child: _buildActionButton(
-                        onPressed: () => _approvePayment(payment['id'], table),
-                        icon: Icons.check_circle_outline,
-                        label: 'Approve',
-                        isPrimary: true,
-                      ),
-                    ) else _buildActionButton(
-                      onPressed: () => _approvePayment(payment['id'], table),
-                      icon: Icons.check_circle_outline,
-                      label: 'Approve Payment',
-                      isPrimary: true,
-                    ),
+                      child: _buildApproveButton(payment, table),
+                    ) else _buildApproveButton(payment, table),
                   ],
                 ),
+                
+                // Guidance note for disabled button
+                if (!_canApprovePayment(payment['id']))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.grey.shade500),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Run Auto-Verify first to enable approval.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  bool _canApprovePayment(String paymentId) {
+    if (!_ocrResults.containsKey(paymentId)) return false;
+    
+    final ocr = _ocrResults[paymentId]!;
+    if (ocr['success'] == false) return false;
+
+    // Must have detected both amount and reference
+    return ocr['detectedAmount'] != null && 
+           (ocr['detectedRefs'] as List).isNotEmpty;
+  }
+
+  Widget _buildApproveButton(Map<String, dynamic> payment, String table) {
+    final bool enabled = _canApprovePayment(payment['id']);
+    
+    return _buildActionButton(
+      onPressed: enabled ? () => _approvePayment(payment['id'], table) : () {},
+      icon: Icons.check_circle_outline,
+      label: 'Approve Payment',
+      isPrimary: true,
+      isDisabled: !enabled,
+    );
+  }
+
+  Widget _buildOCRPanel(Map<String, dynamic> payment, Map<String, dynamic> ocr) {
+    if (ocr['success'] == false) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+        child: Row(children: [const Icon(Icons.error_outline, color: Colors.red, size: 18), const SizedBox(width: 8), Expanded(child: Text('Analysis failed: ${ocr['error']}', style: const TextStyle(fontSize: 12, color: Colors.red)))]),
+      );
+    }
+
+    final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final double? detectedAmount = ocr['detectedAmount'];
+    final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
+    
+    final String expectedRef = payment['payment_reference'] ?? '';
+    final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
+    
+    // Smart Matching: Match if any detected ref is part of the internal ref 
+    // OR if we found a valid-looking PayMongo/GCash reference (e.g., xlSResj or pay_...)
+    final bool refMatches = detectedRefs.isNotEmpty && (
+      detectedRefs.any((r) => expectedRef.toLowerCase().contains(r.toString().toLowerCase())) ||
+      detectedRefs.any((r) => r.toString().length >= 6) // Most PayMongo/GCash refs are 6+ chars
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: amountMatches ? Colors.green.shade50 : Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: amountMatches ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.image_search, color: amountMatches ? Colors.green : Colors.orange, size: 16),
+              const SizedBox(width: 8),
+              const Text('OCR Verification Assistant', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildOCRRow('Amount Detected', detectedAmount != null ? 'PHP ${detectedAmount.toStringAsFixed(2)}' : 'Not Found', amountMatches ? Icons.check_circle : (detectedAmount == null ? Icons.help_outline : Icons.warning_amber), amountMatches ? Colors.green : Colors.red),
+          _buildOCRRow('Reference ID', detectedRefs.isNotEmpty ? detectedRefs.first.toString() : 'Not Found', refMatches ? Icons.check_circle : Icons.help_outline, refMatches ? Colors.green : Colors.orange),
+          if (!amountMatches && detectedAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('⚠️ Warning: Amount mismatch (Expected PHP ${expectedAmount.toStringAsFixed(2)})', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOCRRow(String label, String value, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text('$label: ', style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
+          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+        ],
       ),
     );
   }
@@ -620,20 +775,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     required IconData icon,
     required String label,
     required bool isPrimary,
+    bool isDisabled = false,
   }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       height: 48,
       child: isPrimary 
         ? ElevatedButton.icon(
-            onPressed: onPressed,
+            onPressed: isDisabled ? null : onPressed,
             icon: Icon(icon, size: 20),
             label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successGreen,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shadowColor: AppTheme.successGreen.withOpacity(0.4),
+              backgroundColor: isDisabled ? Colors.grey.shade300 : AppTheme.successGreen,
+              foregroundColor: isDisabled ? Colors.grey.shade500 : Colors.white,
+              elevation: isDisabled ? 0 : 4,
+              shadowColor: isDisabled ? Colors.transparent : AppTheme.successGreen.withOpacity(0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -641,12 +797,12 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             ),
           )
         : OutlinedButton.icon(
-            onPressed: onPressed,
+            onPressed: isDisabled ? null : onPressed,
             icon: Icon(icon, size: 20),
             label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red.shade600,
-              side: BorderSide(color: Colors.red.shade200),
+              foregroundColor: isDisabled ? Colors.grey.shade500 : Colors.red.shade600,
+              side: BorderSide(color: isDisabled ? Colors.grey.shade300 : Colors.red.shade200),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
