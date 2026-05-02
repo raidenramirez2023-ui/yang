@@ -1257,19 +1257,38 @@ class ReservationService {
           .update(updates)
           .eq('id', id);
 
-      // Send email notifications — wrapped in try-catch so a failed email
+      // Send email & in-app notifications — wrapped in try-catch so a failed notification
       // never causes the payment update to report failure to the customer.
       try {
+        final currentUser = _supabase.auth.currentUser;
+        final actorName = currentUser?.userMetadata?['name'] ??
+            currentUser?.email?.split('@')[0] ??
+            'Customer';
+
         if (table == 'reservations') {
           final reservation = await getReservation(id);
           if (reservation != null) {
+            // Notify admins about the payment
+            await NotificationService.sendNotification(
+              isForAdmin: true,
+              actorName: actorName,
+              actionType: 'paid',
+              reservationId: id,
+              customerEmail: reservation['customer_email'],
+              eventType: reservation['event_type'],
+              eventDate: reservation['event_date'],
+              startTime: reservation['start_time'],
+              guestCount: reservation['number_of_guests'],
+            );
+
             if (paymentStatus == 'deposit_paid') {
               await _emailService.sendDepositPaymentConfirmation(
                 customerEmail: reservation['customer_email'],
                 customerName: reservation['customer_name'],
                 eventType: reservation['event_type'],
                 eventDate: reservation['event_date'],
-                depositAmount: paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
+                depositAmount:
+                    paymentAmount ?? reservation['deposit_amount'] ?? 0.0,
               );
             } else if (paymentStatus == 'fully_paid') {
               await _emailService.sendFullPaymentConfirmation(
@@ -1287,6 +1306,20 @@ class ReservationService {
               .select()
               .eq('id', id)
               .single();
+
+          // Notify admins about the advance order payment
+          await NotificationService.sendNotification(
+            isForAdmin: true,
+            actorName: actorName,
+            actionType: 'paid',
+            reservationId: id,
+            customerEmail: response['customer_email'],
+            eventType: 'Advance Order (${response['order_type']})',
+            eventDate: response['order_date'],
+            startTime: response['order_time'],
+            guestCount: response['number_of_guests'],
+          );
+
           if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
             await _emailService.sendFullPaymentConfirmation(
               customerEmail: response['customer_email'],
@@ -1297,9 +1330,9 @@ class ReservationService {
             );
           }
         }
-      } catch (emailError) {
+      } catch (notifError) {
         // Log but do not rethrow — the DB update succeeded, payment is recorded.
-        debugPrint('Warning: payment notification email failed: $emailError');
+        debugPrint('Warning: payment notification failed: $notifError');
       }
 
       return true;
@@ -1767,6 +1800,29 @@ class ReservationService {
           .update(updates)
           .eq('id', id);
 
+      // Send notification to customer
+      try {
+        final record = await (table == 'reservations' 
+            ? getReservation(id) 
+            : _supabase.from('advance_orders').select().eq('id', id).single());
+            
+        if (record != null) {
+          await NotificationService.sendNotification(
+            recipientEmail: record['customer_email'],
+            isForAdmin: false,
+            actorName: 'Admin',
+            actionType: 'paid', // Or 'approved' if you prefer, but 'paid' shows the payment icon
+            reservationId: id,
+            eventType: table == 'reservations' ? record['event_type'] : 'Advance Order (${record['order_type']})',
+            eventDate: table == 'reservations' ? record['event_date'] : record['order_date'],
+            startTime: table == 'reservations' ? record['start_time'] : record['order_time'],
+            guestCount: record['number_of_guests'],
+          );
+        }
+      } catch (e) {
+        debugPrint('Warning: customer notification failed: $e');
+      }
+
       return true;
     } catch (e) {
       debugPrint('Error approving pending payment: $e');
@@ -1800,6 +1856,29 @@ class ReservationService {
           .from(table)
           .update(updates)
           .eq('id', id);
+
+      // Send notification to customer
+      try {
+        final record = await (table == 'reservations' 
+            ? getReservation(id) 
+            : _supabase.from('advance_orders').select().eq('id', id).single());
+            
+        if (record != null) {
+          await NotificationService.sendNotification(
+            recipientEmail: record['customer_email'],
+            isForAdmin: false,
+            actorName: 'Admin',
+            actionType: 'rejected',
+            reservationId: id,
+            eventType: table == 'reservations' ? record['event_type'] : 'Advance Order (${record['order_type']})',
+            eventDate: table == 'reservations' ? record['event_date'] : record['order_date'],
+            startTime: table == 'reservations' ? record['start_time'] : record['order_time'],
+            guestCount: record['number_of_guests'],
+          );
+        }
+      } catch (e) {
+        debugPrint('Warning: customer notification failed: $e');
+      }
 
       return true;
     } catch (e) {
