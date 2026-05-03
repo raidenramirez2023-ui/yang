@@ -60,11 +60,38 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     final receiverCtrl = TextEditingController();
     List<Map<String, dynamic>> bulkItems = [];
     List<Map<String, dynamic>> allItems = [];
+    List<String> pastReceivers = [];
+    bool fetchedReceivers = false;
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
+          if (!fetchedReceivers) {
+            fetchedReceivers = true;
+            Supabase.instance.client
+                .from('stock_transactions')
+                .select('processed_by')
+                .then((response) {
+              if (response.isNotEmpty) {
+                final receivers = response
+                    .map((e) => e['processed_by']?.toString() ?? '')
+                    .where((e) => e.isNotEmpty)
+                    .toSet()
+                    .toList();
+                if (context.mounted) {
+                  setDialogState(() {
+                    pastReceivers = receivers;
+                  });
+                }
+              }
+            });
+            
+            receiverCtrl.addListener(() {
+              if (context.mounted) setDialogState(() {});
+            });
+          }
+
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -120,10 +147,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   const SizedBox(height: 20),
 
                   // Receiver field (common for all items)
-                  _buildInput(
-                    receiverCtrl,
-                    'Receiver (for all items)',
-                    Icons.person_outline,
+                  _CustomSearchDropdown(
+                    controller: receiverCtrl,
+                    items: pastReceivers,
+                    label: 'Receiver (for all items)',
+                    icon: Icons.person_outline,
+                    onChanged: (value) {
+                      if (context.mounted) setDialogState(() {});
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -288,16 +319,42 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     Function(Map<String, dynamic>) onItemAdded,
   ) {
     String selectedCategory = categories[1];
-    String? selectedItemName;
-    String? selectedUnit;
-    String? selectedSupplier;
+    final itemNameCtrl = TextEditingController();
     final qtyCtrl = TextEditingController();
+    final unitCtrl = TextEditingController();
+    final supplierCtrl = TextEditingController();
     List<String> filteredItemNames = [];
+    bool initialized = false;
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
+          if (!initialized) {
+            initialized = true;
+            itemNameCtrl.addListener(() {
+              final value = itemNameCtrl.text;
+              try {
+                final match = allItems.firstWhere(
+                  (item) => item['name']?.toString() == value,
+                );
+                final dbUnit = match['unit']?.toString().trim();
+                final dbSupplier = match['supplier']?.toString().trim();
+                
+                bool changed = false;
+                if (dbUnit != null && dbUnit.isNotEmpty && unitCtrl.text.isEmpty) {
+                  unitCtrl.text = dbUnit;
+                  changed = true;
+                }
+                if (dbSupplier != null && dbSupplier.isNotEmpty && supplierCtrl.text.isEmpty) {
+                  supplierCtrl.text = dbSupplier;
+                  changed = true;
+                }
+                if (changed && context.mounted) setDialogState(() {});
+              } catch (_) {}
+            });
+          }
+
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -389,9 +446,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
-                                  selectedItemName = null;
-                                  selectedUnit = null;
-                                  selectedSupplier = null;
+                                  itemNameCtrl.clear();
+                                  unitCtrl.clear();
+                                  supplierCtrl.clear();
                                 });
                               }
                             },
@@ -432,60 +489,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                               final items = filteredItemNames;
 
-                              return DropdownButtonFormField<String>(
-                                initialValue: selectedItemName,
-                                decoration: _buildDecoration(
-                                  'Item Name',
-                                  Icons.inventory_2_outlined,
-                                ),
-                                hint: Text(
-                                  items.isEmpty
-                                      ? 'No items in this category'
-                                      : 'Select item',
-                                  style: const TextStyle(
-                                    color: AppTheme.mediumGrey,
-                                  ),
-                                ),
-                                items: items
-                                    .map(
-                                      (name) => DropdownMenuItem(
-                                        value: name,
-                                        child: Text(name),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: items.isEmpty
-                                    ? null
-                                    : (value) {
-                                        setDialogState(() {
-                                          selectedItemName = value;
-                                          final match = allItems.firstWhere(
-                                            (item) =>
-                                                item['name']?.toString() ==
-                                                value,
-                                            orElse: () => {},
-                                          );
-                                          final dbUnit = match['unit']
-                                              ?.toString()
-                                              .trim();
-                                          if (dbUnit != null &&
-                                              dbUnit.isNotEmpty) {
-                                            selectedUnit = dbUnit;
-                                          } else {
-                                            selectedUnit = null;
-                                          }
-
-                                          final dbSupplier = match['supplier']
-                                              ?.toString()
-                                              .trim();
-                                          if (dbSupplier != null &&
-                                              dbSupplier.isNotEmpty) {
-                                            selectedSupplier = dbSupplier;
-                                          } else {
-                                            selectedSupplier = null;
-                                          }
-                                        });
-                                      },
+                              return _CustomSearchDropdown(
+                                controller: itemNameCtrl,
+                                items: items,
+                                label: 'Item Name',
+                                hintText: items.isEmpty ? 'No items in this category' : 'Search or enter new item',
+                                icon: Icons.inventory_2_outlined,
+                                onChanged: (value) {
+                                  if (context.mounted) setDialogState(() {});
+                                },
                               );
                             },
                           ),
@@ -527,23 +539,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: InputDecorator(
-                                  decoration: _buildDecoration(
-                                    'Unit',
-                                    Icons.straighten,
-                                  ),
-                                  child: Text(
-                                    selectedUnit ?? '—',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: selectedUnit != null
-                                          ? AppTheme.darkGrey
-                                          : AppTheme.mediumGrey,
-                                      fontWeight: selectedUnit != null
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                    ),
-                                  ),
+                                child: _buildInput(
+                                  unitCtrl,
+                                  'Unit',
+                                  Icons.straighten,
                                 ),
                               ),
                             ],
@@ -551,23 +550,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           const SizedBox(height: 16),
 
                           // Supplier
-                          InputDecorator(
-                            decoration: _buildDecoration(
-                              'Supplier',
-                              Icons.business_outlined,
-                            ),
-                            child: Text(
-                              selectedSupplier ?? '—',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: selectedSupplier != null
-                                    ? AppTheme.darkGrey
-                                    : AppTheme.mediumGrey,
-                                fontWeight: selectedSupplier != null
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                            ),
+                          _buildInput(
+                            supplierCtrl,
+                            'Supplier',
+                            Icons.business_outlined,
                           ),
                         ],
                       ),
@@ -586,10 +572,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       ElevatedButton(
                         onPressed: () {
                           final qty = int.tryParse(qtyCtrl.text);
-                          if (selectedItemName == null ||
-                              selectedItemName!.isEmpty ||
-                              selectedUnit == null ||
-                              selectedSupplier == null ||
+                          final name = itemNameCtrl.text.trim();
+                          final unit = unitCtrl.text.trim();
+                          final supplier = supplierCtrl.text.trim();
+
+                          if (name.isEmpty ||
+                              unit.isEmpty ||
+                              supplier.isEmpty ||
                               qty == null ||
                               qty <= 0) {
                             _showErrorSnackBar(
@@ -599,11 +588,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           }
 
                           onItemAdded({
-                            'name': selectedItemName,
+                            'name': name,
                             'category': selectedCategory,
                             'quantity': qty,
-                            'unit': selectedUnit,
-                            'supplier': selectedSupplier,
+                            'unit': unit,
+                            'supplier': supplier,
                           });
 
                           Navigator.pop(context);
@@ -1722,6 +1711,133 @@ class _IncomingDeliveryItemState extends State<_IncomingDeliveryItem> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CustomSearchDropdown extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final String? hintText;
+  final TextEditingController controller;
+  final List<String> items;
+  final void Function(String)? onChanged;
+
+  const _CustomSearchDropdown({
+    required this.label,
+    required this.icon,
+    this.hintText,
+    required this.controller,
+    required this.items,
+    this.onChanged,
+  });
+
+  @override
+  State<_CustomSearchDropdown> createState() => _CustomSearchDropdownState();
+}
+
+class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
+  final MenuController _menuController = MenuController();
+  final FocusNode _focusNode = FocusNode();
+  List<String> _filteredItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredItems = widget.items;
+  }
+  
+  @override
+  void didUpdateWidget(_CustomSearchDropdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items) {
+      _filter(widget.controller.text, autoOpen: false);
+    }
+  }
+
+  void _filter(String query, {bool autoOpen = true}) {
+    if (query.isEmpty) {
+      _filteredItems = widget.items;
+    } else {
+      _filteredItems = widget.items
+          .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    }
+    setState(() {});
+    
+    if (autoOpen) {
+      if (query.isNotEmpty && _filteredItems.isNotEmpty && !_menuController.isOpen) {
+        _menuController.open();
+      } else if (_filteredItems.isEmpty && _menuController.isOpen) {
+        _menuController.close();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return MenuAnchor(
+          controller: _menuController,
+          style: MenuStyle(
+            maximumSize: WidgetStateProperty.all(const Size(double.infinity, 250)),
+            minimumSize: WidgetStateProperty.all(Size(constraints.maxWidth, 50)),
+          ),
+          builder: (context, controller, child) {
+            return TextField(
+              controller: widget.controller,
+              focusNode: _focusNode,
+              onChanged: (val) {
+                _filter(val, autoOpen: true);
+                widget.onChanged?.call(val);
+              },
+              decoration: InputDecoration(
+                labelText: widget.label,
+                hintText: widget.hintText,
+                prefixIcon: Icon(widget.icon, color: AppTheme.primaryColor),
+                suffixIcon: IconButton(
+                  icon: Icon(controller.isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down),
+                  onPressed: () {
+                    if (controller.isOpen) {
+                      controller.close();
+                    } else {
+                      _filter(widget.controller.text, autoOpen: false);
+                      controller.open();
+                      _focusNode.requestFocus();
+                    }
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppTheme.lightGrey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor),
+                ),
+                filled: true,
+                fillColor: AppTheme.backgroundColor,
+              ),
+            );
+          },
+          menuChildren: _filteredItems.isEmpty 
+              ? [const Padding(padding: EdgeInsets.all(16.0), child: Text('No matches found'))]
+              : _filteredItems.map((item) {
+            return MenuItemButton(
+              onPressed: () {
+                widget.controller.text = item;
+                widget.onChanged?.call(item);
+                _menuController.close();
+              },
+              child: ConstrainedBox(
+                 constraints: BoxConstraints(minWidth: constraints.maxWidth - 32),
+                 child: Text(item),
+              ),
+            );
+          }).toList(),
+        );
+      }
     );
   }
 }
