@@ -175,4 +175,6 @@ class AppSettingsService {
       AppConstants.defaultEnableEmailNotifications;
 
   String? getSmtpFromEmail() => getSetting<String>('smtp_from_email');
+
+  String getOcrApiKey() => getSetting<String>('ocr_api_key') ?? 'K87368896388957';
 }
