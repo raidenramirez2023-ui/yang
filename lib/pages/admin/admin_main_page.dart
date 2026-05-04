@@ -14,6 +14,7 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/admin/user_management.dart';
 
 import 'package:yang_chow/pages/admin/sales_report_page.dart';
+import 'package:yang_chow/pages/admin/customer_management_page.dart';
 
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
@@ -222,6 +223,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'User Management',
 
+    'Customers',
+
     'Announcements',
 
     'Customer Chat',
@@ -246,6 +249,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.people,
 
+    Icons.person_outline,
+
     Icons.campaign,
 
     Icons.chat_bubble,
@@ -269,6 +274,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const PaymentApprovalPage(),
 
     const UserManagementPage(),
+
+    const CustomerManagementPage(),
 
     const AdminAnnouncementsPage(),
 
