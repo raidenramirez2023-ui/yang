@@ -412,7 +412,7 @@ class RecipeService {
       'menu_item_name': 'Soyed Taufo',
       'ingredients': [
         {'name': 'Tofu', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
-        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
         {'name': 'Garlic', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
       ],
     },
@@ -492,7 +492,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Pancit Canton/200Grams', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Pre-mix'},
         {'name': 'Vegetables', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Vegetables'},
-        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
         {'name': 'Mixed Seafood', 'quantity': 1.0, 'unit': 'gram', 'category': 'Fresh'},
       ],
     },
@@ -553,7 +553,7 @@ class RecipeService {
       'ingredients': [
         {'name': 'Mami Noodles', 'quantity': 1.0, 'unit': 'gram', 'category': 'Groceries'},
         {'name': 'Roast Pork Asado', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Roasting'},
-        {'name': 'Panda Soy Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
+        {'name': 'Panda Oyster Sauce', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Groceries'},
       ],
     },
     'Beef Brisket Noodles': {
@@ -727,7 +727,7 @@ class RecipeService {
       'menu_item_name': 'Siomai with Shrimp',
       'ingredients': [
         {'name': 'Shrimp Marinated 10x100', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
-        {'name': 'Siomai Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Siomai Meat Mix', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
         {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
@@ -735,7 +735,7 @@ class RecipeService {
       'menu_item_name': 'Quail Egg Siomai',
       'ingredients': [
         {'name': 'Quail Egg', 'quantity': 1.0, 'unit': 'pcs', 'category': 'Groceries'},
-        {'name': 'Siomai Meat', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
+        {'name': 'Siomai Meat Mix', 'quantity': 1.0, 'unit': 'kilo', 'category': 'Fresh'},
         {'name': 'Siomai Wrapper', 'quantity': 1.0, 'unit': 'pack', 'category': 'Groceries'},
       ],
     },
