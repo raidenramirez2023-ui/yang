@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/menu_item.dart';
+import '../utils/app_constants.dart';
 
 class MenuService {
+  /// Converts a local 'assets/images/FILENAME' path to its Supabase public URL.
+  /// Paths that are already URLs (http/https) are returned unchanged.
+  static String _img(String path) {
+    if (path.startsWith('http')) return path;
+    if (path.startsWith('assets/images/')) {
+      return AppConstants.imageUrl(path.replaceFirst('assets/images/', ''));
+    }
+    return path;
+  }
+
   static final List<String> categories = [
     'Yangchow Family Bundles',
     'Vegetables',
@@ -176,24 +187,25 @@ class MenuService {
   static Map<String, List<MenuItem>> getMenu() {
     final Map<String, List<MenuItem>> menu = {for (var cat in categories) cat: []};
 
-    // Helper to select fallback image
+    // Helper to select fallback image (auto-converts to Supabase URL)
     final Map<String, int> categoryImageIndex = {};
     String nextImage(String category) {
       final images = categoryImages[category] ?? categoryImages['default']!;
       final index = categoryImageIndex[category] ?? 0;
-      final img = images[index];
+      final img = _img(images[index]);
       categoryImageIndex[category] = (index + 1) % images.length;
       return img;
     }
 
     MenuItem item(String name, double price, String category, Color color, {String? customImagePath, String? description}) {
+      final resolvedPath = customImagePath != null ? _img(customImagePath) : null;
       return MenuItem(
         name: name,
         price: price,
         category: category,
-        fallbackImagePath: customImagePath ?? nextImage(category),
+        fallbackImagePath: resolvedPath ?? nextImage(category),
         color: color,
-        customImagePath: customImagePath,
+        customImagePath: resolvedPath,
         description: description,
       );
     }

@@ -24,9 +24,17 @@ class AppConstants {
   static const double mobileBreakpoint = 768;
   static const double tabletBreakpoint = 1024;
 
-  // Asset Paths
+  // Asset Paths (kept as fallback for non-menu images like logos)
   static const String logoPath = 'assets/images/ycplogo.png';
   static const String logoJpgPath = 'assets/images/logo.jpg';
+
+  // Supabase Storage
+  static const String supabaseStorageBaseUrl =
+      'https://tvzbsvqaikjkxrqykrhw.supabase.co/storage/v1/object/public/restaurant-assets';
+
+  /// Builds a full Supabase Storage public URL from just a filename.
+  /// e.g. imageUrl('YCFriedRice.jpg') => 'https://...restaurant-assets/YCFriedRice.jpg'
+  static String imageUrl(String filename) => '$supabaseStorageBaseUrl/$filename';
 
   // Error Messages
   static const String emptyFieldsError = 'Please enter email and password';

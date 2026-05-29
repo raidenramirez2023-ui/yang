@@ -579,6 +579,33 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   Widget _buildImageWidget(MenuItem item) {
     final imagePath = item.customImagePath ?? item.fallbackImagePath;
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: ColoredBox(
+              color: Color(0xFFE0E0E0),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => const SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: ColoredBox(
+            color: Color(0xFFE0E0E0),
+            child: Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        ),
+      );
+    }
     return Image.asset(
       imagePath,
       fit: BoxFit.cover,
@@ -710,21 +737,34 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                 // Header
                 Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        item.customImagePath ?? item.fallbackImagePath,
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, _, _) => Container(
-                          width: 60,
-                          height: 60,
-                          color: const Color(0xFFF5F6FA),
-                          child: const Icon(Icons.fastfood, color: Colors.grey),
-                        ),
-                      ),
-                    ),
+                     ClipRRect(
+                       borderRadius: BorderRadius.circular(8),
+                       child: (item.customImagePath ?? item.fallbackImagePath).startsWith('http')
+                           ? Image.network(
+                               item.customImagePath ?? item.fallbackImagePath,
+                               width: 60,
+                               height: 60,
+                               fit: BoxFit.cover,
+                               errorBuilder: (context, _, __) => Container(
+                                 width: 60,
+                                 height: 60,
+                                 color: const Color(0xFFF5F6FA),
+                                 child: const Icon(Icons.fastfood, color: Colors.grey),
+                               ),
+                             )
+                           : Image.asset(
+                               item.customImagePath ?? item.fallbackImagePath,
+                               width: 60,
+                               height: 60,
+                               fit: BoxFit.cover,
+                               errorBuilder: (context, _, __) => Container(
+                                 width: 60,
+                                 height: 60,
+                                 color: const Color(0xFFF5F6FA),
+                                 child: const Icon(Icons.fastfood, color: Colors.grey),
+                               ),
+                             ),
+                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

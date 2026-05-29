@@ -612,6 +612,25 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   Widget _buildImageWidget(MenuItem item) {
     final imagePath = item.customImagePath ?? item.fallbackImagePath;
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppTheme.lightGrey,
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: AppTheme.lightGrey,
+          child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
+        ),
+      );
+    }
     return Image.asset(
       imagePath,
       fit: BoxFit.cover,
@@ -624,3 +643,4 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     );
   }
 }
+
