@@ -349,18 +349,31 @@ class _OrderListPanelState extends State<OrderListPanel> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              imagePath,
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
-              errorBuilder: (context, _, _) => Container(
-                width: 50,
-                height: 50,
-                color: _bg,
-                child: const Icon(Icons.fastfood, color: _grey, size: 20),
-              ),
-            ),
+            child: imagePath.startsWith('http')
+                ? Image.network(
+                    imagePath,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, _, __) => Container(
+                      width: 50,
+                      height: 50,
+                      color: _bg,
+                      child: const Icon(Icons.fastfood, color: _grey, size: 20),
+                    ),
+                  )
+                : Image.asset(
+                    imagePath,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, _, __) => Container(
+                      width: 50,
+                      height: 50,
+                      color: _bg,
+                      child: const Icon(Icons.fastfood, color: _grey, size: 20),
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
