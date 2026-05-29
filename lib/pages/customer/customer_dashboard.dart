@@ -15,9 +15,7 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/customer/edit_profile_page.dart';
-
-import 'package:yang_chow/pages/customer/customer_chat_page.dart';
-
+import 'package:yang_chow/widgets/customer_chat_modal.dart';
 import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
 import 'package:yang_chow/pages/customer/menu_selection_page.dart';
 
@@ -352,7 +350,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ? null
             : _buildDashboardAppBar(_getAppBarTitle()),
 
-        body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+        body: Stack(
+          children: [
+            isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+            const CustomerChatModal(),
+          ],
+        ),
       ),
     );
   }
@@ -361,22 +364,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     switch (_selectedIndex) {
       case 0:
         return 'Home';
-
       case 1:
         return 'Reservation';
-
       case 2:
-        return 'Chat';
-
-      case 3:
         return 'Quotations';
-
-      case 4:
+      case 3:
         return 'Activity';
-
-      case 5:
+      case 4:
         return 'Profile';
-
       default:
         return 'Home';
     }
@@ -407,7 +402,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         _buildNotificationIcon(),
         IconButton(
           icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
-          onPressed: () => setState(() => _selectedIndex = 5),
+          onPressed: () => setState(() => _selectedIndex = 4),
           tooltip: 'Account',
         ),
         const SizedBox(width: 8),
@@ -860,11 +855,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               const SizedBox(height: 16),
 
               // Navigation Items
-              ...List.generate(5, (index) {
+              ...List.generate(4, (index) {
                 final icons = [
                   Icons.home_rounded,
                   Icons.event_available_rounded,
-                  Icons.chat_bubble_rounded,
                   Icons.monetization_on_rounded,
                   Icons.assignment_rounded,
                 ];
@@ -872,7 +866,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 final labels = [
                   'Home',
                   'Reservations',
-                  'Chat',
                   'Quotations',
                   'Activity',
                 ];
@@ -957,7 +950,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                           _buildNotificationIcon(),
                           const SizedBox(width: 4),
                           IconButton(
-                            onPressed: () => setState(() => _selectedIndex = 5),
+                            onPressed: () => setState(() => _selectedIndex = 4),
                             icon: const Icon(
                               Icons.person_outline_rounded,
                               color: Colors.white,
@@ -1031,9 +1024,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 children: [
                   _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
                   _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
-                  _buildMobileNavItem(2, Icons.chat_bubble_rounded, 'Chat'),
-                  _buildMobileNavItem(3, Icons.monetization_on_rounded, 'Price'),
-                  _buildMobileNavItem(4, Icons.assignment_rounded, 'Activity'),
+                  _buildMobileNavItem(2, Icons.monetization_on_rounded, 'Price'),
+                  _buildMobileNavItem(3, Icons.assignment_rounded, 'Activity'),
                 ],
               ),
             ),
@@ -1129,22 +1121,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     switch (_selectedIndex) {
       case 0:
         return _buildHomeSection();
-
       case 1:
         return _buildReservationsSection();
-
       case 2:
-        return CustomerChatPage();
-
-      case 3:
         return _buildQuotationsSection();
-
-      case 4:
+      case 3:
         return _buildActivitySection();
-
-      case 5:
+      case 4:
         return _buildProfileSection();
-
       default:
         return _buildHomeSection();
     }

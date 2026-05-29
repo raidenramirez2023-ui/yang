@@ -8,7 +8,8 @@ import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 
 class AdminReservationsPage extends StatefulWidget {
-  const AdminReservationsPage({super.key});
+  final bool isFullscreen;
+  const AdminReservationsPage({super.key, this.isFullscreen = false});
 
   @override
   State<AdminReservationsPage> createState() => _AdminReservationsPageState();
@@ -18,6 +19,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   List<Map<String, dynamic>> reservations = [];
   bool _isLoading = true;
   String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
+  int _currentPage = 0;
+  final int _rowsPerPage = 10;
   
   // Services
   final ReservationService _reservationService = ReservationService();
@@ -386,32 +389,66 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row with internal padding on desktop
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 20 : 0,
-              vertical: isDesktop ? 16 : 0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Event Reservations',
-                  style: TextStyle(
-                    fontSize: ResponsiveUtils.getResponsiveFontSize(
-                      context,
-                      mobile: 20,
-                      tablet: 24,
-                      desktop: 28,
-                    ),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+          if (!widget.isFullscreen)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 20 : 0,
+                vertical: isDesktop ? 16 : 0,
               ),
-              const Spacer(),
-            ],
-          ),
-          ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Event Reservations',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 20,
+                          tablet: 24,
+                          desktop: 28,
+                        ),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.fullscreen, color: AppTheme.primaryColor),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Scaffold(
+                              backgroundColor: const Color(0xFFF8F9FA),
+                              appBar: AppBar(
+                                title: const Text(
+                                  'Event Reservations', 
+                                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)
+                                ),
+                                backgroundColor: Colors.white,
+                                elevation: 1,
+                                iconTheme: const IconThemeData(color: Colors.black87),
+                              ),
+                              body: const SafeArea(
+                                child: AdminReservationsPage(isFullscreen: true),
+                              ),
+                            ),
+                          ),
+                        ).then((_) {
+                          _loadReservations();
+                        });
+                      },
+                      tooltip: 'View Full Screen',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (!isDesktop) ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
           Expanded(
             child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
@@ -422,153 +459,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Widget _buildDesktopLayout() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Vertical Navigation Sidebar (Edge-to-edge)
-        _buildVerticalFilterNav(),
-        // Main Content Area
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Column(
-              children: [
-                Expanded(child: _buildReservationsTable()),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerticalFilterNav() {
-    final filters = [
-      {'value': 'all',       'label': 'All Events',  'icon': Icons.event_note_rounded},
-      {'value': 'pending',   'label': 'Pending',     'icon': Icons.pending_actions_rounded},
-      {'value': 'confirmed', 'label': 'Confirmed',   'icon': Icons.check_circle_outline_rounded},
-      {'value': 'completed', 'label': 'Completed',   'icon': Icons.done_all_rounded},
-      {'value': 'cancelled', 'label': 'Cancelled',   'icon': Icons.cancel_outlined},
-      {'value': 'archived',  'label': 'Archived',    'icon': Icons.archive_outlined},
-    ];
-
-    final unarchived = reservations.where((r) => r['is_archived'] != true);
-    final counts = {
-      'all':       unarchived.length,
-      'pending':   unarchived.where((r) => r['status'] == 'pending').length,
-      'confirmed': unarchived.where((r) => r['status'] == 'confirmed').length,
-      'completed': unarchived.where((r) => r['status'] == 'completed').length,
-      'cancelled': unarchived.where((r) => r['status'] == 'cancelled').length,
-      'archived':  reservations.where((r) => r['is_archived'] == true).length,
-    };
-
-    final statusColors = {
-      'all':       AppTheme.infoBlue,
-      'pending':   Colors.orange,
-      'confirmed': AppTheme.successGreen,
-      'completed': Colors.blueGrey,
-      'cancelled': Colors.red,
-      'archived':  Colors.brown,
-    };
-
-    return Container(
-      width: 240,
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        border: Border(right: BorderSide(color: Colors.grey.withOpacity(0.1))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Text(
-              'NAVIGATION',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.mediumGrey,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                children: filters.map((f) {
-                  final val = f['value'] as String;
-                  final lbl = f['label'] as String;
-                  final ico = f['icon'] as IconData;
-                  final isSelected = _selectedFilter == val;
-                  final color = statusColors[val] ?? AppTheme.primaryColor;
-                  final count = counts[val] ?? 0;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedFilter = val),
-                      borderRadius: BorderRadius.circular(12),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              ico,
-                              size: 20,
-                              color: isSelected ? color : AppTheme.mediumGrey,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                lbl,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected ? color : AppTheme.darkGrey,
-                                ),
-                              ),
-                            ),
-                            if (count > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? color.withOpacity(0.15) : Colors.grey.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '$count',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? color : AppTheme.mediumGrey,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
+          _buildFilterSegmentControl(),
+          const SizedBox(height: 20),
+          Expanded(child: _buildReservationsTable()),
         ],
       ),
     );
@@ -588,6 +486,17 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   Widget _buildFilterSegmentControl() {
     final isMobile = ResponsiveUtils.isMobile(context);
+    
+    final unarchived = reservations.where((r) => r['is_archived'] != true);
+    final counts = {
+      'all':       unarchived.length,
+      'pending':   unarchived.where((r) => r['status'] == 'pending').length,
+      'confirmed': unarchived.where((r) => r['status'] == 'confirmed').length,
+      'completed': unarchived.where((r) => r['status'] == 'completed').length,
+      'cancelled': unarchived.where((r) => r['status'] == 'cancelled').length,
+      'archived':  reservations.where((r) => r['is_archived'] == true).length,
+    };
+
     final filters = [
       {'value': 'all', 'label': 'All Events'},
       {'value': 'pending', 'label': 'Pending'},
@@ -615,17 +524,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           ? SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: filters.map((f) => _buildSegmentButton(f['value']!, f['label']!)).toList(),
+                children: filters.map((f) => _buildSegmentButton(
+                  f['value'] as String, 
+                  f['label'] as String,
+                  count: counts[f['value']] ?? 0,
+                )).toList(),
               ),
             )
           : Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: filters.map((f) => Expanded(child: _buildSegmentButton(f['value']!, f['label']!))).toList(),
+              children: filters.map((f) => Expanded(
+                child: _buildSegmentButton(
+                  f['value'] as String, 
+                  f['label'] as String,
+                  count: counts[f['value']] ?? 0,
+                ),
+              )).toList(),
             ),
     );
   }
 
-  Widget _buildSegmentButton(String value, String label) {
+  Widget _buildSegmentButton(String value, String label, {int count = 0}) {
     final isSelected = _selectedFilter == value;
     final isMobile = ResponsiveUtils.isMobile(context);
 
@@ -633,26 +552,52 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       onTap: () {
         setState(() {
           _selectedFilter = value;
+          _currentPage = 0;
         });
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
           vertical: AppTheme.md,
-          horizontal: isMobile ? AppTheme.lg : 0,
+          horizontal: isMobile ? AppTheme.lg : AppTheme.md,
         ),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: isSelected ? AppTheme.primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? AppTheme.white : AppTheme.mediumGrey,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            fontSize: isMobile ? 13 : 14,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppTheme.white : AppTheme.mediumGrey,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: isMobile ? 13 : 14,
+              ),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white.withOpacity(0.25) : AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    color: isSelected ? AppTheme.white : AppTheme.primaryColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ]
+          ],
         ),
       ),
     );
@@ -705,54 +650,55 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       );
     }
 
-    if (_filteredReservations.isEmpty) {
+    final filtered = _filteredReservations;
+    if (filtered.isEmpty) {
       return _buildEmptyState();
     }
 
     final isMobile = ResponsiveUtils.isMobile(context);
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage < filtered.length) 
+        ? startIndex + _rowsPerPage 
+        : filtered.length;
+    final paginatedReservations = filtered.sublist(startIndex, endIndex);
     
     return Card(
       elevation: isMobile ? 1 : 2,
       margin: EdgeInsets.zero,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Scrollbar(
-            controller: _horizontalScrollController,
-            thumbVisibility: !isMobile,
-            trackVisibility: !isMobile,
-            child: SingleChildScrollView(
-              controller: _horizontalScrollController,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: constraints.maxWidth,
-                ),
-                child: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
                   scrollDirection: Axis.vertical,
-                  child: DataTable(
-                    columnSpacing: isMobile ? 12 : 48,
-                    horizontalMargin: isMobile ? 12 : 32,
-                    headingRowHeight: isMobile ? 48 : 56,
-                    dataRowMinHeight: isMobile ? 48 : 64,
-                    dataRowMaxHeight: isMobile ? 64 : 80,
-                    dividerThickness: 0.5,
-                    headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
-                    headingTextStyle: TextStyle(
-                      color: AppTheme.darkGrey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 11, tablet: 12, desktop: 13),
-                      letterSpacing: 0.3,
-                    ),
-                    columns: [
-                      DataColumn(label: _buildColumnHeader('Customer', Icons.person_outline, isMobile)),
-                      if (!isMobile) DataColumn(label: _buildColumnHeader('Event', Icons.celebration_outlined, isMobile)),
-                      DataColumn(label: _buildColumnHeader('Date', Icons.calendar_today_outlined, isMobile)),
-                      DataColumn(label: _buildColumnHeader('Time', Icons.access_time, isMobile)),
-                      if (!isMobile) DataColumn(label: _buildColumnHeader('Guests', Icons.people_outline, isMobile)),
-                      DataColumn(label: _buildColumnHeader('Status', Icons.check_circle_outline, isMobile)),
-                      DataColumn(label: _buildColumnHeader('Actions', Icons.settings_outlined, isMobile)),
-                    ],
-                    rows: _filteredReservations.map((reservation) {
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: DataTable(
+                      columnSpacing: isMobile ? 12 : 16,
+                      horizontalMargin: isMobile ? 12 : 20,
+                      headingRowHeight: isMobile ? 48 : 52,
+                      dataRowMinHeight: isMobile ? 48 : 60,
+                      dataRowMaxHeight: isMobile ? 56 : 68,
+                      dividerThickness: 0.5,
+                          headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
+                          headingTextStyle: TextStyle(
+                            color: AppTheme.darkGrey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 11, tablet: 12, desktop: 13),
+                            letterSpacing: 0.3,
+                          ),
+                          columns: [
+                            DataColumn(label: _buildColumnHeader('Customer', Icons.person_outline, isMobile)),
+                            if (!isMobile) DataColumn(label: _buildColumnHeader('Event', Icons.celebration_outlined, isMobile)),
+                            DataColumn(label: _buildColumnHeader('Date', Icons.calendar_today_outlined, isMobile)),
+                            DataColumn(label: _buildColumnHeader('Time', Icons.access_time, isMobile)),
+                            if (!isMobile) DataColumn(label: _buildColumnHeader('Guests', Icons.people_outline, isMobile)),
+                            DataColumn(label: _buildColumnHeader('Status', Icons.check_circle_outline, isMobile)),
+                            DataColumn(label: _buildColumnHeader('Actions', Icons.settings_outlined, isMobile)),
+                          ],
+                          rows: paginatedReservations.map((reservation) {
                       return DataRow(
                         cells: [
                           DataCell(
@@ -785,7 +731,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           ),
                           DataCell(
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6.0),
+                              padding: const EdgeInsets.symmetric(vertical: 2.0),
                               child: _buildCalendarDateBadge(reservation['event_date']?.toString() ?? ''),
                             ),
                           ),
@@ -809,13 +755,56 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           DataCell(_buildActionButtons(reservation)),
                         ],
                       );
-                    }).toList(),
-                  ),
-                ),
-              ),
+                          }).toList(),
+                        ),
+                      ),
+                    );
+              },
             ),
-          );
-        },
+          ),
+          if (filtered.length > _rowsPerPage)
+            _buildPaginationControls(filtered.length),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls(int totalItems) {
+    final startIndex = _currentPage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage < totalItems) 
+        ? startIndex + _rowsPerPage 
+        : totalItems;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            '${startIndex + 1}-$endIndex of $totalItems',
+            style: const TextStyle(fontSize: 13, color: AppTheme.darkGrey, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(width: 16),
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: _currentPage > 0 
+                ? () => setState(() => _currentPage--) 
+                : null,
+            splashRadius: 20,
+            color: AppTheme.primaryColor,
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: endIndex < totalItems 
+                ? () => setState(() => _currentPage++) 
+                : null,
+            splashRadius: 20,
+            color: AppTheme.primaryColor,
+          ),
+        ],
       ),
     );
   }
@@ -1625,7 +1614,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     required String tooltip,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(right: 6.0),
+      padding: const EdgeInsets.only(right: 4.0),
       child: Tooltip(
         message: tooltip,
         child: Material(
@@ -1636,7 +1625,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             hoverColor: color.withOpacity(0.12),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6.0),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.05),
                 shape: BoxShape.circle,
