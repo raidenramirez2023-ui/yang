@@ -19,6 +19,7 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+        flutter-version: '3.41.6'
         
     - name: Get Flutter dependencies
       run: |
@@ -37,7 +38,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
-        server-dir: /
+        server-dir: /public_html/
         dry-run: false
         protocol: ftp
         port: 21
