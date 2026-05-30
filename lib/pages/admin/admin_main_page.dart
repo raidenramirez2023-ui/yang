@@ -12,6 +12,7 @@ import 'package:yang_chow/utils/role_helper.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
 import 'package:yang_chow/pages/admin/user_management.dart';
+import 'package:yang_chow/pages/admin/admin_menu_management_page.dart';
 
 import 'package:yang_chow/pages/admin/sales_report_page.dart';
 import 'package:yang_chow/pages/admin/customer_management_page.dart';
@@ -217,6 +218,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Inventory Forecast',
 
+    'Menu Management',
+
     'Reservations',
 
     'Payment Approvals',
@@ -243,6 +246,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.trending_up,
 
+    Icons.restaurant_menu,
+
     Icons.event_available,
 
     Icons.payment,
@@ -268,6 +273,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const InventoryPage(),
 
     const InventoryForecastPage(),
+
+    const AdminMenuManagementPage(),
 
     const AdminReservationsPage(),
 

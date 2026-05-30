@@ -525,10 +525,8 @@ class SharedPOSWidget extends StatefulWidget {
 
 class _SharedPOSWidgetState extends State<SharedPOSWidget>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-
-  late Map<String, List<MenuItem>> menu;
+  Map<String, List<MenuItem>> menu = {};
+  bool _isLoadingMenu = true;
   List<CartItem> cart = [];
   final TextEditingController _mobileCustomerNameController =
       TextEditingController();
@@ -537,9 +535,29 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: MenuService.categories.length, vsync: this);
-    menu = MenuService.getMenu();
+    _loadMenu();
     _fetchInventory();
+  }
+
+  Future<void> _loadMenu() async {
+    if (mounted) setState(() => _isLoadingMenu = true);
+    try {
+      final fetchedMenu = await MenuService.fetchMenu();
+      if (mounted) {
+        setState(() {
+          menu = fetchedMenu;
+          _isLoadingMenu = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading menu: $e');
+      if (mounted) {
+        setState(() {
+          menu = MenuService.getMenu();
+          _isLoadingMenu = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchInventory() async {
@@ -547,6 +565,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
     if (mounted) setState(() => _isFetchingInventory = true);
     try {
       final supabase = Supabase.instance.client;
+      // Fetch inventory
       final data = await supabase.from('kitchen_inventory').select('name, quantity');
       if (data != null) {
         final Map<String, num> newCache = {};
@@ -561,8 +580,27 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
           });
         }
       }
+
+      // Fetch recipe ingredients
+      final recipeData = await supabase.from('recipe_ingredients').select();
+      if (recipeData != null) {
+        final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
+        for (var row in recipeData) {
+          final menuItemName = row['menu_item_name'] as String;
+          if (!newRecipeCache.containsKey(menuItemName)) {
+            newRecipeCache[menuItemName] = [];
+          }
+          newRecipeCache[menuItemName]!.add(row as Map<String, dynamic>);
+        }
+        if (mounted) {
+          setState(() {
+            _recipeCache.clear();
+            _recipeCache.addAll(newRecipeCache);
+          });
+        }
+      }
     } catch (e) {
-      debugPrint('Error fetching inventory for POS: $e');
+      debugPrint('Error fetching inventory or recipes for POS: $e');
     } finally {
       if (mounted) setState(() => _isFetchingInventory = false);
     }
@@ -570,7 +608,6 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   @override
   void dispose() {
-    _tabController.dispose();
     _mobileCustomerNameController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -578,10 +615,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
   Widget _buildImageWidget(MenuItem item) {
-    final imagePath = item.customImagePath ?? item.fallbackImagePath;
-    if (imagePath.startsWith('http')) {
+    final resolvedUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    if (resolvedUrl.isNotEmpty) {
       return Image.network(
-        imagePath,
+        resolvedUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -606,18 +643,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         ),
       );
     }
-    return Image.asset(
-      imagePath,
-      fit: BoxFit.cover,
+    return const SizedBox(
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => const SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: ColoredBox(
-          color: Color(0xFFE0E0E0),
-          child: Icon(Icons.broken_image, color: Colors.grey),
-        ),
+      child: ColoredBox(
+        color: Color(0xFFE0E0E0),
+        child: Icon(Icons.broken_image, color: Colors.grey),
       ),
     );
   }
@@ -625,11 +656,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
   bool _isStockAvailable(String itemName, int requestedQuantity) {
     if (widget.userRole != 'Staff') return true;
     
-    final recipeData = RecipeService.recipeDatabase[itemName];
-    if (recipeData == null) return true;
+    final recipeIngredients = _recipeCache[itemName];
+    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
 
-    final List ingredients = recipeData['ingredients'];
-    for (final ing in ingredients) {
+    for (final ing in recipeIngredients) {
       final String ingName = ing['name'].toString().toLowerCase();
       
       num? stock;
@@ -708,6 +738,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
       cart.fold(0.0, (sum, c) => sum + (c.item.price * c.quantity));
 
   final Map<String, num> _inventoryCache = {};
+  final Map<String, List<Map<String, dynamic>>> _recipeCache = {};
   bool _isFetchingInventory = false;
 
   void _decreaseQuantity(CartItem cartItem) {
@@ -739,31 +770,18 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                   children: [
                      ClipRRect(
                        borderRadius: BorderRadius.circular(8),
-                       child: (item.customImagePath ?? item.fallbackImagePath).startsWith('http')
-                           ? Image.network(
-                               item.customImagePath ?? item.fallbackImagePath,
-                               width: 60,
-                               height: 60,
-                               fit: BoxFit.cover,
-                               errorBuilder: (context, _, __) => Container(
-                                 width: 60,
-                                 height: 60,
-                                 color: const Color(0xFFF5F6FA),
-                                 child: const Icon(Icons.fastfood, color: Colors.grey),
-                               ),
-                             )
-                           : Image.asset(
-                               item.customImagePath ?? item.fallbackImagePath,
-                               width: 60,
-                               height: 60,
-                               fit: BoxFit.cover,
-                               errorBuilder: (context, _, __) => Container(
-                                 width: 60,
-                                 height: 60,
-                                 color: const Color(0xFFF5F6FA),
-                                 child: const Icon(Icons.fastfood, color: Colors.grey),
-                               ),
-                             ),
+                       child: Image.network(
+                         MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath),
+                         width: 60,
+                         height: 60,
+                         fit: BoxFit.cover,
+                         errorBuilder: (context, _, __) => Container(
+                           width: 60,
+                           height: 60,
+                           color: const Color(0xFFF5F6FA),
+                           child: const Icon(Icons.fastfood, color: Colors.grey),
+                         ),
+                       ),
                      ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1451,6 +1469,16 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingMenu) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC62828)),
+          ),
+        ),
+      );
+    }
+
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     if (isMobile) {
