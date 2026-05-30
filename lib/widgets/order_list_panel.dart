@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/menu_item.dart';
+import '../services/menu_service.dart';
 
 class OrderListPanel extends StatefulWidget {
   final List<CartItem> cart;
@@ -341,7 +342,6 @@ class _OrderListPanelState extends State<OrderListPanel> {
   }
 
   Widget _buildCartItem(CartItem item) {
-    final imagePath = item.item.customImagePath ?? item.item.fallbackImagePath;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -349,31 +349,18 @@ class _OrderListPanelState extends State<OrderListPanel> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: imagePath.startsWith('http')
-                ? Image.network(
-                    imagePath,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, _, __) => Container(
-                      width: 50,
-                      height: 50,
-                      color: _bg,
-                      child: const Icon(Icons.fastfood, color: _grey, size: 20),
-                    ),
-                  )
-                : Image.asset(
-                    imagePath,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, _, __) => Container(
-                      width: 50,
-                      height: 50,
-                      color: _bg,
-                      child: const Icon(Icons.fastfood, color: _grey, size: 20),
-                    ),
-                  ),
+            child: Image.network(
+              MenuService.resolveImageUrl(item.item.customImagePath ?? item.item.fallbackImagePath),
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+              errorBuilder: (context, _, __) => Container(
+                width: 50,
+                height: 50,
+                color: _bg,
+                child: const Icon(Icons.fastfood, color: _grey, size: 20),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
