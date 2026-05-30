@@ -1896,6 +1896,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                     }
 
                                     // Check dynamic lead time for same-day Advance Orders
+                                    // Kitchen needs at least 1 hour to prepare before the customer's time.
                                     if (_reservationType == 'Advance Order') {
                                       final now = DateTime.now();
                                       final selectedDateStr = _dateController.text.trim();
@@ -1914,16 +1915,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                               pickedTime.hour,
                                               pickedTime.minute,
                                             );
+                                            // Lead time: at least 1 hour (+ extra for large orders)
+                                            // e.g. customer selects 10 AM → kitchen prepares from 9 AM
                                             final leadTime = _calculateDynamicLeadTime();
                                             final minSelectableTime = now.add(leadTime);
 
                                             if (selectedDateTime.isBefore(minSelectableTime)) {
                                               final h = leadTime.inHours;
                                               final m = leadTime.inMinutes % 60;
-                                              final leadTimeStr = h > 0 ? '$h hour${h > 1 ? "s" : ""} ${m > 0 ? "and $m min" : ""}' : '$m minutes';
+                                              final leadTimeStr = h > 0
+                                                  ? '$h hour${h > 1 ? "s" : ""} ${m > 0 ? "and $m min" : ""}'
+                                                  : '$m minutes';
                                               _showSnackBar(
-                                                'For this order size, please select a time at least $leadTimeStr from now.',
-                                                Colors.red,
+                                                'Please select a time at least $leadTimeStr from now so we can prepare your order. 🍽️',
+                                                Colors.orange,
                                               );
                                               return;
                                             }

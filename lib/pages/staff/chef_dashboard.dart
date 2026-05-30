@@ -866,6 +866,94 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
     }
   }
 
+  void _showPrepTimeRestrictedDialog(BuildContext context, DateTime prepTime) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.lock_clock, color: Colors.orange.shade800),
+            const SizedBox(width: 10),
+            const Text(
+              'Order is Locked',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This is an Advance Order. Kitchen is only allowed to start preparing this order starting 1 hour before the scheduled time.',
+              style: TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF475569)),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Scheduled Delivery:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${widget.order['order_date']} at ${widget.order['order_time']}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Start Preparing At:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    DateFormat('MMMM d, yyyy - hh:mm a').format(prepTime),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = widget.kitchenStatus;
@@ -890,6 +978,14 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
     final nextStatus = currentIdx < widget.statusOrder.length - 1
         ? widget.statusOrder[currentIdx + 1]
         : null;
+
+    final prepTime = widget.isAdvanceOrder
+        ? _getPrepareByDateTime(
+            widget.order['order_date']?.toString(),
+            widget.order['order_time']?.toString(),
+          )
+        : null;
+    final isTooEarly = prepTime != null && DateTime.now().isBefore(prepTime) && status == 'Pending';
 
     final isUrgent =
         elapsed != null && elapsed.inMinutes >= 15 && status == 'Pending';
@@ -941,9 +1037,29 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                 ),
                               ),
                               if (widget.isAdvanceOrder)
-                                Text(
-                                  'Scheduled: ${widget.order['order_date']} at ${widget.order['order_time']}',
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Scheduled: ${widget.order['order_date']} at ${widget.order['order_time']}',
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.alarm, size: 12, color: Colors.orange.shade700),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Prepare by: ${_calcPrepareTime(widget.order['order_time']?.toString())}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.orange.shade700,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                             ],
                           ),
@@ -1284,6 +1400,52 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
             ),
           ),
 
+          // ── Prepare By Banner (Advance Orders only) ───
+          if (widget.isAdvanceOrder) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                border: Border(
+                  bottom: BorderSide(color: Colors.orange.shade100),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.alarm_rounded, size: 13, color: Colors.orange.shade700),
+                  const SizedBox(width: 6),
+                  Text(
+                    'PREPARE BY  ',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange.shade700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  Text(
+                    _calcPrepareTime(widget.order['order_time']?.toString()),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '📅 ${widget.order['order_date'] ?? ''}  🕐 ${widget.order['order_time'] ?? ''}',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.orange.shade600,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // ── Items List (Scrollable & Expanded) ────────
           Expanded(
             child: SingleChildScrollView(
@@ -1387,13 +1549,19 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     child: SizedBox(
                       height: 40,
                       child: ElevatedButton.icon(
-                        onPressed: () => widget.onStatusChanged(nextStatus),
+                        onPressed: isTooEarly
+                            ? () => _showPrepTimeRestrictedDialog(context, prepTime!)
+                            : () => widget.onStatusChanged(nextStatus),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: nextStatus == 'Done'
-                              ? AppTheme.successGreen
-                              : widget.statusColors[nextStatus] ??
-                                    AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
+                          backgroundColor: isTooEarly
+                              ? const Color(0xFFE2E8F0)
+                              : nextStatus == 'Done'
+                                  ? AppTheme.successGreen
+                                  : widget.statusColors[nextStatus] ??
+                                        AppTheme.primaryColor,
+                          foregroundColor: isTooEarly
+                              ? const Color(0xFF94A3B8)
+                              : Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -1403,11 +1571,16 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                             fontSize: 12,
                           ),
                         ),
-                        icon: Icon(_nextStatusIcon(nextStatus), size: 16),
+                        icon: Icon(
+                          isTooEarly ? Icons.lock_outline_rounded : _nextStatusIcon(nextStatus),
+                          size: 16,
+                        ),
                         label: Text(
-                          nextStatus == 'Done'
-                              ? '✓ READY'
-                              : nextStatus.toUpperCase(),
+                          isTooEarly
+                              ? 'LOCKED (TOO EARLY)'
+                              : nextStatus == 'Done'
+                                  ? '✓ READY'
+                                  : nextStatus.toUpperCase(),
                         ),
                       ),
                     ),
@@ -3520,6 +3693,59 @@ String _formatOrderId(Map<String, dynamic> order) {
   final id = order['id']?.toString() ?? '???';
   final asInt = int.tryParse(id);
   return '#${asInt != null ? asInt.toString().padLeft(3, '0') : id.substring(id.length > 6 ? id.length - 6 : 0).toUpperCase()}';
+}
+
+/// Calculates the kitchen "prepare by" time — 1 hour before the customer's scheduled order time.
+/// e.g. order_time = "10:00 AM" → returns "9:00 AM"
+String _calcPrepareTime(String? orderTime) {
+  if (orderTime == null || orderTime.isEmpty) return '—';
+  try {
+    // Try parsing common formats: "10:00 AM", "10:00", "10:00:00"
+    DateTime? parsed;
+    final formats = ['h:mm a', 'h:mm:ss a', 'HH:mm', 'HH:mm:ss', 'h:mm'];
+    for (final fmt in formats) {
+      try {
+        parsed = DateFormat(fmt).parse(orderTime);
+        break;
+      } catch (_) {}
+    }
+    if (parsed == null) return orderTime;
+    final prepareTime = parsed.subtract(const Duration(hours: 1));
+    return DateFormat('h:mm a').format(prepareTime);
+  } catch (_) {
+    return orderTime;
+  }
+}
+
+/// Parses the order scheduled date and time and subtracts 1 hour to get the prepare-by DateTime.
+DateTime? _getPrepareByDateTime(String? dateStr, String? timeStr) {
+  if (dateStr == null || dateStr.isEmpty || timeStr == null || timeStr.isEmpty) return null;
+  try {
+    final parsedDate = DateTime.tryParse(dateStr);
+    if (parsedDate == null) return null;
+    
+    DateTime? parsedTime;
+    final formats = ['h:mm a', 'h:mm:ss a', 'HH:mm', 'HH:mm:ss', 'h:mm'];
+    for (final fmt in formats) {
+      try {
+        parsedTime = DateFormat(fmt).parse(timeStr);
+        break;
+      } catch (_) {}
+    }
+    if (parsedTime == null) return null;
+    
+    final scheduledDateTime = DateTime(
+      parsedDate.year,
+      parsedDate.month,
+      parsedDate.day,
+      parsedTime.hour,
+      parsedTime.minute,
+      parsedTime.second,
+    );
+    return scheduledDateTime.subtract(const Duration(hours: 1));
+  } catch (_) {
+    return null;
+  }
 }
 
 Widget _buildEmptyState(IconData icon, String title, String subtitle) {
