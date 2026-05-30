@@ -129,7 +129,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Manage POS Menu Items',
+                      'Pamahalaan ang mga item sa Menu ng POS',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.darkGrey,
