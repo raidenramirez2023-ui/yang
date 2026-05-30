@@ -12,6 +12,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:yang_chow/utils/responsive_utils.dart';
 
+import 'package:yang_chow/utils/app_constants.dart';
+
 import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -4881,7 +4883,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-            null, // Use fallback assets/images/YCFriedRice.jpg
+            null, // Use fallback AppConstants.imageUrl('YCFriedRice.jpg')
 
 
 
@@ -5453,12 +5455,15 @@ class _LandingPageState extends State<LandingPage>
                           imagePath,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
-                              Image.asset('assets/images/YCFriedRice.jpg',
+                              Image.network(AppConstants.imageUrl('YCFriedRice.jpg'),
                                   fit: BoxFit.cover),
                         )
-                      : Image.asset(
-                          imagePath ?? 'assets/images/YCFriedRice.jpg',
+                      : Image.network(
+                          imagePath != null ? AppConstants.imageUrl(imagePath) : AppConstants.imageUrl('YCFriedRice.jpg'),
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.network(AppConstants.imageUrl('YCFriedRice.jpg'),
+                                  fit: BoxFit.cover),
                         ),
                 ),
               ),

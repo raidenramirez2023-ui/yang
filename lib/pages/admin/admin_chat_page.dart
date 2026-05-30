@@ -188,6 +188,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         title: Row(

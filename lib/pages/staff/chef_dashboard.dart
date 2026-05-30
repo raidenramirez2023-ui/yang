@@ -2179,6 +2179,9 @@ class _InventoryRequestTab extends StatefulWidget {
 }
 
 class _InventoryRequestTabState extends State<_InventoryRequestTab> {
+  int _currentPage = 1;
+  static const int _itemsPerPage = 20;
+
   // Form controllers
   final _itemCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
@@ -2794,16 +2797,33 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                   'Submit a request above.',
                 );
               }
+
+              final int totalPages = (requests.length / _itemsPerPage).ceil();
+              if (_currentPage > totalPages && totalPages > 0) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _currentPage = totalPages);
+                });
+              }
+
+              final int startIndex = (_currentPage - 1) * _itemsPerPage;
+              int endIndex = startIndex + _itemsPerPage;
+              if (endIndex > requests.length) endIndex = requests.length;
+
+              final currentRequests = (startIndex < requests.length)
+                  ? requests.sublist(startIndex, endIndex)
+                  : <Map<String, dynamic>>[];
+
               return Column(
-                children: requests
-                    .map(
-                      (r) => _RequestHistoryCard(
-                        request: r,
-                        statusColors: _statusColors,
-                        priorityColors: _priorityColors,
-                      ),
-                    )
-                    .toList(),
+                children: [
+                  ...currentRequests.map(
+                    (r) => _RequestHistoryCard(
+                      request: r,
+                      statusColors: _statusColors,
+                      priorityColors: _priorityColors,
+                    ),
+                  ),
+                  if (totalPages > 1) _buildPagination(totalPages),
+                ],
               );
             },
           ),
@@ -2872,6 +2892,138 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
             color: AppTheme.primaryColor,
             width: 1.5,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPagination(int totalPages) {
+    List<Widget> pageWidgets = [];
+    bool lastWasEllipsis = false;
+
+    // Show more numbers: current +/- 2
+    for (int i = 1; i <= totalPages; i++) {
+      if (totalPages <= 7 || i == 1 || i == totalPages || (i >= _currentPage - 2 && i <= _currentPage + 2)) {
+        final isSelected = i == _currentPage;
+        pageWidgets.add(
+          GestureDetector(
+            onTap: () => setState(() => _currentPage = i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryColor : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
+                  width: 1.5,
+                ),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ] : null,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$i',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        );
+        lastWasEllipsis = false;
+      } else {
+        if (!lastWasEllipsis) {
+          pageWidgets.add(const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Text('...', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 16)),
+          ));
+          lastWasEllipsis = true;
+        }
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Prev button
+          _buildNavButton(
+            label: 'PREV',
+            icon: Icons.chevron_left_rounded,
+            isEnabled: _currentPage > 1,
+            onTap: () => setState(() => _currentPage--),
+          ),
+          const SizedBox(width: 16),
+          ...pageWidgets,
+          const SizedBox(width: 16),
+          // Next button
+          _buildNavButton(
+            label: 'NEXT',
+            icon: Icons.chevron_right_rounded,
+            isEnabled: _currentPage < totalPages,
+            onTap: () => setState(() => _currentPage++),
+            isTrailing: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavButton({
+    required String label,
+    required IconData icon,
+    required bool isEnabled,
+    required VoidCallback onTap,
+    bool isTrailing = false,
+  }) {
+    return InkWell(
+      onTap: isEnabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isEnabled ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isEnabled ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            )
+          ] : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
+            if (!isTrailing) const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                letterSpacing: 1.1,
+              ),
+            ),
+            if (isTrailing) const SizedBox(width: 6),
+            if (isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
+          ],
         ),
       ),
     );
