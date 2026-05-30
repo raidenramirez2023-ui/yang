@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-and-deploy:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     
     steps:
@@ -17,6 +18,7 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+        flutter-version: '3.41.6'
         
     - name: Get Flutter dependencies
       run: |
@@ -28,14 +30,13 @@ jobs:
         flutter build web --release --base-href=/
         
     - name: Deploy to Hostinger via FTP
-      if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_HOST }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
-        server-dir: /
+        server-dir: /public_html/
         dry-run: false
         protocol: ftp
         port: 21
@@ -43,7 +44,6 @@ jobs:
         security: loose
         
     - name: Notify deployment success
-      if: success()
       run: |
         echo "Deployment to Hostinger completed successfully!"
         echo "Your app is now live at yc-pagsanjan.site"
