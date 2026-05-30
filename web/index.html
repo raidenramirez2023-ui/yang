@@ -55,6 +55,19 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-analytics-compat.js"></script>
 
+  <!-- Script to force service worker update / cache bust -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          for (let registration of registrations) {
+            registration.update();
+          }
+        });
+      });
+    }
+  </script>
+
   <!-- Flutter bootstrap -->
   <script src="flutter_bootstrap.js" async></script>
 

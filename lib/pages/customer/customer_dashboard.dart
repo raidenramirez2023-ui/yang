@@ -35,10 +35,10 @@ import 'package:yang_chow/services/menu_reservation_service.dart';
 
 import 'package:intl/intl.dart';
 
+import 'package:yang_chow/models/menu_item.dart';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'package:yang_chow/models/menu_item.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   const CustomerDashboardPage({super.key});
@@ -139,6 +139,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     _loadConfigurationSettings();
     _loadCustomerReservations();
     _loadReviewEligibility();
+
+    // Fetch latest menu items from Supabase database to populate dashboard dishes and carousel images
+    MenuService.fetchMenu().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
 
     final currentUser = Supabase.instance.client.auth.currentUser;
 
@@ -284,6 +291,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     await Future.wait([
       _loadCustomerReservations(),
       _loadReviewEligibility(),
+      MenuService.fetchMenu(),
     ]);
     _loadConfigurationSettings();
     if (mounted) setState(() {});
@@ -1192,11 +1200,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     
     final List<MenuItem> items = [];
     for (var name in topSellingNames) {
-      final found = flattenedItems.where((item) => item.name == name).toList();
+      final found = flattenedItems.where((item) => item.name.trim().toLowerCase() == name.trim().toLowerCase()).toList();
       if (found.isNotEmpty) {
         items.add(found.first);
       }
     }
+    
+    // Fallback: If no or few items match the curated list, dynamically fill it up with other menu items from database
+    if (items.length < 5 && flattenedItems.isNotEmpty) {
+      for (final item in flattenedItems) {
+        if (!items.any((existing) => existing.id == item.id || existing.name == item.name)) {
+          items.add(item);
+        }
+        if (items.length >= 9) break;
+      }
+    }
+    
     return items;
   }
 
@@ -3036,32 +3055,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   Widget _buildMenuCategoryGrid() {
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
-    final List<MenuItem> flattenedItems = [];
-    for (var list in allMenu.values) {
-      flattenedItems.addAll(list);
-    }
-    
-    // Curated list of top-selling products
-    final List<String> topSellingNames = [
-      'YangChow 1',
-      'YangChow 3',
-      'Buttered Chicken',
-      'Lechon Macau',
-      'Pancit Canton',
-      'Yang Chow Fried Rice',
-      'Siomai with Shrimp',
-      'Sweet and Sour Pork',
-      'Broccoli Leaves with Oyster Sauce',
-    ];
-    
-    // Filter and ensure we maintain the order of topSellingNames
-    final List<MenuItem> items = [];
-    for (var name in topSellingNames) {
-      final found = flattenedItems.where((item) => item.name == name).toList();
-      if (found.isNotEmpty) {
-        items.add(found.first);
-      }
-    }
+    final List<MenuItem> items = _getTopSellingItems(allMenu);
 
     if (items.isEmpty) {
       return Container(
@@ -3183,10 +3177,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildImageWidget(MenuItem item) {
-    final imagePath = item.customImagePath ?? item.fallbackImagePath;
-    if (imagePath.startsWith('http')) {
+    final resolvedUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    if (resolvedUrl.isNotEmpty) {
       return Image.network(
-        imagePath,
+        resolvedUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -3203,15 +3197,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         ),
       );
     }
-    return Image.asset(
-      imagePath,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: AppTheme.lightGrey,
-        child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
-      ),
+    return Container(
+      color: AppTheme.lightGrey,
+      child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
     );
   }
 

@@ -41,6 +41,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   double _depositAmount = 0.0;
 
   final Map<String, num> _inventoryCache = {};
+  final Map<String, List<Map<String, dynamic>>> _recipeCache = {};
   bool _isFetchingInventory = false;
 
   @override
@@ -62,6 +63,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     if (mounted) setState(() => _isFetchingInventory = true);
     try {
       final supabase = Supabase.instance.client;
+      // Fetch inventory
       final data = await supabase.from('kitchen_inventory').select('name, quantity');
       if (data != null) {
         final Map<String, num> newCache = {};
@@ -76,19 +78,37 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           });
         }
       }
+
+      // Fetch recipe ingredients
+      final recipeData = await supabase.from('recipe_ingredients').select();
+      if (recipeData != null) {
+        final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
+        for (var row in recipeData) {
+          final menuItemName = row['menu_item_name'] as String;
+          if (!newRecipeCache.containsKey(menuItemName)) {
+            newRecipeCache[menuItemName] = [];
+          }
+          newRecipeCache[menuItemName]!.add(row as Map<String, dynamic>);
+        }
+        if (mounted) {
+          setState(() {
+            _recipeCache.clear();
+            _recipeCache.addAll(newRecipeCache);
+          });
+        }
+      }
     } catch (e) {
-      debugPrint('Error fetching inventory for Menu Selection: $e');
+      debugPrint('Error fetching inventory or recipes for Menu Selection: $e');
     } finally {
       if (mounted) setState(() => _isFetchingInventory = false);
     }
   }
 
   bool _isStockAvailable(String itemName, int requestedQuantity) {
-    final recipeData = RecipeService.recipeDatabase[itemName];
-    if (recipeData == null) return true;
+    final recipeIngredients = _recipeCache[itemName];
+    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
 
-    final List ingredients = recipeData['ingredients'];
-    for (final ing in ingredients) {
+    for (final ing in recipeIngredients) {
       final String ingName = ing['name'].toString().toLowerCase();
       
       num? stock;
@@ -611,10 +631,10 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   }
 
   Widget _buildImageWidget(MenuItem item) {
-    final imagePath = item.customImagePath ?? item.fallbackImagePath;
-    if (imagePath.startsWith('http')) {
+    final resolvedUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    if (resolvedUrl.isNotEmpty) {
       return Image.network(
-        imagePath,
+        resolvedUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -631,15 +651,9 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         ),
       );
     }
-    return Image.asset(
-      imagePath,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: AppTheme.lightGrey,
-        child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
-      ),
+    return Container(
+      color: AppTheme.lightGrey,
+      child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
     );
   }
 }

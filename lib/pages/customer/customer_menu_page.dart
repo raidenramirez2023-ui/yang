@@ -177,10 +177,10 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
   }
 
   Widget _buildImageWidget(MenuItem item) {
-    final imagePath = item.customImagePath ?? item.fallbackImagePath;
-    if (imagePath.startsWith('http')) {
+    final resolvedUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    if (resolvedUrl.isNotEmpty) {
       return Image.network(
-        imagePath,
+        resolvedUrl,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -197,15 +197,9 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
         ),
       );
     }
-    return Image.asset(
-      imagePath,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => Container(
-        color: AppTheme.lightGrey,
-        child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
-      ),
+    return Container(
+      color: AppTheme.lightGrey,
+      child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
     );
   }
 }
