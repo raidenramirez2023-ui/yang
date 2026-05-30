@@ -4,12 +4,12 @@
   "description": "Yang Chow Restaurant - Flutter Web App for yc-pagsanjan.site",
   "main": "index.html",
   "scripts": {
-    "build": "flutter build web --release --web-renderer canvaskit --base-href=/",
+    "build": "flutter build web --release --web-renderer canvaskit --pwa-strategy=none --base-href=/",
     "serve": "flutter run -d web-server --web-port 8080",
     "clean": "flutter clean"
   },
   "build": {
-    "command": "flutter build web --release --web-renderer canvaskit --base-href=/",
+    "command": "flutter build web --release --web-renderer canvaskit --pwa-strategy=none --base-href=/",
     "output": "build/web",
     "environment": "production"
   },

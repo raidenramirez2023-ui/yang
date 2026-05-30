@@ -21,7 +21,32 @@
 
   <title>Yang Chow Restaurant | yc-pagsanjan.site</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    // Force unregister service workers and clear cache storage to prevent caching issues on updates
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+          console.log('Previous ServiceWorker unregistered.');
+        }
+      }).catch(function(error) {
+        console.log('ServiceWorker unregistration failed:', error);
+      });
+    }
+    
+    // Clear all browser Cache Storage registered by the service worker
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) {
+          caches.delete(name);
+          console.log('Cache storage cleared:', name);
+        }
+      });
+    }
+  </script>
 </head>
+
 
 <body>
 
