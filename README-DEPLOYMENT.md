@@ -62,7 +62,7 @@ chmod +x hostinger-deploy.sh
 ```bash
 flutter clean
 flutter pub get
-flutter build web --release --web-renderer=canvaskit --base-href=/
+flutter build web --release --web-renderer=canvaskit --pwa-strategy=none --base-href=/
 ```
 
 ### Hostinger Setup
