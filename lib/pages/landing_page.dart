@@ -92,6 +92,10 @@ class _LandingPageState extends State<LandingPage>
 
 
 
+  final ScrollController _menuScrollController = ScrollController();
+
+
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
 
@@ -109,6 +113,10 @@ class _LandingPageState extends State<LandingPage>
 
 
   final GlobalKey _aboutKey = GlobalKey();
+
+
+
+  final GlobalKey _menuKey = GlobalKey();
 
 
 
@@ -184,6 +192,18 @@ class _LandingPageState extends State<LandingPage>
 
 
   List<MenuItem> _featuredMenuItems = [];
+
+
+
+  // --- Food Menu State ---
+
+  String _menuSearchQuery = '';
+
+  String _menuSelectedCategory = 'All';
+
+  Map<String, List<MenuItem>> _menuData = {};
+
+  List<String> _menuCategories = [];
 
 
 
@@ -621,11 +641,9 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-      // 4. Select Featured Menu Items (Dynamic)
+      // 4. Fetch live menu from Supabase and select featured items
 
-
-
-      final allMenu = MenuService.getMenu();
+      final allMenu = await MenuService.fetchMenu();
 
 
 
@@ -713,6 +731,12 @@ class _LandingPageState extends State<LandingPage>
 
 
 
+          _menuData = allMenu;
+
+          _menuCategories = ['All', ...MenuService.categories];
+
+
+
           _isLoadingData = false;
 
 
@@ -782,6 +806,10 @@ class _LandingPageState extends State<LandingPage>
 
 
     _scrollController.dispose();
+
+
+
+    _menuScrollController.dispose();
 
 
 
@@ -2193,7 +2221,8 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                
+                _buildMenuSection(context), // MENU
+
 
 
                 _buildUpdatesSection(context), // UPDATES
@@ -2521,7 +2550,8 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                    
+                    _navLink('Menu', () => _scrollToSection(_menuKey), Colors.white),
+
 
 
                     _navLink('Updates', () => _scrollToSection(_updatesKey), Colors.white),
@@ -2926,6 +2956,8 @@ class _LandingPageState extends State<LandingPage>
                                 _mobileMenuItem('Home', _scrollToTop),
                                 _mobileMenuItem('About',
                                     () => _scrollToSection(_aboutKey)),
+                                _mobileMenuItem('Menu',
+                                    () => _scrollToSection(_menuKey)),
                                 _mobileMenuItem('Updates',
                                     () => _scrollToSection(_updatesKey)),
                                 _mobileMenuItem('Services',
@@ -9824,6 +9856,664 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
+
+
+  // ---------------------------------------------------------------------------
+
+  // 3.5. MENU SECTION FUNCTIONS
+
+  // ---------------------------------------------------------------------------
+
+  List<MenuItem> _getFilteredMenu() {
+    final List<MenuItem> items = [];
+    
+    if (_menuSelectedCategory == 'All') {
+      _menuData.forEach((category, list) {
+        items.addAll(list);
+      });
+    } else {
+      if (_menuData.containsKey(_menuSelectedCategory)) {
+        items.addAll(_menuData[_menuSelectedCategory]!);
+      }
+    }
+    
+    if (_menuSearchQuery.isNotEmpty) {
+      final query = _menuSearchQuery.toLowerCase();
+      return items.where((item) {
+        return item.name.toLowerCase().contains(query) ||
+            (item.description?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+    
+    return items;
+  }
+
+  Widget _buildMenuSection(BuildContext context) {
+    final filteredItems = _getFilteredMenu();
+
+    return Container(
+      key: _menuKey,
+      padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
+      color: Colors.transparent,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            children: [
+              // Section Header Tag
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'OUR MENU',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Section Title
+              RichText(
+                textAlign: TextAlign.center,
+                text: const TextSpan(
+                  style: TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.2),
+                  children: [
+                    TextSpan(text: 'Savor the '),
+                    TextSpan(
+                        text: 'Yang Chow',
+                        style: TextStyle(color: Colors.amber)),
+                    TextSpan(text: ' Taste'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Section Subtitle
+              const Text(
+                'Browse our wide selection of authentic recipes, made daily with fresh ingredients.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 15, color: Colors.white70, height: 1.6),
+              ),
+              const SizedBox(height: 40),
+
+              // The Unified Premium Box Container
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.12),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 40,
+                      offset: const Offset(0, 20),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                child: Column(
+                  children: [
+                    // Category scroll bar inside the box
+                    _buildMenuCategories(context),
+
+                    const SizedBox(height: 32),
+
+                    // Swipeable Carousel
+                    if (_isLoadingData)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 60.0),
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                          ),
+                        ),
+                      )
+                    else if (filteredItems.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 60.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.restaurant_menu, size: 64, color: Colors.white60),
+                              SizedBox(height: 16),
+                              Text(
+                                'No dishes found in this category.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Try checking other categories or clearing your search.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Stack(
+                        alignment: Alignment.center,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Horizontal Scrollable List View
+                          SizedBox(
+                            height: 300,
+                            child: ListView.builder(
+                              controller: _menuScrollController,
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                              itemCount: filteredItems.length,
+                              itemBuilder: (context, index) {
+                                final item = filteredItems[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 20.0),
+                                  child: SizedBox(
+                                    width: 280,
+                                    child: _buildMenuCard(context, item),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          // Left Scroll Arrow
+                          if (filteredItems.length > 3)
+                            Positioned(
+                              left: -16,
+                              child: _buildScrollArrow(
+                                icon: Icons.arrow_back_ios_new,
+                                onPressed: () => _scrollCarousel(-300),
+                              ),
+                            ),
+                          // Right Scroll Arrow
+                          if (filteredItems.length > 3)
+                            Positioned(
+                              right: -16,
+                              child: _buildScrollArrow(
+                                icon: Icons.arrow_forward_ios,
+                                onPressed: () => _scrollCarousel(300),
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuSearch(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 500),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: TextField(
+        onChanged: (val) {
+          setState(() {
+            _menuSearchQuery = val;
+          });
+        },
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search authentic dishes...',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
+          border: InputBorder.none,
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          suffixIcon: _menuSearchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.white60),
+                  onPressed: () {
+                    setState(() {
+                      _menuSearchQuery = '';
+                    });
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuCategories(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: Center(
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          shrinkWrap: true,
+          physics: const BouncingScrollPhysics(),
+          itemCount: _menuCategories.length,
+          itemBuilder: (context, index) {
+            final cat = _menuCategories[index];
+            final isSelected = _menuSelectedCategory == cat;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6.0),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _menuSelectedCategory = cat;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.amber : Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? Colors.amber : Colors.white.withOpacity(0.2),
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      cat,
+                      style: TextStyle(
+                        color: isSelected ? Colors.black87 : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScrollArrow({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white24, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 18),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  void _scrollCarousel(double offset) {
+    if (_menuScrollController.hasClients) {
+      final target = (_menuScrollController.offset + offset)
+          .clamp(0.0, _menuScrollController.position.maxScrollExtent);
+      _menuScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Widget _buildMenuCard(BuildContext context, MenuItem item) {
+    final imageUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _showMenuItemDetailsDialog(context, item),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              // Full-bleed Image
+              Positioned.fill(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey.shade900,
+                      child: const Icon(
+                        Icons.restaurant,
+                        size: 48,
+                        color: Colors.white30,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Category tag overlayed in top-left
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE65100),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    item.category,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              // Gradient Overlay at the bottom
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 120,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.6),
+                        Colors.black.withOpacity(0.9),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Name, description & price tag overlaid at bottom
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black45,
+                            offset: Offset(0, 1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.description ?? 'Authentic recipe',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '₱${item.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMenuItemDetailsDialog(BuildContext context, MenuItem item) {
+    final imageUrl = MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Close Button and Header Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2C1E1E),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Large Image with Rounded Corners
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade100,
+                            child: const Icon(Icons.restaurant, size: 64, color: Colors.grey),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Price and Category Tags
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: item.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          item.category,
+                          style: TextStyle(
+                            color: item.color,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C1E1E).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '₱${item.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFFC62828),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Description Label & Text
+                  const Text(
+                    'Description',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2C1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.description ?? 'Authentic Yang Chow recipe, prepared with fresh ingredients and our secret blend of spices.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Ingredients Section (Dynamically Fetched)
+                  const Text(
+                    'Recipe & Ingredients Info',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2C1E1E),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder<List<dynamic>>(
+                    future: Supabase.instance.client
+                        .from('recipe_ingredients')
+                        .select()
+                        .eq('menu_item_name', item.name),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                          ),
+                        );
+                      }
+                      if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+                        return Text(
+                          'No specific ingredient list available for public view.',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                        );
+                      }
+                      final ingredientsList = snapshot.data!;
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ingredientsList.map<Widget>((ing) {
+                          final name = ing['name'] ?? '';
+                          return Chip(
+                            label: Text(
+                              name,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: Colors.amber.shade50,
+                            side: BorderSide(color: Colors.amber.shade200),
+                            visualDensity: VisualDensity.compact,
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSocialContactItem(
       IconData mainIcon, String label, List<Widget> socialIcons) {
     return Row(
@@ -10137,6 +10827,7 @@ class ChinesePatternPainter extends CustomPainter {
 
 
 }
+
 
 
 
