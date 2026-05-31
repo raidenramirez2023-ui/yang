@@ -1882,10 +1882,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final hour = DateTime.now().hour;
 
     final greeting = hour < 12
-        ? 'Good Morning po'
+        ? 'Good Morning'
         : hour < 17
-        ? 'Good Afternoon po'
-        : 'Good Evening po';
+        ? 'Good Afternoon'
+        : 'Good Evening';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
