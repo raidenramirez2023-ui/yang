@@ -263,6 +263,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           'Payment Approvals',
           style: TextStyle(
