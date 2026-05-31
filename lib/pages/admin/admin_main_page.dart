@@ -65,23 +65,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   @override
-
   void initState() {
-
     super.initState();
-
     _checkUserRole();
-
     _loadPendingPaymentCount();
-
     _loadPendingReservationCount();
-
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
     _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
       _loadPendingPaymentCount();
       _loadPendingReservationCount();
     });
-
+    NotificationService.startStockMonitoring();
   }
 
 
@@ -202,6 +196,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   @override
   void dispose() {
+    NotificationService.stopStockMonitoring();
     _countRefreshTimer?.cancel();
     super.dispose();
   }
@@ -1667,6 +1662,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     switch (action) {
       case 'stock_request':
         return Icons.inventory_2;
+      case 'stock_alert':
+        return Icons.warning_amber_rounded;
       case 'pos_order':
         return Icons.shopping_cart;
       case 'created':
@@ -1687,6 +1684,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
     if (n['action_type'] == 'stock_request') {
       return 'Kitchen has requested stock: ${n['event_type']}';
     }
+    if (n['action_type'] == 'stock_alert') {
+      return n['event_type'] ?? 'Stock Alert';
+    }
     if (n['action_type'] == 'pos_order') {
       return 'POS staff have order please process';
     }
@@ -1696,6 +1696,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
   String _getAdminNotificationTitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
       return 'Stock Request';
+    }
+    if (n['action_type'] == 'stock_alert') {
+      return 'Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
       return 'New Order';

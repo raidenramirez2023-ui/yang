@@ -81,6 +81,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     _selectedWeek = _getCurrentWeekOfMonth(now);
     _loadDashboardData();
     _setupRealtimeSubscription();
+    NotificationService.startStockMonitoring();
   }
 
   void _setupRealtimeSubscription() {
@@ -111,6 +112,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   @override
   void dispose() {
+    NotificationService.stopStockMonitoring();
     _inventorySubscription?.unsubscribe();
     super.dispose();
   }
@@ -3072,7 +3074,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildNotificationIcon(Color iconColor) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: NotificationService.getAdminNotificationsStream(),
+      stream: NotificationService.getAdminNotificationsStream().map((list) =>
+        list.where((n) {
+          if (n['action_type'] == 'stock_alert') {
+            return n['reservation_id'] == 'Main Inventory';
+          }
+          return true;
+        }).toList()
+      ),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
         final unreadCount = notifications.where((n) => !n['is_read']).length;
@@ -3185,6 +3194,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     switch (action) {
       case 'stock_request':
         return Icons.inventory_2;
+      case 'stock_alert':
+        return Icons.warning_amber_rounded;
       case 'pos_order':
         return Icons.shopping_cart;
       case 'created':
@@ -3204,6 +3215,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   String _getNotificationTitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
       return 'Stock Request';
+    }
+    if (n['action_type'] == 'stock_alert') {
+      return 'Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
       return 'New Order';
@@ -3227,6 +3241,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   String _getNotificationSubtitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
       return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'stock_alert') {
+      return n['event_type'] ?? 'Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
       return 'POS staff have order please process';

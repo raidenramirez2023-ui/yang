@@ -1,8 +1,119 @@
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final _supabase = Supabase.instance.client;
+  
+  static StreamSubscription? _inventorySubscription;
+  static StreamSubscription? _kitchenSubscription;
+
+  /// Check if an unread stock alert of this type exists; if not, send a notification
+  static Future<void> checkAndSendStockAlert({
+    required String itemName,
+    required String status,
+    required int quantity,
+    required String unit,
+    required String source,
+  }) async {
+    try {
+      final eventText = '$itemName is $status! ($quantity $unit left in $source)';
+      
+      final existing = await _supabase
+          .from('notifications')
+          .select('id')
+          .eq('is_for_admin', true)
+          .eq('action_type', 'stock_alert')
+          .eq('event_type', eventText)
+          .eq('is_read', false)
+          .limit(1);
+          
+      if (existing.isEmpty) {
+        await sendNotification(
+          isForAdmin: true,
+          actorName: 'System',
+          actionType: 'stock_alert',
+          reservationId: source,
+          eventType: eventText,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking/sending stock alert: $e');
+    }
+  }
+
+  /// Start monitoring stock levels for both main inventory and kitchen inventory.
+  /// This will automatically trigger notifications when items are low or out of stock.
+  static void startStockMonitoring() {
+    stopStockMonitoring();
+
+    // Listen to Main Inventory
+    _inventorySubscription = _supabase
+        .from('inventory')
+        .stream(primaryKey: ['id'])
+        .listen((items) {
+          for (final item in items) {
+            final name = item['name']?.toString() ?? 'Unknown';
+            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+            final unit = item['unit']?.toString() ?? 'pcs';
+            
+            if (qty == 0) {
+              checkAndSendStockAlert(
+                itemName: name,
+                status: 'OUT OF STOCK',
+                quantity: qty,
+                unit: unit,
+                source: 'Main Inventory',
+              );
+            } else if (qty <= 10) {
+              checkAndSendStockAlert(
+                itemName: name,
+                status: 'LOW STOCK',
+                quantity: qty,
+                unit: unit,
+                source: 'Main Inventory',
+              );
+            }
+          }
+        });
+
+    // Listen to Kitchen Inventory
+    _kitchenSubscription = _supabase
+        .from('kitchen_inventory')
+        .stream(primaryKey: ['id'])
+        .listen((items) {
+          for (final item in items) {
+            final name = item['name']?.toString() ?? 'Unknown';
+            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+            final unit = item['unit']?.toString() ?? 'pcs';
+            
+            if (qty == 0) {
+              checkAndSendStockAlert(
+                itemName: name,
+                status: 'OUT OF STOCK',
+                quantity: qty,
+                unit: unit,
+                source: 'Kitchen',
+              );
+            } else if (qty <= 10) {
+              checkAndSendStockAlert(
+                itemName: name,
+                status: 'LOW STOCK',
+                quantity: qty,
+                unit: unit,
+                source: 'Kitchen',
+              );
+            }
+          }
+        });
+  }
+
+  static void stopStockMonitoring() {
+    _inventorySubscription?.cancel();
+    _inventorySubscription = null;
+    _kitchenSubscription?.cancel();
+    _kitchenSubscription = null;
+  }
 
   /// Send a notification to a specific recipient or to all admins
   static Future<void> sendNotification({

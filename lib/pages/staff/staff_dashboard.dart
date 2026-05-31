@@ -184,7 +184,14 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
 
   Widget _buildNotificationIcon() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: NotificationService.getAdminNotificationsStream(),
+      stream: NotificationService.getAdminNotificationsStream().map((list) =>
+        list.where((n) {
+          if (n['action_type'] == 'stock_alert') {
+            return n['reservation_id'] == 'Kitchen';
+          }
+          return true;
+        }).toList()
+      ),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
         final hasUnread = notifications.any((n) => !n['is_read']);
@@ -288,6 +295,8 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     switch (action) {
       case 'stock_request':
         return Icons.inventory_2;
+      case 'stock_alert':
+        return Icons.warning_amber_rounded;
       case 'pos_order':
         return Icons.shopping_cart;
       case 'created':
@@ -307,6 +316,9 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
   String _getNotificationTitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
       return 'Stock Request';
+    }
+    if (n['action_type'] == 'stock_alert') {
+      return 'Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
       return 'New Order';
@@ -330,6 +342,9 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
   String _getNotificationSubtitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
       return 'Kitchen has requested stock: ${n['event_type']}';
+    }
+    if (n['action_type'] == 'stock_alert') {
+      return n['event_type'] ?? 'Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
       return 'POS staff have order please process';
