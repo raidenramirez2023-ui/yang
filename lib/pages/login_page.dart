@@ -803,6 +803,7 @@ class _LoginPageState extends State<LoginPage> {
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             enabled: !_isLoading,
+            onSubmitted: (_) => _isLoading ? null : handleLogin(),
             decoration: InputDecoration(
               hintText: 'Email Address',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
@@ -836,6 +837,7 @@ class _LoginPageState extends State<LoginPage> {
             controller: passwordController,
             obscureText: !_isPasswordVisible,
             enabled: !_isLoading,
+            onSubmitted: (_) => _isLoading ? null : handleLogin(),
             decoration: InputDecoration(
               hintText: 'Password',
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),

@@ -557,6 +557,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           controller: emailController,
           keyboardType: TextInputType.emailAddress,
           enabled: !_isLoading,
+          onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter Staff Email',
@@ -603,6 +604,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           controller: passwordController,
           obscureText: !_isPasswordVisible,
           enabled: !_isLoading,
+          onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter Password',
