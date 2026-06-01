@@ -95,6 +95,8 @@ class _LandingPageState extends State<LandingPage>
 
   final ScrollController _menuScrollController = ScrollController();
 
+  final ScrollController _reviewsScrollController = ScrollController();
+
 
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -161,6 +163,8 @@ class _LandingPageState extends State<LandingPage>
 
 
   double _lastScrollOffset = 0.0;
+
+  Timer? _reviewsAutoScrollTimer;
 
 
 
@@ -457,6 +461,8 @@ class _LandingPageState extends State<LandingPage>
 
 
     _getCurrentLocation();
+
+    _startReviewsAutoScroll();
 
 
 
@@ -812,7 +818,9 @@ class _LandingPageState extends State<LandingPage>
 
     _menuScrollController.dispose();
 
+    _reviewsScrollController.dispose();
 
+    _reviewsAutoScrollTimer?.cancel();
 
     _animController.dispose();
 
@@ -3714,7 +3722,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                  image: AssetImage('assets/images/PancitCanton.jpg'),
+                  image: AssetImage('assets/images/Chow.jpg'),
 
 
 
@@ -5916,55 +5924,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              if (isDesktop)
-
-
-
-                _buildServicesGrid(services, columns: 3)
-
-
-
-              else if (isTablet)
-
-
-
-                _buildServicesGrid(services, columns: 2)
-
-
-
-              else
-
-
-
-                Column(
-
-
-
-                  children: [
-
-
-
-                    for (int i = 0; i < services.length; i++) ...[
-
-
-
-                      services[i],
-
-
-
-                      if (i != services.length - 1) const SizedBox(height: 20),
-
-
-
-                    ]
-
-
-
-                  ],
-
-
-
-                ),
+              _buildServicesCarousel(services),
 
 
 
@@ -6277,6 +6237,86 @@ class _LandingPageState extends State<LandingPage>
 
 
     return Column(children: rows);
+
+
+
+  }
+
+
+
+  Widget _buildServicesCarousel(List<Widget> items) {
+
+
+
+    return SizedBox(
+
+
+
+      height: 320,
+
+
+
+      child: ListView.builder(
+
+
+
+        scrollDirection: Axis.horizontal,
+
+
+
+        physics: const BouncingScrollPhysics(),
+
+
+
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+
+
+
+        itemCount: items.length,
+
+
+
+        itemBuilder: (context, index) {
+
+
+
+          return Padding(
+
+
+
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+
+
+
+            child: SizedBox(
+
+
+
+              width: 280,
+
+
+
+              child: items[index],
+
+
+
+            ),
+
+
+
+          );
+
+
+
+        },
+
+
+
+      ),
+
+
+
+    );
 
 
 
@@ -6762,71 +6802,61 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
 
-
-
-              // Overall rating summary
-
-
-
-              _buildOverallRating(),
-
-
-
-              const SizedBox(height: 60),
-
-
-
-              if (isDesktop)
-
-
-
-                _buildReviewsGrid(reviews, columns: 3)
-
-
-
-              else if (isTablet)
-
-
-
-                _buildReviewsGrid(reviews, columns: 2)
-
-
-
-              else
-
-
-
-                Column(
-
-
-
-                  children: [
-
-
-
-                    for (int i = 0; i < reviews.length; i++) ...[
-
-
-
-                      reviews[i],
-
-
-
-                      if (i != reviews.length - 1) const SizedBox(height: 20),
-
-
-
-                    ]
-
-
-
+              // The Unified Premium Box Container (matching menu section style)
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.12),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 40,
+                      offset: const Offset(0, 20),
+                    ),
                   ],
-
-
-
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                child: Column(
+                  children: [
+                    // Overall rating summary
+                    _buildOverallRating(),
+
+                    const SizedBox(height: 32),
+
+                    // Auto-scrolling reviews carousel
+                    Container(
+                      height: isDesktop ? 280 : (isTablet ? 260 : 240),
+                      child: ListView.builder(
+                        controller: _reviewsScrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 40 : 20,
+                        ),
+                        itemCount: reviews.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              right: index == reviews.length - 1 ? 0 : 20,
+                            ),
+                            child: SizedBox(
+                              width: isDesktop ? 380 : (isTablet ? 340 : 300),
+                              child: reviews[index],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
 
 
@@ -7144,7 +7174,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-      padding: EdgeInsets.all(isDesktop ? 20 : 16),
+      padding: EdgeInsets.all(isDesktop ? 24 : 20),
 
 
 
@@ -7156,7 +7186,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
 
 
 
@@ -7168,15 +7198,15 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.15),
 
 
 
-              blurRadius: 8,
+              blurRadius: 16,
 
 
 
-              offset: const Offset(0, 4))
+              offset: const Offset(0, 8))
 
 
 
@@ -7220,7 +7250,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.amber, size: 14)),
+                      color: Colors.amber, size: 18)),
 
 
 
@@ -7236,7 +7266,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                      color: Colors.amber, size: 14)),
+                      color: Colors.amber, size: 18)),
 
 
 
@@ -7248,7 +7278,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-          SizedBox(height: isDesktop ? 10 : 8),
+          SizedBox(height: isDesktop ? 16 : 12),
 
 
 
@@ -7264,11 +7294,11 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: Color(0xFF555555), fontSize: 12, height: 1.4),
+                color: Color(0xFF333333), fontSize: 14, height: 1.5, fontWeight: FontWeight.w500),
 
 
 
-            maxLines: isDesktop ? 3 : 2,
+            maxLines: isDesktop ? 4 : 3,
 
 
 
@@ -7280,7 +7310,7 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-          SizedBox(height: isDesktop ? 16 : 14),
+          SizedBox(height: isDesktop ? 20 : 16),
 
 
 
@@ -7305,26 +7335,26 @@ class _LandingPageState extends State<LandingPage>
 
 
                   CircleAvatar(
-                    radius: isDesktop ? 16 : 14,
+                    radius: isDesktop ? 20 : 18,
                     backgroundColor:
-                        const Color(0xFFC62828).withOpacity(0.15),
+                        const Color(0xFFC62828).withOpacity(0.1),
                     backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                         ? NetworkImage(avatarUrl)
                         : null,
                     child: (avatarUrl == null || avatarUrl.isEmpty)
                         ? Text(
-                            name.isNotEmpty ? name.substring(0, 1) : 'A',
+                            name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'C',
                             style: TextStyle(
                                 color: const Color(0xFFC62828),
                                 fontWeight: FontWeight.bold,
-                                fontSize: isDesktop ? 14 : 12),
+                                fontSize: isDesktop ? 16 : 14),
                           )
                         : null,
                   ),
 
 
 
-                  SizedBox(width: isDesktop ? 10 : 8),
+                  SizedBox(width: isDesktop ? 12 : 10),
 
 
 
@@ -7356,11 +7386,19 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                            fontSize: isDesktop ? 13 : 12)
+                            fontSize: isDesktop ? 15 : 13,
+
+
+
+                            color: const Color(0xFF1E1E1E))
 
 
 
                       ),
+
+
+
+                      SizedBox(height: 2),
 
 
 
@@ -7376,7 +7414,11 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                            color: Color(0xFF757575), fontSize: 10)
+                            color: Color(0xFF757575), fontSize: 11,
+
+
+
+                            fontWeight: FontWeight.w500)
 
 
 
@@ -7408,11 +7450,11 @@ class _LandingPageState extends State<LandingPage>
 
 
 
-                color: const Color(0xFFC62828).withOpacity(0.2),
+                color: const Color(0xFFC62828),
 
 
 
-                size: isDesktop ? 30 : 26,
+                size: isDesktop ? 36 : 32,
 
 
 
@@ -9860,7 +9902,30 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-
+  void _startReviewsAutoScroll() {
+    if (_reviews.length <= 1) return;
+    
+    _reviewsAutoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_reviewsScrollController.hasClients) {
+        final maxScroll = _reviewsScrollController.position.maxScrollExtent;
+        final currentScroll = _reviewsScrollController.position.pixels;
+        
+        if (currentScroll >= maxScroll) {
+          _reviewsScrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _reviewsScrollController.animateTo(
+            currentScroll + 350,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
 
   // ---------------------------------------------------------------------------
 
