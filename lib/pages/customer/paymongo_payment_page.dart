@@ -12,18 +12,20 @@ class PayMongoPaymentPage extends StatefulWidget {
   final String paymentUrl;
   final String? paymentLinkId;
   final String reservationId;
-  final double depositAmount;
+  final double paymentAmount;
   final VoidCallback onPaymentSuccess;
   final String table;
+  final double? totalPrice;
 
   const PayMongoPaymentPage({
     super.key,
     required this.paymentUrl,
     this.paymentLinkId,
     required this.reservationId,
-    required this.depositAmount,
+    required this.paymentAmount,
     required this.onPaymentSuccess,
     this.table = 'reservations',
+    this.totalPrice,
   });
 
   @override
@@ -116,11 +118,23 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Determine payment status based on amount and table type
+      String paymentStatus;
+      if (widget.table == 'advance_orders') {
+        paymentStatus = 'pending_verification';
+      } else if (widget.totalPrice != null && widget.paymentAmount >= widget.totalPrice!) {
+        // Full payment for event place reservation
+        paymentStatus = 'fully_paid';
+      } else {
+        // Deposit payment for event place reservation
+        paymentStatus = 'deposit_paid';
+      }
+
       final success = await _reservationService.updatePaymentStatus(
         id: widget.reservationId,
-        paymentStatus: widget.table == 'reservations' ? 'deposit_paid' : 'pending_verification',
+        paymentStatus: paymentStatus,
         table: widget.table,
-        paymentAmount: widget.depositAmount,
+        paymentAmount: widget.paymentAmount,
         paymentReference: 'PAYMONGO_${widget.paymentLinkId}',
         receiptUrl: _receiptImageUrl,
       );
@@ -148,7 +162,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
           customerName: currentUser.userMetadata?['name'] ?? 'Customer',
           eventType: 'Event',
           eventDate: 'TBD',
-          depositAmount: widget.depositAmount,
+          depositAmount: widget.paymentAmount,
         );
       }
     } catch (e) {
@@ -210,7 +224,7 @@ class _PayMongoPaymentPageState extends State<PayMongoPaymentPage> {
                 children: [
                   Text('Payment Amount', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                   SizedBox(height: 8),
-                  Text('PHP ${widget.depositAmount.toStringAsFixed(2)}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.errorRed)),
+                  Text('PHP ${widget.paymentAmount.toStringAsFixed(2)}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.errorRed)),
                 ],
               ),
             ),

@@ -1230,8 +1230,8 @@ class ReservationService {
         if (receiptUrl != null) {
           updates['receipt_url'] = receiptUrl;
         }
-        // Set status to pending admin approval on deposit paid
-        if (paymentStatus == 'deposit_paid') {
+        // Set status to pending admin approval on deposit paid or fully paid
+        if (paymentStatus == 'deposit_paid' || paymentStatus == 'fully_paid') {
           updates['status'] = 'pending_admin_approval';
         }
       } else {
@@ -1748,7 +1748,7 @@ class ReservationService {
           .from('reservations')
           .select('*')
           .eq('status', 'pending_admin_approval')
-          .eq('payment_status', 'deposit_paid')
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
           .eq('is_archived', false)
           .order('created_at', ascending: false);
 

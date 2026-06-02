@@ -474,7 +474,12 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           _buildDetailRow('Customer', payment['customer_name'] ?? 'N/A', Icons.person),
           _buildDetailRow('Email', payment['customer_email'] ?? 'N/A', Icons.email),
           _buildDetailRow('Total Price', 'PHP ${(payment['total_price'] ?? 0).toStringAsFixed(2)}', Icons.monetization_on),
-          _buildDetailRow('Deposit Paid', 'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}', Icons.account_balance_wallet, isHighlight: true),
+          _buildDetailRow(
+            payment['payment_status'] == 'fully_paid' ? 'Full Paid' : 'Deposit Paid',
+            'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}',
+            Icons.account_balance_wallet,
+            isHighlight: true,
+          ),
           if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
