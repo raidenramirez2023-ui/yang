@@ -10,6 +10,9 @@ import 'utils/app_theme.dart';
 
 import 'services/app_settings_service.dart';
 
+// Auth Guard
+import 'widgets/auth_guard.dart';
+
 // Features
 
 import 'pages/login_page.dart';
@@ -134,18 +137,43 @@ class YangChowApp extends StatelessWidget {
           return OtpPasswordResetPage(email: email);
         },
 
-        '/customer-dashboard': (context) => const CustomerDashboardPage(),
+        // Protected routes - wrapped with AuthGuard
+        '/customer-dashboard': (context) => const AuthGuard(
+          allowedRoles: ['customer'],
+          redirectRoute: '/login',
+          child: CustomerDashboardPage(),
+        ),
 
-        '/dashboard': (context) => const AdminMainPage(),
+        '/dashboard': (context) => const AuthGuard(
+          allowedRoles: ['admin'],
+          redirectRoute: '/staff-login',
+          child: AdminMainPage(),
+        ),
 
-        '/admin-reservations': (context) => const AdminReservationsPage(),
+        '/admin-reservations': (context) => const AuthGuard(
+          allowedRoles: ['admin'],
+          redirectRoute: '/staff-login',
+          child: AdminReservationsPage(),
+        ),
 
         '/pagsanjaninv-dashboard': (context) =>
-            const PagsanjaninvDashboardPage(),
+            const AuthGuard(
+              allowedRoles: ['pagsanjaninv'],
+              redirectRoute: '/staff-login',
+              child: PagsanjaninvDashboardPage(),
+            ),
 
-        '/staff-dashboard': (context) => const StaffDashboardPage(),
+        '/staff-dashboard': (context) => const AuthGuard(
+          allowedRoles: ['staff'],
+          redirectRoute: '/staff-login',
+          child: StaffDashboardPage(),
+        ),
 
-        '/chef-dashboard': (context) => const ChefDashboardPage(),
+        '/chef-dashboard': (context) => const AuthGuard(
+          allowedRoles: ['chef'],
+          redirectRoute: '/staff-login',
+          child: ChefDashboardPage(),
+        ),
 
 
       },
