@@ -375,7 +375,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       case 1:
         return 'Reservation';
       case 2:
-        return 'Quotations';
+        return 'Transaction';
       case 3:
         return 'Activity';
       case 4:
@@ -874,7 +874,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 final labels = [
                   'Home',
                   'Reservations',
-                  'Quotations',
+                  'Transaction',
                   'Activity',
                 ];
 
@@ -3434,11 +3434,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           'Reservation created successfully!\n\n'
           'Total Menu Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n'
           '${_reservationType == 'Advance Order' ? 'Full Payment Required' : '50% Deposit Required'}: PHP ${NumberFormat('#,##0.00').format(depositAmount)}\n\n'
-          'You will receive a price quotation shortly and can proceed with payment.',
+          'You will receive a price transaction shortly and can proceed with payment.',
         );
       } else {
         _showSuccessDialog(
-          'Reservation created successfully! You will receive a price quotation shortly.',
+          'Reservation created successfully! You will receive a price transaction shortly.',
         );
       }
     } catch (e) {
@@ -3449,7 +3449,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   String _getPaymentStatusText(String status, bool isQuoted) {
-    if (!isQuoted) return 'AWAITING QUOTATION';
+    if (!isQuoted) return 'AWAITING TRANSACTION';
 
     switch (status) {
       case 'deposit_paid':
@@ -5094,14 +5094,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'No Price Quotations Yet',
+                    'No Price Transactions Yet',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.orange,
                     ),
                   ),
                   Text(
-                    'Admin will send pricing quotations for your reservations',
+                    'Admin will send pricing transactions for your reservations',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.orange.shade700,
@@ -5126,7 +5126,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               Icon(Icons.monetization_on, color: AppTheme.primaryColor),
               SizedBox(width: 8),
               Text(
-                'Price Quotations',
+                'Price Transactions',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -5141,7 +5141,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${quotations.length} quotation${quotations.length > 1 ? 's' : ''}',
+                  '${quotations.length} transaction${quotations.length > 1 ? 's' : ''}',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.primaryColor,
@@ -5232,7 +5232,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                       children: [
                         Text(
-                          'Price Quotation',
+                          'Price Transaction',
 
                           style: TextStyle(
                             fontSize: 14,

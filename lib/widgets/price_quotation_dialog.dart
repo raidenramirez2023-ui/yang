@@ -271,13 +271,13 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
         Navigator.pop(context, true);
 
-        _showSuccess('Price quotation sent successfully!');
+        _showSuccess('Price transaction sent successfully!');
 
       }
 
     } catch (e) {
 
-      _showError('Failed to send quotation: $e');
+      _showError('Failed to send transaction: $e');
 
     } finally {
 
@@ -423,7 +423,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
                     child: Text(
 
-                      'Send Price Quotation',
+                      'Send Price Transaction',
 
                       style: TextStyle(
 
@@ -1131,7 +1131,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
                   )
 
-                : Text('Send Quotation'),
+                : Text('Send Transaction'),
 
           ),
 

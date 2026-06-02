@@ -456,7 +456,7 @@ $body
   }) async {
     return _logEmailNotification(
       recipientEmail: customerEmail,
-      subject: 'Price Quotation - Yang Chow Restaurant',
+      subject: 'Price Transaction - Yang Chow Restaurant',
       emailType: 'price_quotation',
       body: _buildPriceQuotationBody(
         customerName: customerName,
@@ -529,7 +529,7 @@ Dear $customerName,
 
 Thank you for your interest in hosting your $eventType at Yang Chow Restaurant!
 
-We are pleased to provide you with the following price quotation:
+We are pleased to provide you with the following price transaction:
 
 EVENT DETAILS:
 - Event Type: $eventType
