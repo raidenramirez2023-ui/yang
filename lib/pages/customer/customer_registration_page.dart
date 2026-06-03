@@ -709,7 +709,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: AppTheme.primaryColor.withOpacity(0.88),
             ),
           ),
         ),
@@ -720,8 +720,8 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               child: Center(
                 child: Image.asset(
                   'assets/images/ycplogo.png',
-                  width: 450,
-                  height: 450,
+                  width: 480,
+                  height: 480,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -731,20 +731,20 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               child: Center(
                 child: SingleChildScrollView(
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 480),
+                    constraints: const BoxConstraints(maxWidth: 500),
                     margin: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 40,
+                      horizontal: 48,
+                      vertical: 48,
                     ),
-                    padding: const EdgeInsets.all(40),
+                    padding: const EdgeInsets.all(48),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 30,
-                          offset: Offset(0, 15),
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 40,
+                          offset: const Offset(0, 20),
                         ),
                       ],
                     ),
@@ -771,7 +771,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: AppTheme.primaryColor.withOpacity(0.88),
             ),
           ),
         ),
@@ -780,34 +780,34 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
                 Image.asset(
                   'assets/images/ycplogo.png',
-                  height: 240,
+                  height: 260,
                   fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 36),
                 Container(
                   margin: const EdgeInsets.symmetric(
-                    horizontal: 40,
+                    horizontal: 48,
                     vertical: 0,
                   ),
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(40),
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  padding: const EdgeInsets.all(44),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 30,
-                        offset: Offset(0, 15),
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 40,
+                        offset: const Offset(0, 20),
                       ),
                     ],
                   ),
                   child: Form(key: _formKey, child: _buildRegistrationForm()),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
               ],
             ),
           ),
@@ -828,7 +828,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: AppTheme.primaryColor.withOpacity(0.88),
             ),
           ),
         ),
@@ -838,33 +838,33 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   Image.asset(
                     'assets/images/ycplogo.png',
-                    height: 200,
+                    height: 220,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   Container(
                     margin: const EdgeInsets.symmetric(
-                      horizontal: 24,
+                      horizontal: 28,
                       vertical: 0,
                     ),
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(36),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 30,
+                          offset: const Offset(0, 15),
                         ),
                       ],
                     ),
                     child: Form(key: _formKey, child: _buildRegistrationForm()),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -883,26 +883,26 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         Row(
           children: [
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+              child: Divider(color: Colors.grey.shade200, thickness: 1),
             ),
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'CREATE ACCOUNT',
                 style: TextStyle(
                   color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.8,
+                  fontSize: 12,
                 ),
               ),
             ),
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+              child: Divider(color: Colors.grey.shade200, thickness: 1),
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 36),
 
         // First Name Input
         _buildInputField(
@@ -911,7 +911,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateFirstName,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Last Name Input
         _buildInputField(
@@ -920,7 +920,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateLastName,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Phone Number Input
         _buildInputField(
@@ -934,7 +934,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             LengthLimitingTextInputFormatter(11),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Email Input with Verify button
         Row(
@@ -1097,16 +1097,17 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
 
         // Register Button
         SizedBox(
-          height: 52,
+          height: 56,
+          width: double.infinity,
           child: ElevatedButton(
             onPressed: _isLoading ? null : handleRegistration,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              elevation: 4,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.35),
+              elevation: 6,
+              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: _isLoading
@@ -1114,21 +1115,21 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                     height: 24,
                     width: 24,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.5,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
                 : const Text(
                     'SIGN UP',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
                     ),
                   ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
         // Back to Login Link
         Center(
@@ -1166,31 +1167,39 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       validator: validator,
       keyboardType: keyboardType,
       inputFormatters: formatters,
-      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, letterSpacing: -0.2),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.grey.shade500, size: 20),
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
+        prefixIcon: Icon(icon, color: AppTheme.mediumGrey, size: 22),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: enabled ? Colors.white : Colors.grey.shade50,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
+          horizontal: 18,
+          vertical: 18,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
-          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
         ),
-        errorStyle: const TextStyle(fontSize: 11),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        ),
+        errorStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
     );
   }

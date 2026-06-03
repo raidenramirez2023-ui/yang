@@ -28,6 +28,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   // Controllers
   final ScrollController _horizontalScrollController = ScrollController();
 
+  String _getPaymentStatusText(String paymentStatus) {
+    switch (paymentStatus.toLowerCase()) {
+      case 'fully_paid':
+        return 'FULL PAID';
+      case 'deposit_paid':
+        return 'DEPOSIT PAID';
+      case 'paid':
+        return 'PAID';
+      case 'unpaid':
+        return 'UNPAID';
+      case 'pending_verification':
+        return 'PENDING VERIFICATION';
+      default:
+        return paymentStatus.toUpperCase();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1712,7 +1729,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   const SizedBox(height: 16),
                   buildDetailRow('Total Price', 'PHP ${(reservation['total_price'] as double).toStringAsFixed(2)}', icon: Icons.monetization_on),
                   buildDetailRow('Deposit Required', 'PHP ${(reservation['deposit_amount'] as double).toStringAsFixed(2)}', icon: Icons.account_balance_wallet),
-                  buildDetailRow('Payment Status', (reservation['payment_status'] as String? ?? 'unpaid').toUpperCase(), icon: Icons.payment),
+                  buildDetailRow('Payment Status', _getPaymentStatusText(reservation['payment_status'] as String? ?? 'unpaid'), icon: Icons.payment),
                   buildDetailRow('Transaction Sent', reservation['price_quotation_sent'] == true ? 'Yes' : 'No', icon: Icons.email),
                 ],
               ],

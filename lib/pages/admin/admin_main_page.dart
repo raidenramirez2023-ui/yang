@@ -107,7 +107,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
           .from('reservations')
           .select('id')
           .eq('status', 'pending_admin_approval')
-          .eq('payment_status', 'deposit_paid')
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
           .eq('is_archived', false)
           .limit(1); // Just check if table works, limit to 1 for faster response
 
@@ -120,7 +120,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           .eq('status', 'pending_admin_approval')
 
-          .eq('payment_status', 'deposit_paid')
+          .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
 
           .eq('is_archived', false);
 

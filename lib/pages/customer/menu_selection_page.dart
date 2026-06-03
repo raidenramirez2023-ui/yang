@@ -305,9 +305,10 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               Text(
                 'Select Menu Items',
                 style: GoogleFonts.lora(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
+                  letterSpacing: -0.3,
                 ),
               ),
             ],
@@ -322,8 +323,15 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   height: 48,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -331,10 +339,10 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     style: const TextStyle(color: AppTheme.darkGrey),
                     decoration: InputDecoration(
                       hintText: 'Search for products...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400),
+                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
+                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                     ),
                   ),
                 ),
@@ -375,28 +383,30 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = category),
       child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
+            width: 1.5,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected) ...[
-              const Icon(Icons.check, size: 16, color: AppTheme.primaryColor),
+              const Icon(Icons.check, size: 18, color: AppTheme.primaryColor),
               const SizedBox(width: 8),
             ],
             Text(
               category,
               style: TextStyle(
                 color: isSelected ? AppTheme.primaryColor : Colors.white,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 14,
+                letterSpacing: 0.2,
               ),
             ),
           ],
@@ -408,18 +418,18 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   Widget _buildBottomBar() {
     return Container(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -5),
+            blurRadius: 20,
+            offset: const Offset(0, -8),
           ),
         ],
       ),
@@ -435,16 +445,19 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       ? 'Total Amount' 
                       : 'Deposit Required',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppTheme.mediumGrey,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   'PHP ${_fmt.format(_depositAmount)}',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
                     color: AppTheme.primaryColor,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
@@ -466,12 +479,21 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              elevation: 6,
+              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text('Confirm Selection'),
+            child: const Text(
+              'Confirm Selection',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
         ],
       ),
@@ -489,12 +511,12 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -519,7 +541,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           Expanded(
             flex: 3,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Stack(
                 children: [
                   _buildImageWidget(item),
@@ -528,17 +550,24 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Text(
                           '$quantity',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -547,17 +576,18 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     bottom: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         'PHP ${_fmt.format(item.price)}',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
@@ -571,7 +601,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.all(10.0),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -581,17 +611,19 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
                       color: AppTheme.darkGrey,
+                      letterSpacing: -0.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     item.category,
                     style: const TextStyle(
-                      fontSize: 9,
+                      fontSize: 11,
                       color: AppTheme.mediumGrey,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Spacer(),
@@ -600,7 +632,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     children: [
                       IconButton(
                         onPressed: () => _removeFromSelection(item),
-                        icon: const Icon(Icons.remove_circle_outline, size: 18),
+                        icon: const Icon(Icons.remove_circle_outline, size: 20),
                         color: quantity > 0 ? AppTheme.primaryColor : AppTheme.lightGrey,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -608,13 +640,14 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       Text(
                         '$quantity',
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       IconButton(
                         onPressed: () => _addToSelection(item),
-                        icon: const Icon(Icons.add_circle_outline, size: 18),
+                        icon: const Icon(Icons.add_circle_outline, size: 20),
                         color: AppTheme.primaryColor,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),

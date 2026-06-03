@@ -67,7 +67,24 @@ class _PaymentPageState extends State<PaymentPage> {
       backgroundColor: Colors.white,
 
       appBar: AppBar(
-        title: const Text('Payment'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey, size: 22),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Payment',
+          style: TextStyle(
+            color: AppTheme.darkGrey,
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            letterSpacing: -0.3,
+          ),
+        ),
+        centerTitle: true,
       ),
 
       body: _isProcessing
@@ -86,7 +103,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
     return SingleChildScrollView(
 
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
 
       child: Column(
 
@@ -127,57 +144,32 @@ class _PaymentPageState extends State<PaymentPage> {
           if (_errorMessage != null) ...[
 
             Container(
-
-              padding: const EdgeInsets.all(16),
-
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-
                 color: Colors.red.shade50,
-
-                borderRadius: BorderRadius.circular(8),
-
-                border: Border.all(color: Colors.red.shade200),
-
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.red.shade200, width: 1.5),
               ),
-
               child: Row(
-
                 children: [
-
                   Icon(
-
-                    Icons.error_outline,
-
+                    Icons.error_outline_rounded,
                     color: Colors.red.shade600,
-
-                    size: 20,
-
+                    size: 22,
                   ),
-
-                  const SizedBox(width: 8),
-
+                  const SizedBox(width: 12),
                   Expanded(
-
                     child: Text(
-
                       _errorMessage!,
-
                       style: TextStyle(
-
                         color: Colors.red.shade600,
-
                         fontSize: 14,
-
+                        fontWeight: FontWeight.w600,
                       ),
-
                     ),
-
                   ),
-
                 ],
-
               ),
-
             ),
 
             const SizedBox(height: 16),
@@ -189,67 +181,38 @@ class _PaymentPageState extends State<PaymentPage> {
           // Pay Button
 
           SizedBox(
-
             width: double.infinity,
-
-            height: 48,
-
+            height: 56,
             child: ElevatedButton(
-
               onPressed: _selectedPaymentMethod != null ? _processPayment : null,
-
               style: ElevatedButton.styleFrom(
-
                 backgroundColor: AppTheme.primaryColor,
-
                 foregroundColor: Colors.white,
-
                 disabledBackgroundColor: Colors.grey.shade300,
-
                 shape: RoundedRectangleBorder(
-
-                  borderRadius: BorderRadius.circular(8),
-
+                  borderRadius: BorderRadius.circular(16),
                 ),
-
-                elevation: 0,
-
+                elevation: 6,
+                shadowColor: AppTheme.primaryColor.withOpacity(0.4),
               ),
-
               child: _isProcessing
-
                   ? const SizedBox(
-
-                      height: 20,
-
-                      width: 20,
-
+                      height: 24,
+                      width: 24,
                       child: CircularProgressIndicator(
-
-                        strokeWidth: 2,
-
+                        strokeWidth: 2.5,
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-
                       ),
-
                     )
-
                   : Text(
-
                       'Pay PHP ${widget.amount.toStringAsFixed(2)}',
-
                       style: const TextStyle(
-
-                        fontSize: 16,
-
-                        fontWeight: FontWeight.w600,
-
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
-
                     ),
-
             ),
-
           ),
 
           
@@ -261,45 +224,25 @@ class _PaymentPageState extends State<PaymentPage> {
           // Cancel Button
 
           SizedBox(
-
             width: double.infinity,
-
-            height: 48,
-
+            height: 56,
             child: OutlinedButton(
-
               onPressed: () => Navigator.of(context).pop(),
-
               style: OutlinedButton.styleFrom(
-
-                foregroundColor: Colors.grey.shade600,
-
-                side: BorderSide(color: Colors.grey.shade300),
-
+                foregroundColor: AppTheme.mediumGrey,
+                side: BorderSide(color: Colors.grey.shade300, width: 1.5),
                 shape: RoundedRectangleBorder(
-
-                  borderRadius: BorderRadius.circular(8),
-
+                  borderRadius: BorderRadius.circular(16),
                 ),
-
               ),
-
               child: const Text(
-
                 'Cancel',
-
                 style: TextStyle(
-
-                  fontSize: 16,
-
+                  fontSize: 17,
                   fontWeight: FontWeight.w600,
-
                 ),
-
               ),
-
             ),
-
           ),
 
         ],
@@ -313,81 +256,52 @@ class _PaymentPageState extends State<PaymentPage> {
 
 
   Widget _buildProcessingView() {
-
     return Column(
-
       mainAxisAlignment: MainAxisAlignment.center,
-
       children: [
-
         Container(
-
-          width: 80,
-
-          height: 80,
-
+          width: 100,
+          height: 100,
           decoration: BoxDecoration(
-
-            color: AppTheme.primaryColor.withOpacity(0.1),
-
+            color: AppTheme.primaryColor.withOpacity(0.12),
             shape: BoxShape.circle,
-
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.2),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-
           child: const Center(
-
             child: CircularProgressIndicator(
-
-              strokeWidth: 3,
-
+              strokeWidth: 3.5,
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-
             ),
-
           ),
-
         ),
-
-        const SizedBox(height: 24),
-
+        const SizedBox(height: 32),
         const Text(
-
           'Processing Payment',
-
           style: TextStyle(
-
-            fontSize: 20,
-
-            fontWeight: FontWeight.bold,
-
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
             color: AppTheme.darkGrey,
-
+            letterSpacing: -0.3,
           ),
-
         ),
-
-        const SizedBox(height: 8),
-
+        const SizedBox(height: 12),
         Text(
-
           'Please wait while we process your payment...',
-
           style: TextStyle(
-
-            fontSize: 14,
-
+            fontSize: 15,
             color: Colors.grey.shade600,
-
+            fontWeight: FontWeight.w500,
           ),
-
           textAlign: TextAlign.center,
-
         ),
-
       ],
-
     );
-
   }
 
 
@@ -518,16 +432,16 @@ class _PaymentPageState extends State<PaymentPage> {
               // Full screen QR code
               Center(
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  height: MediaQuery.of(context).size.width * 0.85,
+                  width: MediaQuery.of(context).size.width * 0.88,
+                  height: MediaQuery.of(context).size.width * 0.88,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: Offset(0, 10),
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 32,
+                        offset: const Offset(0, 12),
                       ),
                     ],
                   ),
@@ -538,7 +452,7 @@ class _PaymentPageState extends State<PaymentPage> {
                       Expanded(
                         flex: 3,
                         child: Padding(
-                          padding: EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(24),
                           child: Image.asset(
                             'assets/images/newgcash.png',
                             fit: BoxFit.contain,
@@ -549,18 +463,27 @@ class _PaymentPageState extends State<PaymentPage> {
                       Expanded(
                         flex: 1,
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           child: Column(
                             children: [
                               Text(
                                 'Amount: PHP ${widget.amount.toStringAsFixed(2)}',
-                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.darkGrey,
+                                  letterSpacing: -0.5,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Text(
                                 'Reference: YANG${DateTime.now().millisecondsSinceEpoch}',
-                                style: TextStyle(fontSize: 14, color: Colors.grey),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -573,13 +496,16 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
               // Close button
               Positioned(
-                top: 50,
-                right: 20,
+                top: 60,
+                right: 24,
                 child: IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: Colors.white, size: 30),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.5),
+                    backgroundColor: Colors.black.withOpacity(0.6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
               ),

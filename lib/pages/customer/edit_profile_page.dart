@@ -458,8 +458,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey, size: 22),
             onPressed: () async {
               if (!_isChanged) {
                 Navigator.of(context).pop();
@@ -475,19 +477,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             'Edit Profile',
             style: TextStyle(
               color: AppTheme.darkGrey,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
               fontSize: 20,
+              letterSpacing: -0.3,
             ),
           ),
           centerTitle: true,
         ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // ── Profile Photo ──────────────────────────────────────────
               Center(
@@ -496,16 +499,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     // Avatar circle
                     Container(
-                      width: 110,
-                      height: 110,
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: const Color(0xFFFFDAD6),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
@@ -567,17 +570,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     GestureDetector(
                       onTap: _pickImage,
                       child: Container(
-                        width: 32,
-                        height: 32,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.camera_alt_rounded,
                           color: Colors.white,
-                          size: 16,
+                          size: 18,
                         ),
                       ),
                     ),
@@ -591,25 +601,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
               const Text(
                 'PROFILE PHOTO',
                 style: TextStyle(
-                  fontSize: 11,
-                  letterSpacing: 1.2,
+                  fontSize: 12,
+                  letterSpacing: 1.5,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.mediumGrey,
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               // ── Basic Information ──────────────────────────────────────
               _buildSectionHeader('BASIC INFORMATION'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 decoration: AppTheme.cardDecoration(),
                 child: Column(
                   children: [
                     _buildFieldLabel('FIRST NAME'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _firstNameController,
                       textCapitalization: TextCapitalization.words,
@@ -621,9 +631,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ? 'First name is required'
                           : null,
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildFieldLabel('LAST NAME'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _lastNameController,
                       textCapitalization: TextCapitalization.words,
@@ -639,18 +649,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               // ── Contact Information ──────────────────────────────────────
               _buildSectionHeader('CONTACT DETAILS'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 decoration: AppTheme.cardDecoration(),
                 child: Column(
                   children: [
                     _buildFieldLabel('PHONE NUMBER'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _phoneNumberController,
                       keyboardType: TextInputType.phone,
@@ -667,9 +677,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     _buildFieldLabel('EMAIL ADDRESS'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -684,44 +694,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 48),
             ],
           ),
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        padding: const EdgeInsets.fromLTRB(28, 20, 28, 36),
         decoration: BoxDecoration(
           color: AppTheme.backgroundColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 15,
+              offset: const Offset(0, -6),
             ),
           ],
         ),
         child: SizedBox(
           width: double.infinity,
-          height: 56,
+          height: 58,
           child: ElevatedButton(
             onPressed: _isSaving ? null : _saveChanges,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey.shade300,
-              elevation: 2,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.3),
+              elevation: 6,
+              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
             child: _isSaving
                 ? const SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: 26,
+                    height: 26,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.5,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
@@ -746,10 +756,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
           color: AppTheme.primaryColor,
-          letterSpacing: 1.2,
+          letterSpacing: 1.5,
         ),
       ),
     );
@@ -761,9 +771,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: AppTheme.mediumGrey,
         ),
       ),
@@ -776,30 +786,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-      suffixIcon: Icon(suffixIcon, color: Colors.grey.shade400, size: 20),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
+      suffixIcon: Icon(suffixIcon, color: Colors.grey.shade400, size: 22),
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
       ),
     );
   }

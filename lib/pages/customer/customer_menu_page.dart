@@ -40,21 +40,40 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
         title: const Text(
           'Products & Pricing',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             color: AppTheme.darkGrey,
+            fontSize: 18,
+            letterSpacing: -0.3,
           ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        shadowColor: Colors.transparent,
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: Colors.red,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.red,
-          indicatorWeight: 3,
-          tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: AppTheme.primaryColor,
+              unselectedLabelColor: AppTheme.mediumGrey,
+              indicatorColor: AppTheme.primaryColor,
+              indicatorWeight: 2.5,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                letterSpacing: 0.2,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: MenuService.categories.map((cat) => Tab(text: cat)).toList(),
+            ),
+          ),
         ),
       ),
       body: TabBarView(
@@ -78,12 +97,12 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.8 : 0.75,
-        crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
-        mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 24 : 16,
+        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.82 : 0.78,
+        crossAxisSpacing: ResponsiveUtils.isDesktop(context) ? 28 : 20,
+        mainAxisSpacing: ResponsiveUtils.isDesktop(context) ? 28 : 20,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -97,12 +116,12 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -113,25 +132,33 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
           Expanded(
             flex: 3,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Stack(
                 children: [
                   _buildImageWidget(item),
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 12,
+                    right: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         '₱${_fmt.format(item.price)}',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ),
@@ -145,7 +172,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(14.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -155,16 +182,21 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> with SingleTickerPr
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                       color: AppTheme.darkGrey,
+                      letterSpacing: -0.2,
+                      height: 1.3,
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     item.category,
                     style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
+                      fontSize: 12,
+                      color: AppTheme.mediumGrey,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],

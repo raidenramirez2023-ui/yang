@@ -130,6 +130,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   String _reservationType = 'Event Place';
   String _advanceOrderType = 'Dine In';
 
+  // Payment option: 'half' for deposit, 'full' for full payment
+  String _paymentOption = 'half';
+
   @override
   void initState() {
     super.initState();
@@ -388,28 +391,24 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   PreferredSizeWidget _buildDashboardAppBar(String title) {
     return AppBar(
       backgroundColor: AppTheme.navColor,
-
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
-
       automaticallyImplyLeading: false,
-
       centerTitle: true,
-
       title: Text(
         title,
         style: GoogleFonts.lora(
           color: Colors.white,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           fontSize: 20,
+          letterSpacing: -0.3,
         ),
       ),
-
       actions: [
         _buildNotificationIcon(),
         IconButton(
-          icon: const Icon(Icons.person_outline_rounded, color: Colors.white),
+          icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
           onPressed: () => setState(() => _selectedIndex = 4),
           tooltip: 'Account',
         ),
@@ -511,17 +510,27 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     showDialog(
       context: context,
-
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
-        title: const Row(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
           children: [
-            Icon(Icons.notifications_rounded, color: AppTheme.primaryColor),
-
-            SizedBox(width: 12),
-
-            Text('Notifications'),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.notifications_rounded, color: AppTheme.primaryColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Text(
+              'Notifications',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                letterSpacing: -0.3,
+              ),
+            ),
           ],
         ),
 
@@ -531,43 +540,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           child: notifications.isEmpty
               ? Column(
                   mainAxisSize: MainAxisSize.min,
-
                   children: [
-                    const Divider(),
-
-                    const SizedBox(height: 16),
-
-                    Icon(
-                      Icons.notifications_off_outlined,
-
-                      size: 64,
-
-                      color: Colors.grey.shade400,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    const Text(
-                      'No notifications',
-
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-
-                        fontSize: 16,
+                    const Divider(height: 1),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightGrey,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.notifications_off_outlined,
+                        size: 48,
+                        color: AppTheme.mediumGrey,
                       ),
                     ),
-
+                    const SizedBox(height: 20),
+                    const Text(
+                      'No notifications',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-
                     Text(
                       'We\'ll let you know when there\'s activity on your reservations.',
-
                       textAlign: TextAlign.center,
-
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: AppTheme.mediumGrey,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                   ],
                 )
               : ListView.separated(
@@ -634,41 +642,38 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     }
 
                     return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       leading: CircleAvatar(
-                        backgroundColor: color.withOpacity(0.1),
-
-                        child: Icon(icon, color: color, size: 20),
+                        backgroundColor: color.withOpacity(0.12),
+                        radius: 22,
+                        child: Icon(icon, color: color, size: 22),
                       ),
-
                       title: Text(
                         _getNotificationTitle(n),
-
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-
+                          fontWeight: FontWeight.w700,
                           fontSize: 14,
+                          letterSpacing: -0.2,
                         ),
                       ),
-
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
+                          const SizedBox(height: 4),
                           Text(
                             _getNotificationSubtitle(n),
-
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-
                           const SizedBox(height: 4),
-
                           Text(
                             timeStr,
-
                             style: TextStyle(
-                              fontSize: 10,
-
-                              color: Colors.grey.shade500,
+                              fontSize: 11,
+                              color: AppTheme.mediumGrey,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -681,8 +686,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-
-            child: const Text('Close'),
+            child: const Text(
+              'Close',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ),
         ],
       ),
@@ -1252,19 +1262,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   );
                 },
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(28),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -1286,14 +1296,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                         ),
                         // Ad Content
                         Positioned(
-                          left: 24,
-                          bottom: 24,
-                          right: 24,
+                          left: 28,
+                          bottom: 28,
+                          right: 28,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-
                               const SizedBox(height: 8),
                               Text(
                                 item.name,
@@ -1301,16 +1310,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   color: Colors.white,
                                   fontSize: ResponsiveUtils.isDesktop(context) ? 32 : 24,
                                   fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
                                 ),
                               ),
                               if (item.description != null) ...[
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   item.description!,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 12,
-                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white.withOpacity(0.95),
+                                    fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 13,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: -0.2,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -1327,7 +1338,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(items.length, (index) {
@@ -1335,7 +1346,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               duration: const Duration(milliseconds: 300),
               margin: const EdgeInsets.symmetric(horizontal: 4),
               height: 6,
-              width: _currentHeroPage == index ? 24 : 6,
+              width: _currentHeroPage == index ? 28 : 6,
               decoration: BoxDecoration(
                 color: _currentHeroPage == index ? AppTheme.primaryColor : Colors.grey.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(3),
@@ -2200,7 +2211,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                                               children: [
                                                 Text(
-                                                  _reservationType == 'Advance Order' ? 'Full Payment Required:' : '50% Deposit Required:',
+                                                  _reservationType == 'Advance Order' 
+                                                      ? 'Full Payment Required:' 
+                                                      : (_paymentOption == 'full' ? 'Full Payment Required:' : '50% Deposit Required:'),
 
                                                   style: TextStyle(
                                                     fontSize: 12,
@@ -2210,7 +2223,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                                 ),
 
                                                 Text(
-                                                  'PHP ${NumberFormat("#,##0.00").format(_menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
+                                                  'PHP ${NumberFormat("#,##0.00").format(_paymentOption == 'full' && _reservationType == 'Event Place' ? _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems) : _menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
 
                                                   style: const TextStyle(
                                                     fontSize: 12,
@@ -2396,6 +2409,125 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                               ),
 
                               const SizedBox(height: 24), // Reduced from 32
+
+                              // Payment Option Selection
+                              if (_reservationType == 'Event Place')
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.grey.shade100,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(
+                                                    alpha: 0.05,
+                                                  ),
+                                                  blurRadius: 4,
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.payment_rounded,
+                                              color: AppTheme.primaryColor,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Payment Option',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: AppTheme.darkGrey,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Choose how you want to pay for your reservation',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: AppTheme.mediumGrey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      // Radio buttons for payment options
+                                      Column(
+                                        children: [
+                                          RadioListTile<String>(
+                                            title: const Text(
+                                              'Pay Half (Deposit)',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            subtitle: const Text(
+                                              'Pay 50% now as deposit, remaining balance due on event day',
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                            value: 'half',
+                                            groupValue: _paymentOption,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _paymentOption = value!;
+                                              });
+                                            },
+                                            activeColor: AppTheme.primaryColor,
+                                            contentPadding: EdgeInsets.zero,
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                          RadioListTile<String>(
+                                            title: const Text(
+                                              'Pay in Full',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            subtitle: const Text(
+                                              'Pay the total amount upfront',
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                            value: 'full',
+                                            groupValue: _paymentOption,
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _paymentOption = value!;
+                                              });
+                                            },
+                                            activeColor: AppTheme.primaryColor,
+                                            contentPadding: EdgeInsets.zero,
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 24),
 
                               // Special Requests Field (if enabled)
                               if (_enableSpecialRequests) ...[
@@ -3206,8 +3338,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   Future<void> _proceedToPayment(
     Map<String, dynamic> reservation,
-    double depositAmount,
-  ) async {
+    double paymentAmount, {
+    double? totalPrice,
+  }) async {
     // Show loading indicator
     showDialog(
       context: context,
@@ -3218,7 +3351,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     try {
       // Create automated PayMongo payment link
       final response = await PayMongoService.createPaymentLink(
-        amount: depositAmount,
+        amount: paymentAmount,
         description: 'Payment for ${reservation['event_type'] ?? 'Reservation'}',
         metadata: {
           'reservationId': reservation['id'],
@@ -3240,13 +3373,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
               paymentUrl: response['checkoutUrl'],
               paymentLinkId: response['data']?['data']?['id'],
               reservationId: reservation['id'],
-              depositAmount: depositAmount,
+              paymentAmount: paymentAmount,
               table: reservation['_db_table'] ?? 'reservations',
+              totalPrice: totalPrice,
               onPaymentSuccess: () {
                 _updateReservationPaymentStatus(
                   reservation['id'],
-                  depositAmount,
+                  paymentAmount,
                   reservation['_db_table'] ?? 'reservations',
+                  totalPrice: totalPrice,
                 );
               },
             ),
@@ -3312,15 +3447,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   Future<void> _updateReservationPaymentStatus(
     String reservationId,
-    double depositAmount,
-    String table,
-  ) async {
+    double paymentAmount,
+    String table, {
+    double? totalPrice,
+  }) async {
     try {
+      // Determine payment status based on amount and table type
+      String paymentStatus;
+      if (table == 'advance_orders') {
+        paymentStatus = 'paid';
+      } else if (totalPrice != null && paymentAmount >= totalPrice) {
+        // Full payment for event place reservation
+        paymentStatus = 'fully_paid';
+      } else {
+        // Deposit payment for event place reservation
+        paymentStatus = 'deposit_paid';
+      }
+
       await _reservationService.updatePaymentStatus(
         id: reservationId,
-        paymentStatus: table == 'advance_orders' ? 'paid' : 'deposit_paid',
+        paymentStatus: paymentStatus,
         table: table,
-        paymentAmount: depositAmount,
+        paymentAmount: paymentAmount,
       );
 
       _loadCustomerReservations();
@@ -3352,8 +3500,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           _selectedMenuItems,
         );
 
-        final depositAmount = _menuReservationService
-            .calculateMenuDepositAmount(totalMenuPrice);
+        // Calculate payment amount based on selected payment option
+        final paymentAmount = _paymentOption == 'full' && _reservationType == 'Event Place'
+            ? totalMenuPrice
+            : _menuReservationService.calculateMenuDepositAmount(totalMenuPrice);
 
         await _reservationService.createMenuBasedReservation(
           customerEmail: currentUser.email ?? '',
@@ -3380,7 +3530,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           totalMenuPrice: totalMenuPrice,
 
-          depositAmount: depositAmount,
+          depositAmount: paymentAmount,
         );
       } else {
         // Use traditional reservation without menu-based pricing
@@ -3427,13 +3577,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           _selectedMenuItems,
         );
 
-        final depositAmount = _menuReservationService
-            .calculateMenuDepositAmount(totalMenuPrice, reservationType: _reservationType);
+        // Calculate payment amount based on selected payment option
+        final paymentAmount = _paymentOption == 'full' && _reservationType == 'Event Place'
+            ? totalMenuPrice
+            : _menuReservationService.calculateMenuDepositAmount(totalMenuPrice, reservationType: _reservationType);
+
+        final paymentTypeText = _reservationType == 'Advance Order'
+            ? 'Full Payment Required'
+            : (_paymentOption == 'full' ? 'Full Payment Required' : '50% Deposit Required');
 
         _showSuccessDialog(
           'Reservation created successfully!\n\n'
           'Total Menu Price: PHP ${NumberFormat('#,##0.00').format(totalMenuPrice)}\n'
-          '${_reservationType == 'Advance Order' ? 'Full Payment Required' : '50% Deposit Required'}: PHP ${NumberFormat('#,##0.00').format(depositAmount)}\n\n'
+          '$paymentTypeText: PHP ${NumberFormat('#,##0.00').format(paymentAmount)}\n\n'
           'You will receive a price transaction shortly and can proceed with payment.',
         );
       } else {
@@ -3496,112 +3652,195 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     final pricingInfo = _reservationService.getReservationPricing(reservation);
 
     final depositAmount = pricingInfo['depositAmount'] as double;
+    final totalPrice = pricingInfo['totalPrice'] as double;
+
+    // Only show payment option for event place reservations (not advance orders)
+    final isEventPlace = reservation['_db_table'] != 'advance_orders';
+
+    // Declare payment option outside builder to maintain state
+    String paymentOption = 'half'; // Default to half payment
 
     showDialog(
       context: context,
 
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.payment, color: Colors.green),
-
-            SizedBox(width: 8),
-
-            Text('Pay Deposit'),
-          ],
-        ),
-
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Text(
-              reservation['_db_table'] == 'advance_orders'
-                  ? 'Complete your order by paying the full amount.'
-                  : 'Complete your reservation by paying the 50% deposit.',
-
-              style: TextStyle(color: Colors.grey.shade600),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.payment, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(isEventPlace ? 'Make Payment' : 'Pay Deposit'),
+              ],
             ),
 
-            const SizedBox(height: 16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
 
-            Container(
-              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  isEventPlace
+                      ? 'Choose your payment option below.'
+                      : 'Complete your order by paying the full amount.',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
 
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.05),
+                const SizedBox(height: 16),
 
-                borderRadius: BorderRadius.circular(8),
-
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
-              ),
-
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                children: [
-                  Text(
-                    reservation['_db_table'] == 'advance_orders' 
-                        ? 'Total Amount:' 
-                        : 'Deposit Amount:',
-
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                  Text(
-                    'PHP ${depositAmount.toStringAsFixed(2)}',
-
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-
-                      color: Colors.green,
-
-                      fontSize: 18,
+                // Payment option selection (only for event place)
+                if (isEventPlace) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        RadioListTile<String>(
+                          title: const Text(
+                            'Pay Half (Deposit)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'PHP ${depositAmount.toStringAsFixed(2)} - 50% deposit',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          value: 'half',
+                          groupValue: paymentOption,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              paymentOption = value!;
+                            });
+                          },
+                          activeColor: AppTheme.primaryColor,
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        RadioListTile<String>(
+                          title: const Text(
+                            'Pay in Full',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'PHP ${totalPrice.toStringAsFixed(2)} - Full amount',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          value: 'full',
+                          groupValue: paymentOption,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              paymentOption = value!;
+                            });
+                          },
+                          activeColor: AppTheme.primaryColor,
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                // Amount display
+                Container(
+                  padding: const EdgeInsets.all(16),
 
-            const SizedBox(height: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.05),
 
-            SizedBox(
-              width: double.infinity,
+                    borderRadius: BorderRadius.circular(8),
 
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
+                    border: Border.all(color: Colors.green.withOpacity(0.2)),
+                  ),
 
-                  _proceedToPayment(reservation, depositAmount);
-                },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                icon: const Icon(Icons.payment_rounded),
+                    children: [
+                      Text(
+                        isEventPlace
+                            ? (paymentOption == 'full' ? 'Full Amount:' : 'Deposit Amount:')
+                            : 'Total Amount:',
 
-                label: const Text('Pay with PayMongo'),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
 
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+                      Text(
+                        'PHP ${(paymentOption == 'full' && isEventPlace ? totalPrice : depositAmount).toStringAsFixed(2)}',
 
-                  foregroundColor: Colors.white,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
 
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                          color: Colors.green,
+
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 16),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+
+                      final paymentAmount = paymentOption == 'full' && isEventPlace
+                          ? totalPrice
+                          : depositAmount;
+
+                      _proceedToPayment(
+                        reservation,
+                        paymentAmount,
+                        totalPrice: isEventPlace ? totalPrice : null,
+                      );
+                    },
+
+                    icon: const Icon(Icons.payment_rounded),
+
+                    label: Text(
+                      isEventPlace
+                          ? (paymentOption == 'full' ? 'Pay Full Amount' : 'Pay Deposit')
+                          : 'Pay with PayMongo',
+                    ),
+
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+
+                      foregroundColor: Colors.white,
+
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
 
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
 
-            child: const Text('Cancel'),
-          ),
-        ],
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -4998,7 +5237,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                   paymentUrl: response['checkoutUrl'],
                   paymentLinkId: response['data']?['data']?['id'],
                   reservationId: orderId,
-                  depositAmount: totalMenuPrice,
+                  paymentAmount: totalMenuPrice,
                   table: 'advance_orders',
                   onPaymentSuccess: () {
                     if (mounted) {
