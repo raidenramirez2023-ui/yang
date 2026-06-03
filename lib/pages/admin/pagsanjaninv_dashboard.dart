@@ -63,6 +63,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
   RealtimeChannel? _inventorySubscription;
+  late Stream<List<Map<String, dynamic>>> _allRequestsStream;
 
   int _getCurrentWeekOfMonth(DateTime date) {
     int day = date.day;
@@ -75,6 +76,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   @override
   void initState() {
     super.initState();
+    _allRequestsStream = _supabase
+        .from('kitchen_requests')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
     final now = DateTime.now();
     _selectedYear = now.year;
     _selectedMonth = now.month;
@@ -1540,11 +1545,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               children: [
 
                 Expanded(
-
                   child: ElevatedButton.icon(
-
-                    onPressed: () => _handleRequestAction(request['id'], 'Approved'),
-
+                    onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Approved'),
                     style: ElevatedButton.styleFrom(
 
                       backgroundColor: AppTheme.successGreen,
@@ -1566,11 +1568,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 const SizedBox(width: 8),
 
                 Expanded(
-
                   child: OutlinedButton.icon(
-
-                    onPressed: () => _handleRequestAction(request['id'], 'Rejected'),
-
+                    onPressed: _isLoading ? null : () => _handleRequestAction(request['id'], 'Rejected'),
                     style: OutlinedButton.styleFrom(
 
                       foregroundColor: AppTheme.errorRed,
@@ -1604,6 +1603,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   Future<void> _handleRequestAction(String requestId, String newStatus) async {
+    setState(() => _isLoading = true);
     try {
       if (newStatus == 'Approved') {
         final request = await _supabase
@@ -1699,6 +1699,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.errorRed),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -2796,268 +2798,214 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             const SizedBox(height: 24),
 
-            // Request Counter
+            // Unified StreamBuilder for both Counter and List
             StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _supabase
-                  .from('kitchen_requests')
-                  .stream(primaryKey: ['id'])
-                  .eq('status', 'Pending'),
+              stream: _allRequestsStream,
               builder: (context, snapshot) {
-                final pendingCount = snapshot.data?.length ?? 0;
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.pending_actions, color: AppTheme.primaryColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Total Pending Requests: $pendingCount',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (pendingCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.warningOrange,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$pendingCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            // All Requests Container
-
-            Container(
-
-              decoration: BoxDecoration(
-
-                color: AppTheme.white,
-
-                borderRadius: BorderRadius.circular(12),
-
-                border: Border.all(color: AppTheme.lightGrey),
-
-              ),
-
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-
-                stream: _supabase
-
-                    .from('kitchen_requests')
-
-                    .stream(primaryKey: ['id'])
-
-                    .order('created_at', ascending: false),
-
-                builder: (context, snapshot) {
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-
-                    return const Padding(
-
-                      padding: EdgeInsets.all(20),
-
-                      child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-
-                    );
-
-                  }
-
-                  
-
-                  final requests = snapshot.data ?? [];
-
-                  // Sort requests: Pending first, then Approved, then Rejected
-                  requests.sort((a, b) {
-                    final statusA = a['status']?.toString() ?? 'Pending';
-                    final statusB = b['status']?.toString() ?? 'Pending';
-                    
-                    // Priority order: Pending (1), Approved (2), Rejected (3)
-                    final priorityA = statusA == 'Pending' ? 1 : statusA == 'Approved' ? 2 : 3;
-                    final priorityB = statusB == 'Pending' ? 1 : statusB == 'Approved' ? 2 : 3;
-                    
-                    if (priorityA != priorityB) {
-                      return priorityA.compareTo(priorityB);
-                    }
-                    
-                    // Within same status, sort by created_at descending (newest first)
-                    final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toIso8601String());
-                    final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toIso8601String());
-                    return createdAtB.compareTo(createdAtA);
-                  });
-
-                  if (requests.isEmpty) {
-
-                    return Padding(
-
-                      padding: const EdgeInsets.all(40),
-
-                      child: Column(
-
-                        children: [
-
-                          Icon(Icons.inbox_outlined, size: 60, color: AppTheme.mediumGrey),
-
-                          const SizedBox(height: 16),
-
-                          Text(
-
-                            'No stock requests',
-
-                            style: TextStyle(
-
-                              fontSize: 18,
-
-                              color: AppTheme.mediumGrey,
-
-                              fontWeight: FontWeight.w600,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          Text(
-
-                            'Kitchen team hasn\'t requested any items yet',
-
-                            style: TextStyle(color: AppTheme.mediumGrey),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    );
-
-                  }
-
-                  
-
-                  final totalPages = (requests.length / _itemsPerPage).ceil();
-
-                  final startIndex = (_currentPage - 1) * _itemsPerPage;
-                  final endIndex = startIndex + _itemsPerPage;
-                  final paginatedRequests = requests.sublist(
-                    startIndex,
-                    endIndex > requests.length ? requests.length : endIndex,
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
                   );
+                }
 
-                  return Column(
+                final requests = snapshot.data ?? [];
+                
+                // Sort requests: Pending first, then Approved, then Rejected
+                requests.sort((a, b) {
+                  final statusA = a['status']?.toString() ?? 'Pending';
+                  final statusB = b['status']?.toString() ?? 'Pending';
+                  
+                  // Priority order: Pending (1), Approved (2), Rejected (3)
+                  final priorityA = statusA == 'Pending' ? 1 : statusA == 'Approved' ? 2 : 3;
+                  final priorityB = statusB == 'Pending' ? 1 : statusB == 'Approved' ? 2 : 3;
+                  
+                  if (priorityA != priorityB) {
+                    return priorityA.compareTo(priorityB);
+                  }
+                  
+                  // Within same status, sort by created_at descending (newest first)
+                  final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                  final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                  return createdAtB.compareTo(createdAtA);
+                });
 
-                    children: [
+                final pendingCount = requests.where((r) => r['status'] == 'Pending').length;
 
-                      ...paginatedRequests.map((request) => _buildRequestCard(request)).toList(),
-                      
-                      if (totalPages > 1) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.backgroundColor,
-                            borderRadius: BorderRadius.circular(8),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Request Counter
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.pending_actions, color: AppTheme.primaryColor, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Total Pending Requests: $pendingCount',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                onPressed: _currentPage > 1
-                                    ? () {
-                                        setState(() {
-                                          _currentPage--;
-                                        });
-                                      }
-                                    : null,
-                                icon: const Icon(Icons.chevron_left),
-                                color: AppTheme.primaryColor,
+                          const Spacer(),
+                          if (pendingCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.warningOrange,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(width: 12),
-                              Container(
-                                width: 50,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppTheme.primaryColor),
-                                ),
-                                child: TextField(
-                                  textAlign: TextAlign.center,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
-                                  ),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.darkGrey,
-                                  ),
-                                  controller: TextEditingController(text: _currentPage.toString()),
-                                  onSubmitted: (value) {
-                                    final page = int.tryParse(value);
-                                    if (page != null && page >= 1 && page <= totalPages) {
-                                      setState(() {
-                                        _currentPage = page;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'of $totalPages',
+                              child: Text(
+                                '$pendingCount',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.darkGrey,
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              IconButton(
-                                onPressed: _currentPage < totalPages
-                                    ? () {
-                                        setState(() {
-                                          _currentPage++;
-                                        });
-                                      }
-                                    : null,
-                                icon: const Icon(Icons.chevron_right),
-                                color: AppTheme.primaryColor,
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // All Requests Container
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.lightGrey),
+                      ),
+                      child: () {
+                        if (requests.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              children: [
+                                Icon(Icons.inbox_outlined, size: 60, color: AppTheme.mediumGrey),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No stock requests',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: AppTheme.mediumGrey,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Kitchen team hasn\'t requested any items yet',
+                                  style: TextStyle(color: AppTheme.mediumGrey),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final totalPages = (requests.length / _itemsPerPage).ceil();
+                        final startIndex = (_currentPage - 1) * _itemsPerPage;
+                        final endIndex = startIndex + _itemsPerPage;
+                        final paginatedRequests = requests.sublist(
+                          startIndex,
+                          endIndex > requests.length ? requests.length : endIndex,
+                        );
+
+                        return Column(
+                          children: [
+                            ...paginatedRequests.map((request) => _buildRequestCard(request)).toList(),
+                            
+                            if (totalPages > 1) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.backgroundColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      onPressed: _currentPage > 1
+                                          ? () {
+                                              setState(() {
+                                                _currentPage--;
+                                              });
+                                            }
+                                          : null,
+                                      icon: const Icon(Icons.chevron_left),
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      width: 50,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: AppTheme.primaryColor),
+                                      ),
+                                      child: TextField(
+                                        textAlign: TextAlign.center,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                        ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.darkGrey,
+                                        ),
+                                        controller: TextEditingController(text: _currentPage.toString()),
+                                        onSubmitted: (value) {
+                                          final page = int.tryParse(value);
+                                          if (page != null && page >= 1 && page <= totalPages) {
+                                            setState(() {
+                                              _currentPage = page;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'of $totalPages',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.darkGrey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    IconButton(
+                                      onPressed: _currentPage < totalPages
+                                          ? () {
+                                              setState(() {
+                                                _currentPage++;
+                                              });
+                                            }
+                                          : null,
+                                      icon: const Icon(Icons.chevron_right),
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
-                          ),
-                        ),
-                      ],
-                    ],
-
-                  );
-
-                },
-
-              ),
-
+                          ],
+                        );
+                      }(),
+                    ),
+                  ],
+                );
+              },
             ),
 
           ],

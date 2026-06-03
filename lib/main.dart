@@ -158,7 +158,7 @@ class YangChowApp extends StatelessWidget {
 
         '/pagsanjaninv-dashboard': (context) =>
             const AuthGuard(
-              allowedRoles: ['pagsanjaninv'],
+              allowedRoles: ['pagsanjaninv', 'inventory staff'],
               redirectRoute: '/staff-login',
               child: PagsanjaninvDashboardPage(),
             ),
