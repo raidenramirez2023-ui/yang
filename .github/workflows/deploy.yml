@@ -28,7 +28,7 @@ jobs:
       run: |
         flutter build web --release --pwa-strategy=none --base-href=/
         
-    - name: Deploy to Hostinger via FTPS
+    - name: Deploy to Hostinger via FTP
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
@@ -37,7 +37,7 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
         server-dir: public_html/
-        protocol: ftps
+        protocol: ftp
         port: 21
         timeout: 600000
         security: loose
