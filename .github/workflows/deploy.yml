@@ -36,7 +36,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         localDir: build/web/
-        remoteDir: public_html/
+        remoteDir: domains/yc-pagsanjan.site/public_html/
         port: 22
         
     - name: Notify deployment success
