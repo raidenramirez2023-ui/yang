@@ -1,1723 +1,3678 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+
+
 import 'package:google_sign_in/google_sign_in.dart';
+
+
 
 import 'package:yang_chow/utils/app_theme.dart';
 
+
+
 import 'package:yang_chow/utils/role_helper.dart';
+
+
 
 import 'package:yang_chow/utils/responsive_utils.dart';
 
+
+
 import 'package:yang_chow/pages/admin/user_management.dart';
+
 import 'package:yang_chow/pages/admin/admin_menu_management_page.dart';
 
+
+
 import 'package:yang_chow/pages/admin/sales_report_page.dart';
+
 import 'package:yang_chow/pages/admin/customer_management_page.dart';
+
+
 
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
+
+
 import 'package:yang_chow/pages/admin/admin_dashboard.dart';
+
+
 
 import 'package:yang_chow/pages/admin/admin_reservations_page.dart';
 
 
+
+
+
 import 'package:yang_chow/pages/admin/admin_announcements_page.dart';
+
+
 
 import 'package:yang_chow/pages/admin/admin_chat_page.dart';
 
+
+
 import 'package:yang_chow/pages/admin/inventory_forecast_page.dart';
+
+
 
 import 'package:yang_chow/pages/admin/payment_approval_page.dart';
 
+
+
+import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
+
+
+
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
+
+
 import 'package:yang_chow/services/notification_service.dart';
+
+
 
 import 'package:intl/intl.dart';
 
 
 
+
+
+
+
 class AdminMainPage extends StatefulWidget {
+
+
 
   const AdminMainPage({super.key});
 
 
 
+
+
+
+
   @override
+
+
 
   State<AdminMainPage> createState() => _AdminMainPageState();
 
+
+
 }
+
+
+
+
 
 
 
 class _AdminMainPageState extends State<AdminMainPage> {
 
+
+
   int _selectedIndex = 0;
+
   int _pendingPaymentCount = 0;
+
   int _pendingReservationCount = 0;
+
+  int _remainingBalanceCount = 0;
+
+
 
   late Timer? _countRefreshTimer;
 
 
 
+
+
+
+
   @override
+
   void initState() {
+
     super.initState();
+
     _checkUserRole();
+
     _loadPendingPaymentCount();
+
     _loadPendingReservationCount();
+
+    _loadRemainingBalanceCount();
+
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
+
     _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+
       _loadPendingPaymentCount();
+
       _loadPendingReservationCount();
+
+      _loadRemainingBalanceCount();
+
     });
+
     NotificationService.startStockMonitoring();
+
   }
+
+
+
+
 
 
 
   Future<void> _checkUserRole() async {
 
+
+
     final isAdmin = await RoleHelper.isAdmin();
+
+
+
+
 
 
 
     if (!isAdmin && mounted) {
 
+
+
       Navigator.pushReplacementNamed(context, '/staff-dashboard');
+
+
 
     }
 
+
+
   }
+
+
+
+
 
 
 
   Future<void> _loadPendingPaymentCount() async {
 
+
+
     try {
+
+
 
       final supabase = Supabase.instance.client;
 
+
+
       // Check if reservations table exists and has the required columns
+
       await supabase
+
           .from('reservations')
+
           .select('id')
+
           .eq('status', 'pending_admin_approval')
+
           .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
+
           .eq('is_archived', false)
+
           .limit(1); // Just check if table works, limit to 1 for faster response
 
+
+
       // If we get here, table exists, now get full count
+
       final countResponse = await supabase
+
+
 
           .from('reservations')
 
+
+
           .select('id')
+
+
 
           .eq('status', 'pending_admin_approval')
 
+
+
           .inFilter('payment_status', ['deposit_paid', 'fully_paid'])
+
+
 
           .eq('is_archived', false);
 
+
+
       debugPrint('Pending payments count: ${(countResponse as List).length}');
+
+
 
       if (mounted) {
 
+
+
         setState(() {
+
+
 
           _pendingPaymentCount = (countResponse as List).length;
 
+
+
         });
+
+
 
       }
 
+
+
     } catch (e) {
+
+
 
       debugPrint('Error loading pending payment count: $e');
 
+
+
       debugPrint('This might mean the SQL script hasn\'t been run yet or table doesn\'t exist');
+
+
 
       if (mounted) {
 
+
+
         setState(() {
+
+
 
           _pendingPaymentCount = 0;
 
+
+
         });
+
+
 
       }
 
+
+
     }
+
+
 
   }
 
+
+
   Future<void> _loadPendingReservationCount() async {
+
     try {
+
       final supabase = Supabase.instance.client;
+
       
+
       // Check if reservations table exists and get count of pending/new reservations
+
       await supabase
+
           .from('reservations')
+
           .select('id')
+
           .eq('is_archived', false)
+
           .inFilter('status', ['pending', 'pending_admin_approval', 'confirmed'])
+
           .limit(1); // Just check if table works
 
+
+
       // If we get here, table exists, now get full count
+
       final countResponse = await supabase
+
           .from('reservations')
+
           .select('id')
+
           .eq('is_archived', false)
+
           .eq('status', 'pending');
+
+
 
       debugPrint('Pending reservations only count: ${(countResponse as List).length}');
 
+
+
       if (mounted) {
+
         setState(() {
+
           _pendingReservationCount = (countResponse as List).length;
+
         });
+
       }
+
     } catch (e) {
+
       debugPrint('Error loading pending reservation count: $e');
+
       debugPrint('This might mean the SQL script hasn\'t been run yet or table doesn\'t exist');
+
       
+
       if (mounted) {
+
         setState(() {
+
           _pendingReservationCount = 0;
+
         });
+
       }
+
     }
+
   }
 
-  @override
-  void dispose() {
-    NotificationService.stopStockMonitoring();
-    _countRefreshTimer?.cancel();
-    super.dispose();
+
+
+  Future<void> _loadRemainingBalanceCount() async {
+
+    try {
+
+      final supabase = Supabase.instance.client;
+
+      
+
+      // Count reservations with deposit_paid status
+
+      final reservationsCount = await supabase
+
+          .from('reservations')
+
+          .select('id')
+
+          .eq('payment_status', 'deposit_paid')
+
+          .neq('is_archived', true);
+
+
+
+      final totalCount = (reservationsCount as List).length;
+
+      
+
+      debugPrint('Remaining balance count: $totalCount');
+
+
+
+      if (mounted) {
+
+        setState(() {
+
+          _remainingBalanceCount = totalCount;
+
+        });
+
+      }
+
+    } catch (e) {
+
+      debugPrint('Error loading remaining balance count: $e');
+
+      
+
+      if (mounted) {
+
+        setState(() {
+
+          _remainingBalanceCount = 0;
+
+        });
+
+      }
+
+    }
+
   }
+
+
+
+  @override
+
+  void dispose() {
+
+    NotificationService.stopStockMonitoring();
+
+    _countRefreshTimer?.cancel();
+
+    super.dispose();
+
+  }
+
+
+
+
 
 
 
   static const List<String> _pageTitles = [
 
+
+
     'Dashboard',
+
+
 
     'Sales Reports',
 
+
+
     'Inventory',
+
+
 
     'Inventory Forecast',
 
+
+
     'Menu Management',
+
+
 
     'Reservations',
 
+
+
     'Payment Approvals',
+
+
+
+    'Remaining Balance',
+
+
 
     'User Management',
 
+
+
     'Customers',
+
+
 
     'Announcements',
 
+
+
     'Customer Chat',
 
+
+
   ];
+
+
+
+
 
 
 
   static const List<IconData> _pageIcons = [
 
+
+
     Icons.dashboard,
+
+
 
     Icons.analytics,
 
+
+
     Icons.inventory_2,
+
+
 
     Icons.trending_up,
 
+
+
     Icons.restaurant_menu,
+
+
 
     Icons.event_available,
 
+
+
     Icons.payment,
+
+
+
+    Icons.account_balance_wallet,
+
+
 
     Icons.people,
 
+
+
     Icons.person_outline,
+
+
 
     Icons.campaign,
 
+
+
     Icons.chat_bubble,
 
+
+
   ];
+
+
+
+
 
 
 
   late final List<Widget> _pages = [
 
+
+
     const AdminDashboardPage(),
+
+
 
     const SalesReportPage(),
 
+
+
     const InventoryPage(),
+
+
 
     const InventoryForecastPage(),
 
+
+
     const AdminMenuManagementPage(),
+
+
 
     const AdminReservationsPage(),
 
+
+
     const PaymentApprovalPage(),
+
+
+
+    const RemainingBalanceTrackingPage(),
+
+
 
     const UserManagementPage(),
 
+
+
     const CustomerManagementPage(),
+
+
 
     const AdminAnnouncementsPage(),
 
+
+
     const AdminChatPage(),
+
+
 
   ];
 
 
 
+
+
+
+
   @override
+
+
 
   Widget build(BuildContext context) {
 
+
+
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
+
+
     final isTablet = ResponsiveUtils.isTablet(context);
+
+
 
     final useDrawer = ResponsiveUtils.shouldUseDrawer(context);
 
 
 
+
+
+
+
     if (isDesktop || isTablet) {
+
+
 
       return _buildDesktopLayout();
 
+
+
     } else if (useDrawer) {
+
+
 
       return _buildWebMobileLayout();
 
+
+
     } else {
+
+
 
       return _buildMobileLayout();
 
+
+
     }
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildDesktopLayout() {
 
+
+
     return Scaffold(
+
+
 
       backgroundColor: const Color(0xFFF1F5F9),
 
+
+
       body: Stack(
+
+
 
         children: [
 
+
+
           Row(
+
+
 
             children: [
 
+
+
               _buildSidebar(),
+
+
 
               Expanded(
 
+
+
                 child: Column(
+
+
 
                   children: [
 
+
+
                     _buildModernAppBar(),
+
+
 
                     Expanded(
 
+
+
                       child: Container(
+
+
 
                         padding: const EdgeInsets.all(24),
 
+
+
                         child: _pages[_selectedIndex],
+
+
 
                       ),
 
+
+
                     ),
+
+
 
                   ],
 
+
+
                 ),
+
+
 
               ),
 
+
+
             ],
+
+
 
           ),
 
+
+
           // Chat Modal Overlay
+
+
 
           const AdminChatModal(),
 
+
+
         ],
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildSidebar() {
 
+
+
     return Container(
+
+
 
       width: 260,
 
+
+
       color: Colors.white,
+
+
 
       child: Column(
 
+
+
         children: [
+
+
 
           Padding(
 
+
+
             padding: const EdgeInsets.all(24),
+
+
 
             child: Row(
 
+
+
               children: [
+
+
 
                 Container(
 
+
+
                   padding: const EdgeInsets.all(8),
+
+
 
                   decoration: BoxDecoration(
 
+
+
                     color: AppTheme.primaryColor,
+
+
 
                     borderRadius: BorderRadius.circular(12),
 
+
+
                   ),
+
+
 
                   child: const Icon(
 
+
+
                     Icons.restaurant,
+
+
 
                     color: Colors.white,
 
+
+
                     size: 24,
+
+
 
                   ),
 
+
+
                 ),
+
+
 
                 const SizedBox(width: 12),
 
+
+
                 const Column(
+
+
 
                   crossAxisAlignment: CrossAxisAlignment.start,
 
+
+
                   children: [
+
+
 
                     Text(
 
+
+
                       'AdminPanel',
+
+
 
                       style: TextStyle(
 
+
+
                         fontWeight: FontWeight.bold,
+
+
 
                         fontSize: 18,
 
+
+
                         color: Color(0xFF1E293B),
+
+
 
                       ),
 
+
+
                     ),
+
+
 
                   ],
 
+
+
                 ),
+
+
 
               ],
 
+
+
             ),
 
+
+
           ),
+
+
+
+
 
 
 
           const SizedBox(height: 8),
 
+
+
           Expanded(
+
+
 
             child: ListView.builder(
 
+
+
               padding: const EdgeInsets.symmetric(horizontal: 16),
+
+
 
               itemCount: _pageTitles.length,
 
+
+
               itemBuilder: (context, index) {
+
+
 
                 final isSelected = _selectedIndex == index;
 
+
+
                 return Padding(
+
+
 
                   padding: const EdgeInsets.only(bottom: 4),
 
+
+
                   child: Material(
+
+
 
                     color: isSelected
 
+
+
                         ? AppTheme.primaryColor
+
+
 
                         : Colors.transparent,
 
+
+
                     borderRadius: BorderRadius.circular(12),
+
+
 
                     child: InkWell(
 
+
+
                       borderRadius: BorderRadius.circular(12),
 
+
+
                       onTap: () {
+
                         setState(() => _selectedIndex = index);
+
                         // Refresh count when switching to Payment Approvals
+
                         if (_pageTitles[index] == 'Payment Approvals') {
+
                           // Reset count to 0 when admin views payment approvals (mark as seen)
+
                           if (mounted) {
+
                             setState(() {
+
                               _pendingPaymentCount = 0;
+
                             });
+
                           }
+
                         }
+
                         // Refresh count when switching to Reservations
+
                         if (_pageTitles[index] == 'Reservations') {
+
                           // Reset count to 0 when admin views reservations (mark as seen)
+
                           if (mounted) {
+
                             setState(() {
+
                               _pendingReservationCount = 0;
+
                             });
+
                           }
+
                         }
+
+                        // Refresh count when switching to Remaining Balance
+
+                        if (_pageTitles[index] == 'Remaining Balance') {
+
+                          // Reset count to 0 when admin views remaining balance (mark as seen)
+
+                          if (mounted) {
+
+                            setState(() {
+
+                              _remainingBalanceCount = 0;
+
+                            });
+
+                          }
+
+                        }
+
                       },
+
+
 
                       child: Container(
 
+
+
                         padding: const EdgeInsets.symmetric(
+
+
 
                           horizontal: 16,
 
+
+
                           vertical: 12,
 
+
+
                         ),
+
+
 
                         child: Row(
 
+
+
                           children: [
+
+
 
                             Icon(
 
+
+
                               _pageIcons[index],
+
+
 
                               size: 20,
 
+
+
                               color: isSelected
+
+
 
                                   ? Colors.white
 
+
+
                                   : const Color(0xFF64748B),
 
+
+
                             ),
+
+
 
                             const SizedBox(width: 12),
 
+
+
                             Expanded(
+
+
 
                               child: Text(
 
+
+
                                 _pageTitles[index],
+
+
 
                                 style: TextStyle(
 
+
+
                                   fontWeight: isSelected
+
+
 
                                       ? FontWeight.w600
 
+
+
                                       : FontWeight.w500,
+
+
 
                                   color: isSelected
 
+
+
                                       ? Colors.white
+
+
 
                                       : const Color(0xFF64748B),
 
+
+
                                 ),
 
+
+
                               ),
+
+
 
                             ),
 
 
+
+
+
                             // Add badge for Reservations
+
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
+
                               Container(
+
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
                                 decoration: BoxDecoration(
+
                                   color: Colors.blue,
+
                                   borderRadius: BorderRadius.circular(10),
+
                                 ),
+
                                 child: Text(
+
                                   '$_pendingReservationCount',
+
                                   style: const TextStyle(
+
                                     color: Colors.white,
+
                                     fontSize: 11,
+
                                     fontWeight: FontWeight.bold,
+
                                   ),
+
                                 ),
+
                               ),
 
+
+
                             // Add badge for Payment Approvals
+
                             if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
+
                               Container(
+
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
                                 decoration: BoxDecoration(
+
                                   color: Colors.orange,
+
                                   borderRadius: BorderRadius.circular(10),
+
                                 ),
+
                                 child: Text(
+
                                   '$_pendingPaymentCount',
+
                                   style: const TextStyle(
+
                                     color: Colors.white,
+
                                     fontSize: 11,
+
                                     fontWeight: FontWeight.bold,
+
                                   ),
+
                                 ),
+
                               ),
+
+
+
+                            // Add badge for Remaining Balance
+
+                            if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
+
+                              Container(
+
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.red,
+
+                                  borderRadius: BorderRadius.circular(10),
+
+                                ),
+
+                                child: Text(
+
+                                  '$_remainingBalanceCount',
+
+                                  style: const TextStyle(
+
+                                    color: Colors.white,
+
+                                    fontSize: 11,
+
+                                    fontWeight: FontWeight.bold,
+
+                                  ),
+
+                                ),
+
+                              ),
+
+
 
                           ],
 
+
+
                         ),
+
+
 
                       ),
 
+
+
                     ),
+
+
 
                   ),
 
+
+
                 );
+
+
 
               },
 
+
+
             ),
+
           ),
+
+
 
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
+
+
           ListTile(
+
             onTap: () => _showLogoutDialog(context),
+
             leading: const Icon(Icons.logout, color: Colors.redAccent),
+
             title: const Text(
+
               'Logout',
+
               style: TextStyle(
+
                 color: Colors.redAccent,
+
                 fontWeight: FontWeight.w500,
+
               ),
+
             ),
+
           ),
+
+
 
           const SizedBox(height: 12),
 
+
+
         ],
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildModernAppBar() {
 
+
+
     final currentUser = Supabase.instance.client.auth.currentUser;
+
+
 
     return Container(
 
+
+
       height: 70,
+
+
 
       padding: const EdgeInsets.symmetric(horizontal: 24),
 
+
+
       decoration: const BoxDecoration(
+
+
 
         color: Colors.white,
 
+
+
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
 
+
+
       ),
+
+
 
       child: Row(
 
+
+
         children: [
+
+
 
           Text(
 
+
+
             _pageTitles[_selectedIndex],
+
+
 
             style: const TextStyle(
 
+
+
               fontSize: 20,
+
+
 
               fontWeight: FontWeight.bold,
 
+
+
               color: Color(0xFF1E293B),
+
+
 
             ),
 
+
+
           ),
+
+
 
           const Spacer(),
 
+
+
           _buildAdminNotificationIcon(),
+
+
 
           const SizedBox(width: 8),
 
+
+
           const SizedBox(width: 16),
+
+
 
           Row(
 
+
+
             children: [
+
+
 
               Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
 
+
+
               const SizedBox(width: 24),
+
+
 
               Column(
 
+
+
                 mainAxisAlignment: MainAxisAlignment.center,
+
+
 
                 crossAxisAlignment: CrossAxisAlignment.end,
 
+
+
                 children: [
+
+
 
                   Text(
 
+
+
                     currentUser?.email?.split('@')[0] ?? 'Admin',
+
+
 
                     style: const TextStyle(
 
+
+
                       fontWeight: FontWeight.w600,
+
+
 
                       color: Color(0xFF1E293B),
 
+
+
                       fontSize: 14,
+
+
 
                     ),
 
+
+
                   ),
+
+
 
                   const Text(
 
+
+
                     'Admin',
+
+
 
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
 
+
+
                   ),
+
+
 
                 ],
 
+
+
               ),
+
+
 
               const SizedBox(width: 12),
 
+
+
               CircleAvatar(
+
+
 
                 radius: 18,
 
+
+
                 backgroundColor: const Color(0xFFF1F5F9),
+
+
 
                 child: const Icon(Icons.person, color: AppTheme.primaryColor),
 
+
+
               ),
+
+
 
               const SizedBox(width: 8),
 
+
+
               const Icon(
+
+
 
                 Icons.keyboard_arrow_down,
 
+
+
                 color: Color(0xFF64748B),
+
+
 
                 size: 20,
 
+
+
               ),
+
+
 
             ],
 
+
+
           ),
+
+
 
         ],
 
+
+
       ),
+
+
 
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildWebMobileLayout() {
 
+
+
     return Scaffold(
+
+
 
       backgroundColor: const Color(0xFFF1F5F9),
 
+
+
       appBar: _buildAppBarWithDrawer(),
+
+
 
       drawer: _buildDrawer(),
 
+
+
       body: Stack(
+
+
 
         children: [
 
+
+
           _pages[_selectedIndex],
+
+
 
           // Chat Modal Overlay
 
+
+
           const AdminChatModal(),
+
+
 
         ],
 
+
+
       ),
+
+
 
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildMobileLayout() {
 
+
+
     return Scaffold(
+
+
 
       backgroundColor: const Color(0xFFF1F5F9),
 
+
+
       appBar: _buildAppBarWithDrawer(),
+
+
 
       drawer: _buildDrawer(),
 
+
+
       body: Stack(
+
+
 
         children: [
 
+
+
           _pages[_selectedIndex],
+
+
 
           // Chat Modal Overlay
 
+
+
           const AdminChatModal(),
+
+
 
         ],
 
+
+
       ),
+
+
 
       bottomNavigationBar: _buildBottomNavigationBar(),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   PreferredSizeWidget _buildAppBarWithDrawer() {
 
+
+
     return AppBar(
+
+
 
       backgroundColor: Colors.white,
 
+
+
       elevation: 0,
+
+
 
       centerTitle: true,
 
+
+
       title: Row(
+
+
 
         mainAxisSize: MainAxisSize.min,
 
+
+
         children: [
+
+
 
           Container(
 
+
+
             padding: const EdgeInsets.all(6),
+
+
 
             decoration: BoxDecoration(
 
+
+
               color: AppTheme.primaryColor,
+
+
 
               borderRadius: BorderRadius.circular(8),
 
+
+
             ),
+
+
 
             child: const Icon(Icons.restaurant, size: 16, color: Colors.white),
 
+
+
           ),
+
+
 
           const SizedBox(width: 8),
 
+
+
           const Text(
+
+
 
             'AdminPanel',
 
+
+
             style: TextStyle(
+
+
 
               color: Color(0xFF1E293B),
 
+
+
               fontSize: 16,
+
+
 
               fontWeight: FontWeight.bold,
 
+
+
             ),
+
+
 
           ),
 
+
+
         ],
 
+
+
       ),
+
+
 
       leading: Builder(
 
+
+
         builder: (context) => IconButton(
+
+
 
           icon: const Icon(Icons.menu, color: Color(0xFF64748B)),
 
+
+
           onPressed: () => Scaffold.of(context).openDrawer(),
+
+
 
           tooltip: 'Menu',
 
+
+
         ),
 
+
+
       ),
+
+
 
       actions: [
 
+
+
         IconButton(
+
+
 
           icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
 
+
+
           tooltip: 'Logout',
+
+
 
           onPressed: () => _showLogoutDialog(context),
 
+
+
         ),
+
+
 
       ],
 
+
+
       bottom: PreferredSize(
+
+
 
         preferredSize: const Size.fromHeight(1),
 
+
+
         child: Container(color: const Color(0xFFE2E8F0), height: 1),
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildDrawer() {
 
+
+
     return Drawer(
+
+
 
       backgroundColor: Colors.white,
 
+
+
       child: Column(
+
+
 
         children: [
 
+
+
           DrawerHeader(
+
+
 
             margin: EdgeInsets.zero,
 
+
+
             padding: const EdgeInsets.all(24),
+
+
 
             decoration: const BoxDecoration(
 
+
+
               color: Colors.white,
+
+
 
               border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
 
+
+
             ),
+
+
 
             child: Row(
 
+
+
               children: [
+
+
 
                 Container(
 
+
+
                   padding: const EdgeInsets.all(8),
+
+
 
                   decoration: BoxDecoration(
 
+
+
                     color: AppTheme.primaryColor,
+
+
 
                     borderRadius: BorderRadius.circular(12),
 
+
+
                   ),
+
+
 
                   child: const Icon(
 
+
+
                     Icons.restaurant,
+
+
 
                     color: Colors.white,
 
+
+
                     size: 24,
+
+
 
                   ),
 
+
+
                 ),
+
+
 
                 const SizedBox(width: 12),
 
+
+
                 const Column(
+
+
 
                   mainAxisAlignment: MainAxisAlignment.center,
 
+
+
                   crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
                   children: [
 
+
+
                     Text(
+
+
 
                       'AdminPanel',
 
+
+
                       style: TextStyle(
+
+
 
                         fontWeight: FontWeight.bold,
 
+
+
                         fontSize: 18,
+
+
 
                         color: Color(0xFF1E293B),
 
+
+
                       ),
 
+
+
                     ),
+
+
 
                   ],
 
+
+
                 ),
+
+
 
               ],
 
+
+
             ),
 
+
+
           ),
+
+
 
           Expanded(
 
+
+
             child: ListView.builder(
+
+
 
               padding: const EdgeInsets.all(16),
 
+
+
               itemCount: _pageTitles.length,
+
+
 
               itemBuilder: (context, index) {
 
+
+
                 final isSelected = _selectedIndex == index;
+
+
 
                 return Padding(
 
+
+
                   padding: const EdgeInsets.only(bottom: 4),
+
+
 
                   child: Material(
 
+
+
                     color: isSelected
+
+
 
                         ? AppTheme.primaryColor
 
+
+
                         : Colors.transparent,
+
+
 
                     borderRadius: BorderRadius.circular(12),
 
+
+
                     child: InkWell(
+
+
 
                       borderRadius: BorderRadius.circular(12),
 
+
+
                       onTap: () {
 
-                        setState(() => _selectedIndex = index);
-                        // Refresh count when switching to Payment Approvals
-                        if (_pageTitles[index] == 'Payment Approvals') {
-                          // Reset count to 0 when admin views payment approvals (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingPaymentCount = 0;
-                            });
-                          }
-                        }
-                        // Refresh count when switching to Reservations
-                        if (_pageTitles[index] == 'Reservations') {
-                          // Reset count to 0 when admin views reservations (mark as seen)
-                          if (mounted) {
-                            setState(() {
-                              _pendingReservationCount = 0;
-                            });
-                          }
-                        }
+                        // Refresh count when switching to Remaining Balance
 
-                        Navigator.pop(context);
+                        if (_pageTitles[index] == 'Remaining Balance') {
+
+                          // Reset count to 0 when admin views remaining balance (mark as seen)
+
+                          if (mounted) {
+
+                            setState(() {
+
+                              _remainingBalanceCount = 0;
+
+                            });
+
+                          }
+
+                          Navigator.pop(context);
+
+                          // Navigate to fullscreen version
+
+                          Navigator.push(
+
+                            context,
+
+                            MaterialPageRoute(
+
+                              builder: (context) => Scaffold(
+
+                                backgroundColor: const Color(0xFFF8F9FA),
+
+                                appBar: AppBar(
+
+                                  title: const Text(
+
+                                    'Accounts with Remaining Balance', 
+
+                                    style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)
+
+                                  ),
+
+                                  backgroundColor: Colors.white,
+
+                                  elevation: 1,
+
+                                  iconTheme: const IconThemeData(color: Colors.black87),
+
+                                ),
+
+                                body: const SafeArea(
+
+                                  child: RemainingBalanceTrackingPage(isFullscreen: true),
+
+                                ),
+
+                              ),
+
+                            ),
+
+                          );
+
+                        } else {
+
+                          setState(() => _selectedIndex = index);
+
+                          // Refresh count when switching to Payment Approvals
+
+                          if (_pageTitles[index] == 'Payment Approvals') {
+
+                            // Reset count to 0 when admin views payment approvals (mark as seen)
+
+                            if (mounted) {
+
+                              setState(() {
+
+                                _pendingPaymentCount = 0;
+
+                              });
+
+                            }
+
+                          }
+
+                          // Refresh count when switching to Reservations
+
+                          if (_pageTitles[index] == 'Reservations') {
+
+                            // Reset count to 0 when admin views reservations (mark as seen)
+
+                            if (mounted) {
+
+                              setState(() {
+
+                                _pendingReservationCount = 0;
+
+                              });
+
+                            }
+
+                          }
+
+                          Navigator.pop(context);
+
+                        }
 
                       },
 
+
+
                       child: Container(
+
+
 
                         padding: const EdgeInsets.symmetric(
 
+
+
                           horizontal: 16,
+
+
 
                           vertical: 12,
 
+
+
                         ),
+
+
 
                         child: Row(
 
+
+
                           children: [
+
+
 
                             Icon(
 
+
+
                               _pageIcons[index],
+
+
 
                               size: 20,
 
+
+
                               color: isSelected
+
+
 
                                   ? Colors.white
 
+
+
                                   : const Color(0xFF64748B),
 
+
+
                             ),
+
+
 
                             const SizedBox(width: 12),
 
+
+
                             Expanded(
+
+
 
                               child: Text(
 
+
+
                                 _pageTitles[index],
+
+
 
                                 style: TextStyle(
 
+
+
                                   fontWeight: isSelected
+
+
 
                                       ? FontWeight.w600
 
+
+
                                       : FontWeight.w500,
+
+
 
                                   color: isSelected
 
+
+
                                       ? Colors.white
+
+
 
                                       : const Color(0xFF64748B),
 
+
+
                                 ),
 
+
+
                               ),
+
+
 
                             ),
 
 
+
+
+
                             // Add badge for Reservations
+
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
+
                               Container(
+
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
                                 decoration: BoxDecoration(
+
                                   color: Colors.blue,
+
                                   borderRadius: BorderRadius.circular(10),
+
                                 ),
+
                                 child: Text(
+
                                   '$_pendingReservationCount',
+
                                   style: const TextStyle(
+
                                     color: Colors.white,
+
                                     fontSize: 11,
+
                                     fontWeight: FontWeight.bold,
+
                                   ),
+
                                 ),
+
                               ),
 
+
+
                             // Add badge for Payment Approvals
+
                             if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
+
                               Container(
+
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
                                 decoration: BoxDecoration(
+
                                   color: Colors.orange,
+
                                   borderRadius: BorderRadius.circular(10),
+
                                 ),
+
                                 child: Text(
+
                                   '$_pendingPaymentCount',
+
                                   style: const TextStyle(
+
                                     color: Colors.white,
+
                                     fontSize: 11,
+
                                     fontWeight: FontWeight.bold,
+
                                   ),
+
                                 ),
+
                               ),
+
+
+
+                            // Add badge for Remaining Balance
+
+                            if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
+
+                              Container(
+
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.red,
+
+                                  borderRadius: BorderRadius.circular(10),
+
+                                ),
+
+                                child: Text(
+
+                                  '$_remainingBalanceCount',
+
+                                  style: const TextStyle(
+
+                                    color: Colors.white,
+
+                                    fontSize: 11,
+
+                                    fontWeight: FontWeight.bold,
+
+                                  ),
+
+                                ),
+
+                              ),
+
+
 
                           ],
 
+
+
                         ),
+
+
 
                       ),
 
+
+
                     ),
+
+
 
                   ),
 
+
+
                 );
+
+
 
               },
 
+
+
             ),
 
+
+
           ),
+
+
 
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
+
+
           ListTile(
+
             leading: const Icon(Icons.logout, color: Colors.redAccent),
+
             title: const Text(
+
               'Logout',
+
               style: TextStyle(color: Colors.redAccent),
+
             ),
+
             onTap: () {
+
               Navigator.pop(context);
+
               _showLogoutDialog(context);
+
             },
+
           ),
+
+
 
           const SizedBox(height: 16),
 
+
+
         ],
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildBottomNavigationBar() {
 
+
+
     return BottomNavigationBar(
+
+
 
       currentIndex: _selectedIndex,
 
+
+
       onTap: (index) {
+
+
 
         setState(() => _selectedIndex = index);
 
+
+
       },
+
+
 
       type: BottomNavigationBarType.fixed,
 
+
+
       backgroundColor: AppTheme.white,
+
+
 
       selectedItemColor: AppTheme.primaryColor,
 
+
+
       unselectedItemColor: AppTheme.mediumGrey,
+
+
 
       items: _pageTitles.asMap().entries.map((entry) {
 
+
+
         final index = entry.key;
+
+
 
         final title = entry.value;
 
+
+
         return BottomNavigationBarItem(
+
+
 
           icon: Icon(_pageIcons[index]),
 
+
+
           label: title,
+
+
 
         );
 
+
+
       }).toList(),
+
+
 
     );
 
+
+
   }
+
+
+
+
 
 
 
   void _showLogoutDialog(BuildContext context) {
 
+
+
     final isMobile = ResponsiveUtils.isMobile(context);
+
+
+
+
 
 
 
     showDialog(
 
+
+
       context: context,
+
+
 
       barrierDismissible: false,
 
+
+
       builder: (context) => AlertDialog(
+
+
 
         shape: RoundedRectangleBorder(
 
+
+
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
 
+
+
         ),
+
+
 
         contentPadding: EdgeInsets.all(isMobile ? 16 : 24),
 
+
+
         title: Row(
+
+
 
           children: [
 
+
+
             Icon(
+
+
 
               Icons.logout,
 
+
+
               color: AppTheme.primaryColor,
+
+
 
               size: ResponsiveUtils.getResponsiveIconSize(context),
 
+
+
             ),
+
+
 
             SizedBox(width: isMobile ? 8 : 12),
 
+
+
             Expanded(
+
+
 
               child: Text(
 
+
+
                 'Logout',
+
+
 
                 style: TextStyle(
 
+
+
                   fontSize: ResponsiveUtils.getResponsiveFontSize(
+
+
 
                     context,
 
+
+
                     mobile: 18,
+
+
 
                     tablet: 20,
 
+
+
                     desktop: 22,
+
+
 
                   ),
 
+
+
                   fontWeight: FontWeight.bold,
+
+
 
                 ),
 
+
+
               ),
 
+
+
             ),
+
+
 
           ],
 
+
+
         ),
+
+
 
         content: Text(
 
+
+
           'Are you sure you want to logout?',
+
+
 
           style: TextStyle(
 
+
+
             fontSize: ResponsiveUtils.getResponsiveFontSize(
+
+
 
               context,
 
+
+
               mobile: 14,
+
+
 
               tablet: 16,
 
+
+
               desktop: 16,
+
+
 
             ),
 
+
+
           ),
+
+
 
         ),
 
+
+
         actions: [
+
+
 
           TextButton(
 
+
+
             onPressed: () => Navigator.pop(context),
+
+
 
             child: Text(
 
+
+
               'Cancel',
+
+
 
               style: TextStyle(
 
+
+
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
+
+
 
                   context,
 
+
+
                   mobile: 14,
+
+
 
                   tablet: 15,
 
+
+
                   desktop: 16,
+
+
 
                 ),
 
+
+
               ),
 
+
+
             ),
+
+
 
           ),
 
+
+
           ElevatedButton(
+
+
 
             style: ElevatedButton.styleFrom(
 
+
+
               backgroundColor: AppTheme.errorRed,
+
+
 
               padding: EdgeInsets.symmetric(
 
+
+
                 horizontal: isMobile ? 16 : 24,
+
+
 
                 vertical: isMobile ? 8 : 12,
 
+
+
               ),
+
+
 
             ),
 
+
+
             onPressed: () async {
+
+
 
               Navigator.pop(context);
 
+
+
               final navigator = Navigator.of(context);
+
+
 
               await Supabase.instance.client.auth.signOut();
 
+
+
               try {
 
+
+
                 await GoogleSignIn().signOut();
+
+
 
               } catch (_) {}
 
 
 
+
+
+
+
               if (mounted) {
+
+
 
                 navigator.pushReplacementNamed('/staff-login');
 
+
+
               }
+
+
 
             },
 
+
+
             child: Text(
+
+
 
               'Logout',
 
+
+
               style: TextStyle(
+
+
 
                 fontSize: ResponsiveUtils.getResponsiveFontSize(
 
+
+
                   context,
+
+
 
                   mobile: 14,
 
+
+
                   tablet: 15,
+
+
 
                   desktop: 16,
 
+
+
                 ),
+
+
 
               ),
 
+
+
             ),
+
+
 
           ),
 
+
+
         ],
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   Widget _buildAdminNotificationIcon() {
 
+
+
     return StreamBuilder<List<Map<String, dynamic>>>(
+
+
 
       stream: NotificationService.getAdminNotificationsStream(),
 
+
+
       builder: (context, snapshot) {
 
+
+
         final notifications = snapshot.data ?? [];
+
+
 
         final hasUnread = notifications.any((n) => !n['is_read']);
 
 
 
+
+
+
+
         return Stack(
+
+
 
           children: [
 
+
+
             IconButton(
+
+
 
               icon: const Icon(
 
+
+
                 Icons.notifications_none_rounded,
+
+
 
                 color: Color(0xFF64748B),
 
+
+
               ),
+
+
 
               onPressed: () => _showAdminNotificationsDialog(notifications),
 
+
+
               tooltip: 'Notifications',
+
+
 
             ),
 
+
+
             if (hasUnread)
+
+
 
               Positioned(
 
+
+
                 right: 8,
+
+
 
                 top: 8,
 
+
+
                 child: Container(
+
+
 
                   width: 10,
 
+
+
                   height: 10,
+
+
 
                   decoration: BoxDecoration(
 
+
+
                     color: AppTheme.primaryColor,
+
+
 
                     shape: BoxShape.circle,
 
+
+
                     border: Border.all(color: Colors.white, width: 2),
+
+
 
                   ),
 
+
+
                 ),
+
+
 
               ),
 
+
+
           ],
+
+
 
         );
 
+
+
       },
+
+
 
     );
 
+
+
   }
+
+
+
+
 
 
 
   void _showAdminNotificationsDialog(List<Map<String, dynamic>> notifications) {
 
+
+
     NotificationService.markAllAsRead('', forAdmin: true);
+
+
+
+
 
 
 
     showDialog(
 
+
+
       context: context,
+
+
 
       builder: (context) => AlertDialog(
 
+
+
         title: const Text('Admin Notifications'),
+
+
 
         content: SizedBox(
 
+
+
           width: 400,
+
+
 
           height: 500,
 
+
+
           child: notifications.isEmpty
+
+
 
               ? const Center(child: Text('No new activity'))
 
+
+
               : ListView.separated(
+
+
 
                   itemCount: notifications.length,
 
+
+
                   separatorBuilder: (context, index) => const Divider(),
+
+
 
                   itemBuilder: (context, index) {
 
+
+
                     final n = notifications[index];
 
+
+
                     final date = DateTime.parse(n['created_at']).toLocal();
+
+
 
                     final timeStr = DateFormat('MMM d, h:mm a').format(date);
 
 
 
+
+
+
+
                     return ListTile(
+
+
 
                       leading: CircleAvatar(
 
+
+
                         backgroundColor: AppTheme.primaryColor.withValues(
+
+
 
                           alpha: 0.1,
 
+
+
                         ),
+
+
 
                         child: Icon(
 
+
+
                           _getIconForAction(n['action_type']),
+
+
 
                           color: AppTheme.primaryColor,
 
+
+
                           size: 20,
+
+
 
                         ),
 
+
+
                       ),
+
+
 
                       title: Text(
 
+
+
                         _getAdminNotificationTitle(n),
+
+
 
                         style: const TextStyle(
 
+
+
                           fontWeight: FontWeight.bold,
+
+
 
                           fontSize: 14,
 
+
+
                         ),
 
+
+
                       ),
+
+
 
                       subtitle: Column(
 
+
+
                         crossAxisAlignment: CrossAxisAlignment.start,
+
+
 
                         children: [
 
-                          Text(
-                            _getAdminNotificationSubtitle(n),
-                          ),
+
 
                           Text(
+
+                            _getAdminNotificationSubtitle(n),
+
+                          ),
+
+
+
+                          Text(
+
+
 
                             timeStr,
 
+
+
                             style: const TextStyle(
+
+
 
                               fontSize: 10,
 
+
+
                               color: Colors.grey,
+
+
 
                             ),
 
+
+
                           ),
+
+
 
                         ],
 
+
+
                       ),
+
+
 
                     );
 
+
+
                   },
+
+
 
                 ),
 
+
+
         ),
+
+
 
         actions: [
 
+
+
           TextButton(
+
+
 
             onPressed: () => Navigator.pop(context),
 
+
+
             child: const Text('Close'),
+
+
 
           ),
 
+
+
         ],
+
+
 
       ),
 
+
+
     );
 
+
+
   }
+
+
+
+
 
 
 
   IconData _getIconForAction(String action) {
+
     switch (action) {
+
       case 'stock_request':
+
         return Icons.inventory_2;
+
       case 'stock_alert':
+
         return Icons.warning_amber_rounded;
+
       case 'pos_order':
+
         return Icons.shopping_cart;
+
       case 'created':
+
         return Icons.add_circle;
+
       case 'cancelled':
+
       case 'deleted':
+
         return Icons.cancel;
+
       case 'paid':
+
         return Icons.payments;
+
       case 'updated':
+
         return Icons.edit;
+
       default:
+
         return Icons.notifications;
+
     }
+
   }
+
+
 
   String _getAdminNotificationSubtitle(Map<String, dynamic> n) {
+
     if (n['action_type'] == 'stock_request') {
+
       return 'Kitchen has requested stock: ${n['event_type']}';
+
     }
+
     if (n['action_type'] == 'stock_alert') {
+
       return n['event_type'] ?? 'Stock Alert';
+
     }
+
     if (n['action_type'] == 'pos_order') {
+
       return 'POS staff have order please process';
+
     }
+
     return '${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}';
+
   }
+
+
 
   String _getAdminNotificationTitle(Map<String, dynamic> n) {
+
     if (n['action_type'] == 'stock_request') {
+
       return 'Stock Request';
+
     }
+
     if (n['action_type'] == 'stock_alert') {
+
       return 'Stock Alert';
+
     }
+
     if (n['action_type'] == 'pos_order') {
+
       return 'New Order';
+
     }
+
     switch (n['action_type']) {
+
       case 'created':
+
         return 'New Reservation';
+
       case 'cancelled':
+
         return 'Reservation Cancelled';
+
       case 'deleted':
+
         return 'Reservation Deleted';
+
       case 'paid':
+
         return 'Payment Received';
+
       case 'updated':
+
         return 'Reservation Modified';
+
       default:
+
         return 'Activity Alert';
+
     }
+
   }
 
+
+
 }
+
+
 

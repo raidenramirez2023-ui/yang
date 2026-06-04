@@ -1234,6 +1234,21 @@ class ReservationService {
         if (paymentStatus == 'deposit_paid' || paymentStatus == 'fully_paid') {
           updates['status'] = 'pending_admin_approval';
         }
+        
+        // Calculate and set remaining_balance
+        if (paymentStatus == 'deposit_paid') {
+          // Get the reservation to calculate remaining balance
+          final reservation = await getReservation(id);
+          if (reservation != null) {
+            final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
+            final deposit = paymentAmount ?? (reservation['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+            final remainingBalance = totalPrice - deposit;
+            updates['remaining_balance'] = remainingBalance;
+          }
+        } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
+          // No remaining balance when fully paid
+          updates['remaining_balance'] = 0;
+        }
       } else {
         // advance_orders: only update payment_status + status, never overwrite total_price
         if (paymentAmount != null) {
