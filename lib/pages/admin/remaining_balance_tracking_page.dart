@@ -15,12 +15,9 @@ class RemainingBalanceTrackingPage extends StatefulWidget {
 class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingPage> {
   List<Map<String, dynamic>> _reservationsWithBalance = [];
   bool _isLoading = true;
-  String _selectedFilter = 'all'; // Only reservations
   int _currentPage = 0;
   final int _rowsPerPage = 10;
   String _searchQuery = '';
-  
-  final ScrollController _horizontalScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -31,7 +28,6 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   @override
   void dispose() {
-    _horizontalScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -158,33 +154,6 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          if (!widget.isFullscreen)
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 20 : 0,
-                vertical: isDesktop ? 16 : 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Accounts with Remaining Balance',
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 20,
-                          tablet: 24,
-                          desktop: 28,
-                        ),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           if (!isDesktop) ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
           Expanded(
             child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
@@ -196,14 +165,14 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   Widget _buildDesktopLayout() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildSummaryCards(),
+          const SizedBox(height: 14),
           _buildSearchBar(),
-          const SizedBox(height: 16),
-          _buildFilterSegmentControl(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           Expanded(child: _buildDataTable()),
         ],
       ),
@@ -213,9 +182,9 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
   Widget _buildMobileLayout() {
     return Column(
       children: [
+        _buildSummaryCards(),
+        const SizedBox(height: 16),
         _buildSearchBar(),
-        ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
-        _buildFilterSegmentControl(),
         ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
         Expanded(
           child: _buildCardList(),
@@ -224,67 +193,146 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     );
   }
 
-  Widget _buildFilterSegmentControl() {
+  Widget _buildSummaryCards() {
     final isMobile = ResponsiveUtils.isMobile(context);
     
-    final counts = {
-      'all': _reservationsWithBalance.length,
-    };
+    double totalOutstanding = 0;
+    double totalCollected = 0;
+    
+    for (var item in _reservationsWithBalance) {
+      totalOutstanding += _calculateRemainingBalance(item);
+      totalCollected += (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    }
+    
+    final totalAccounts = _reservationsWithBalance.length;
 
-    final filters = [
-      {'value': 'all', 'label': 'All Reservations'},
+    final cards = [
+      _buildMetricCard(
+        title: 'Outstanding Balance',
+        value: '₱${totalOutstanding.toStringAsFixed(2)}',
+        subtitle: 'Sisingilin pa',
+        icon: Icons.account_balance_wallet_outlined,
+        color: Colors.red,
+      ),
+      _buildMetricCard(
+        title: 'Total Collected',
+        value: '₱${totalCollected.toStringAsFixed(2)}',
+        subtitle: 'Naibayad na deposit',
+        icon: Icons.check_circle_outline,
+        color: Colors.green,
+      ),
+      _buildMetricCard(
+        title: 'Pending Accounts',
+        value: '$totalAccounts',
+        subtitle: 'May natitirang bayad',
+        icon: Icons.people_outline,
+        color: Colors.blue,
+      ),
     ];
 
+    if (isMobile) {
+      return Column(
+        children: cards.map((card) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: card,
+        )).toList(),
+      );
+    }
+
+    return Row(
+      children: cards.map((card) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: card,
+        ),
+      )).toList()..last = Expanded(child: cards.last),
+    );
+  }
+
+  Widget _buildMetricCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.sm),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: color.withOpacity(0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: isMobile
-          ? SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: filters.map((f) => _buildSegmentButton(
-                  f['value'] as String, 
-                  f['label'] as String,
-                  count: counts[f['value']] ?? 0,
-                )).toList(),
-              ),
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: filters.map((f) => Expanded(
-                child: _buildSegmentButton(
-                  f['value'] as String, 
-                  f['label'] as String,
-                  count: counts[f['value']] ?? 0,
-                ),
-              )).toList(),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.mediumGrey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppTheme.darkGrey,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppTheme.mediumGrey.withOpacity(0.8),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
+
   Widget _buildSearchBar() {
+    final isMobile = ResponsiveUtils.isMobile(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: isMobile ? 12 : 6),
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -296,16 +344,17 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
             _currentPage = 0;
           });
         },
+        style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
           hintText: 'Search by customer name, order ID, email, or event type...',
-          hintStyle: TextStyle(
+          hintStyle: const TextStyle(
             color: AppTheme.mediumGrey,
-            fontSize: 14,
+            fontSize: 13,
           ),
-          prefixIcon: const Icon(Icons.search, color: AppTheme.mediumGrey),
+          prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.mediumGrey),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, color: AppTheme.mediumGrey),
+                  icon: const Icon(Icons.clear, size: 18, color: AppTheme.mediumGrey),
                   onPressed: () {
                     _searchController.clear();
                     setState(() {
@@ -316,75 +365,17 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                 )
               : null,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             borderSide: BorderSide.none,
           ),
           filled: true,
           fillColor: const Color(0xFFF8F9FA),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       ),
     );
   }
 
-  Widget _buildSegmentButton(String value, String label, {int count = 0}) {
-    final isSelected = _selectedFilter == value;
-    final isMobile = ResponsiveUtils.isMobile(context);
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = value;
-          _currentPage = 0;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          vertical: AppTheme.md,
-          horizontal: isMobile ? AppTheme.lg : AppTheme.md,
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? AppTheme.white : AppTheme.mediumGrey,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: isMobile ? 13 : 14,
-              ),
-            ),
-            if (count > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.25) : AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  count.toString(),
-                  style: TextStyle(
-                    color: isSelected ? AppTheme.white : AppTheme.primaryColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ]
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildDataTable() {
     if (_isLoading) {
@@ -416,149 +407,222 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  controller: _horizontalScrollController,
-                  child: DataTable(
-                  columnSpacing: 30,
-                  horizontalMargin: 16,
-                  headingRowHeight: 48,
-                  dataRowMinHeight: 48,
-                  dataRowMaxHeight: 56,
-                  headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
-                  headingTextStyle: const TextStyle(
-                    color: AppTheme.darkGrey,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 0.3,
-                  ),
-                  columns: [
-                    DataColumn(label: _buildColumnHeader('Customer', Icons.person_outline)),
-                    DataColumn(label: _buildColumnHeader('Order ID', Icons.tag)),
-                    DataColumn(label: _buildColumnHeader('Reservation Date', Icons.calendar_today)),
-                    DataColumn(label: _buildColumnHeader('Event Date', Icons.event)),
-                    DataColumn(label: _buildColumnHeader('Total', Icons.attach_money)),
-                    DataColumn(label: _buildColumnHeader('Paid', Icons.payment)),
-                    DataColumn(label: _buildColumnHeader('Remaining', Icons.account_balance_wallet)),
-                    DataColumn(label: _buildColumnHeader('Actions', Icons.settings)),
-                  ],
-                  rows: paginatedData.map((item) {
-                    final remainingBalance = _calculateRemainingBalance(item);
-                    final totalPrice = (item['total_price'] as num?)?.toDouble() ?? 0.0;
-                    final depositAmount = (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-                    
-                    return DataRow(
-                      cells: [
-                        DataCell(
-                          SizedBox(
-                            width: 220,
-                            child: Text(
-                              item['customer_name'] ?? 'Unknown',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double tableWidth = constraints.maxWidth;
+                  // Horizontal margin is 16 on each side (total 32).
+                  // Column spacing is 12. For 8 columns, there are 7 gaps (total 84).
+                  final double availableWidth = (tableWidth - 32 - 84).clamp(0.0, double.infinity);
+                  
+                  // Proportional widths for desktop columns
+                  final double customerWidth = availableWidth * 0.18;
+                  final double orderIdWidth = availableWidth * 0.10;
+                  final double reservationDateWidth = availableWidth * 0.11;
+                  final double eventDateWidth = availableWidth * 0.11;
+                  final double totalWidth = availableWidth * 0.11;
+                  final double paidWidth = availableWidth * 0.11;
+                  final double remainingWidth = availableWidth * 0.12;
+                  final double actionsWidth = availableWidth * 0.16;
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: DataTable(
+                        columnSpacing: 12,
+                        horizontalMargin: 16,
+                        headingRowHeight: 48,
+                        dataRowMinHeight: 48,
+                        dataRowMaxHeight: 56,
+                        headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
+                        headingTextStyle: const TextStyle(
+                          color: AppTheme.darkGrey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 0.3,
                         ),
-                        DataCell(
-                          SizedBox(
-                            width: 120,
-                            child: Text(
-                              item['id'].toString().substring(0, 8),
-                              style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              _formatDate(item['created_at']?.toString() ?? ''),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              _formatDate(item['event_date']?.toString() ?? ''),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 120,
-                            child: Text(
-                              '₱${totalPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 120,
-                            child: Text(
-                              '₱${depositAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 12, color: Colors.green),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 140,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '₱${remainingBalance.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
+                        columns: [
+                          DataColumn(label: _buildColumnHeader('Customer', Icons.person_outline)),
+                          DataColumn(label: _buildColumnHeader('Order ID', Icons.tag)),
+                          DataColumn(label: _buildColumnHeader('Reservation Date', Icons.calendar_today)),
+                          DataColumn(label: _buildColumnHeader('Event Date', Icons.event)),
+                          DataColumn(label: _buildColumnHeader('Total', Icons.attach_money)),
+                          DataColumn(label: _buildColumnHeader('Paid', Icons.payment)),
+                          DataColumn(label: _buildColumnHeader('Remaining', Icons.account_balance_wallet)),
+                          DataColumn(label: _buildColumnHeader('Actions', Icons.settings)),
+                        ],
+                        rows: paginatedData.map((item) {
+                          int rowIndex = paginatedData.indexOf(item);
+                          final remainingBalance = _calculateRemainingBalance(item);
+                          final totalPrice = (item['total_price'] as num?)?.toDouble() ?? 0.0;
+                          final depositAmount = (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+                          
+                          return DataRow(
+                            color: WidgetStateProperty.resolveWith<Color?>((states) {
+                              if (states.contains(WidgetState.hovered)) {
+                                return AppTheme.primaryColor.withOpacity(0.04);
+                              }
+                              if (rowIndex.isEven) {
+                                return Colors.grey.withOpacity(0.018);
+                              }
+                              return null;
+                            }),
+                            cells: [
+                              DataCell(
+                                SizedBox(
+                                  width: customerWidth,
+                                  child: Text(
+                                    item['customer_name'] ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 200,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _showMarkPaidDialog(item, true),
-                              icon: const Icon(Icons.check_circle, size: 16),
-                              label: const Text('Mark Paid', style: TextStyle(fontSize: 11)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                minimumSize: const Size(160, 32),
+                              DataCell(
+                                SizedBox(
+                                  width: orderIdWidth,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                                    ),
+                                    child: Text(
+                                      '#${item['id'].toString().substring(0, 8)}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                        color: AppTheme.darkGrey.withOpacity(0.7),
+                                        letterSpacing: 0.5,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                              DataCell(
+                                SizedBox(
+                                  width: reservationDateWidth,
+                                  child: Text(
+                                    _formatDate(item['created_at']?.toString() ?? ''),
+                                    style: const TextStyle(fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: eventDateWidth,
+                                  child: Text(
+                                    _formatDate(item['event_date']?.toString() ?? ''),
+                                    style: const TextStyle(fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: totalWidth,
+                                  child: Text(
+                                    '₱${totalPrice.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: paidWidth,
+                                  child: Text(
+                                    '₱${depositAmount.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.green),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: remainingWidth,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.red.withOpacity(0.25)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 12,
+                                          color: Colors.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            '₱${remainingBalance.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.red,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: actionsWidth,
+                                  child: Tooltip(
+                                    message: 'Mark this account as fully paid',
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _showMarkPaidDialog(item, true),
+                                      icon: const Icon(Icons.check_circle_outline, size: 14),
+                                      label: const Text('Mark Paid', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.primaryColor,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shadowColor: Colors.transparent,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        minimumSize: const Size(100, 32),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-          if (filtered.length > _rowsPerPage)
-            _buildPaginationControls(filtered.length),
-        ],
-      ),
+            if (filtered.length > _rowsPerPage)
+              _buildPaginationControls(filtered.length),
+          ],
+        ),
       ),
     );
   }
@@ -586,91 +650,186 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         final totalPrice = (item['total_price'] as num?)?.toDouble() ?? 0.0;
         final depositAmount = (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
         
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item['customer_name'] ?? 'Unknown',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+          decoration: BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: Colors.grey.withOpacity(0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // Accent left border
+                  Container(
+                    width: 4,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppTheme.primaryColor, Color(0xFFFF6B6B)],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'Event Reservation',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue,
-                        ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header row
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['customer_name'] ?? 'Unknown',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.darkGrey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // Order ID chip
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                                      ),
+                                      child: Text(
+                                        '#${item['id'].toString().substring(0, 8)}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontFamily: 'monospace',
+                                          color: AppTheme.mediumGrey.withOpacity(0.8),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Event type badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                                ),
+                                child: Text(
+                                  item['event_type']?.toString() ?? 'Reservation',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          // Divider
+                          Divider(color: Colors.grey.withOpacity(0.1), height: 1),
+                          const SizedBox(height: 12),
+                          // Info rows
+                          _buildInfoRow(
+                            'Reservation Date',
+                            _formatDate(item['created_at']?.toString() ?? ''),
+                            icon: Icons.calendar_today_outlined,
+                          ),
+                          _buildInfoRow(
+                            'Event Date',
+                            _formatDate(item['event_date']?.toString() ?? ''),
+                            icon: Icons.event_outlined,
+                          ),
+                          _buildInfoRow(
+                            'Total Amount',
+                            '₱${totalPrice.toStringAsFixed(2)}',
+                            icon: Icons.attach_money,
+                          ),
+                          _buildInfoRow(
+                            'Deposit Paid',
+                            '₱${depositAmount.toStringAsFixed(2)}',
+                            icon: Icons.check_circle_outline,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(height: 8),
+                          // Remaining balance highlight
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.red.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Remaining Balance',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.darkGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '₱${remainingBalance.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showMarkPaidDialog(item, true),
+                              icon: const Icon(Icons.check_circle_outline, size: 18),
+                              label: const Text('Mark as Fully Paid', style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildInfoRow('Order ID', item['id'].toString().substring(0, 8)),
-                _buildInfoRow('Reservation Date', _formatDate(item['created_at']?.toString() ?? '')),
-                _buildInfoRow('Event Date', _formatDate(item['event_date']?.toString() ?? '')),
-                _buildInfoRow('Total Amount', '₱${totalPrice.toStringAsFixed(2)}'),
-                _buildInfoRow('Amount Paid (Deposit)', '₱${depositAmount.toStringAsFixed(2)}', color: Colors.green),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Remaining Balance',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '₱${remainingBalance.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showMarkPaidDialog(item, true),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Mark as Fully Paid'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -678,24 +837,32 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {Color? color}) {
+  Widget _buildInfoRow(String label, String value, {Color? color, IconData? icon}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppTheme.mediumGrey,
-            ),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 13, color: AppTheme.mediumGrey),
+                const SizedBox(width: 5),
+              ],
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.mediumGrey,
+                ),
+              ),
+            ],
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
               color: color ?? AppTheme.darkGrey,
             ),
           ),
@@ -709,33 +876,69 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     final endIndex = (startIndex + _rowsPerPage < totalItems) 
         ? startIndex + _rowsPerPage 
         : totalItems;
+    final totalPages = (totalItems / _rowsPerPage).ceil();
+    final currentPageDisplay = _currentPage + 1;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+        color: Colors.grey.withOpacity(0.02),
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.12))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Text(
-            '${startIndex + 1}-$endIndex of $totalItems',
-            style: const TextStyle(fontSize: 13, color: AppTheme.darkGrey, fontWeight: FontWeight.w500),
+            '${startIndex + 1}–$endIndex of $totalItems',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.mediumGrey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '· Page $currentPageDisplay of $totalPages',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.mediumGrey.withOpacity(0.6),
+            ),
           ),
           const SizedBox(width: 16),
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _currentPage > 0 
-                ? () => setState(() => _currentPage--) 
-                : null,
+          _buildPaginationButton(
+            icon: Icons.chevron_left,
+            onTap: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: endIndex < totalItems 
-                ? () => setState(() => _currentPage++) 
-                : null,
+          const SizedBox(width: 4),
+          _buildPaginationButton(
+            icon: Icons.chevron_right,
+            onTap: endIndex < totalItems ? () => setState(() => _currentPage++) : null,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaginationButton({required IconData icon, VoidCallback? onTap}) {
+    final bool enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: enabled ? AppTheme.white : Colors.grey.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: enabled ? Colors.grey.withOpacity(0.25) : Colors.grey.withOpacity(0.1),
+          ),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled ? AppTheme.primaryColor : AppTheme.mediumGrey.withOpacity(0.3),
+        ),
       ),
     );
   }
@@ -745,26 +948,35 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.account_balance_wallet_outlined,
-            size: 64,
-            color: AppTheme.mediumGrey.withOpacity(0.5),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 56,
+              color: Colors.green,
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No accounts with remaining balance',
+          const SizedBox(height: 20),
+          const Text(
+            'All Accounts Cleared!',
             style: TextStyle(
-              fontSize: 16,
-              color: AppTheme.mediumGrey,
-              fontWeight: FontWeight.w500,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'All accounts have been fully paid',
+            'No outstanding balances at this time.\nAll accounts have been fully settled.',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.mediumGrey.withOpacity(0.7),
+              fontSize: 13,
+              color: AppTheme.mediumGrey,
+              height: 1.5,
             ),
           ),
         ],
@@ -774,10 +986,17 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   Widget _buildColumnHeader(String label, IconData icon) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: AppTheme.darkGrey),
         const SizedBox(width: 4),
-        Text(label),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ],
     );
   }
