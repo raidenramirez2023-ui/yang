@@ -3604,12 +3604,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
-  String _getPaymentStatusText(String status, bool isQuoted) {
+  String _getPaymentStatusText(String status, bool isQuoted, {bool isAdvanceOrder = false}) {
     if (!isQuoted) return 'AWAITING TRANSACTION';
 
     switch (status) {
       case 'deposit_paid':
-        return 'DEPOSIT PAID';
+        return isAdvanceOrder ? 'FULL PAID' : 'DEPOSIT PAID';
 
       case 'paid':
       case 'fully_paid':
@@ -5508,7 +5508,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                     ),
 
                     child: Text(
-                      _getPaymentStatusText(paymentStatus, true),
+                      _getPaymentStatusText(paymentStatus, true, isAdvanceOrder: reservation['_db_table'] == 'advance_orders'),
 
                       style: TextStyle(
                         fontSize: 10,
@@ -5732,7 +5732,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
                       Expanded(
                         child: Text(
-                          'Deposit paid! Awaiting admin approval.',
+                          reservation['_db_table'] == 'advance_orders'
+                              ? 'Full paid! Awaiting admin approval.'
+                              : 'Deposit paid! Awaiting admin approval.',
 
                           style: TextStyle(
                             color: Colors.orange,

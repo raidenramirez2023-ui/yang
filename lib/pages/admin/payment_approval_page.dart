@@ -423,147 +423,40 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Widget _buildPaymentCard(Map<String, dynamic> payment, BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-
     final String table = payment['_table'] ?? 'reservations';
     final bool isAdvanceOrder = table == 'advance_orders';
 
-    // Common info containers
-    Widget orderDetails = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isAdvanceOrder ? 'Advance Order Details' : 'Reservation Details',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey),
-          ),
-          const SizedBox(height: 12),
-          if (!isAdvanceOrder)
-            _buildDetailRow('Event Type', payment['event_type'] ?? 'N/A', Icons.event),
-          if (isAdvanceOrder)
-            _buildDetailRow('Order Type', payment['order_type'] ?? 'N/A', Icons.fastfood_rounded, isHighlight: true),
-          _buildDetailRow('Date', (isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A', Icons.calendar_today),
-          _buildDetailRow('Time', isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours']}h)', Icons.access_time),
-          if (!isAdvanceOrder || (payment['number_of_guests'] != null && payment['number_of_guests'] > 0))
-            _buildDetailRow('Guests', '${payment['number_of_guests']} people', Icons.people),
-        ],
-      ),
-    );
-
-    Widget paymentDetails = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Payment Details',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-          ),
-          const SizedBox(height: 12),
-          _buildDetailRow('Customer', payment['customer_name'] ?? 'N/A', Icons.person),
-          _buildDetailRow('Email', payment['customer_email'] ?? 'N/A', Icons.email),
-          _buildDetailRow('Total Price', 'PHP ${(payment['total_price'] ?? 0).toStringAsFixed(2)}', Icons.monetization_on),
-          _buildDetailRow(
-            payment['payment_status'] == 'fully_paid' ? 'Full Paid' : 'Deposit Paid',
-            'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}',
-            Icons.account_balance_wallet,
-            isHighlight: true,
-          ),
-          if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
-                  icon: const Icon(Icons.receipt_long, size: 18),
-                  label: const Text('View Receipt', style: TextStyle(fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                    foregroundColor: AppTheme.primaryColor,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _analyzingState[payment['id']] == true 
-                      ? null 
-                      : () => _analyzeReceipt(payment['id'], payment['receipt_url'].toString()),
-                  icon: _analyzingState[payment['id']] == true 
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.document_scanner, size: 18),
-                  label: Text(_analyzingState[payment['id']] == true ? 'Analyzing...' : 'Auto-Verify', style: const TextStyle(fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple.withOpacity(0.1),
-                    foregroundColor: Colors.purple,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: Colors.purple.withOpacity(0.3)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            // OCR Analysis Panel
-            if (_ocrResults.containsKey(payment['id'])) ...[
-              const SizedBox(height: 12),
-              _buildOCRPanel(payment, _ocrResults[payment['id']]!),
-            ],
-          ],
-        ],
-      ),
-    );
-
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 16),
       child: _HoverAnimatedCard(
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with status
+                // Compact header with status
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.orange.shade200),
                             ),
-                            child: const Icon(Icons.access_time_filled, color: Colors.orange, size: 24),
+                            child: const Icon(Icons.access_time_filled, color: Colors.orange, size: 18),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,16 +464,15 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                 const Text(
                                   'Payment Received',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.darkGrey,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
                                 Text(
                                   'Ref: ${payment['payment_reference'] ?? 'N/A'}',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 11,
                                     color: Colors.grey.shade600,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -592,23 +484,23 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.orange.withOpacity(0.3)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.circle, size: 8, color: Colors.orange),
-                          SizedBox(width: 6),
+                          Icon(Icons.circle, size: 6, color: Colors.orange),
+                          SizedBox(width: 4),
                           Text(
                             'Awaiting Review',
                             style: TextStyle(
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 10,
                             ),
                           ),
                         ],
@@ -616,64 +508,50 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
                 
-                // Responsive content layout
-                if (isMobile) ...[
-                  orderDetails,
-                  const SizedBox(height: 16),
-                  paymentDetails,
-                ] else ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: orderDetails),
-                      const SizedBox(width: 16),
-                      Expanded(child: paymentDetails),
-                    ],
-                  ),
-                ],
+                // Compact grid layout for all details
+                _buildCompactDetailGrid(payment, isAdvanceOrder),
                 
-                const SizedBox(height: 24),
-                const Divider(height: 1),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 
-                // Action Buttons
+                // Receipt actions (if available)
+                if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty)
+                  _buildReceiptActions(payment),
+                
+                const SizedBox(height: 12),
+                
+                // OCR Panel (if analyzed)
+                if (_ocrResults.containsKey(payment['id']))
+                  _buildOCRPanel(payment, _ocrResults[payment['id']]!),
+                
+                // Action buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (isMobile) Expanded(
-                      child: _buildActionButton(
-                        onPressed: () => _showRejectDialog(payment),
-                        icon: Icons.cancel_outlined,
-                        label: 'Reject',
-                        isPrimary: false,
-                      ),
-                    ) else _buildActionButton(
+                    _buildActionButton(
                       onPressed: () => _showRejectDialog(payment),
                       icon: Icons.cancel_outlined,
                       label: 'Reject',
                       isPrimary: false,
                     ),
-                    const SizedBox(width: 16),
-                    if (isMobile) Expanded(
-                      child: _buildApproveButton(payment, table),
-                    ) else _buildApproveButton(payment, table),
+                    const SizedBox(width: 12),
+                    _buildApproveButton(payment, table),
                   ],
                 ),
                 
                 // Guidance note for disabled button
                 if (!_canApprovePayment(payment['id']))
                   Padding(
-                    padding: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.only(top: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(Icons.info_outline, size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 6),
+                        Icon(Icons.info_outline, size: 12, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
                         Text(
                           'Run Auto-Verify first to enable approval.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
                         ),
                       ],
                     ),
@@ -683,6 +561,194 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCompactDetailGrid(Map<String, dynamic> payment, bool isAdvanceOrder) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          // Order/Reservation info row
+          Row(
+            children: [
+              Expanded(
+                child: _buildCompactDetailItem(
+                  isAdvanceOrder ? 'Order Type' : 'Event Type',
+                  isAdvanceOrder ? (payment['order_type'] ?? 'N/A') : (payment['event_type'] ?? 'N/A'),
+                  Icons.fastfood_rounded,
+                  isHighlight: isAdvanceOrder,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Date',
+                  (isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A',
+                  Icons.calendar_today,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Time',
+                  isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours']}h)',
+                  Icons.access_time,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Customer and payment info row
+          Row(
+            children: [
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Customer',
+                  payment['customer_name'] ?? 'N/A',
+                  Icons.person,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Email',
+                  payment['customer_email'] ?? 'N/A',
+                  Icons.email,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Total',
+                  'PHP ${(payment['total_price'] ?? 0).toStringAsFixed(2)}',
+                  Icons.monetization_on,
+                  isHighlight: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Payment amount and guests row
+          Row(
+            children: [
+              Expanded(
+                child: _buildCompactDetailItem(
+                  isAdvanceOrder ? 'FULL PAID' : (payment['payment_status'] == 'fully_paid' ? 'Full Paid' : 'Deposit'),
+                  'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}',
+                  Icons.account_balance_wallet,
+                  isHighlight: true,
+                ),
+              ),
+              if (!isAdvanceOrder || (payment['number_of_guests'] != null && payment['number_of_guests'] > 0)) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCompactDetailItem(
+                    'Guests',
+                    '${payment['number_of_guests']} people',
+                    Icons.people,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactDetailItem(String label, String value, IconData icon, {bool isHighlight = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isHighlight ? AppTheme.primaryColor.withOpacity(0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isHighlight ? AppTheme.primaryColor.withOpacity(0.2) : Colors.grey.shade200,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: isHighlight ? AppTheme.primaryColor : Colors.grey.shade500),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade500,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+                    color: isHighlight ? AppTheme.primaryColor : AppTheme.darkGrey,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptActions(Map<String, dynamic> payment) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
+            icon: const Icon(Icons.receipt_long, size: 16),
+            label: const Text('View Receipt', style: TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+              foregroundColor: AppTheme.primaryColor,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _analyzingState[payment['id']] == true 
+                ? null 
+                : () => _analyzeReceipt(payment['id'], payment['receipt_url'].toString()),
+            icon: _analyzingState[payment['id']] == true 
+                ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.document_scanner, size: 16),
+            label: Text(_analyzingState[payment['id']] == true ? 'Analyzing...' : 'Auto-Verify', style: const TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.withOpacity(0.1),
+              foregroundColor: Colors.purple,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: Colors.purple.withOpacity(0.3)),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -10,6 +10,23 @@ class OcrService {
   /// Extracts text from an image URL and attempts to find currency amounts and reference numbers
   static Future<Map<String, dynamic>> analyzeReceipt(String imageUrl) async {
     try {
+      // Detect file type from URL
+      String fileType = 'PNG'; // Default
+      final uri = Uri.tryParse(imageUrl);
+      if (uri != null && uri.path.contains('.')) {
+        final extension = uri.path.split('.').last.toLowerCase();
+        final typeMap = {
+          'png': 'PNG',
+          'jpg': 'JPG',
+          'jpeg': 'JPG',
+          'pdf': 'PDF',
+          'gif': 'GIF',
+          'bmp': 'BMP',
+          'webp': 'PNG',
+        };
+        fileType = typeMap[extension] ?? 'PNG';
+      }
+
       final response = await http.post(
         Uri.parse(_apiUrl),
         body: {
@@ -18,6 +35,7 @@ class OcrService {
           'language': 'eng',
           'isOverlayRequired': 'false',
           'isTable': 'true',
+          'filetype': fileType,
         },
       ).timeout(const Duration(seconds: 30));
 
