@@ -278,7 +278,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
                           ),
                           const SizedBox(height: 6),
-                          _buildPaymentBadge(paymentStatus),
+                          _buildPaymentBadge(paymentStatus, isAdvanceOrder: tx['_db_table'] == 'advance_orders'),
                         ],
                       ),
                       if (tx['_db_table'] == 'advance_orders' && tx['total_price'] != null)
@@ -338,7 +338,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildPaymentBadge(String paymentStatus) {
+  Widget _buildPaymentBadge(String paymentStatus, {bool isAdvanceOrder = false}) {
     final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
     final isDepositPaid = paymentStatus == 'deposit_paid';
     final color = isPaid
@@ -349,7 +349,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final label = isPaid
         ? 'PAID'
         : isDepositPaid
-            ? 'DEPOSIT PAID'
+            ? (isAdvanceOrder ? 'FULL PAID' : 'DEPOSIT PAID')
             : paymentStatus.toUpperCase();
     return Row(
       mainAxisSize: MainAxisSize.min,
