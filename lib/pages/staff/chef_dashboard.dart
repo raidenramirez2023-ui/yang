@@ -70,7 +70,17 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   Future<void> _refreshPendingCount(List<Map<String, dynamic>> orders, {required bool isAdvance}) async {
     try {
       int pending = 0;
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
       for (final o in orders) {
+        if (isAdvance) {
+          final orderDateStr = o['order_date']?.toString();
+          if (orderDateStr != null && orderDateStr.compareTo(todayStr) > 0) {
+            continue; // Skip future dates
+          }
+        }
+
         final ks = o[isAdvance ? 'status' : 'kitchen_status']?.toString() ?? 'Pending';
         final ps = o['payment_status']?.toString() ?? 'unpaid';
         if ((ks == 'Pending' || ks == 'pending') && (ps == 'paid' || ps == 'fully_paid')) pending++;
@@ -726,6 +736,9 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     }).toList();
 
     // ── Process Advance orders ──
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
     final advOrders = _advRaw.map((o) {
       final key = 'adv_${o['id']}';
       final status = o['status']?.toString().toLowerCase();
@@ -739,6 +752,11 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
         '_sort_key': o['created_at']?.toString() ?? '',
       };
     }).where((o) {
+      final orderDateStr = o['order_date']?.toString();
+      if (orderDateStr != null && orderDateStr.compareTo(todayStr) > 0) {
+        return false;
+      }
+
       final ks = o['kitchen_status'];
       final ps = o['payment_status']?.toString().toLowerCase();
       return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
@@ -902,7 +920,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'This is an Advance Order. Kitchen is only allowed to start preparing this order starting 1 hour before the scheduled time.',
+              'This is an Advance Order. Kitchen is only allowed to start preparing this order starting 20 minutes before the scheduled time.',
               style: TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF475569)),
             ),
             const SizedBox(height: 16),
@@ -3856,8 +3874,8 @@ String _formatOrderId(Map<String, dynamic> order) {
   return '#${asInt != null ? asInt.toString().padLeft(3, '0') : id.substring(id.length > 6 ? id.length - 6 : 0).toUpperCase()}';
 }
 
-/// Calculates the kitchen "prepare by" time — 1 hour before the customer's scheduled order time.
-/// e.g. order_time = "10:00 AM" → returns "9:00 AM"
+/// Calculates the kitchen "prepare by" time — 20 minutes before the customer's scheduled order time.
+/// e.g. order_time = "10:00 AM" → returns "9:40 AM"
 String _calcPrepareTime(String? orderTime) {
   if (orderTime == null || orderTime.isEmpty) return '—';
   try {
@@ -3871,14 +3889,14 @@ String _calcPrepareTime(String? orderTime) {
       } catch (_) {}
     }
     if (parsed == null) return orderTime;
-    final prepareTime = parsed.subtract(const Duration(hours: 1));
+    final prepareTime = parsed.subtract(const Duration(minutes: 20));
     return DateFormat('h:mm a').format(prepareTime);
   } catch (_) {
     return orderTime;
   }
 }
 
-/// Parses the order scheduled date and time and subtracts 1 hour to get the prepare-by DateTime.
+/// Parses the order scheduled date and time and subtracts 20 minutes to get the prepare-by DateTime.
 DateTime? _getPrepareByDateTime(String? dateStr, String? timeStr) {
   if (dateStr == null || dateStr.isEmpty || timeStr == null || timeStr.isEmpty) return null;
   try {
@@ -3903,7 +3921,7 @@ DateTime? _getPrepareByDateTime(String? dateStr, String? timeStr) {
       parsedTime.minute,
       parsedTime.second,
     );
-    return scheduledDateTime.subtract(const Duration(hours: 1));
+    return scheduledDateTime.subtract(const Duration(minutes: 20));
   } catch (_) {
     return null;
   }

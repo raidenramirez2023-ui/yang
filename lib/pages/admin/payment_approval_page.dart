@@ -541,7 +541,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 ),
                 
                 // Guidance note for disabled button
-                if (!_canApprovePayment(payment['id']))
+                if (!_canApprovePayment(payment))
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
@@ -752,19 +752,31 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
-  bool _canApprovePayment(String paymentId) {
+  bool _canApprovePayment(Map<String, dynamic> payment) {
+    final paymentId = payment['id'].toString();
     if (!_ocrResults.containsKey(paymentId)) return false;
     
     final ocr = _ocrResults[paymentId]!;
     if (ocr['success'] == false) return false;
 
-    // Must have detected both amount and reference
-    return ocr['detectedAmount'] != null && 
-           (ocr['detectedRefs'] as List).isNotEmpty;
+    final double expectedAmount = (payment['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final double? detectedAmount = ocr['detectedAmount'];
+    final bool amountMatches = detectedAmount != null && (detectedAmount - expectedAmount).abs() < 1.0;
+    
+    final String expectedRef = payment['payment_reference'] ?? '';
+    final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
+    
+    final bool refMatches = detectedRefs.isNotEmpty && (
+      detectedRefs.any((r) => expectedRef.toLowerCase().contains(r.toString().toLowerCase())) ||
+      detectedRefs.any((r) => r.toString().length >= 6)
+    );
+
+    // Must have verified BOTH amount and reference
+    return amountMatches && refMatches;
   }
 
   Widget _buildApproveButton(Map<String, dynamic> payment, String table) {
-    final bool enabled = _canApprovePayment(payment['id']);
+    final bool enabled = _canApprovePayment(payment);
     
     return _buildActionButton(
       onPressed: enabled ? () => _approvePayment(payment['id'], table) : () {},
