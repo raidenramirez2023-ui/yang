@@ -498,7 +498,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     // Weekly Revenue Calculation
 
-    _weeklyRevenue = _processChartData(allOrders, allAdvanceOrders);
+    _weeklyRevenue = _processChartData(allOrders, allAdvanceOrders, allReservations);
 
     // Kitchen Status Counts (Real-time from today's orders)
 
@@ -1353,18 +1353,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     List<Map<String, dynamic>> orders,
 
     List<Map<String, dynamic>> advanceOrders,
+
+    List<Map<String, dynamic>> reservations,
   ) {
     final now = DateTime.now();
 
     Map<int, double> periodData = {};
 
-    // Helper to process a list of orders
+    // Helper to process a list of orders/reservations
 
-    void processList(List<Map<String, dynamic>> list, bool isAdvance) {
-      for (var order in list) {
-        final dateStr = isAdvance
-            ? order['order_date'] // Base advance orders on scheduled date
-            : order['created_at'];
+    void processList(
+      List<Map<String, dynamic>> list, {
+      required bool isAdvance,
+      required bool isReservation,
+    }) {
+      for (var item in list) {
+        final dateStr = isReservation
+            ? item['event_date']
+            : (isAdvance ? item['order_date'] : item['created_at']);
 
         final date = DateTime.tryParse(dateStr ?? '');
 
@@ -1372,31 +1378,63 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         if (isAdvance) {
           final isPaid =
-              order['payment_status'] == 'paid' ||
-              order['payment_status'] == 'fully_paid';
+              item['payment_status'] == 'paid' ||
+              item['payment_status'] == 'fully_paid';
+
+          if (!isPaid) continue;
+        } else if (isReservation) {
+          final paymentStatus = item['payment_status']?.toString() ?? '';
+
+          final isPaid =
+              paymentStatus == 'paid' ||
+              paymentStatus == 'fully_paid' ||
+              paymentStatus == 'deposit_paid';
 
           if (!isPaid) continue;
         }
 
-        final amount = isAdvance
-            ? (order['total_price'] as num?)?.toDouble() ?? 0.0
-            : (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+        double amount = 0.0;
+
+        if (isReservation) {
+          final paymentStatus = item['payment_status']?.toString() ?? '';
+
+          if (paymentStatus == 'deposit_paid') {
+            amount = (item['deposit_amount'] as num?)?.toDouble() ??
+                ((item['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+          } else {
+            amount = (item['total_price'] as num?)?.toDouble() ?? 0.0;
+          }
+        } else {
+          amount = isAdvance
+              ? (item['total_price'] as num?)?.toDouble() ?? 0.0
+              : (item['total_amount'] as num?)?.toDouble() ?? 0.0;
+        }
 
         // Apply period-specific filtering
 
         switch (_selectedPeriod) {
           case 'Daily':
-
-            // If we have order_time, we could parse it, but for simple daily chart, today is enough
-
             if (date.year == now.year &&
                 date.month == now.month &&
                 date.day == now.day) {
               if (isAdvance) {
-                // Distribute advance orders at their scheduled hour
-
                 try {
-                  final timeStr = order['order_time']?.toString() ?? '12:00 PM';
+                  final timeStr = item['order_time']?.toString() ?? '12:00 PM';
+
+                  final hour = DateFormat.jm().parse(timeStr).hour;
+
+                  if (hour >= 10 && hour < 20) {
+                    final key = hour - 10;
+
+                    periodData[key] = (periodData[key] ?? 0) + amount;
+                  }
+                } catch (_) {
+                  periodData[2] =
+                      (periodData[2] ?? 0) + amount; // Fallback to 12 PM
+                }
+              } else if (isReservation) {
+                try {
+                  final timeStr = item['start_time']?.toString() ?? '12:00 PM';
 
                   final hour = DateFormat.jm().parse(timeStr).hour;
 
@@ -1454,9 +1492,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       }
     }
 
-    processList(orders, false);
+    processList(orders, isAdvance: false, isReservation: false);
 
-    processList(advanceOrders, true);
+    processList(advanceOrders, isAdvance: true, isReservation: false);
+
+    processList(reservations, isAdvance: false, isReservation: true);
 
     // Convert to list based on selected period
 
