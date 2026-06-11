@@ -22,6 +22,8 @@ class _SalesReportPageState extends State<SalesReportPage>
     with TickerProviderStateMixin {
   String selectedPeriod = 'Monthly';
   String selectedYear = '2026';
+  String selectedChartType = 'Line';
+  Set<String> activeStreams = {'Regular', 'Advance', 'Reservation'};
   final _supabase = Supabase.instance.client;
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   late AnimationController _animationController;
@@ -33,6 +35,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   late Stream<List<Map<String, dynamic>>> _ordersStreamVar;
   late Stream<List<Map<String, dynamic>>> _inventoryStreamVar;
   late Stream<List<Map<String, dynamic>>> _advanceOrdersStreamVar;
+  late Stream<List<Map<String, dynamic>>> _reservationsStreamVar;
   Timer? _refreshTimer;
 
   // Pagination state
@@ -53,15 +56,25 @@ class _SalesReportPageState extends State<SalesReportPage>
         .order('created_at', ascending: false);
   }
 
+  Stream<List<Map<String, dynamic>>> _reservationsStream() {
+    return _supabase
+        .from('reservations')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+  }
+
   Stream<List<Map<String, dynamic>>> _inventoryStream() {
     return _supabase
         .from('inventory')
         .stream(primaryKey: ['id']);
   }
 
-  Map<String, dynamic> _processMetrics(List<Map<String, dynamic>> allOrders, List<Map<String, dynamic>> allAdvanceOrders) {
+  Map<String, dynamic> _processMetrics(
+      List<Map<String, dynamic>> allOrders,
+      List<Map<String, dynamic>> allAdvanceOrders,
+      List<Map<String, dynamic>> allReservations) {
     final now = DateTime.now();
-    // Combine regular orders and paid advance orders
+    // Combine regular orders, paid advance orders, and paid reservations
     List<Map<String, dynamic>> combinedOrders = [];
     
     // Add regular orders
@@ -125,6 +138,47 @@ class _SalesReportPageState extends State<SalesReportPage>
           return false;
       }
     }).toList());
+
+    // Add paid event reservations
+    combinedOrders.addAll(allReservations.where((reservation) {
+      final date = DateTime.tryParse(reservation['event_date'] ?? '');
+      if (date == null) return false;
+
+      // Filter for paid/fully_paid/deposit_paid events
+      final paymentStatus = reservation['payment_status']?.toString() ?? '';
+      final isPaid = paymentStatus == 'paid' ||
+          paymentStatus == 'fully_paid' ||
+          paymentStatus == 'deposit_paid';
+      if (!isPaid) return false;
+
+      // Filter by selected year first (except for yearly view)
+      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
+        return false;
+      }
+
+      // Apply period-specific filtering
+      switch (selectedPeriod) {
+        case 'Daily':
+          return date.year == now.year &&
+              date.month == now.month &&
+              date.day == now.day;
+        case 'Weekly':
+          final dailyDiff = now.difference(date).inDays;
+          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
+        case 'Monthly':
+          return date.year.toString() == selectedYear;
+        case 'Annually':
+          return date.year >= 2016 && date.year <= now.year;
+        default:
+          return false;
+      }
+    }).map((r) {
+      // Map event reservations so they are recognizable as reservations
+      return {
+        ...r,
+        'is_reservation': true,
+      };
+    }).toList());
     
     if (combinedOrders.isEmpty) {
       return {'revenue': 0.0, 'orders': 0, 'customers': 0, 'avgOrder': 0.0};
@@ -134,10 +188,20 @@ class _SalesReportPageState extends State<SalesReportPage>
     Set<String> uniqueCustomers = {};
 
     for (var order in combinedOrders) {
-      // Handle both regular orders and advance orders
-      final amount = order.containsKey('total_amount') 
-          ? (order['total_amount'] as num?)?.toDouble() ?? 0.0
-          : (order['total_price'] as num?)?.toDouble() ?? 0.0;
+      double amount = 0.0;
+      if (order['is_reservation'] == true) {
+        final paymentStatus = order['payment_status']?.toString() ?? '';
+        if (paymentStatus == 'deposit_paid') {
+          amount = (order['deposit_amount'] as num?)?.toDouble() ?? 
+                   ((order['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+        } else {
+          amount = (order['total_price'] as num?)?.toDouble() ?? 0.0;
+        }
+      } else {
+        amount = order.containsKey('total_amount') 
+            ? (order['total_amount'] as num?)?.toDouble() ?? 0.0
+            : (order['total_price'] as num?)?.toDouble() ?? 0.0;
+      }
       totalRevenue += amount;
       uniqueCustomers.add(order['customer_name'] ?? 'Guest');
     }
@@ -150,92 +214,140 @@ class _SalesReportPageState extends State<SalesReportPage>
     };
   }
 
-  List<double> _processChartData(List<Map<String, dynamic>> orders, List<Map<String, dynamic>> advanceOrders) {
+  Map<String, List<double>> _processChartData(
+      List<Map<String, dynamic>> orders,
+      List<Map<String, dynamic>> advanceOrders,
+      List<Map<String, dynamic>> reservations) {
     final now = DateTime.now();
-    Map<int, double> periodData = {};
-    
-    // Helper to process a list of orders
-    void processList(List<Map<String, dynamic>> list, bool isAdvance) {
-      for (var order in list) {
-        final dateStr = isAdvance 
-            ? order['order_date'] // Base advance orders on scheduled date
-            : order['created_at'];
-        
-        final date = DateTime.tryParse(dateStr ?? '');
-        if (date == null) continue;
+    Map<int, double> regularData = {};
+    Map<int, double> advanceData = {};
+    Map<int, double> reservationData = {};
 
-        if (isAdvance) {
-          final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
-          if (!isPaid) continue;
-        }
+    // Helper to process regular orders
+    for (var order in orders) {
+      final date = DateTime.tryParse(order['created_at'] ?? '');
+      if (date == null) continue;
 
-        final amount = isAdvance 
-            ? (order['total_price'] as num?)?.toDouble() ?? 0.0
-            : (order['total_amount'] as num?)?.toDouble() ?? 0.0;
-
-        // Apply period-specific filtering
-        switch (selectedPeriod) {
-          case 'Daily':
-            if (date.year == now.year && 
-                date.month == now.month && 
-                date.day == now.day) {
-               if (isAdvance) {
-                 // Distribute advance orders at their scheduled hour
-                 try {
-                    final timeStr = order['order_time']?.toString() ?? '12:00 PM';
-                    final hour = DateFormat.jm().parse(timeStr).hour;
-                    if (hour >= 10 && hour < 20) {
-                      final key = hour - 10;
-                      periodData[key] = (periodData[key] ?? 0) + amount;
-                    }
-                 } catch (_) {
-                    periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
-                 }
-               } else {
-                  final orderHour = date.hour;
-                  if (orderHour >= 10 && orderHour < 20) {
-                    final key = orderHour - 10;
-                    periodData[key] = (periodData[key] ?? 0) + amount;
-                  }
-               }
-            }
-            break;
-          case 'Weekly':
-            final dailyDiff = now.difference(date).inDays;
-            if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
-              final key = date.weekday - 1;
-              periodData[key] = (periodData[key] ?? 0) + amount;
-            }
-            break;
-          case 'Monthly':
-            if (date.year.toString() == selectedYear) {
-              final key = date.month - 1;
-              periodData[key] = (periodData[key] ?? 0) + amount;
-            }
-            break;
-          case 'Annually':
-            if (date.year >= 2016 && date.year <= now.year) {
-              final key = date.year - 2016;
-              periodData[key] = (periodData[key] ?? 0) + amount;
-            }
-            break;
-        }
-      }
+      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
+      _addToPeriodData(date, amount, regularData, now);
     }
 
-    processList(orders, false);
-    processList(advanceOrders, true);
-    
-    // Convert to list based on selected period
+    // Helper to process advance orders
+    for (var order in advanceOrders) {
+      final date = DateTime.tryParse(order['order_date'] ?? '');
+      if (date == null) continue;
+
+      final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
+      if (!isPaid) continue;
+
+      final amount = (order['total_price'] as num?)?.toDouble() ?? 0.0;
+      _addToPeriodData(date, amount, advanceData, now, isAdvance: true, advanceOrder: order);
+    }
+
+    // Helper to process event reservations
+    for (var reservation in reservations) {
+      final date = DateTime.tryParse(reservation['event_date'] ?? '');
+      if (date == null) continue;
+
+      final paymentStatus = reservation['payment_status']?.toString() ?? '';
+      final isPaid = paymentStatus == 'paid' ||
+          paymentStatus == 'fully_paid' ||
+          paymentStatus == 'deposit_paid';
+      if (!isPaid) continue;
+
+      double amount = 0.0;
+      if (paymentStatus == 'deposit_paid') {
+        amount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 
+                 ((reservation['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+      } else {
+        amount = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
+      }
+      _addToPeriodData(date, amount, reservationData, now, isReservation: true, reservation: reservation);
+    }
+
+    int length = 0;
     if (selectedPeriod == 'Daily') {
-      return List.generate(11, (i) => periodData[i] ?? 0.0); // 11 business hours: 10:00-20:00
+      length = 11;
     } else if (selectedPeriod == 'Weekly') {
-      return List.generate(7, (i) => periodData[i] ?? 0.0);
+      length = 7;
     } else if (selectedPeriod == 'Monthly') {
-      return List.generate(12, (i) => periodData[i] ?? 0.0);
+      length = 12;
     } else {
-      // Annual - 2016 to current year (2026)
-      return List.generate(now.year - 2016 + 1, (i) => periodData[i] ?? 0.0);
+      length = now.year - 2016 + 1;
+    }
+
+    return {
+      'regular': List.generate(length, (i) => regularData[i] ?? 0.0),
+      'advance': List.generate(length, (i) => advanceData[i] ?? 0.0),
+      'reservation': List.generate(length, (i) => reservationData[i] ?? 0.0),
+    };
+  }
+
+  void _addToPeriodData(
+      DateTime date,
+      double amount,
+      Map<int, double> periodData,
+      DateTime now, {
+      bool isAdvance = false,
+      Map<String, dynamic>? advanceOrder,
+      bool isReservation = false,
+      Map<String, dynamic>? reservation,
+  }) {
+    switch (selectedPeriod) {
+      case 'Daily':
+        if (date.year == now.year && 
+            date.month == now.month && 
+            date.day == now.day) {
+           if (isAdvance && advanceOrder != null) {
+             try {
+                final timeStr = advanceOrder['order_time']?.toString() ?? '12:00 PM';
+                final hour = DateFormat.jm().parse(timeStr).hour;
+                if (hour >= 10 && hour < 20) {
+                  final key = hour - 10;
+                  periodData[key] = (periodData[key] ?? 0) + amount;
+                }
+             } catch (_) {
+                periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
+             }
+           } else if (isReservation && reservation != null) {
+             try {
+                final timeStr = reservation['start_time']?.toString() ?? '12:00 PM';
+                final hour = DateFormat.jm().parse(timeStr).hour;
+                if (hour >= 10 && hour < 20) {
+                  final key = hour - 10;
+                  periodData[key] = (periodData[key] ?? 0) + amount;
+                }
+             } catch (_) {
+                periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
+             }
+           } else {
+              final orderHour = date.hour;
+              if (orderHour >= 10 && orderHour < 20) {
+                final key = orderHour - 10;
+                periodData[key] = (periodData[key] ?? 0) + amount;
+              }
+           }
+        }
+        break;
+      case 'Weekly':
+        final dailyDiff = now.difference(date).inDays;
+        if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
+          final key = date.weekday - 1;
+          periodData[key] = (periodData[key] ?? 0) + amount;
+        }
+        break;
+      case 'Monthly':
+        if (date.year.toString() == selectedYear) {
+          final key = date.month - 1;
+          periodData[key] = (periodData[key] ?? 0) + amount;
+        }
+        break;
+      case 'Annually':
+        if (date.year >= 2016 && date.year <= now.year) {
+          final key = date.year - 2016;
+          periodData[key] = (periodData[key] ?? 0) + amount;
+        }
+        break;
     }
   }
 
@@ -259,6 +371,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     _ordersStreamVar = _ordersStream();
     _inventoryStreamVar = _inventoryStream();
     _advanceOrdersStreamVar = _advanceOrdersStream();
+    _reservationsStreamVar = _reservationsStream();
     
     // Start automatic refresh timer for real-time updates
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
@@ -355,10 +468,18 @@ class _SalesReportPageState extends State<SalesReportPage>
       rows.add(['ID', 'Customer', 'Items', 'Date', 'Amount', 'Status']);
 
       for (var t in transactions) {
+        String itemsStr = 'No items';
+        if ((t['type'] == 'Advance' || t['type'] == 'Reservation') && t['selected_menu_items'] != null) {
+          final Map<String, dynamic> items = Map<String, dynamic>.from(t['selected_menu_items']);
+          itemsStr = items.entries.map((e) => '${e.key} x${e.value}').join(', ');
+        } else {
+          itemsStr = itemsMap[t['db_id']] ?? 'No items';
+        }
+
         rows.add([
           t['id'],
           t['customer'],
-          itemsMap[t['db_id']] ?? 'No items',
+          itemsStr,
           t['date'],
           t['amount'].toString().replaceAll('₱', '').replaceAll(',', ''),
           t['status'],
@@ -446,143 +567,199 @@ class _SalesReportPageState extends State<SalesReportPage>
               stream: _advanceOrdersStreamVar,
               builder: (context, advanceOrderSnapshot) {
                 return StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _inventoryStreamVar,
-                  builder: (context, invSnapshot) {
+                  stream: _reservationsStreamVar,
+                  builder: (context, reservationsSnapshot) {
+                    return StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _inventoryStreamVar,
+                      builder: (context, invSnapshot) {
 
-                    final allOrders = orderSnapshot.data ?? [];
-                    final allAdvanceOrders = advanceOrderSnapshot.data ?? [];
-                    final allInventory = invSnapshot.data ?? [];
-                    
-                    final metrics = _processMetrics(allOrders, allAdvanceOrders);
-                    final chartValues = _processChartData(allOrders, allAdvanceOrders);
-                    
-                    final now = DateTime.now();
-                    final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8: PM
-                    
-                    final lowStockCount = allInventory.where((item) {
-                      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                      // For Daily view, only count low stock if currently within business hours
-                      if (selectedPeriod == 'Daily' && !isBusinessHours) {
-                        return false; // Don't count low stock outside business hours for Daily view
-                      }
-                      return qty < 10;
-                    }).length;
+                        final allOrders = orderSnapshot.data ?? [];
+                        final allAdvanceOrders = advanceOrderSnapshot.data ?? [];
+                        final allReservations = reservationsSnapshot.data ?? [];
+                        final allInventory = invSnapshot.data ?? [];
+                        
+                        final metrics = _processMetrics(allOrders, allAdvanceOrders, allReservations);
+                        final chartValues = _processChartData(allOrders, allAdvanceOrders, allReservations);
+                        
+                        final now = DateTime.now();
+                        final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8: PM
+                        
+                        final lowStockCount = allInventory.where((item) {
+                          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                          // For Daily view, only count low stock if currently within business hours
+                          if (selectedPeriod == 'Daily' && !isBusinessHours) {
+                            return false; // Don't count low stock outside business hours for Daily view
+                          }
+                          return qty < 10;
+                        }).length;
 
-                    metrics['lowStock'] = lowStockCount;
+                        metrics['lowStock'] = lowStockCount;
 
-                    // Combine regular orders and paid advance orders for the table
-                    List<Map<String, dynamic>> combinedTransactions = [];
-                    
-                    // Add regular orders
-                    combinedTransactions.addAll(allOrders.where((o) {
-                      final date = DateTime.tryParse(o['created_at'] ?? '');
-                      if (date == null) return false;
-                      
-                      if (_transactionPeriod == 'Daily') {
-                        if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                      } else if (_transactionPeriod == 'Weekly') {
-                        if (now.difference(date).inDays > 7) return false;
-                      } else if (_transactionPeriod == 'Monthly') {
-                        if (date.year != now.year || date.month != now.month) return false;
-                      } else if (_transactionPeriod == 'Yearly') {
-                        if (date.year != now.year) return false;
-                      }
-                      
-                      return true;
-                    }).map((o) {
-                      final name = o['customer_name'] ?? 'Guest';
-                      final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
-                      
-                      // Map DB status to UI status
-                      String uiStatus = dbStatus;
-                      if (dbStatus == 'Done' || dbStatus == 'Ready') uiStatus = 'Ready';
-                      
-                      return {
-                        'db_id': o['id'].toString(),
-                        'id': '#${o['transaction_id'] ?? o['id']}',
-                        'customer': name,
-                        'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at'])),
-                        'amount': _currencyFormat.format(o['total_amount']),
-                        'status': uiStatus,
-                        'internal_status': dbStatus,
-                        'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                        'color': Colors.blue,
-                        'type': 'Regular',
-                      };
-                    }).toList());
-                    
-                    // Add paid advance orders
-                    combinedTransactions.addAll(allAdvanceOrders.where((o) {
-                      final date = DateTime.tryParse(o['order_date'] ?? '');
-                      if (date == null) return false;
-                      
-                      // Include all advance orders (remove payment status filter to show all)
-                      // Only filter by date period
-                      
-                      if (_transactionPeriod == 'Daily') {
-                        if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                      } else if (_transactionPeriod == 'Weekly') {
-                        if (now.difference(date).inDays > 7) return false;
-                      } else if (_transactionPeriod == 'Monthly') {
-                        if (date.year != now.year || date.month != now.month) return false;
-                      } else if (_transactionPeriod == 'Yearly') {
-                        if (date.year != now.year) return false;
-                      }
-                      
-                      return true;
-                    }).map((o) {
-                      final name = o['customer_name'] ?? 'Guest';
-                      final status = o['status']?.toString().toLowerCase() ?? 'pending';
-                      
+                        // Combine regular orders, paid advance orders, and paid reservations for the table
+                        List<Map<String, dynamic>> combinedTransactions = [];
+                        
+                        // Add regular orders
+                        combinedTransactions.addAll(allOrders.where((o) {
+                          final date = DateTime.tryParse(o['created_at'] ?? '');
+                          if (date == null) return false;
+                          
+                          if (_transactionPeriod == 'Daily') {
+                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                          } else if (_transactionPeriod == 'Weekly') {
+                            if (now.difference(date).inDays > 7) return false;
+                          } else if (_transactionPeriod == 'Monthly') {
+                            if (date.year != now.year || date.month != now.month) return false;
+                          } else if (_transactionPeriod == 'Yearly') {
+                            if (date.year != now.year) return false;
+                          }
+                          
+                          return true;
+                        }).map((o) {
+                          final name = o['customer_name'] ?? 'Guest';
+                          final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
+                          
+                          // Map DB status to UI status
+                          String uiStatus = dbStatus;
+                          if (dbStatus == 'Done' || dbStatus == 'Ready') uiStatus = 'Ready';
+                          
+                          return {
+                            'db_id': o['id'].toString(),
+                            'id': '#${o['transaction_id'] ?? o['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at'])),
+                            'amount': _currencyFormat.format(o['total_amount']),
+                            'status': uiStatus,
+                            'internal_status': dbStatus,
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': Colors.blue,
+                            'type': 'Regular',
+                          };
+                        }).toList());
+                        
+                        // Add paid advance orders
+                        combinedTransactions.addAll(allAdvanceOrders.where((o) {
+                          final date = DateTime.tryParse(o['order_date'] ?? '');
+                          if (date == null) return false;
+                          
+                          // Include all advance orders (remove payment status filter to show all)
+                          // Only filter by date period
+                          
+                          if (_transactionPeriod == 'Daily') {
+                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                          } else if (_transactionPeriod == 'Weekly') {
+                            if (now.difference(date).inDays > 7) return false;
+                          } else if (_transactionPeriod == 'Monthly') {
+                            if (date.year != now.year || date.month != now.month) return false;
+                          } else if (_transactionPeriod == 'Yearly') {
+                            if (date.year != now.year) return false;
+                          }
+                          
+                          return true;
+                        }).map((o) {
+                          final name = o['customer_name'] ?? 'Guest';
+                          final status = o['status']?.toString().toLowerCase() ?? 'pending';
+                          
+                          return {
+                            'db_id': o['id'].toString(),
+                            'id': '#AO-${o['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['order_date'] ?? '')),
+                            'amount': _currencyFormat.format(o['total_price']),
+                            'status': status[0].toUpperCase() + status.substring(1),
+                            'internal_status': status,
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': Colors.green,
+                            'type': 'Advance',
+                            'selected_menu_items': o['selected_menu_items'],
+                          };
+                        }).toList());
 
-                      return {
-                        'db_id': o['id'].toString(),
-                        'id': '#AO-${o['id']}',
-                        'customer': name,
-                        'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['order_date'] ?? '')),
-                        'amount': _currencyFormat.format(o['total_price']),
-                        'status': status[0].toUpperCase() + status.substring(1),
-                        'internal_status': status,
-                        'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                        'color': Colors.green,
-                        'type': 'Advance',
-                      };
-                    }).toList());
-                    
-                    final tableTransactions = combinedTransactions;
+                        // Add paid event reservations
+                        combinedTransactions.addAll(allReservations.where((r) {
+                          final date = DateTime.tryParse(r['event_date'] ?? '');
+                          if (date == null) return false;
 
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Padding(
-                        padding: EdgeInsets.all(isDesktop ? 32 : 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _header(tableTransactions, metrics),
-                            const SizedBox(height: 32),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _summaryCards(isDesktop, metrics),
-                                    const SizedBox(height: 32),
-                                    _chartCard(chartValues),
-                                    const SizedBox(height: 32),
-                                    _transactionsSection(tableTransactions),
-                                  ],
+                          final paymentStatus = r['payment_status']?.toString() ?? '';
+                          final isPaid = paymentStatus == 'paid' ||
+                              paymentStatus == 'fully_paid' ||
+                              paymentStatus == 'deposit_paid';
+                          if (!isPaid) return false;
+
+                          if (_transactionPeriod == 'Daily') {
+                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+                          } else if (_transactionPeriod == 'Weekly') {
+                            if (now.difference(date).inDays > 7) return false;
+                          } else if (_transactionPeriod == 'Monthly') {
+                            if (date.year != now.year || date.month != now.month) return false;
+                          } else if (_transactionPeriod == 'Yearly') {
+                            if (date.year != now.year) return false;
+                          }
+
+                          return true;
+                        }).map((r) {
+                          final name = r['customer_name'] ?? 'Guest';
+                          final status = r['status']?.toString().toLowerCase() ?? 'pending';
+                          final paymentStatus = r['payment_status']?.toString() ?? '';
+                          
+                          double amount = 0.0;
+                          if (paymentStatus == 'deposit_paid') {
+                            amount = (r['deposit_amount'] as num?)?.toDouble() ?? 
+                                     ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+                          } else {
+                            amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+                          }
+
+                          return {
+                            'db_id': r['id'].toString(),
+                            'id': '#RES-${r['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(r['event_date'] ?? '')),
+                            'amount': _currencyFormat.format(amount),
+                            'status': status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Pending',
+                            'internal_status': status,
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': Colors.purple,
+                            'type': 'Reservation',
+                            'selected_menu_items': r['selected_menu_items'],
+                          };
+                        }).toList());
+                        
+                        final tableTransactions = combinedTransactions;
+
+                        return FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: Padding(
+                            padding: EdgeInsets.all(isDesktop ? 32 : 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _header(tableTransactions, metrics),
+                                const SizedBox(height: 32),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _summaryCards(isDesktop, metrics),
+                                        const SizedBox(height: 32),
+                                        _chartCard(chartValues),
+                                        const SizedBox(height: 32),
+                                        _transactionsSection(tableTransactions),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
-              }
+              },
             );
-          }
+          },
         ),
       ),
     );
@@ -797,7 +974,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   }
 
   /// ================= CHART CARD =================
-  Widget _chartCard(List<double> chartValues) {
+  Widget _chartCard(Map<String, List<double>> chartData) {
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 800),
       tween: Tween<double>(begin: 0.0, end: 1.0),
@@ -805,7 +982,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       builder: (context, animationValue, child) {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 600),
-          padding: const EdgeInsets.all(32),
+          padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 16 : 32),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
@@ -834,6 +1011,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -847,27 +1025,30 @@ class _SalesReportPageState extends State<SalesReportPage>
                         color: Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: const Text(
-                            'Actual Revenue',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        _buildLegendItem('Regular Orders', 'Regular', Colors.blue),
+                        _buildLegendItem('Advance Orders', 'Advance', Colors.green),
+                        _buildLegendItem('Event Reservations', 'Reservation', Colors.purple),
                       ],
                     ),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _chartTypeButton('Line', Icons.show_chart_rounded),
+                    _chartTypeButton('Bar', Icons.bar_chart_rounded),
                   ],
                 ),
               ),
@@ -875,146 +1056,562 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           const SizedBox(height: 40),
           SizedBox(
-            height: 350,
-            child: LineChart(
-              LineChartData(
-                maxY: (chartValues.isEmpty ? 1000.0 : chartValues.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000.0, 10000000.0).toDouble(),
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) => const Color(0xFF1E293B),
-                    tooltipPadding: const EdgeInsets.all(12),
-                    getTooltipItems: (spots) {
-                      return spots.map((spot) {
-                        final labels = getChartLabels();
-                        final dayIndex = spot.x.toInt();
-                        final dayLabel = dayIndex < labels.length 
-                            ? labels[dayIndex] 
-                            : 'Day ${dayIndex + 1}';
-                        
-                        return LineTooltipItem(
-                          _currencyFormat.format(spot.y),
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: '\n$dayLabel',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 11,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList();
-                    },
+            height: ResponsiveUtils.isMobile(context) ? 260 : 350,
+            child: selectedChartType == 'Line'
+                ? _buildLineChart(chartData)
+                : _buildBarChart(chartData),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chartTypeButton(String type, IconData icon) {
+    final isSelected = selectedChartType == type;
+    return GestureDetector(
+      onTap: () => setState(() => selectedChartType = type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              type,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _calculateInterval(double maxY) {
+    if (maxY <= 0) return 1000;
+    double rawInterval = maxY / 5;
+    if (rawInterval < 100) return 100;
+    if (rawInterval < 500) return 500;
+    if (rawInterval < 1000) return 1000;
+    if (rawInterval < 5000) return 5000;
+    if (rawInterval < 10000) return 10000;
+    if (rawInterval < 50000) return 50000;
+    if (rawInterval < 100000) return 100000;
+    return (rawInterval / 50000).round() * 50000.0;
+  }
+
+  Widget _buildLineChart(Map<String, List<double>> chartData) {
+    final double lineMaxY = (() {
+      double maxVal = 1000.0;
+      for (var entry in chartData.entries) {
+        final key = entry.key;
+        String streamName = '';
+        if (key == 'regular') streamName = 'Regular';
+        else if (key == 'advance') streamName = 'Advance';
+        else if (key == 'reservation') streamName = 'Reservation';
+        
+        if (activeStreams.contains(streamName)) {
+          final list = entry.value;
+          if (list.isNotEmpty) {
+            final m = list.reduce((a, b) => a > b ? a : b);
+            if (m > maxVal) maxVal = m;
+          }
+        }
+      }
+      return (maxVal * 1.2).clamp(1000.0, 10000000.0).toDouble();
+    })();
+
+    return LineChart(
+      LineChartData(
+        maxY: lineMaxY,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF1E293B),
+            tooltipPadding: const EdgeInsets.all(12),
+            getTooltipItems: (spots) {
+              // Build the ordered list of ACTIVE stream names exactly as
+              // they were added to lineBarsData (Regular → Advance → Reservation).
+              // This ensures barIndex always maps to the correct stream name
+              // regardless of which streams are currently toggled on/off.
+              final List<String> activeLineNames = [];
+              if (activeStreams.contains('Regular')) activeLineNames.add('Regular Orders');
+              if (activeStreams.contains('Advance')) activeLineNames.add('Advance Orders');
+              if (activeStreams.contains('Reservation')) activeLineNames.add('Event Reservations');
+
+              return spots.map((spot) {
+                final labels = getChartLabels();
+                final dayIndex = spot.x.toInt();
+                final dayLabel = dayIndex < labels.length 
+                    ? labels[dayIndex] 
+                    : 'Day ${dayIndex + 1}';
+
+                // Use the ordered active names list; fall back gracefully
+                final lineName = spot.barIndex < activeLineNames.length
+                    ? activeLineNames[spot.barIndex]
+                    : 'Revenue';
+
+                return LineTooltipItem(
+                  '$lineName: ${_currencyFormat.format(spot.y)}',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1, // Ensure one label per interval
-                      getTitlesWidget: (value, meta) {
-                        final labels = getChartLabels();
-                        final dayIndex = value.toInt();
-                        
-                        // Only show labels within our data bounds
-                        if (dayIndex >= chartValues.length || dayIndex < 0) {
-                          return const SizedBox.shrink();
-                        }
-                        
-                        if (dayIndex < labels.length) {
-                          return SideTitleWidget(
-                            meta: meta,
-                            child: Text(
-                              labels[dayIndex],
-                              style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }
-                        return const SizedBox();
-                      },
-                      reservedSize: 30,
+                  children: [
+                    TextSpan(
+                      text: '\n$dayLabel',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.normal,
+                      ),
                     ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        return SideTitleWidget(
-                          meta: meta,
-                          child: Text(
-                            _formatCurrency(value),
-                            style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      },
-                      reservedSize: 45,
+                  ],
+                );
+              }).toList();
+            },
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final labels = getChartLabels();
+                final dayIndex = value.toInt();
+                
+                final firstList = chartData.values.first;
+                if (dayIndex >= firstList.length || dayIndex < 0) {
+                  return const SizedBox.shrink();
+                }
+                
+                if (dayIndex < labels.length) {
+                  return SideTitleWidget(
+                    meta: meta,
+                    child: Text(
+                      labels[dayIndex],
+                      style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
                     ),
+                  );
+                }
+                return const SizedBox();
+              },
+              reservedSize: 30,
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: _calculateInterval(lineMaxY),
+              getTitlesWidget: (value, meta) {
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    _formatCurrency(value),
+                    style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                );
+              },
+              reservedSize: 50,
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: _calculateInterval(lineMaxY),
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: const Color(0xFFF1F5F9).withOpacity(0.5),
+            strokeWidth: 1,
+            dashArray: [3, 3],
+          ),
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(
+            color: const Color(0xFFF1F5F9).withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        lineBarsData: [
+          // Regular Orders
+          if (activeStreams.contains('Regular'))
+            LineChartBarData(
+              spots: List.generate(
+                chartData['regular']!.length,
+                (i) => FlSpot(i.toDouble(), chartData['regular']![i]),
+              ),
+              isCurved: true,
+              color: Colors.blue,
+              barWidth: 4,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.blue,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.blue.withOpacity(0.08),
+              ),
+            ),
+          // Advance Orders
+          if (activeStreams.contains('Advance'))
+            LineChartBarData(
+              spots: List.generate(
+                chartData['advance']!.length,
+                (i) => FlSpot(i.toDouble(), chartData['advance']![i]),
+              ),
+              isCurved: true,
+              color: Colors.green,
+              barWidth: 4,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.green,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.green.withOpacity(0.08),
+              ),
+            ),
+          // Event Reservations
+          if (activeStreams.contains('Reservation'))
+            LineChartBarData(
+              spots: List.generate(
+                chartData['reservation']!.length,
+                (i) => FlSpot(i.toDouble(), chartData['reservation']![i]),
+              ),
+              isCurved: true,
+              color: Colors.purple,
+              barWidth: 4,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.purple,
+                    strokeWidth: 2,
+                    strokeColor: Colors.white,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.purple.withOpacity(0.08),
+              ),
+            ),
+        ],
+        minY: 0,
+      ),
+    );
+  }
+
+  Widget _buildBarChart(Map<String, List<double>> chartData) {
+    final double maxCombinedValue = (() {
+      double maxVal = 1000.0;
+      final regList = chartData['regular'] ?? [];
+      final advList = chartData['advance'] ?? [];
+      final resList = chartData['reservation'] ?? [];
+      for (int i = 0; i < regList.length; i++) {
+        double total = 0.0;
+        if (activeStreams.contains('Regular')) {
+          total += regList[i];
+        }
+        if (activeStreams.contains('Advance')) {
+          total += i < advList.length ? advList[i] : 0.0;
+        }
+        if (activeStreams.contains('Reservation')) {
+          total += i < resList.length ? resList[i] : 0.0;
+        }
+        if (total > maxVal) {
+          maxVal = total;
+        }
+      }
+      return maxVal;
+    })();
+
+    final barWidth = ResponsiveUtils.isMobile(context) ? 10.0 : 16.0;
+
+    return BarChart(
+      BarChartData(
+        maxY: (maxCombinedValue * 1.2).clamp(1000.0, 10000000.0),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF1E293B),
+            tooltipPadding: const EdgeInsets.all(12),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final labels = getChartLabels();
+              final label = groupIndex < labels.length 
+                  ? labels[groupIndex] 
+                  : 'Day ${groupIndex + 1}';
+              
+              double regularVal = 0.0;
+              double advanceVal = 0.0;
+              double reservationVal = 0.0;
+              
+              if (groupIndex < chartData['regular']!.length) {
+                regularVal = chartData['regular']![groupIndex];
+              }
+              if (groupIndex < chartData['advance']!.length) {
+                advanceVal = chartData['advance']![groupIndex];
+              }
+              if (groupIndex < chartData['reservation']!.length) {
+                reservationVal = chartData['reservation']![groupIndex];
+              }
+              
+              double totalVal = 0.0;
+              List<TextSpan> breakdownSpans = [];
+              
+              if (activeStreams.contains('Regular')) {
+                totalVal += regularVal;
+                breakdownSpans.add(TextSpan(
+                  text: 'Regular: ${_currencyFormat.format(regularVal)}\n',
+                  style: const TextStyle(
+                    color: Colors.blueAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ));
+              }
+              if (activeStreams.contains('Advance')) {
+                totalVal += advanceVal;
+                breakdownSpans.add(TextSpan(
+                  text: 'Advance: ${_currencyFormat.format(advanceVal)}\n',
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ));
+              }
+              if (activeStreams.contains('Reservation')) {
+                totalVal += reservationVal;
+                breakdownSpans.add(TextSpan(
+                  text: 'Reservation: ${_currencyFormat.format(reservationVal)}\n',
+                  style: const TextStyle(
+                    color: Colors.purpleAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ));
+              }
+
+              return BarTooltipItem(
+                '$label\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: 1000,
-                  verticalInterval: 1,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: const Color(0xFFF1F5F9).withOpacity(0.5),
-                    strokeWidth: 1,
-                    dashArray: [3, 3],
-                  ),
-                  getDrawingVerticalLine: (value) => FlLine(
-                    color: const Color(0xFFF1F5F9).withOpacity(0.3),
-                    strokeWidth: 1,
-                    dashArray: [2, 4],
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(
-                    color: const Color(0xFFF1F5F9).withOpacity(0.5),
-                    width: 1,
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      chartValues.length,
-                      (i) => FlSpot(i.toDouble(), chartValues[i]),
-                    ),
-                    isCurved: true,
-                    color: Colors.red,
-                    barWidth: 5,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 6,
-                          color: Colors.red,
-                          strokeWidth: 3,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.red.withOpacity(0.3),
+                children: [
+                  ...breakdownSpans,
+                  TextSpan(
+                    text: 'Total: ${_currencyFormat.format(totalVal)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      height: 1.5,
                     ),
                   ),
                 ],
-                minY: 0,
-              ),
+              );
+            },
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final labels = getChartLabels();
+                final index = value.toInt();
+                if (index >= labels.length || index < 0) {
+                  return const SizedBox.shrink();
+                }
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    labels[index],
+                    style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                );
+              },
+              reservedSize: 30,
             ),
           ),
-        ],
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: _calculateInterval(maxCombinedValue * 1.2),
+              getTitlesWidget: (value, meta) {
+                return SideTitleWidget(
+                  meta: meta,
+                  child: Text(
+                    _formatCurrency(value),
+                    style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                );
+              },
+              reservedSize: 50,
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: _calculateInterval(maxCombinedValue * 1.2),
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: const Color(0xFFF1F5F9).withOpacity(0.5),
+            strokeWidth: 1,
+            dashArray: [3, 3],
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: List.generate(
+          chartData['regular']!.length,
+          (index) {
+            final reg = chartData['regular']![index];
+            final adv = chartData['advance']![index];
+            final res = chartData['reservation']![index];
+            
+            double currentY = 0.0;
+            List<BarChartRodStackItem> stackItems = [];
+            
+            if (activeStreams.contains('Regular')) {
+              stackItems.add(BarChartRodStackItem(currentY, currentY + reg, Colors.blue));
+              currentY += reg;
+            }
+            if (activeStreams.contains('Advance')) {
+              stackItems.add(BarChartRodStackItem(currentY, currentY + adv, Colors.green));
+              currentY += adv;
+            }
+            if (activeStreams.contains('Reservation')) {
+              stackItems.add(BarChartRodStackItem(currentY, currentY + res, Colors.purple));
+              currentY += res;
+            }
+            
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: currentY,
+                  width: barWidth,
+                  borderRadius: BorderRadius.circular(6),
+                  rodStackItems: stackItems,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, String streamKey, Color color) {
+    final isActive = activeStreams.contains(streamKey);
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isActive) {
+            if (activeStreams.length > 1) {
+              activeStreams.remove(streamKey);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('At least one data stream must be selected.'),
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } else {
+            activeStreams.add(streamKey);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? color.withOpacity(0.08) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? color.withOpacity(0.3) : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: isActive ? color : const Color(0xFF94A3B8),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.check, size: 12, color: color),
+            ]
+          ],
+        ),
       ),
     );
   }
@@ -1128,7 +1725,6 @@ class _SalesReportPageState extends State<SalesReportPage>
     // Calculate pagination
     final totalPages = (filteredTransactions.length / _itemsPerPage).ceil();
     final startIndex = (_currentPage - 1) * _itemsPerPage;
-    final endIndex = startIndex + _itemsPerPage;
     final paginatedTransactions = filteredTransactions.skip(startIndex).take(_itemsPerPage).toList();
 
     return Column(
@@ -1331,6 +1927,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       children: [
         Expanded(flex: 1, child: Text('ID', style: style)),
         Expanded(flex: 2, child: Text('CUSTOMER', style: style)),
+        Expanded(flex: 2, child: Text('TYPE', style: style)),
         Expanded(flex: 3, child: Text('ITEMS', style: style)),
         Expanded(flex: 2, child: Text('DATE', style: style)),
         Expanded(flex: 1, child: Text('AMOUNT', style: style)),
@@ -1354,7 +1951,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundColor: (t['color'] as Color).withOpacity(0.1),
+                  backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
                   child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
@@ -1363,11 +1960,18 @@ class _SalesReportPageState extends State<SalesReportPage>
             ),
           ),
           Expanded(
+            flex: 2,
+            child: _typeBadge(t['type'] ?? 'Regular'),
+          ),
+          Expanded(
             flex: 3,
             child: Builder(
               builder: (context) {
-                // Use a more stable approach for items display
-                return _ItemsDisplay(orderId: t['db_id']);
+                return _ItemsDisplay(
+                  orderId: t['db_id'],
+                  type: t['type'] ?? 'Regular',
+                  selectedMenuItems: t['selected_menu_items'],
+                );
               },
             ),
           ),
@@ -1404,7 +2008,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: (t['color'] as Color).withOpacity(0.1),
+                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
                     child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 12),
@@ -1417,13 +2021,23 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                 ],
               ),
-              _statusBadge(t['status']),
+              Row(
+                children: [
+                  _typeBadge(t['type'] ?? 'Regular'),
+                  const SizedBox(width: 8),
+                  _statusBadge(t['status']),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Builder(
             builder: (context) {
-              return _ItemsDisplay(orderId: t['db_id']);
+              return _ItemsDisplay(
+                orderId: t['db_id'],
+                type: t['type'] ?? 'Regular',
+                selectedMenuItems: t['selected_menu_items'],
+              );
             },
           ),
           const SizedBox(height: 12),
@@ -1435,6 +2049,37 @@ class _SalesReportPageState extends State<SalesReportPage>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _typeBadge(String type) {
+    Color bg;
+    Color textColor;
+    String label;
+    switch (type) {
+      case 'Advance':
+        bg = const Color(0xFFDCFCE7);
+        textColor = const Color(0xFF15803D);
+        label = 'Advance';
+        break;
+      case 'Reservation':
+        bg = const Color(0xFFF3E8FF);
+        textColor = const Color(0xFF7C3AED);
+        label = 'Event Reservation';
+        break;
+      default:
+        bg = const Color(0xFFDBEAFE);
+        textColor = const Color(0xFF1D4ED8);
+        label = 'Regular';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Text(
+        label,
+        style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -1640,30 +2285,23 @@ class _SalesReportPageState extends State<SalesReportPage>
 }
 
 // ── Items Display Widget ─────────────────────────────────────────────────────
-class _ItemsDisplay extends StatefulWidget {
+class _ItemsDisplay extends StatelessWidget {
   final String orderId;
+  final String type;
+  final Map<String, dynamic>? selectedMenuItems;
 
-  const _ItemsDisplay({required this.orderId});
-
-  @override
-  _ItemsDisplayState createState() => _ItemsDisplayState();
-}
-
-class _ItemsDisplayState extends State<_ItemsDisplay> {
-  late Future<List<Map<String, dynamic>>> _itemsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _itemsFuture = _fetchItems();
-  }
+  const _ItemsDisplay({
+    required this.orderId,
+    required this.type,
+    this.selectedMenuItems,
+  });
 
   Future<List<Map<String, dynamic>>> _fetchItems() async {
     try {
       final response = await Supabase.instance.client
           .from('order_items')
           .select('item_name, quantity')
-          .eq('order_id', widget.orderId);
+          .eq('order_id', orderId);
       
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -1674,8 +2312,21 @@ class _ItemsDisplayState extends State<_ItemsDisplay> {
 
   @override
   Widget build(BuildContext context) {
+    if ((type == 'Advance' || type == 'Reservation') && selectedMenuItems != null) {
+      final itemsStr = selectedMenuItems!.entries
+          .map((e) => '${e.key} x${e.value}')
+          .join(', ');
+      
+      return Text(
+        itemsStr.isEmpty ? 'No items' : itemsStr,
+        style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _itemsFuture,
+      future: _fetchItems(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Text(
