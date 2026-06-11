@@ -90,11 +90,10 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Apply period-specific filtering
       switch (selectedPeriod) {
         case 'Daily':
-          final orderHour = date.hour;
+          // No business hours filter - show all revenue regardless of acceptance time
           return date.year == now.year && 
               date.month == now.month && 
-              date.day == now.day &&
-              orderHour >= 10 && orderHour < 20;
+              date.day == now.day;
         case 'Weekly':
           final dailyDiff = now.difference(date).inDays;
           return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
@@ -109,7 +108,8 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     // Add paid advance orders
     combinedOrders.addAll(allAdvanceOrders.where((order) {
-      final date = DateTime.tryParse(order['order_date'] ?? '');
+      // Use updated_at timestamp when payment was marked as paid, not the scheduled order_date
+      final date = DateTime.tryParse(order['updated_at'] ?? '');
       if (date == null) return false;
       
       // Only include paid advance orders
@@ -141,7 +141,9 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     // Add paid event reservations
     combinedOrders.addAll(allReservations.where((reservation) {
-      final date = DateTime.tryParse(reservation['event_date'] ?? '');
+      // Use payment_date if available, otherwise use updated_at when payment was marked as paid
+      // NOT the scheduled event_date
+      final date = DateTime.tryParse(reservation['payment_date'] ?? reservation['updated_at'] ?? '');
       if (date == null) return false;
 
       // Filter for paid/fully_paid/deposit_paid events
@@ -192,8 +194,15 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (order['is_reservation'] == true) {
         final paymentStatus = order['payment_status']?.toString() ?? '';
         if (paymentStatus == 'deposit_paid') {
+          // When deposit is paid, count only the deposit amount
           amount = (order['deposit_amount'] as num?)?.toDouble() ?? 
                    ((order['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+        } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
+          // When fully paid, count only the remaining balance (total - deposit)
+          // to avoid double-counting the deposit
+          final totalPrice = (order['total_price'] as num?)?.toDouble() ?? 0.0;
+          final depositAmount = (order['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+          amount = totalPrice - depositAmount;
         } else {
           amount = (order['total_price'] as num?)?.toDouble() ?? 0.0;
         }
@@ -234,7 +243,8 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     // Helper to process advance orders
     for (var order in advanceOrders) {
-      final date = DateTime.tryParse(order['order_date'] ?? '');
+      // Use updated_at timestamp when payment was marked as paid, not the scheduled order_date
+      final date = DateTime.tryParse(order['updated_at'] ?? '');
       if (date == null) continue;
 
       final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
@@ -246,7 +256,9 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     // Helper to process event reservations
     for (var reservation in reservations) {
-      final date = DateTime.tryParse(reservation['event_date'] ?? '');
+      // Use payment_date if available, otherwise use updated_at when payment was marked as paid
+      // NOT the scheduled event_date
+      final date = DateTime.tryParse(reservation['payment_date'] ?? reservation['updated_at'] ?? '');
       if (date == null) continue;
 
       final paymentStatus = reservation['payment_status']?.toString() ?? '';
@@ -257,8 +269,15 @@ class _SalesReportPageState extends State<SalesReportPage>
 
       double amount = 0.0;
       if (paymentStatus == 'deposit_paid') {
+        // When deposit is paid, count only the deposit amount
         amount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 
                  ((reservation['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+      } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
+        // When fully paid, count only the remaining balance (total - deposit)
+        // to avoid double-counting the deposit
+        final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
+        final depositAmount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+        amount = totalPrice - depositAmount;
       } else {
         amount = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
       }
@@ -267,7 +286,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     int length = 0;
     if (selectedPeriod == 'Daily') {
-      length = 11;
+      length = 24; // Show all 24 hours instead of just business hours
     } else if (selectedPeriod == 'Weekly') {
       length = 7;
     } else if (selectedPeriod == 'Monthly') {
@@ -298,35 +317,12 @@ class _SalesReportPageState extends State<SalesReportPage>
         if (date.year == now.year && 
             date.month == now.month && 
             date.day == now.day) {
-           if (isAdvance && advanceOrder != null) {
-             try {
-                final timeStr = advanceOrder['order_time']?.toString() ?? '12:00 PM';
-                final hour = DateFormat.jm().parse(timeStr).hour;
-                if (hour >= 10 && hour < 20) {
-                  final key = hour - 10;
-                  periodData[key] = (periodData[key] ?? 0) + amount;
-                }
-             } catch (_) {
-                periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
-             }
-           } else if (isReservation && reservation != null) {
-             try {
-                final timeStr = reservation['start_time']?.toString() ?? '12:00 PM';
-                final hour = DateFormat.jm().parse(timeStr).hour;
-                if (hour >= 10 && hour < 20) {
-                  final key = hour - 10;
-                  periodData[key] = (periodData[key] ?? 0) + amount;
-                }
-             } catch (_) {
-                periodData[2] = (periodData[2] ?? 0) + amount; // Fallback to 12 PM
-             }
-           } else {
-              final orderHour = date.hour;
-              if (orderHour >= 10 && orderHour < 20) {
-                final key = orderHour - 10;
-                periodData[key] = (periodData[key] ?? 0) + amount;
-              }
-           }
+           // Use the actual payment timestamp hour for all order types
+           // (updated_at for advance orders, payment_date/updated_at for reservations, created_at for regular orders)
+           // No business hours filter - show all revenue regardless of acceptance time
+           final orderHour = date.hour;
+           final key = orderHour;
+           periodData[key] = (periodData[key] ?? 0) + amount;
         }
         break;
       case 'Weekly':
@@ -541,8 +537,8 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   List<String> getChartLabels() {
     if (selectedPeriod == 'Daily') {
-      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
-      return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+      // Show all 24 hours instead of just business hours
+      return ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
     } else if (selectedPeriod == 'Weekly') {
       return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     } else if (selectedPeriod == 'Monthly') {
