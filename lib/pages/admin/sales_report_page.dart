@@ -23,7 +23,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   String selectedPeriod = 'Monthly';
   String selectedYear = '2026';
   String selectedChartType = 'Line';
-  Set<String> activeStreams = {'Regular', 'Advance', 'Reservation'};
+  Set<String> activeStreams = {'Regular'};
   final _supabase = Supabase.instance.client;
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   late AnimationController _animationController;
@@ -106,81 +106,8 @@ class _SalesReportPageState extends State<SalesReportPage>
       }
     }).toList());
     
-    // Add paid advance orders
-    combinedOrders.addAll(allAdvanceOrders.where((order) {
-      // Use updated_at timestamp when payment was marked as paid, not the scheduled order_date
-      final date = DateTime.tryParse(order['updated_at'] ?? '');
-      if (date == null) return false;
-      
-      // Only include paid advance orders
-      final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
-      if (!isPaid) return false;
-      
-      // Filter by selected year first (except for yearly view)
-      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
-        return false;
-      }
-      
-      // Apply period-specific filtering
-      switch (selectedPeriod) {
-        case 'Daily':
-          return date.year == now.year && 
-              date.month == now.month && 
-              date.day == now.day;
-        case 'Weekly':
-          final dailyDiff = now.difference(date).inDays;
-          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
-        case 'Monthly':
-          return date.year.toString() == selectedYear;
-        case 'Annually':
-          return date.year >= 2016 && date.year <= now.year;
-        default:
-          return false;
-      }
-    }).toList());
-
-    // Add paid event reservations
-    combinedOrders.addAll(allReservations.where((reservation) {
-      // Use payment_date if available, otherwise use updated_at when payment was marked as paid
-      // NOT the scheduled event_date
-      final date = DateTime.tryParse(reservation['payment_date'] ?? reservation['updated_at'] ?? '');
-      if (date == null) return false;
-
-      // Filter for paid/fully_paid/deposit_paid events
-      final paymentStatus = reservation['payment_status']?.toString() ?? '';
-      final isPaid = paymentStatus == 'paid' ||
-          paymentStatus == 'fully_paid' ||
-          paymentStatus == 'deposit_paid';
-      if (!isPaid) return false;
-
-      // Filter by selected year first (except for yearly view)
-      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
-        return false;
-      }
-
-      // Apply period-specific filtering
-      switch (selectedPeriod) {
-        case 'Daily':
-          return date.year == now.year &&
-              date.month == now.month &&
-              date.day == now.day;
-        case 'Weekly':
-          final dailyDiff = now.difference(date).inDays;
-          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
-        case 'Monthly':
-          return date.year.toString() == selectedYear;
-        case 'Annually':
-          return date.year >= 2016 && date.year <= now.year;
-        default:
-          return false;
-      }
-    }).map((r) {
-      // Map event reservations so they are recognizable as reservations
-      return {
-        ...r,
-        'is_reservation': true,
-      };
-    }).toList());
+    // Sales Report now only includes regular orders (walk-in orders)
+    // Advance orders and event reservations are excluded from this report
     
     if (combinedOrders.isEmpty) {
       return {'revenue': 0.0, 'orders': 0, 'customers': 0, 'avgOrder': 0.0};
@@ -232,56 +159,15 @@ class _SalesReportPageState extends State<SalesReportPage>
     Map<int, double> advanceData = {};
     Map<int, double> reservationData = {};
 
-    // Helper to process regular orders
+    // Helper to process regular orders only
+    // Sales Report now only includes regular orders (walk-in orders)
+    // Advance orders and event reservations are excluded from this report
     for (var order in orders) {
       final date = DateTime.tryParse(order['created_at'] ?? '');
       if (date == null) continue;
 
       final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
       _addToPeriodData(date, amount, regularData, now);
-    }
-
-    // Helper to process advance orders
-    for (var order in advanceOrders) {
-      // Use updated_at timestamp when payment was marked as paid, not the scheduled order_date
-      final date = DateTime.tryParse(order['updated_at'] ?? '');
-      if (date == null) continue;
-
-      final isPaid = order['payment_status'] == 'paid' || order['payment_status'] == 'fully_paid';
-      if (!isPaid) continue;
-
-      final amount = (order['total_price'] as num?)?.toDouble() ?? 0.0;
-      _addToPeriodData(date, amount, advanceData, now, isAdvance: true, advanceOrder: order);
-    }
-
-    // Helper to process event reservations
-    for (var reservation in reservations) {
-      // Use payment_date if available, otherwise use updated_at when payment was marked as paid
-      // NOT the scheduled event_date
-      final date = DateTime.tryParse(reservation['payment_date'] ?? reservation['updated_at'] ?? '');
-      if (date == null) continue;
-
-      final paymentStatus = reservation['payment_status']?.toString() ?? '';
-      final isPaid = paymentStatus == 'paid' ||
-          paymentStatus == 'fully_paid' ||
-          paymentStatus == 'deposit_paid';
-      if (!isPaid) continue;
-
-      double amount = 0.0;
-      if (paymentStatus == 'deposit_paid') {
-        // When deposit is paid, count only the deposit amount
-        amount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 
-                 ((reservation['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-      } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
-        // When fully paid, count only the remaining balance (total - deposit)
-        // to avoid double-counting the deposit
-        final totalPrice = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
-        final depositAmount = (reservation['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-        amount = totalPrice - depositAmount;
-      } else {
-        amount = (reservation['total_price'] as num?)?.toDouble() ?? 0.0;
-      }
-      _addToPeriodData(date, amount, reservationData, now, isReservation: true, reservation: reservation);
     }
 
     int length = 0;
@@ -297,8 +183,8 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     return {
       'regular': List.generate(length, (i) => regularData[i] ?? 0.0),
-      'advance': List.generate(length, (i) => advanceData[i] ?? 0.0),
-      'reservation': List.generate(length, (i) => reservationData[i] ?? 0.0),
+      'advance': List.generate(length, (i) => 0.0),
+      'reservation': List.generate(length, (i) => 0.0),
     };
   }
 
@@ -1027,8 +913,6 @@ class _SalesReportPageState extends State<SalesReportPage>
                       runSpacing: 8,
                       children: [
                         _buildLegendItem('Regular Orders', 'Regular', Colors.blue),
-                        _buildLegendItem('Advance Orders', 'Advance', Colors.green),
-                        _buildLegendItem('Event Reservations', 'Reservation', Colors.purple),
                       ],
                     ),
                   ],
@@ -1153,8 +1037,6 @@ class _SalesReportPageState extends State<SalesReportPage>
               // regardless of which streams are currently toggled on/off.
               final List<String> activeLineNames = [];
               if (activeStreams.contains('Regular')) activeLineNames.add('Regular Orders');
-              if (activeStreams.contains('Advance')) activeLineNames.add('Advance Orders');
-              if (activeStreams.contains('Reservation')) activeLineNames.add('Event Reservations');
 
               return spots.map((spot) {
                 final labels = getChartLabels();
