@@ -1802,6 +1802,8 @@ class ReservationService {
       };
 
       if (table == 'reservations') {
+        // For deposits: keep payment_status as is, only change status to 'confirmed'
+        // Revenue will be counted based on status == 'confirmed' AND payment_status != 'unpaid'
         updates['status'] = 'confirmed';
       } else {
         updates['status'] = 'pending'; // To kitchen

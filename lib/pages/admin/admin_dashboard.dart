@@ -418,19 +418,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     _totalAdvanceOrders = paidAdvanceOrders.length;
 
-    // Count completed orders as customer count
+    // Count all orders as customer count (regardless of status)
 
-    final regularCustomers = todayOrders.where((o) {
-      final status = o['kitchen_status']?.toString() ?? 'Pending';
+    final regularCustomers = todayOrders.length;
 
-      return status != 'Pending';
-    }).length;
-
-    final advanceCustomers = todayPaidAdvanceOrders.where((o) {
-      final status = o['status']?.toString().toLowerCase() ?? 'pending';
-
-      return status != 'pending';
-    }).length;
+    final advanceCustomers = todayPaidAdvanceOrders.length;
 
     _totalCustomers = regularCustomers + advanceCustomers;
 
@@ -564,21 +556,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     // Process Event Reservation Performance (Historical)
     final paidEventReservations = allReservations.where((r) {
       final paymentStatus = r['payment_status']?.toString() ?? '';
-      final isPaid =
-          paymentStatus == 'paid' ||
-          paymentStatus == 'fully_paid' ||
-          paymentStatus == 'deposit_paid';
       final status = r['status']?.toString() ?? '';
       final totalPrice = r['total_price'];
 
-      // Debug logging for all paid events
-      if (isPaid) {
+      // Revenue Logic:
+      // Both deposit and full payments require admin approval (status = 'confirmed')
+      // before being reflected in revenue
+      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid' || paymentStatus == 'deposit_paid';
+      final isAdminApproved = status == 'confirmed';
+      final shouldIncludeInRevenue = isPaid && isAdminApproved;
+
+      // Debug logging
+      if (shouldIncludeInRevenue) {
         print(
-          'DEBUG: Paid Event - Status: $status, Payment: $paymentStatus, Amount: $totalPrice',
+          'DEBUG: ✓ Event included in revenue (ADMIN APPROVED) - Status: $status, Payment: $paymentStatus, Amount: $totalPrice',
+        );
+      } else if (isPaid && !isAdminApproved) {
+        print(
+          'DEBUG: ✗ Payment NOT approved by admin yet - Status: $status, Payment: $paymentStatus, Amount: $totalPrice',
         );
       }
 
-      return isPaid;
+      return shouldIncludeInRevenue;
     }).toList();
 
     _eventReservationRevenueTotal = paidEventReservations.fold(0.0, (sum, r) {
