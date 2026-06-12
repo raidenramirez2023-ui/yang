@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/utils/app_theme.dart';
 import 'package:csv/csv.dart' as csv_pkg;
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
@@ -24,6 +26,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   String selectedYear = '2026';
   String selectedChartType = 'Line';
   Set<String> activeStreams = {'Regular'};
+  bool _showEventReservationPerformance = false;
   final _supabase = Supabase.instance.client;
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   late AnimationController _animationController;
@@ -172,7 +175,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     int length = 0;
     if (selectedPeriod == 'Daily') {
-      length = 24; // Show all 24 hours instead of just business hours
+      length = 11; // Business hours only: 10am to 8pm (10:00 to 20:00)
     } else if (selectedPeriod == 'Weekly') {
       length = 7;
     } else if (selectedPeriod == 'Monthly') {
@@ -202,12 +205,11 @@ class _SalesReportPageState extends State<SalesReportPage>
       case 'Daily':
         if (date.year == now.year && 
             date.month == now.month && 
-            date.day == now.day) {
-           // Use the actual payment timestamp hour for all order types
-           // (updated_at for advance orders, payment_date/updated_at for reservations, created_at for regular orders)
-           // No business hours filter - show all revenue regardless of acceptance time
-           final orderHour = date.hour;
-           final key = orderHour;
+            date.day == now.day &&
+            date.hour >= 10 &&
+            date.hour <= 20) {
+           // Map hour to 0-based index within business hours (10:00–20:00)
+           final key = date.hour - 10;
            periodData[key] = (periodData[key] ?? 0) + amount;
         }
         break;
@@ -308,24 +310,31 @@ class _SalesReportPageState extends State<SalesReportPage>
         ),
       );
 
-      // Fetch all items for these orders
-      final orderIds = transactions.map((t) => t['db_id']).toList();
-      final itemsResponse = await _supabase
-          .from('order_items')
-          .select('order_id, item_name, quantity')
-          .inFilter('order_id', orderIds);
+      // Fetch all items for regular orders
+      final orderIds = transactions
+          .where((t) => t['type'] == 'Regular')
+          .map((t) => t['db_id'])
+          .toList();
 
-      final List<Map<String, dynamic>> allItems = List<Map<String, dynamic>>.from(itemsResponse);
-      
-      // Group items by order id
       Map<String, String> itemsMap = {};
-      for (var item in allItems) {
-        final orderId = item['order_id'].toString();
-        final itemStr = '${item['item_name']} x${item['quantity']}';
-        if (itemsMap.containsKey(orderId)) {
-          itemsMap[orderId] = '${itemsMap[orderId]}, $itemStr';
-        } else {
-          itemsMap[orderId] = itemStr;
+      if (orderIds.isNotEmpty) {
+        final itemsResponse = await _supabase
+            .from('order_items')
+            .select('order_id, item_name, quantity')
+            .inFilter('order_id', orderIds);
+
+        final List<Map<String, dynamic>> allItems =
+            List<Map<String, dynamic>>.from(itemsResponse);
+
+        // Group items by order id
+        for (var item in allItems) {
+          final orderId = item['order_id'].toString();
+          final itemStr = '${item['item_name']} x${item['quantity']}';
+          if (itemsMap.containsKey(orderId)) {
+            itemsMap[orderId] = '${itemsMap[orderId]}, $itemStr';
+          } else {
+            itemsMap[orderId] = itemStr;
+          }
         }
       }
 
@@ -340,8 +349,49 @@ class _SalesReportPageState extends State<SalesReportPage>
         rows.add(['Total Revenue', _currencyFormat.format(metrics['revenue']).replaceAll('₱', 'PHP ')]);
         rows.add(['Total Orders', metrics['orders']]);
         rows.add(['Average Order', _currencyFormat.format(metrics['avgOrder']).replaceAll('₱', 'PHP ')]);
-        rows.add(['Active Customers', metrics['customers']]);
+        rows.add(['Unique Customers', metrics['customers']]);
         rows.add(['Low Stock Items', metrics['lowStock']]);
+        
+        // Add Advance Order Performance Summary
+        if (metrics.containsKey('advanceOrderRevenue')) {
+          rows.add([]);
+          rows.add(['ADVANCE ORDER PERFORMANCE (HISTORICAL)']);
+          rows.add(['Total AO Revenue', _currencyFormat.format(metrics['advanceOrderRevenue']).replaceAll('₱', 'PHP ')]);
+          rows.add(['AO Completed', metrics['advanceOrderCompleted']]);
+          rows.add(['Cancellation Rate', '${(metrics['advanceOrderCancellationRate'] as double).toStringAsFixed(1)}%']);
+          
+          if (metrics['popularAdvanceItems'] != null) {
+            final Map<String, int> popItems = Map<String, int>.from(metrics['popularAdvanceItems']);
+            if (popItems.isNotEmpty) {
+              rows.add(['Popular Advance Order Items', 'Orders Count']);
+              final sortedItems = popItems.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+              for (var entry in sortedItems) {
+                rows.add([entry.key, entry.value]);
+              }
+            }
+          }
+        }
+        
+        // Add Event Reservation Performance Summary
+        if (metrics.containsKey('eventReservationRevenue')) {
+          rows.add([]);
+          rows.add(['EVENT RESERVATION PERFORMANCE (HISTORICAL)']);
+          rows.add(['Total Event Revenue', _currencyFormat.format(metrics['eventReservationRevenue']).replaceAll('₱', 'PHP ')]);
+          rows.add(['Events Completed', metrics['eventReservationCompleted']]);
+          rows.add(['Cancellation Rate', '${(metrics['eventReservationCancellationRate'] as double).toStringAsFixed(1)}%']);
+          
+          if (metrics['popularEventTypes'] != null) {
+            final Map<String, int> popEvents = Map<String, int>.from(metrics['popularEventTypes']);
+            if (popEvents.isNotEmpty) {
+              rows.add(['Popular Event Types', 'Completed Count']);
+              final sortedEvents = popEvents.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+              for (var entry in sortedEvents) {
+                rows.add([entry.key, entry.value]);
+              }
+            }
+          }
+        }
+
         rows.add([]); // Empty spacer row
         rows.add(['RECENT TRANSACTIONS']);
       }
@@ -423,8 +473,8 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   List<String> getChartLabels() {
     if (selectedPeriod == 'Daily') {
-      // Show all 24 hours instead of just business hours
-      return ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
+      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
+      return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
     } else if (selectedPeriod == 'Weekly') {
       return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     } else if (selectedPeriod == 'Monthly') {
@@ -464,7 +514,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         final chartValues = _processChartData(allOrders, allAdvanceOrders, allReservations);
                         
                         final now = DateTime.now();
-                        final isBusinessHours = now.hour >= 10 && now.hour < 20; // 10:00 AM to 8: PM
+                        final isBusinessHours = now.hour >= 10 && now.hour <= 20; // 10:00 AM to 8:00 PM
                         
                         final lowStockCount = allInventory.where((item) {
                           final qty = (item['quantity'] as num?)?.toInt() ?? 0;
@@ -608,6 +658,95 @@ class _SalesReportPageState extends State<SalesReportPage>
                         
                         final tableTransactions = combinedTransactions;
 
+                        // Calculate Advance Order Performance (Historical)
+                        final double advanceOrderRevenueTotal = allAdvanceOrders
+                            .where((o) =>
+                                o['payment_status'] == 'paid' ||
+                                o['payment_status'] == 'fully_paid')
+                            .fold(0.0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0));
+
+                        final int completedAdvanceOrdersCount = allAdvanceOrders
+                            .where((o) =>
+                                o['status'] == 'done' ||
+                                o['status'] == 'completed' ||
+                                o['status'] == 'ready')
+                            .length;
+
+                        final int cancelledAdvanceOrdersCount = allAdvanceOrders
+                            .where((o) => o['status'] == 'cancelled')
+                            .length;
+
+                        final int totalAdvAttempts = allAdvanceOrders.length;
+                        final double advanceCancellationRate = totalAdvAttempts > 0
+                            ? (cancelledAdvanceOrdersCount / totalAdvAttempts) * 100
+                            : 0.0;
+
+                        final Map<String, int> popularAdvanceItems = {};
+                        for (var o in allAdvanceOrders) {
+                          if (o['status'] == 'done' ||
+                              o['status'] == 'completed' ||
+                              o['status'] == 'ready') {
+                            final items = o['selected_menu_items'] as Map<String, dynamic>? ?? {};
+                            items.forEach((name, qty) {
+                              popularAdvanceItems[name] = (popularAdvanceItems[name] ?? 0) + (qty as num).toInt();
+                            });
+                          }
+                        }
+
+                        // Calculate Event Reservation Performance (Historical)
+                        final paidEventReservations = allReservations.where((r) {
+                          final paymentStatus = r['payment_status']?.toString() ?? '';
+                          final status = r['status']?.toString() ?? '';
+                          final isPaid = paymentStatus == 'paid' ||
+                              paymentStatus == 'fully_paid' ||
+                              paymentStatus == 'deposit_paid';
+                          final isAdminApproved = status == 'confirmed';
+                          return isPaid && isAdminApproved;
+                        }).toList();
+
+                        final double eventReservationRevenueTotal = paidEventReservations.fold(0.0, (sum, r) {
+                          final paymentStatus = r['payment_status']?.toString() ?? '';
+                          if (paymentStatus == 'deposit_paid') {
+                            final amount = (r['deposit_amount'] as num?)?.toDouble() ??
+                                ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+                            return sum + amount;
+                          } else {
+                            final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+                            return sum + amount;
+                          }
+                        });
+
+                        final int completedEventReservationsCount = allReservations
+                            .where((r) => r['status'] == 'completed')
+                            .length;
+
+                        final int cancelledEventReservationsCount = allReservations
+                            .where((r) => r['status'] == 'cancelled')
+                            .length;
+
+                        final int totalEventAttempts = allReservations.length;
+                        final double eventCancellationRate = totalEventAttempts > 0
+                            ? (cancelledEventReservationsCount / totalEventAttempts) * 100
+                            : 0.0;
+
+                        final Map<String, int> popularEventTypes = {};
+                        for (var r in allReservations) {
+                          if (r['status'] == 'completed') {
+                            final eventType = r['event_type']?.toString() ?? 'Unknown';
+                            popularEventTypes[eventType] = (popularEventTypes[eventType] ?? 0) + 1;
+                          }
+                        }
+
+                        metrics['advanceOrderRevenue'] = advanceOrderRevenueTotal;
+                        metrics['advanceOrderCompleted'] = completedAdvanceOrdersCount;
+                        metrics['advanceOrderCancellationRate'] = advanceCancellationRate;
+                        metrics['popularAdvanceItems'] = popularAdvanceItems;
+
+                        metrics['eventReservationRevenue'] = eventReservationRevenueTotal;
+                        metrics['eventReservationCompleted'] = completedEventReservationsCount;
+                        metrics['eventReservationCancellationRate'] = eventCancellationRate;
+                        metrics['popularEventTypes'] = popularEventTypes;
+
                         return FadeTransition(
                           opacity: _fadeAnimation,
                           child: Padding(
@@ -626,7 +765,90 @@ class _SalesReportPageState extends State<SalesReportPage>
                                         const SizedBox(height: 32),
                                         _chartCard(chartValues),
                                         const SizedBox(height: 32),
-                                        _transactionsSection(tableTransactions),
+                                        _buildClickableSectionTitle(
+                                          context,
+                                          'Advance Order Performance',
+                                          () {
+                                            setState(() {
+                                              _showEventReservationPerformance =
+                                                  !_showEventReservationPerformance;
+                                            });
+                                          },
+                                        ),
+                                        const SizedBox(height: AppTheme.md),
+                                        ResponsiveUtils.isMobile(context)
+                                            ? Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildAdvanceOrderPerformance(
+                                                    context,
+                                                    advanceOrderRevenueTotal,
+                                                    completedAdvanceOrdersCount,
+                                                    advanceCancellationRate,
+                                                    popularAdvanceItems,
+                                                  ),
+                                                  if (_showEventReservationPerformance) ...[
+                                                    const SizedBox(height: AppTheme.lg),
+                                                    _buildSectionTitle(
+                                                      context,
+                                                      'Event Reservation Performance',
+                                                    ),
+                                                    const SizedBox(height: AppTheme.md),
+                                                    _buildEventReservationPerformance(
+                                                      context,
+                                                      eventReservationRevenueTotal,
+                                                      completedEventReservationsCount,
+                                                      eventCancellationRate,
+                                                      popularEventTypes,
+                                                    ),
+                                                  ],
+                                                ],
+                                              )
+                                            : Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Expanded(
+                                                    flex: 1,
+                                                    child: _buildAdvanceOrderPerformance(
+                                                      context,
+                                                      advanceOrderRevenueTotal,
+                                                      completedAdvanceOrdersCount,
+                                                      advanceCancellationRate,
+                                                      popularAdvanceItems,
+                                                    ),
+                                                  ),
+                                                  if (_showEventReservationPerformance) ...[
+                                                    const SizedBox(width: AppTheme.lg),
+                                                    Expanded(
+                                                      flex: 1,
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment.start,
+                                                        children: [
+                                                          _buildSectionTitle(
+                                                            context,
+                                                            'Event Reservation Performance',
+                                                          ),
+                                                          const SizedBox(
+                                                            height: AppTheme.md,
+                                                          ),
+                                                          _buildEventReservationPerformance(
+                                                            context,
+                                                            eventReservationRevenueTotal,
+                                                            completedEventReservationsCount,
+                                                            eventCancellationRate,
+                                                            popularEventTypes,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                        const SizedBox(height: 32),
+                                        _transactionsSection(tableTransactions, metrics),
                                       ],
                                     ),
                                   ),
@@ -822,7 +1044,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           const SizedBox(width: 16),
           _summaryCard(
-            'Active Customers',
+            'Unique Customers',
             data['customers'].toString(),
             Icons.people_alt_rounded,
             const Color(0xFFEC4899),
@@ -990,16 +1212,27 @@ class _SalesReportPageState extends State<SalesReportPage>
   }
 
   double _calculateInterval(double maxY) {
-    if (maxY <= 0) return 1000;
-    double rawInterval = maxY / 5;
-    if (rawInterval < 100) return 100;
-    if (rawInterval < 500) return 500;
-    if (rawInterval < 1000) return 1000;
-    if (rawInterval < 5000) return 5000;
-    if (rawInterval < 10000) return 10000;
-    if (rawInterval < 50000) return 50000;
-    if (rawInterval < 100000) return 100000;
-    return (rawInterval / 50000).round() * 50000.0;
+    if (maxY <= 0) return 1000.0;
+    double rawInterval = maxY / 5.0;
+    
+    // Find the magnitude (power of 10) of the raw interval
+    double log10 = log(rawInterval) / ln10;
+    double powerOf10 = pow(10, log10.floor()).toDouble();
+    
+    double ratio = rawInterval / powerOf10;
+    
+    double niceRatio;
+    if (ratio < 1.5) {
+      niceRatio = 1.0;
+    } else if (ratio < 3.0) {
+      niceRatio = 2.0;
+    } else if (ratio < 7.0) {
+      niceRatio = 5.0;
+    } else {
+      niceRatio = 10.0;
+    }
+    
+    return niceRatio * powerOf10;
   }
 
   Widget _buildLineChart(Map<String, List<double>> chartData) {
@@ -1114,7 +1347,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                 );
               },
-              reservedSize: 50,
+              reservedSize: 60,
             ),
           ),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -1374,7 +1607,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                 );
               },
-              reservedSize: 50,
+              reservedSize: 60,
             ),
           ),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -1494,7 +1727,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _transactionsSection(List<Map<String, dynamic>> transactions) {
+  Widget _transactionsSection(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
     final isMobile = ResponsiveUtils.isMobile(context);
     
     return Container(
@@ -1520,7 +1753,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                 ),
                 const SizedBox(height: 16),
-                _transactionFilters(transactions, isVertical: true),
+                _transactionFilters(transactions, metrics, isVertical: true),
               ],
             )
           else
@@ -1536,7 +1769,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                     ),
                   ),
                 ),
-                _transactionFilters(transactions),
+                _transactionFilters(transactions, metrics),
               ],
             ),
           const SizedBox(height: 32),
@@ -1546,7 +1779,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _transactionFilters(List<Map<String, dynamic>> transactions, {bool isVertical = false}) {
+  Widget _transactionFilters(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics, {bool isVertical = false}) {
     final isMobile = ResponsiveUtils.isMobile(context);
     
     if (isVertical || isMobile) {
@@ -1558,7 +1791,11 @@ class _SalesReportPageState extends State<SalesReportPage>
               if (_statusFilter == 'All Status') return true;
               return t['status'] == _statusFilter;
             }).toList();
-            _exportToCSV(filteredTransactions, 'Transactions_${_statusFilter.replaceAll(' ', '_')}');
+            _exportToCSV(
+              filteredTransactions,
+              'Transactions_${_statusFilter.replaceAll(' ', '_')}',
+              metrics: metrics,
+            );
           },
           icon: const Icon(Icons.file_download_outlined, size: 18),
           label: const Text('Download CSV'),
@@ -1573,7 +1810,11 @@ class _SalesReportPageState extends State<SalesReportPage>
           if (_statusFilter == 'All Status') return true;
           return t['status'] == _statusFilter;
         }).toList();
-        _exportToCSV(filteredTransactions, 'Transactions_${_statusFilter.replaceAll(' ', '_')}');
+        _exportToCSV(
+          filteredTransactions,
+          'Transactions_${_statusFilter.replaceAll(' ', '_')}',
+          metrics: metrics,
+        );
       },
       icon: const Icon(Icons.file_download_outlined, size: 18),
       label: const Text('Download CSV'),
@@ -2160,6 +2401,375 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     return pageNumbers;
   }
+
+  Widget _buildClickableSectionTitle(
+    BuildContext context,
+    String title,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: _showEventReservationPerformance
+              ? AppTheme.primaryColor.withOpacity(0.1)
+              : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(4),
+                gradient: const LinearGradient(
+                  colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppTheme.sm + 2),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(width: AppTheme.sm),
+            Icon(
+              _showEventReservationPerformance
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: BorderRadius.circular(4),
+            gradient: const LinearGradient(
+              colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppTheme.sm + 2),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.darkGrey,
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdvanceOrderPerformance(
+    BuildContext context,
+    double advanceOrderRevenueTotal,
+    int completedAdvanceOrdersCount,
+    double advanceCancellationRate,
+    Map<String, int> popularAdvanceItems,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem(
+                'Total AO Revenue',
+                '₱${NumberFormat('#,##0.00').format(advanceOrderRevenueTotal)}',
+                Icons.account_balance_wallet_outlined,
+                AppTheme.primaryColor,
+              ),
+              _buildStatItem(
+                'AO Completed',
+                '$completedAdvanceOrdersCount',
+                Icons.check_circle_outline,
+                AppTheme.successGreen,
+              ),
+              _buildStatItem(
+                'Cancellation Rate',
+                '${advanceCancellationRate.toStringAsFixed(1)}%',
+                Icons.cancel_outlined,
+                AppTheme.errorRed,
+              ),
+            ],
+          ),
+          const Divider(height: 40),
+          const Text(
+            'Popular Advance Order Items',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (popularAdvanceItems.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No completed advance orders yet',
+                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 150, // Fixed height for scrollable list
+              child: ListView.builder(
+                itemCount: popularAdvanceItems.entries.length,
+                itemBuilder: (context, index) {
+                  final sortedEntries = popularAdvanceItems.entries.toList()
+                    ..sort((a, b) => b.value.compareTo(a.value));
+                  final e = sortedEntries[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.key,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${e.value} orders',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventReservationPerformance(
+    BuildContext context,
+    double eventReservationRevenueTotal,
+    int completedEventReservationsCount,
+    double eventCancellationRate,
+    Map<String, int> popularEventTypes,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem(
+                'Total Event Revenue',
+                '₱${NumberFormat('#,##0.00').format(eventReservationRevenueTotal)}',
+                Icons.event_available_outlined,
+                Colors.purple,
+              ),
+              _buildStatItem(
+                'Events Completed',
+                '$completedEventReservationsCount',
+                Icons.celebration_outlined,
+                AppTheme.successGreen,
+              ),
+              _buildStatItem(
+                'Cancellation Rate',
+                '${eventCancellationRate.toStringAsFixed(1)}%',
+                Icons.cancel_outlined,
+                AppTheme.errorRed,
+              ),
+            ],
+          ),
+          const Divider(height: 40),
+          const Text(
+            'Most Popular Event Types',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (popularEventTypes.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No completed events yet',
+                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: (popularEventTypes.entries.toList()
+                    ..sort((a, b) => b.value.compareTo(a.value)))
+                  .take(7)
+                  .map((e) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.purple.withOpacity(0.1),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            e.key,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.purple,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              e.value.toString(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  })
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.mediumGrey,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.darkGrey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: AppTheme.white,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
 }
 
 // ── Items Display Widget ─────────────────────────────────────────────────────
@@ -2509,7 +3119,7 @@ class _AnimatedChartState extends State<_AnimatedChart>
                         ),
                       );
                     },
-                    reservedSize: 45,
+                    reservedSize: 55,
                   ),
                 ),
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
