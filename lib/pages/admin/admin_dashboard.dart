@@ -65,34 +65,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   int _lowStock = 0;
 
-  // ── Advance Order Performance ──────────────────────────────────
-
-  double _advanceOrderRevenueTotal = 0.0;
-
-  bool _showEventReservationPerformance = false;
-
-  int _completedAdvanceOrdersCount = 0;
-
-  int _cancelledAdvanceOrdersCount = 0;
-
-  double _advanceCancellationRate = 0.0;
-
-  Map<String, int> _popularAdvanceItems = {};
-
-  // ── Event Reservation Performance ───────────────────────────────
-
-  double _eventReservationRevenueTotal = 0.0;
-
-  int _completedEventReservationsCount = 0;
-
-  int _cancelledEventReservationsCount = 0;
-
-  double _eventCancellationRate = 0.0;
-
-  Map<String, int> _popularEventItems = {};
-
-  Map<String, int> _popularEventTypes = {};
-
   // ── Confirmed Events Analytics Data ───────────────────────────────
 
   final Map<String, int> _eventTypeDistribution = {};
@@ -418,11 +390,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     _totalAdvanceOrders = paidAdvanceOrders.length;
 
-    // Count all orders as customer count (regardless of status)
+    // Count total guest count (pax) from today's orders (default to 1 if null)
 
-    final regularCustomers = todayOrders.length;
+    final regularCustomers = todayOrders.fold<int>(
+      0,
+      (sum, o) => sum + ((o['number_of_guests'] as num?)?.toInt() ?? 1),
+    );
 
-    final advanceCustomers = todayPaidAdvanceOrders.length;
+    final advanceCustomers = todayPaidAdvanceOrders.fold<int>(
+      0,
+      (sum, o) => sum + ((o['number_of_guests'] as num?)?.toInt() ?? 1),
+    );
 
     _totalCustomers = regularCustomers + advanceCustomers;
 
@@ -505,144 +483,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
       return q > 0 && q < 10;
     }).length;
-
-    // Process Advance Order Performance (Historical)
-
-    _advanceOrderRevenueTotal = allAdvanceOrders
-        .where(
-          (o) =>
-              o['payment_status'] == 'paid' ||
-              o['payment_status'] == 'fully_paid',
-        )
-        .fold(
-          0.0,
-          (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0),
-        );
-
-    _completedAdvanceOrdersCount = allAdvanceOrders
-        .where(
-          (o) =>
-              o['status'] == 'done' ||
-              o['status'] == 'completed' ||
-              o['status'] == 'ready',
-        )
-        .length;
-
-    _cancelledAdvanceOrdersCount = allAdvanceOrders
-        .where((o) => o['status'] == 'cancelled')
-        .length;
-
-    final totalAdvAttempts = allAdvanceOrders.length;
-
-    _advanceCancellationRate = totalAdvAttempts > 0
-        ? (_cancelledAdvanceOrdersCount / totalAdvAttempts) * 100
-        : 0.0;
-
-    _popularAdvanceItems.clear();
-
-    for (var o in allAdvanceOrders) {
-      if (o['status'] == 'done' ||
-          o['status'] == 'completed' ||
-          o['status'] == 'ready') {
-        final items = o['selected_menu_items'] as Map<String, dynamic>? ?? {};
-
-        items.forEach((name, qty) {
-          _popularAdvanceItems[name] =
-              (_popularAdvanceItems[name] ?? 0) + (qty as num).toInt();
-        });
-      }
-    }
-
-    // Process Event Reservation Performance (Historical)
-    final paidEventReservations = allReservations.where((r) {
-      final paymentStatus = r['payment_status']?.toString() ?? '';
-      final status = r['status']?.toString() ?? '';
-      final totalPrice = r['total_price'];
-
-      // Revenue Logic:
-      // Both deposit and full payments require admin approval (status = 'confirmed')
-      // before being reflected in revenue
-      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid' || paymentStatus == 'deposit_paid';
-      final isAdminApproved = status == 'confirmed';
-      final shouldIncludeInRevenue = isPaid && isAdminApproved;
-
-      // Debug logging
-      if (shouldIncludeInRevenue) {
-        print(
-          'DEBUG: ✓ Event included in revenue (ADMIN APPROVED) - Status: $status, Payment: $paymentStatus, Amount: $totalPrice',
-        );
-      } else if (isPaid && !isAdminApproved) {
-        print(
-          'DEBUG: ✗ Payment NOT approved by admin yet - Status: $status, Payment: $paymentStatus, Amount: $totalPrice',
-        );
-      }
-
-      return shouldIncludeInRevenue;
-    }).toList();
-
-    _eventReservationRevenueTotal = paidEventReservations.fold(0.0, (sum, r) {
-      final paymentStatus = r['payment_status']?.toString() ?? '';
-      if (paymentStatus == 'deposit_paid') {
-        final amount =
-            (r['deposit_amount'] as num?)?.toDouble() ??
-            ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-        return sum + amount;
-      } else {
-        final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
-        return sum + amount;
-      }
-    });
-
-    print('DEBUG: Total paid events count: ${paidEventReservations.length}');
-
-    print('DEBUG: Total event revenue: ₱${_eventReservationRevenueTotal}');
-
-    _completedEventReservationsCount = allReservations
-        .where((r) => r['status'] == 'completed')
-        .length;
-
-    _cancelledEventReservationsCount = allReservations
-        .where((r) => r['status'] == 'cancelled')
-        .length;
-
-    final totalEventAttempts = allReservations.length;
-
-    _eventCancellationRate = totalEventAttempts > 0
-        ? (_cancelledEventReservationsCount / totalEventAttempts) * 100
-        : 0.0;
-
-    // Calculate popular event items from completed paid events
-
-    _popularEventItems.clear();
-
-    for (var r in allReservations) {
-      if (r['status'] == 'completed' &&
-          (r['payment_status'] == 'paid' ||
-              r['payment_status'] == 'fully_paid')) {
-        final items = r['selected_menu_items'] as Map<String, dynamic>? ?? {};
-
-        items.forEach((name, qty) {
-          _popularEventItems[name] =
-              (_popularEventItems[name] ?? 0) + (qty as num).toInt();
-        });
-      }
-    }
-
-    // Calculate popular event types based on completed events
-
-    _popularEventTypes.clear();
-
-    for (var r in allReservations) {
-      if (r['status'] == 'completed') {
-        final eventType = r['event_type']?.toString() ?? 'Unknown';
-
-        _popularEventTypes[eventType] =
-            (_popularEventTypes[eventType] ?? 0) + 1;
-      }
-    }
-
-    print('DEBUG: Total paid events count: ${paidEventReservations.length}');
-
     _lastUpdated = DateTime.now();
 
     // Update Recent Activity
@@ -1382,11 +1222,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           case 'Daily':
             if (date.year == now.year &&
                 date.month == now.month &&
-                date.day == now.day) {
-              // Use the actual payment timestamp hour for all order types
-              // (updated_at for advance orders, payment_date/updated_at for reservations, created_at for regular orders)
-              // No business hours filter - show all revenue regardless of acceptance time
-              final key = date.hour;
+                date.day == now.day &&
+                date.hour >= 10 &&
+                date.hour <= 20) {
+              // Map hour to 0-based index within business hours (10:00–20:00)
+              final key = date.hour - 10;
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
 
@@ -1616,7 +1456,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                                           const SizedBox(height: AppTheme.lg),
 
+                                          _buildLiveEventsMonitor(context),
+
+                                          const SizedBox(height: AppTheme.lg),
+
                                           _buildVenueStatus(context),
+
+                                          const SizedBox(height: AppTheme.lg),
+
+                                          _buildConfirmedEventsAnalytics(context, false),
                                         ],
                                       )
                                     : (isDesktop || isTablet)
@@ -1636,7 +1484,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                                   height: AppTheme.lg,
                                                 ),
 
+                                                _buildLiveEventsMonitor(context),
+
+                                                const SizedBox(
+                                                  height: AppTheme.lg,
+                                                ),
+
                                                 _buildVenueStatus(context),
+
+                                                const SizedBox(
+                                                  height: AppTheme.lg,
+                                                ),
+
+                                                _buildConfirmedEventsAnalytics(context, true),
                                               ],
                                             ),
                                           ),
@@ -1648,109 +1508,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                                           const SizedBox(height: AppTheme.lg),
 
+                                          _buildLiveEventsMonitor(context),
+
+                                          const SizedBox(height: AppTheme.lg),
+
                                           _buildVenueStatus(context),
+
+                                          const SizedBox(height: AppTheme.lg),
+
+                                          _buildConfirmedEventsAnalytics(context, false),
                                         ],
                                       ),
 
                                 const SizedBox(height: AppTheme.xl),
-
-                                const SizedBox(height: AppTheme.md),
-
-                                _buildConfirmedEventsAnalytics(
-                                  context,
-
-                                  isDesktop || isTablet,
-                                ),
-
-                                const SizedBox(height: AppTheme.xl),
-
-                                // ── Advance Order Performance Section ───────────────────────
-                                _buildClickableSectionTitle(
-                                  context,
-                                  'Advance Order Performance',
-                                  () {
-                                    setState(() {
-                                      _showEventReservationPerformance =
-                                          !_showEventReservationPerformance;
-                                    });
-                                  },
-                                ),
-
-                                const SizedBox(height: AppTheme.md),
-
-                                // Responsive layout for Advance Order and Event Reservation Performance
-                                ResponsiveUtils.isMobile(context)
-                                    ? Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-
-                                        children: [
-                                          _buildAdvanceOrderPerformance(
-                                            context,
-                                          ),
-
-                                          // Event Reservation Performance (below on mobile) - only show when toggled
-                                          if (_showEventReservationPerformance) ...[
-                                            const SizedBox(height: AppTheme.lg),
-
-                                            _buildSectionTitle(
-                                              context,
-                                              'Event Reservation Performance',
-                                            ),
-
-                                            const SizedBox(height: AppTheme.md),
-
-                                            _buildEventReservationPerformance(
-                                              context,
-                                            ),
-                                          ],
-                                        ],
-                                      )
-                                    : Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-
-                                        children: [
-                                          // Advance Order Performance (left side)
-                                          Expanded(
-                                            flex: 1,
-
-                                            child:
-                                                _buildAdvanceOrderPerformance(
-                                                  context,
-                                                ),
-                                          ),
-
-                                          // Event Reservation Performance (right side) - only show when toggled
-                                          if (_showEventReservationPerformance) ...[
-                                            const SizedBox(width: AppTheme.lg),
-
-                                            Expanded(
-                                              flex: 1,
-
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-
-                                                children: [
-                                                  _buildSectionTitle(
-                                                    context,
-                                                    'Event Reservation Performance',
-                                                  ),
-
-                                                  const SizedBox(
-                                                    height: AppTheme.md,
-                                                  ),
-
-                                                  _buildEventReservationPerformance(
-                                                    context,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
 
                                 const SizedBox(height: AppTheme.xl),
 
@@ -1966,80 +1736,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ── Clickable Section Title ─────────────────────────────────────────────────────────
 
-  Widget _buildClickableSectionTitle(
-    BuildContext context,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-
-      borderRadius: BorderRadius.circular(8),
-
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-
-          color: _showEventReservationPerformance
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.transparent,
-        ),
-
-        child: Row(
-          children: [
-            Container(
-              width: 4,
-
-              height: 18,
-
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-
-                borderRadius: BorderRadius.circular(4),
-
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primaryColor, AppTheme.primaryDark],
-
-                  begin: Alignment.topCenter,
-
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-
-            const SizedBox(width: AppTheme.sm + 2),
-
-            Text(
-              title,
-
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-
-                color: AppTheme.darkGrey,
-
-                letterSpacing: -0.2,
-              ),
-            ),
-
-            const SizedBox(width: AppTheme.sm),
-
-            Icon(
-              _showEventReservationPerformance
-                  ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,
-
-              color: AppTheme.primaryColor,
-
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── KPI Grid ──────────────────────────────────────────────────────────────
 
   Widget _buildKpiGrid(bool isWide) {
@@ -2091,7 +1787,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
 
       _KpiData(
-        label: 'CUSTOMERS TODAY',
+        label: 'GUESTS TODAY',
 
         value: '$_totalCustomers',
 
@@ -2365,31 +2061,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-
-                      reservedSize: 45,
-
-                      getTitlesWidget: (value, _) {
-                        if (value == 0) return const SizedBox.shrink();
-
+                      reservedSize: 60,
+                      interval: maxY / 4,
+                      getTitlesWidget: (value, meta) {
                         String label = '';
-
                         if (value >= 1000000) {
-                          label = '${(value / 1000000).toStringAsFixed(1)}M';
+                          label = '₱${(value / 1000000).toStringAsFixed(1)}M';
                         } else if (value >= 1000) {
-                          label = '${(value / 1000).toStringAsFixed(0)}k';
+                          label = '₱${(value / 1000).toStringAsFixed(0)}k';
                         } else {
-                          label = value.toStringAsFixed(0);
+                          label = '₱${value.toStringAsFixed(0)}';
                         }
 
-                        return Text(
-                          label,
-
-                          style: const TextStyle(
-                            color: AppTheme.darkGrey,
-
-                            fontSize: 10,
-
-                            fontWeight: FontWeight.bold,
+                        return SideTitleWidget(
+                          meta: meta,
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              color: AppTheme.darkGrey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         );
                       },
@@ -2444,17 +2136,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               ? weeklyLabels[dayIndex]
                               : 'D${dayIndex + 1}';
                         } else if (_selectedPeriod == 'Daily') {
-                          // Daily: Show all 24 hours (matching sales report logic)
+                          // Daily: Business hours only (10:00 AM to 8:00 PM)
                           final dailyLabels = [
-                            '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
-                            '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-                            '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-                            '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
+                            '10:00', '11:00', '12:00', '13:00', '14:00',
+                            '15:00', '16:00', '17:00', '18:00', '19:00', '20:00',
                           ];
 
                           dayLabel = dayIndex < dailyLabels.length
                               ? dailyLabels[dayIndex]
-                              : '${dayIndex}h';
+                              : '${dayIndex + 10}:00';
                         } else {
                           // Monthly/Annually: Use original logic
 
@@ -2569,157 +2259,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // ── Event Reservation Performance ──────────────────────────────────────────────────────────
-
-  Widget _buildEventReservationPerformance(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.lg),
-
-      decoration: _cardDecoration(),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-            children: [
-              _buildStatItem(
-                'Total Event Revenue',
-
-                '₱${NumberFormat('#,##0.00').format(_eventReservationRevenueTotal)}',
-
-                Icons.event_available_outlined,
-
-                Colors.purple,
-              ),
-
-              _buildStatItem(
-                'Events Completed',
-
-                '$_completedEventReservationsCount',
-
-                Icons.celebration_outlined,
-
-                AppTheme.successGreen,
-              ),
-
-              _buildStatItem(
-                'Cancellation Rate',
-
-                '${_eventCancellationRate.toStringAsFixed(1)}%',
-
-                Icons.cancel_outlined,
-
-                AppTheme.errorRed,
-              ),
-            ],
-          ),
-
-          const Divider(height: 40),
-
-          const Text(
-            'Most Popular Event Types',
-
-            style: TextStyle(
-              fontSize: 14,
-
-              fontWeight: FontWeight.bold,
-
-              color: AppTheme.darkGrey,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          if (_popularEventTypes.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-
-                child: Text(
-                  'No completed events yet',
-                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
-                ),
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-
-              runSpacing: 8,
-
-              children:
-                  (_popularEventTypes.entries.toList()
-                        ..sort((a, b) => b.value.compareTo(a.value)))
-                      .take(7)
-                      .map((e) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-
-                          decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.05),
-
-                            borderRadius: BorderRadius.circular(20),
-
-                            border: Border.all(
-                              color: Colors.purple.withOpacity(0.1),
-                            ),
-                          ),
-
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-
-                            children: [
-                              Text(
-                                e.key,
-
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.darkGrey,
-                                ),
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-
-                                decoration: BoxDecoration(
-                                  color: Colors.purple,
-
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-
-                                child: Text(
-                                  e.value.toString(),
-
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      })
-                      .toList(),
-            ),
         ],
       ),
     );
@@ -3847,200 +3386,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildAdvanceOrderPerformance(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.lg),
-
-      decoration: _cardDecoration(),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-            children: [
-              _buildStatItem(
-                'Total AO Revenue',
-
-                '₱${NumberFormat('#,##0.00').format(_advanceOrderRevenueTotal)}',
-
-                Icons.account_balance_wallet_outlined,
-
-                AppTheme.primaryColor,
-              ),
-
-              _buildStatItem(
-                'AO Completed',
-
-                '$_completedAdvanceOrdersCount',
-
-                Icons.check_circle_outline,
-
-                AppTheme.successGreen,
-              ),
-
-              _buildStatItem(
-                'Cancellation Rate',
-
-                '${_advanceCancellationRate.toStringAsFixed(1)}%',
-
-                Icons.cancel_outlined,
-
-                AppTheme.errorRed,
-              ),
-            ],
-          ),
-
-          const Divider(height: 40),
-
-          const Text(
-            'Popular Advance Order Items',
-
-            style: TextStyle(
-              fontSize: 14,
-
-              fontWeight: FontWeight.bold,
-
-              color: AppTheme.darkGrey,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          if (_popularAdvanceItems.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-
-                child: Text(
-                  'No completed advance orders yet',
-                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
-                ),
-              ),
-            )
-          else
-            SizedBox(
-              height: 150, // Fixed height for scrollable list
-
-              child: ListView.builder(
-                itemCount: _popularAdvanceItems.entries.length,
-
-                itemBuilder: (context, index) {
-                  final sortedEntries = _popularAdvanceItems.entries.toList()
-                    ..sort((a, b) => b.value.compareTo(a.value));
-
-                  final e = sortedEntries[index];
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.05),
-
-                      borderRadius: BorderRadius.circular(8),
-
-                      border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                      ),
-                    ),
-
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            e.key,
-
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.darkGrey,
-                            ),
-                          ),
-                        ),
-
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
-
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-
-                          child: Text(
-                            '${e.value} orders',
-
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: color),
-
-            const SizedBox(width: 6),
-
-            Text(
-              label,
-
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.mediumGrey,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 4),
-
-        Text(
-          value,
-
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppTheme.darkGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOperationsMonitor(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.xl),
@@ -4417,236 +3762,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     return Column(
       children: [
-        // Live Event Status Indicators (Real-time Updates)
-        if (_ongoingEvents.isNotEmpty || _upcomingEvents.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.all(AppTheme.lg),
-
-            decoration: _cardDecoration(),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-
-                      height: 20,
-
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    Text(
-                      'Live Event Status',
-
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-
-                        color: AppTheme.darkGrey,
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-
-                        vertical: 4,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-
-                        children: [
-                          Container(
-                            width: 6,
-
-                            height: 6,
-
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-
-                          const SizedBox(width: 4),
-
-                          Text(
-                            'LIVE',
-
-                            style: TextStyle(
-                              fontSize: 10,
-
-                              color: Colors.green,
-
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppTheme.lg),
-
-                // Ongoing Events
-                if (_ongoingEvents.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-
-                        height: 8,
-
-                        decoration: const BoxDecoration(
-                          color: AppTheme.successGreen,
-
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      Text(
-                        '${_ongoingEvents.length} Ongoing Event${_ongoingEvents.length > 1 ? 's' : ''}',
-
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-
-                          color: AppTheme.successGreen,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      Text(
-                        'Live Now',
-
-                        style: TextStyle(
-                          fontSize: 10,
-
-                          color: AppTheme.successGreen,
-
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ..._ongoingEvents
-                      .take(2)
-                      .map((event) => _buildLiveEventTile(event, true)),
-
-                  if (_ongoingEvents.length > 2)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-
-                      child: Text(
-                        '+${_ongoingEvents.length - 2} more ongoing...',
-
-                        style: TextStyle(
-                          fontSize: 10,
-
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                    ),
-                ],
-
-                if (_ongoingEvents.isNotEmpty && _upcomingEvents.isNotEmpty)
-                  const SizedBox(height: AppTheme.lg),
-
-                // Upcoming Events
-                if (_upcomingEvents.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-
-                        height: 8,
-
-                        decoration: const BoxDecoration(
-                          color: AppTheme.warningOrange,
-
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      Text(
-                        '${_upcomingEvents.length} Upcoming Event${_upcomingEvents.length > 1 ? 's' : ''}',
-
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-
-                          color: AppTheme.warningOrange,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      Text(
-                        'Next 24 Hours',
-
-                        style: TextStyle(
-                          fontSize: 10,
-
-                          color: AppTheme.warningOrange,
-
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ..._upcomingEvents
-                      .take(2)
-                      .map((event) => _buildLiveEventTile(event, false)),
-
-                  if (_upcomingEvents.length > 2)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-
-                      child: Text(
-                        '+${_upcomingEvents.length - 2} more scheduled...',
-
-                        style: TextStyle(
-                          fontSize: 10,
-
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppTheme.xl),
-        ],
-
         // Charts Section (Visual Analytics)
         if (isWide)
           Row(
@@ -5283,7 +4398,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
-
                                           fontSize: 12,
 
                                           color: AppTheme.darkGrey,
@@ -5340,6 +4454,197 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             ],
           ),
       ],
+    );
+  }
+
+  Widget _buildLiveEventsMonitor(BuildContext context) {
+    final hasEvents = _ongoingEvents.isNotEmpty || _upcomingEvents.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Live Event Status',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+              const Spacer(),
+              if (hasEvents)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _PulsingDot(color: Colors.green, size: 6),
+                      SizedBox(width: 6),
+                      Text(
+                        'LIVE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.lg),
+          if (!hasEvents)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.xl),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.event_available_outlined,
+                      color: AppTheme.mediumGrey.withOpacity(0.4),
+                      size: 44,
+                    ),
+                    const SizedBox(height: AppTheme.md),
+                    const Text(
+                      'No active or upcoming events right now',
+                      style: TextStyle(
+                        color: AppTheme.darkGrey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Check the Monthly Event Schedule below for other dates.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.mediumGrey,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            // Ongoing Events
+            if (_ongoingEvents.isNotEmpty) ...[
+              Row(
+                children: [
+                  const _PulsingDot(color: AppTheme.successGreen, size: 8),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_ongoingEvents.length} Ongoing Event${_ongoingEvents.length > 1 ? 's' : ''}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.successGreen,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Live Now',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.successGreen,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._ongoingEvents
+                  .take(2)
+                  .map((event) => _buildLiveEventTile(event, true)),
+              if (_ongoingEvents.length > 2)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '+${_ongoingEvents.length - 2} more ongoing...',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                ),
+            ],
+
+            if (_ongoingEvents.isNotEmpty && _upcomingEvents.isNotEmpty)
+              const SizedBox(height: AppTheme.lg),
+
+            // Upcoming Events
+            if (_upcomingEvents.isNotEmpty) ...[
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.warningOrange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_upcomingEvents.length} Upcoming Event${_upcomingEvents.length > 1 ? 's' : ''}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.warningOrange,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Next 24 Hours',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.warningOrange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._upcomingEvents
+                  .take(2)
+                  .map((event) => _buildLiveEventTile(event, false)),
+              if (_upcomingEvents.length > 2)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '+${_upcomingEvents.length - 2} more scheduled...',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.mediumGrey,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
@@ -6379,6 +5684,66 @@ class _ActivityTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PulsingDot extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _PulsingDot({required this.color, this.size = 8.0});
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: widget.size * 2.2,
+              height: widget.size * 2.2,
+              decoration: BoxDecoration(
+                color: widget.color.withOpacity(0.4 * (1 - _pulseController.value)),
+                shape: BoxShape.circle,
+              ),
+            ),
+            Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                color: widget.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
