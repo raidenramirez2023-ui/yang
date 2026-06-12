@@ -407,49 +407,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
 
     print(
-      'DEBUG: Today advance revenue (separate from daily): ₱${advanceRevenue}',
+      'DEBUG: Today advance revenue (tracked in Sales Report): ₱${advanceRevenue}',
     );
 
-    _dailyRevenue =
-        regularRevenue +
-        (() {
-          // Only include paid event reservations scheduled for today
-
-          final todayEventReservations = allReservations.where((r) {
-            final eventDate = r['event_date']?.toString() ?? '';
-
-            final paymentStatus = r['payment_status']?.toString() ?? '';
-
-            final isToday = eventDate == todayStr;
-
-            final isPaid =
-                paymentStatus == 'paid' || paymentStatus == 'fully_paid';
-
-            // Debug logging
-
-            if (isToday || isPaid) {
-              print(
-                'DEBUG: Event - Date: $eventDate, Today: $todayStr, Paid: $paymentStatus, Amount: ${r['total_price']}',
-              );
-            }
-
-            return isToday && isPaid;
-          }).toList();
-
-          final eventRevenue = todayEventReservations.fold(0.0, (sum, r) {
-            final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
-
-            return sum + amount;
-          });
-
-          print(
-            'DEBUG: Today event reservations count: ${todayEventReservations.length}',
-          );
-
-          print('DEBUG: Today event revenue: ₱${eventRevenue}');
-
-          return eventRevenue;
-        })();
+    // Admin Dashboard daily revenue: Regular orders only
+    // (Advance orders and event reservations are tracked separately in Sales Report)
+    _dailyRevenue = regularRevenue;
 
     _totalOrders = todayOrders.length;
 
@@ -496,9 +459,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     _pendingReservations =
         pendingReservations.length + pendingAdvanceVerification.length;
 
-    // Weekly Revenue Calculation
+    // Weekly Revenue Calculation (Regular orders only)
 
-    _weeklyRevenue = _processChartData(allOrders, allAdvanceOrders, allReservations);
+    _weeklyRevenue = _processChartData(allOrders);
 
     // Kitchen Status Counts (Real-time from today's orders)
 
@@ -1351,10 +1314,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   List<double> _processChartData(
     List<Map<String, dynamic>> orders,
-
-    List<Map<String, dynamic>> advanceOrders,
-
-    List<Map<String, dynamic>> reservations,
   ) {
     final now = DateTime.now();
 
@@ -1368,9 +1327,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       required bool isReservation,
     }) {
       for (var item in list) {
+        // Use payment approval timestamps instead of scheduled dates
         final dateStr = isReservation
-            ? item['event_date']
-            : (isAdvance ? item['order_date'] : item['created_at']);
+            ? (item['payment_date'] ?? item['updated_at'])
+            : (isAdvance ? item['updated_at'] : item['created_at']);
 
         final date = DateTime.tryParse(dateStr ?? '');
 
@@ -1399,8 +1359,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           final paymentStatus = item['payment_status']?.toString() ?? '';
 
           if (paymentStatus == 'deposit_paid') {
+            // When deposit is paid, count only the deposit amount
             amount = (item['deposit_amount'] as num?)?.toDouble() ??
                 ((item['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+          } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
+            // When fully paid, count only the remaining balance (total - deposit)
+            // to avoid double-counting the deposit
+            final totalPrice = (item['total_price'] as num?)?.toDouble() ?? 0.0;
+            final depositAmount = (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+            amount = totalPrice - depositAmount;
           } else {
             amount = (item['total_price'] as num?)?.toDouble() ?? 0.0;
           }
@@ -1417,43 +1384,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             if (date.year == now.year &&
                 date.month == now.month &&
                 date.day == now.day) {
-              if (isAdvance) {
-                try {
-                  final timeStr = item['order_time']?.toString() ?? '12:00 PM';
-
-                  final hour = DateFormat.jm().parse(timeStr).hour;
-
-                  if (hour >= 10 && hour < 20) {
-                    final key = hour - 10;
-
-                    periodData[key] = (periodData[key] ?? 0) + amount;
-                  }
-                } catch (_) {
-                  periodData[2] =
-                      (periodData[2] ?? 0) + amount; // Fallback to 12 PM
-                }
-              } else if (isReservation) {
-                try {
-                  final timeStr = item['start_time']?.toString() ?? '12:00 PM';
-
-                  final hour = DateFormat.jm().parse(timeStr).hour;
-
-                  if (hour >= 10 && hour < 20) {
-                    final key = hour - 10;
-
-                    periodData[key] = (periodData[key] ?? 0) + amount;
-                  }
-                } catch (_) {
-                  periodData[2] =
-                      (periodData[2] ?? 0) + amount; // Fallback to 12 PM
-                }
-              } else {
-                if (date.hour >= 10 && date.hour < 20) {
-                  final key = date.hour - 10;
-
-                  periodData[key] = (periodData[key] ?? 0) + amount;
-                }
-              }
+              // Use the actual payment timestamp hour for all order types
+              // (updated_at for advance orders, payment_date/updated_at for reservations, created_at for regular orders)
+              // No business hours filter - show all revenue regardless of acceptance time
+              final key = date.hour;
+              periodData[key] = (periodData[key] ?? 0) + amount;
             }
 
             break;
@@ -1492,11 +1427,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       }
     }
 
+    // Admin Dashboard chart: Regular orders only
+    // (Advance orders and event reservations are tracked separately in Sales Report)
     processList(orders, isAdvance: false, isReservation: false);
-
-    processList(advanceOrders, isAdvance: true, isReservation: false);
-
-    processList(reservations, isAdvance: false, isReservation: true);
 
     // Convert to list based on selected period
 
@@ -2512,35 +2445,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               ? weeklyLabels[dayIndex]
                               : 'D${dayIndex + 1}';
                         } else if (_selectedPeriod == 'Daily') {
-                          // Daily: Show time
-
+                          // Daily: Show all 24 hours (matching sales report logic)
                           final dailyLabels = [
-                            '10a',
-
-                            '11a',
-
-                            '12p',
-
-                            '1p',
-
-                            '2p',
-
-                            '3p',
-
-                            '4p',
-
-                            '5p',
-
-                            '6p',
-
-                            '7p',
-
-                            '8p',
+                            '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
+                            '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+                            '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+                            '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
                           ];
 
                           dayLabel = dayIndex < dailyLabels.length
                               ? dailyLabels[dayIndex]
-                              : '${dayIndex + 1}h';
+                              : '${dayIndex}h';
                         } else {
                           // Monthly/Annually: Use original logic
 
