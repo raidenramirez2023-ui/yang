@@ -1784,12 +1784,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
         await _supabase
-
             .from('kitchen_requests')
-
             .update({'status': 'Approved'})
-
             .eq('id', request['id']);
+
+        // Notify Kitchen
+        await NotificationService.sendNotification(
+          isForAdmin: true,
+          actorName: 'Pagsanjan Inv',
+          actionType: 'stock_approved',
+          reservationId: 'Kitchen',
+          eventType: 'Stock Approved: $itemName ($transferQty ${request['unit'] ?? ''})',
+        );
 
       }
 
@@ -3022,14 +3028,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildNotificationIcon(Color iconColor) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: NotificationService.getAdminNotificationsStream().map((list) =>
-        list.where((n) {
-          if (n['action_type'] == 'stock_alert') {
-            return n['reservation_id'] == 'Main Inventory';
-          }
-          return true;
-        }).toList()
-      ),
+      stream: NotificationService.getInventoryNotificationsStream(),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
         final unreadCount = notifications.where((n) => !n['is_read']).length;

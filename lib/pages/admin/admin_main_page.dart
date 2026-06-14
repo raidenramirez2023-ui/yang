@@ -3146,7 +3146,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-      stream: NotificationService.getAdminNotificationsStream(),
+      stream: NotificationService.getAdminOnlyNotificationsStream(),
 
 
 

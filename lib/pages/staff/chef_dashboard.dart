@@ -274,14 +274,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   // ── Notifications ───────────────────────────────────────
   Widget _buildNotificationIcon() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: NotificationService.getAdminNotificationsStream().map((list) =>
-        list.where((n) {
-          if (n['action_type'] == 'stock_alert') {
-            return n['reservation_id'] == 'Kitchen';
-          }
-          return true;
-        }).toList()
-      ),
+      stream: NotificationService.getKitchenNotificationsStream(),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
         final hasUnread = notifications.any((n) => !n['is_read']);
@@ -759,7 +752,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
 
       final ks = o['kitchen_status'];
       final ps = o['payment_status']?.toString().toLowerCase();
-      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
+      final status = o['status']?.toString().toLowerCase();
+      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && status != 'awaiting_verification';
     }).toList();
 
     // ── Combine and sort by creation time ──

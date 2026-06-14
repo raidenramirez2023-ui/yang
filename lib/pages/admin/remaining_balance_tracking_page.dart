@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/services/notification_service.dart';
 
 class RemainingBalanceTrackingPage extends StatefulWidget {
   final bool isFullscreen;
@@ -84,6 +85,19 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           .from('reservations')
           .update(updates)
           .eq('id', id);
+
+      // Send notification to customer
+      try {
+        await NotificationService.sendNotification(
+          recipientEmail: customerEmail,
+          actorName: 'Admin',
+          actionType: 'paid', // Show payment icon
+          reservationId: id,
+          eventType: '$eventType — Remaining Balance Cleared',
+        );
+      } catch (e) {
+        debugPrint('Warning: remaining balance notification failed: $e');
+      }
 
       _showSnackBar('Marked as fully paid', Colors.green);
       _loadData(); // Refresh the list
