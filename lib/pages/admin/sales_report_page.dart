@@ -77,7 +77,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       List<Map<String, dynamic>> allAdvanceOrders,
       List<Map<String, dynamic>> allReservations) {
     final now = DateTime.now();
-    // Combine regular orders, paid advance orders, and paid reservations
+    // Combine regular orders
     List<Map<String, dynamic>> combinedOrders = [];
     
     // Add regular orders
@@ -93,7 +93,6 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Apply period-specific filtering
       switch (selectedPeriod) {
         case 'Daily':
-          // No business hours filter - show all revenue regardless of acceptance time
           return date.year == now.year && 
               date.month == now.month && 
               date.day == now.day;
@@ -109,13 +108,6 @@ class _SalesReportPageState extends State<SalesReportPage>
       }
     }).toList());
     
-    // Sales Report now only includes regular orders (walk-in orders)
-    // Advance orders and event reservations are excluded from this report
-    
-    if (combinedOrders.isEmpty) {
-      return {'revenue': 0.0, 'orders': 0, 'customers': 0, 'avgOrder': 0.0};
-    }
-
     double totalRevenue = 0;
     Set<String> uniqueCustomers = {};
 
@@ -124,12 +116,9 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (order['is_reservation'] == true) {
         final paymentStatus = order['payment_status']?.toString() ?? '';
         if (paymentStatus == 'deposit_paid') {
-          // When deposit is paid, count only the deposit amount
           amount = (order['deposit_amount'] as num?)?.toDouble() ?? 
                    ((order['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
         } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
-          // When fully paid, count only the remaining balance (total - deposit)
-          // to avoid double-counting the deposit
           final totalPrice = (order['total_price'] as num?)?.toDouble() ?? 0.0;
           final depositAmount = (order['deposit_amount'] as num?)?.toDouble() ?? 0.0;
           amount = totalPrice - depositAmount;
@@ -142,14 +131,72 @@ class _SalesReportPageState extends State<SalesReportPage>
             : (order['total_price'] as num?)?.toDouble() ?? 0.0;
       }
       totalRevenue += amount;
-      uniqueCustomers.add(order['customer_name'] ?? 'Guest');
+      final name = order['customer_name']?.toString() ?? 'Guest';
+      if (name.isNotEmpty) {
+        uniqueCustomers.add(name);
+      }
+    }
+
+    // Helper to check if a date is within the selected period
+    bool isDateInPeriod(DateTime date) {
+      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
+        return false;
+      }
+      switch (selectedPeriod) {
+        case 'Daily':
+          return date.year == now.year && 
+              date.month == now.month && 
+              date.day == now.day;
+        case 'Weekly':
+          final dailyDiff = now.difference(date).inDays;
+          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
+        case 'Monthly':
+          return date.year.toString() == selectedYear;
+        case 'Annually':
+          return date.year >= 2016 && date.year <= now.year;
+        default:
+          return false;
+      }
+    }
+
+    // Also count unique customers from paid advance orders within the selected period
+    for (var advOrder in allAdvanceOrders) {
+      final paymentStatus = advOrder['payment_status']?.toString() ?? '';
+      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+      if (!isPaid) continue;
+
+      final date = DateTime.tryParse(advOrder['order_date'] ?? '');
+      if (date == null) continue;
+
+      if (isDateInPeriod(date)) {
+        final name = advOrder['customer_name']?.toString() ?? 'Guest';
+        if (name.isNotEmpty) {
+          uniqueCustomers.add(name);
+        }
+      }
+    }
+
+    // Also count unique customers from confirmed/completed event reservations within the selected period
+    for (var res in allReservations) {
+      final status = (res['status']?.toString() ?? '').toLowerCase();
+      if (status != 'confirmed' && status != 'completed') continue;
+
+      final date = DateTime.tryParse(res['event_date'] ?? '');
+      if (date == null) continue;
+
+      if (isDateInPeriod(date)) {
+        final name = res['customer_name']?.toString() ?? 'Guest';
+        if (name.isNotEmpty) {
+          uniqueCustomers.add(name);
+        }
+      }
     }
 
     return {
       'revenue': totalRevenue,
       'orders': combinedOrders.length,
       'customers': uniqueCustomers.length,
-      'avgOrder': totalRevenue / combinedOrders.length,
+      'avgOrder': combinedOrders.isEmpty ? 0.0 : totalRevenue / combinedOrders.length,
     };
   }
 

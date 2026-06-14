@@ -402,7 +402,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       (sum, o) => sum + ((o['number_of_guests'] as num?)?.toInt() ?? 1),
     );
 
-    _totalCustomers = regularCustomers + advanceCustomers;
+    // Count guests from confirmed event reservations happening today
+    final reservationCustomers = allReservations.where((r) {
+      final eventDate = r['event_date']?.toString() ?? '';
+      final status = (r['status']?.toString() ?? '').toLowerCase();
+      return eventDate == todayStr && status == 'confirmed';
+    }).fold<int>(
+      0,
+      (sum, r) => sum + ((r['number_of_guests'] as num?)?.toInt() ?? 0),
+    );
+
+    _totalCustomers = regularCustomers + advanceCustomers + reservationCustomers;
 
     // Reservations (Events) - Count all active confirmed and pending reservations
 
