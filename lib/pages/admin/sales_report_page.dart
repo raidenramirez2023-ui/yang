@@ -1882,8 +1882,14 @@ class _SalesReportPageState extends State<SalesReportPage>
       // Extract raw data for searching (remove # and ₱ etc)
       String id = t['id'].toString().toLowerCase().replaceAll('#', '');
       String customer = t['customer'].toString().toLowerCase();
+      String type = t['type'].toString().toLowerCase();
+      String date = t['date'].toString().toLowerCase();
       
-      bool matchesSearch = id.contains(query) || customer.contains(query);
+      // Search by ID, Customer Name, Transaction Type (Regular, Advance, Reservation), and Date
+      bool matchesSearch = id.contains(query) || 
+                          customer.contains(query) || 
+                          type.contains(query) ||
+                          date.contains(query);
           
       return matchesStatus && matchesSearch;
     }).toList();
@@ -1934,7 +1940,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         underline: const SizedBox(),
                         isExpanded: true,
                         icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                        items: ['All Status', 'Ready', 'Pending', 'Cancelled']
+                        items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
                             .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                             .toList(),
                         onChanged: (v) {
@@ -2018,7 +2024,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   value: _statusFilter,
                   underline: const SizedBox(),
                   icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                  items: ['All Status', 'Ready', 'Pending', 'Cancelled']
+                  items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
                       .toList(),
                   onChanged: (v) {
