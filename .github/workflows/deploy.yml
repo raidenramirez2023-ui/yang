@@ -47,4 +47,5 @@ jobs:
       if: success()
       run: |
         echo "Deployment to Hostinger completed successfully!"
-        echo "Your app is now live at yc-pagsanjan.site"
+        echo "Your app is now live at yc-pagsanjan.site!"
+        echo "Path used: domains/yc-pagsanjan.site/public_html/"
