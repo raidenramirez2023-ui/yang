@@ -1218,6 +1218,16 @@ class ReservationService {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
+      bool wasDepositPaid = false;
+      if (table == 'reservations') {
+        try {
+          final res = await getReservation(id);
+          if (res != null && res['payment_status'] == 'deposit_paid') {
+            wasDepositPaid = true;
+          }
+        } catch (_) {}
+      }
+
       if (table == 'reservations') {
         // Only write reservation-specific columns
         if (paymentAmount != null) {
@@ -1281,14 +1291,30 @@ class ReservationService {
         if (table == 'reservations') {
           final reservation = await getReservation(id);
           if (reservation != null) {
+            // Determine action type and text
+            String actionType = 'paid';
+            String eventPrefix = '';
+            if (paymentStatus == 'deposit_paid') {
+              actionType = 'deposit_paid';
+              eventPrefix = '(Deposit Paid) ';
+            } else if (paymentStatus == 'fully_paid') {
+              if (wasDepositPaid) {
+                actionType = 'balance_cleared';
+                eventPrefix = '(Remaining Balance Paid) ';
+              } else {
+                actionType = 'fully_paid';
+                eventPrefix = '(Fully Paid) ';
+              }
+            }
+
             // Notify admins about the payment
             await NotificationService.sendNotification(
               isForAdmin: true,
               actorName: actorName,
-              actionType: 'paid',
+              actionType: actionType,
               reservationId: id,
               customerEmail: reservation['customer_email'],
-              eventType: reservation['event_type'],
+              eventType: '$eventPrefix${reservation['event_type']}',
               eventDate: reservation['event_date'],
               startTime: reservation['start_time'],
               guestCount: reservation['number_of_guests'],
@@ -1320,14 +1346,14 @@ class ReservationService {
               .eq('id', id)
               .single();
 
-          // Notify admins about the advance order payment
+          // Notify admins about the advance order payment (which is always a full payment)
           await NotificationService.sendNotification(
             isForAdmin: true,
             actorName: actorName,
-            actionType: 'paid',
+            actionType: 'fully_paid',
             reservationId: id,
             customerEmail: response['customer_email'],
-            eventType: 'Advance Order (${response['order_type']})',
+            eventType: '(Fully Paid) Advance Order (${response['order_type']})',
             eventDate: response['order_date'],
             startTime: response['order_time'],
             guestCount: response['number_of_guests'],
@@ -1815,27 +1841,54 @@ class ReservationService {
           .update(updates)
           .eq('id', id);
 
-      // Send notification to customer
+      // Send notifications
       try {
         final record = await (table == 'reservations' 
             ? getReservation(id) 
             : _supabase.from('advance_orders').select().eq('id', id).single());
             
         if (record != null) {
+          // 1. Notify Customer
           await NotificationService.sendNotification(
             recipientEmail: record['customer_email'],
             isForAdmin: false,
             actorName: 'Admin',
-            actionType: 'paid', // Or 'approved' if you prefer, but 'paid' shows the payment icon
+            actionType: 'paid', // Shows the payment icon
             reservationId: id,
             eventType: table == 'reservations' ? record['event_type'] : 'Advance Order (${record['order_type']})',
             eventDate: table == 'reservations' ? record['event_date'] : record['order_date'],
             startTime: table == 'reservations' ? record['start_time'] : record['order_time'],
             guestCount: record['number_of_guests'],
           );
+
+          // 2. Notify Kitchen if advance order or menu-based event reservation
+          bool isForKitchen = false;
+          String kitchenEventType = '';
+          
+          if (table == 'advance_orders') {
+            isForKitchen = true;
+            kitchenEventType = 'Advance Order Menu Ticket: ${record['order_type']} on ${record['order_date']} at ${record['order_time']}';
+          } else if (table == 'reservations' && record['is_menu_based'] == true) {
+            isForKitchen = true;
+            kitchenEventType = 'Event Reservation Menu Ticket: ${record['event_type']} on ${record['event_date']} at ${record['start_time']}';
+          }
+          
+          if (isForKitchen) {
+            await NotificationService.sendNotification(
+              isForAdmin: true,
+              actorName: 'System',
+              actionType: 'advance_order_ticket',
+              reservationId: 'Kitchen', // strictly routed to Kitchen
+              eventType: kitchenEventType,
+              customerEmail: record['customer_email'],
+              startTime: table == 'reservations' ? record['start_time'] : record['order_time'],
+              guestCount: record['number_of_guests'],
+              eventDate: table == 'reservations' ? record['event_date'] : record['order_date'],
+            );
+          }
         }
       } catch (e) {
-        debugPrint('Warning: customer notification failed: $e');
+        debugPrint('Warning: payment approval notification failed: $e');
       }
 
       return true;

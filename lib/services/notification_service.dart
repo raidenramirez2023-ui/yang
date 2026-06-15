@@ -240,4 +240,50 @@ class NotificationService {
         .eq('is_for_admin', true)
         .order('created_at', ascending: false);
   }
+
+  /// Stream for Kitchen Side (POS orders, stock approval, advance order tickets, kitchen stock alerts)
+  static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
+    return getAdminNotificationsStream().map((list) => list.where((n) {
+          final actionType = n['action_type'];
+          if (actionType == 'pos_order' ||
+              actionType == 'stock_approved' ||
+              actionType == 'advance_order_ticket') {
+            return true;
+          }
+          if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
+            return true;
+          }
+          return false;
+        }).toList());
+  }
+
+  /// Stream for Main Inventory Side (stock requests, inventory stock alerts)
+  static Stream<List<Map<String, dynamic>>> getInventoryNotificationsStream() {
+    return getAdminNotificationsStream().map((list) => list.where((n) {
+          final actionType = n['action_type'];
+          if (actionType == 'stock_request') {
+            return true;
+          }
+          if (actionType == 'stock_alert' && n['reservation_id'] == 'Main Inventory') {
+            return true;
+          }
+          return false;
+        }).toList());
+  }
+
+  /// Stream for Admin Main Page (reservations, bookings, payments only, excluding kitchen/inventory)
+  static Stream<List<Map<String, dynamic>>> getAdminOnlyNotificationsStream() {
+    return getAdminNotificationsStream().map((list) => list.where((n) {
+          final actionType = n['action_type'];
+          final kitchenTypes = ['pos_order', 'stock_approved', 'advance_order_ticket'];
+          final inventoryTypes = ['stock_request'];
+          if (kitchenTypes.contains(actionType) || inventoryTypes.contains(actionType)) {
+            return false;
+          }
+          if (actionType == 'stock_alert') {
+            return false; // Exclude stock alerts from Admin Main page
+          }
+          return true;
+        }).toList());
+  }
 }

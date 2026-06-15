@@ -185,12 +185,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
   Widget _buildNotificationIcon() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: NotificationService.getAdminNotificationsStream().map((list) =>
-        list.where((n) {
-          if (n['action_type'] == 'stock_alert') {
-            return n['reservation_id'] == 'Kitchen';
-          }
-          return true;
-        }).toList()
+        list.where((n) => n['action_type'] == 'pos_order').toList()
       ),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
