@@ -9,7 +9,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: Production
     
     steps:
     - name: Checkout code
@@ -38,16 +37,13 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
         server-dir: public_html/
-        state-name: .sync-v2.json
-        protocol: ftps
+        protocol: ftp
         port: 21
         timeout: 600000
         security: loose
-        log-level: verbose
         
     - name: Notify deployment success
       if: success()
       run: |
         echo "Deployment to Hostinger completed successfully!"
-        echo "Your app is now live at yc-pagsanjan.site!"
-        echo "Path used: domains/yc-pagsanjan.site/public_html/"
+        echo "Your app is now live at yc-pagsanjan.site"
