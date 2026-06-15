@@ -38,7 +38,7 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: build/web/
         server-dir: domains/yc-pagsanjan.site/public_html/
-        protocol: ftp
+        protocol: ftps
         port: 21
         timeout: 600000
         security: loose
