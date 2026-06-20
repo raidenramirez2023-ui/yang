@@ -12,6 +12,7 @@ import 'dart:io' show File;
 import 'dart:convert';
 import 'dart:async';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
+import 'package:yang_chow/services/location_analytics_service.dart';
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -40,6 +41,12 @@ class _SalesReportPageState extends State<SalesReportPage>
   late Stream<List<Map<String, dynamic>>> _advanceOrdersStreamVar;
   late Stream<List<Map<String, dynamic>>> _reservationsStreamVar;
   Timer? _refreshTimer;
+  
+  // Location analytics
+  final LocationAnalyticsService _locationAnalyticsService = LocationAnalyticsService();
+  List<Map<String, dynamic>> _locationData = [];
+  bool _isLoadingLocationData = false;
+  String _locationPeriod = 'All Time';
 
   // Pagination state
   int _currentPage = 1;
@@ -304,9 +311,13 @@ class _SalesReportPageState extends State<SalesReportPage>
     _advanceOrdersStreamVar = _advanceOrdersStream();
     _reservationsStreamVar = _reservationsStream();
     
+    // Fetch location analytics data
+    _fetchLocationData();
+    
     // Start automatic refresh timer for real-time updates
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
+        _fetchLocationData(); // Refresh location data
         setState(() {}); // Trigger rebuild to show new orders immediately
       }
     });
@@ -314,6 +325,61 @@ class _SalesReportPageState extends State<SalesReportPage>
     _searchController.addListener(() {
       setState(() {});
     });
+  }
+
+  Future<void> _fetchLocationData() async {
+    setState(() {
+      _isLoadingLocationData = true;
+    });
+
+    try {
+      DateTime? startDate;
+      DateTime? endDate;
+      final now = DateTime.now();
+
+      switch (_locationPeriod) {
+        case 'Today':
+          startDate = DateTime(now.year, now.month, now.day);
+          endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'This Week':
+          startDate = now.subtract(Duration(days: now.weekday - 1));
+          startDate = DateTime(startDate.year, startDate.month, startDate.day);
+          endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'This Month':
+          startDate = DateTime(now.year, now.month, 1);
+          endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+          break;
+        case 'This Year':
+          startDate = DateTime(now.year, 1, 1);
+          endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+          break;
+        case 'All Time':
+        default:
+          startDate = null;
+          endDate = null;
+          break;
+      }
+
+      final data = await _locationAnalyticsService.getLocationAnalytics(
+        startDate: startDate,
+        endDate: endDate,
+      );
+      if (mounted) {
+        setState(() {
+          _locationData = data;
+          _isLoadingLocationData = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching location data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingLocationData = false;
+        });
+      }
+    }
   }
 
   @override
@@ -436,6 +502,17 @@ class _SalesReportPageState extends State<SalesReportPage>
                 rows.add([entry.key, entry.value]);
               }
             }
+          }
+        }
+        
+        // Add Location Analytics Summary
+        if (_locationData.isNotEmpty) {
+          rows.add([]);
+          rows.add(['LOCATION ANALYTICS ($_locationPeriod)']);
+          rows.add(['City/Municipality', 'Order Count']);
+          final sortedLocations = _locationData.toList()..sort((a, b) => (b['order_count'] as int).compareTo(a['order_count'] as int));
+          for (var location in sortedLocations) {
+            rows.add([location['location']?.toString() ?? 'Unknown', location['order_count']?.toString() ?? '0']);
           }
         }
 
@@ -894,6 +971,8 @@ class _SalesReportPageState extends State<SalesReportPage>
                                                   ],
                                                 ],
                                               ),
+                                        const SizedBox(height: 32),
+                                        _buildLocationAnalyticsSection(),
                                         const SizedBox(height: 32),
                                         _transactionsSection(tableTransactions, metrics),
                                       ],
@@ -2535,6 +2614,326 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLocationAnalyticsSection() {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+    
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildSectionTitle(context, 'Customer Location Forecasting'),
+              _buildLocationPeriodFilter(),
+            ],
+          ),
+          const SizedBox(height: AppTheme.md),
+          if (_isLoadingLocationData)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              ),
+            )
+          else if (_locationData.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Column(
+                  children: [
+                    Icon(Icons.location_off_outlined, size: 48, color: AppTheme.mediumGrey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No location data available yet',
+                      style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Customer addresses from POS orders will appear here',
+                      style: TextStyle(color: AppTheme.lightGrey, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top Cities/Municipalities by Order Count',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildLocationPieChart(),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationPeriodFilter() {
+    final periods = ['All Time', 'Today', 'This Week', 'This Month', 'This Year'];
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _locationPeriod,
+          dropdownColor: Colors.white,
+          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
+          style: const TextStyle(
+            color: AppTheme.darkGrey,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          items: periods.map((period) {
+            return DropdownMenuItem<String>(
+              value: period,
+              child: Text(period),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _locationPeriod = value;
+              });
+              _fetchLocationData();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationPieChart() {
+    final topLocations = _locationData.take(8).toList();
+    final totalOrders = topLocations.fold<int>(0, (sum, loc) => sum + (loc['order_count'] as int));
+    
+    // Define colors for the chart
+    final colors = [
+      const Color(0xFF4F46E5), // Primary
+      const Color(0xFF10B981), // Success Green
+      const Color(0xFFF59E0B), // Amber
+      const Color(0xFFEF4444), // Error Red
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFF06B6D4), // Cyan
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFF84CC16), // Lime
+    ];
+
+    return Row(
+      children: [
+        // Pie Chart
+        Expanded(
+          flex: 2,
+          child: SizedBox(
+            height: 250,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 60,
+                sections: topLocations.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final location = entry.value;
+                  final orderCount = location['order_count'] as int;
+                  final percentage = totalOrders > 0 ? (orderCount / totalOrders) : 0.0;
+                  
+                  return PieChartSectionData(
+                    color: colors[index % colors.length],
+                    value: orderCount.toDouble(),
+                    title: '${(percentage * 100).toStringAsFixed(1)}%',
+                    radius: 50,
+                    titleStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                }).toList(),
+                borderData: FlBorderData(show: false),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        // Legend
+        Expanded(
+          flex: 1,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: topLocations.asMap().entries.map((entry) {
+                final index = entry.key;
+                final location = entry.value;
+                final orderCount = location['order_count'] as int;
+                final revenue = location['total_revenue'] as double;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: colors[index % colors.length],
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              location['location'] as String,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '$orderCount orders • ${_currencyFormat.format(revenue)}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.mediumGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationBarChart() {
+    final topLocations = _locationData.take(5).toList();
+    
+    final double maxY;
+    if (topLocations.isEmpty) {
+      maxY = 10.0;
+    } else {
+      final firstOrderCount = topLocations.first['order_count'] as int;
+      maxY = (firstOrderCount * 1.2).toDouble();
+    }
+    
+    final double horizontalInterval;
+    if (topLocations.isEmpty) {
+      horizontalInterval = 2.0;
+    } else {
+      final firstOrderCount = topLocations.first['order_count'] as int;
+      horizontalInterval = ((firstOrderCount / 4).ceil()).toDouble();
+    }
+    
+    return SizedBox(
+      height: 250,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxY,
+          minY: 0,
+          barTouchData: BarTouchData(enabled: true),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value.toInt() >= topLocations.length) return const SizedBox();
+                  final location = topLocations[value.toInt()];
+                  final name = location['location'] as String;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      name.length > 8 ? '${name.substring(0, 8)}...' : name,
+                      style: const TextStyle(fontSize: 10, color: AppTheme.darkGrey),
+                    ),
+                  );
+                },
+                reservedSize: 60,
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
+                  );
+                },
+                reservedSize: 30,
+              ),
+            ),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: horizontalInterval,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppTheme.lightGrey,
+                strokeWidth: 1,
+              );
+            },
+          ),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(color: AppTheme.lightGrey),
+          ),
+          barGroups: topLocations.asMap().entries.map((entry) {
+            final index = entry.key;
+            final location = entry.value;
+            final orderCount = location['order_count'] as int;
+            
+            final colors = [
+              const Color(0xFF4F46E5),
+              const Color(0xFF8B5CF6),
+              const Color(0xFF10B981),
+            ];
+            
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: orderCount.toDouble(),
+                  color: index < 3 ? colors[index] : AppTheme.primaryColor.withOpacity(0.6),
+                  width: 20,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
