@@ -3238,20 +3238,20 @@ class _StockViewTabState extends State<_StockViewTab> {
 
   Future<void> _requestAllItems() => _runBulkRequest(
         title: 'All available items',
-        filter: (name, mainQty, kitchenQty) => mainQty > 0,
+        filter: (name, mainQty, kitchenQty) => _kitchenStocks.containsKey(name) && mainQty > 0,
         note: 'Bulk request (Restock all)',
       );
 
   Future<void> _requestAllOutOfStock() => _runBulkRequest(
         title: 'Only out-of-stock items',
-        filter: (name, mainQty, kitchenQty) => kitchenQty <= 0,
+        filter: (name, mainQty, kitchenQty) => _kitchenStocks.containsKey(name) && kitchenQty <= 0 && mainQty > 0,
         note: 'Bulk request (Kitchen is OUT)',
       );
 
   Future<void> _requestAllLowStock() => _runBulkRequest(
         title: 'Only low-stock items',
         filter: (name, mainQty, kitchenQty) =>
-            kitchenQty >= 1 && kitchenQty <= 10,
+            _kitchenStocks.containsKey(name) && kitchenQty >= 1 && kitchenQty <= 10 && mainQty > 0,
         note: 'Bulk request (Kitchen is LOW)',
       );
 
@@ -3655,20 +3655,20 @@ class _StockViewTabState extends State<_StockViewTab> {
                             const SizedBox(height: 12),
                             _bulkBtn(
                               onPressed: _requestAllItems,
-                              label: 'Request ALL',
+                              label: 'Request All Stock',
                               icon: Icons.auto_awesome,
                             ),
                             const SizedBox(height: 10),
                             _bulkBtn(
                               onPressed: _requestAllOutOfStock,
-                              label: 'OUT of Stock',
+                              label: 'Out of Stock',
                               icon: Icons.remove_circle_outline,
                               color: AppTheme.errorRed,
                             ),
                             const SizedBox(height: 10),
                             _bulkBtn(
                               onPressed: _requestAllLowStock,
-                              label: 'LOW Stock',
+                              label: 'Low Stock',
                               icon: Icons.warning_amber_rounded,
                               color: AppTheme.warningOrange,
                             ),

@@ -407,7 +407,7 @@ class _LoginPageState extends State<LoginPage> {
         _isSessionChecking = true;
         _isLoading = true;
       });
-      _showSnackBar("Facebook Sync: $email", Colors.blue.shade700, Icons.sync);
+      _showSnackBar("Google Sync: $email", Colors.blue.shade700, Icons.sync);
     }
 
     try {
