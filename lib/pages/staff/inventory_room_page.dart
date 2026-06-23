@@ -318,13 +318,17 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     List<Map<String, dynamic>> allItems,
     Function(Map<String, dynamic>) onItemAdded,
   ) {
-    String selectedCategory = categories[1];
+    String? selectedCategory;
     final itemNameCtrl = TextEditingController();
     final qtyCtrl = TextEditingController();
     final unitCtrl = TextEditingController();
     final supplierCtrl = TextEditingController();
-    List<String> filteredItemNames = [];
+    List<String> filteredItemNames = allItems
+        .map((item) => item['name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toList();
     bool initialized = false;
+    bool isExistingItem = false;
 
     showDialog(
       context: context,
@@ -340,18 +344,32 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                 );
                 final dbUnit = match['unit']?.toString().trim();
                 final dbSupplier = match['supplier']?.toString().trim();
+                final dbCategory = match['category']?.toString();
                 
                 bool changed = false;
-                if (dbUnit != null && dbUnit.isNotEmpty && unitCtrl.text.isEmpty) {
+                if (!isExistingItem) {
+                  isExistingItem = true;
+                  changed = true;
+                }
+                if (dbCategory != null && dbCategory.isNotEmpty && dbCategory != selectedCategory && categories.contains(dbCategory)) {
+                  selectedCategory = dbCategory;
+                  changed = true;
+                }
+                if (dbUnit != null && dbUnit.isNotEmpty && unitCtrl.text != dbUnit) {
                   unitCtrl.text = dbUnit;
                   changed = true;
                 }
-                if (dbSupplier != null && dbSupplier.isNotEmpty && supplierCtrl.text.isEmpty) {
+                if (dbSupplier != null && dbSupplier.isNotEmpty && supplierCtrl.text != dbSupplier) {
                   supplierCtrl.text = dbSupplier;
                   changed = true;
                 }
                 if (changed && context.mounted) setDialogState(() {});
-              } catch (_) {}
+              } catch (_) {
+                if (isExistingItem) {
+                  isExistingItem = false;
+                  if (context.mounted) setDialogState(() {});
+                }
+              }
             });
           }
 
@@ -416,7 +434,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         children: [
                           // Category Dropdown
                           DropdownButtonFormField<String>(
-                            initialValue: selectedCategory,
+                            value: selectedCategory,
                             decoration: _buildDecoration(
                               'Category',
                               Icons.category_outlined,
@@ -435,20 +453,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 setDialogState(() {
                                   selectedCategory = value;
                                   filteredItemNames = allItems
-                                      .where(
-                                        (item) =>
-                                            item['category']?.toString() ==
-                                            value,
-                                      )
                                       .map(
                                         (item) =>
                                             item['name']?.toString() ?? '',
                                       )
                                       .where((name) => name.isNotEmpty)
                                       .toList();
-                                  itemNameCtrl.clear();
-                                  unitCtrl.clear();
-                                  supplierCtrl.clear();
+                                  // Do not clear the item and its details, allowing user to keep typed item with newly selected category.
                                 });
                               }
                             },
@@ -471,11 +482,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     setDialogState(() {
                                       allItems = fresh;
                                       filteredItemNames = allItems
-                                          .where(
-                                            (item) =>
-                                                item['category']?.toString() ==
-                                                selectedCategory,
-                                          )
                                           .map(
                                             (item) =>
                                                 item['name']?.toString() ?? '',
@@ -495,6 +501,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 label: 'Item Name',
                                 hintText: items.isEmpty ? 'No items in this category' : 'Search or enter new item',
                                 icon: Icons.inventory_2_outlined,
+                                showDropdownIcon: false,
                                 onChanged: (value) {
                                   if (context.mounted) setDialogState(() {});
                                 },
@@ -543,6 +550,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                   unitCtrl,
                                   'Unit',
                                   Icons.straighten,
+                                  readOnly: isExistingItem,
                                 ),
                               ),
                             ],
@@ -554,6 +562,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                             supplierCtrl,
                             'Supplier',
                             Icons.business_outlined,
+                            readOnly: isExistingItem,
                           ),
                         ],
                       ),
@@ -577,6 +586,8 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                           final supplier = supplierCtrl.text.trim();
 
                           if (name.isEmpty ||
+                              selectedCategory == null ||
+                              selectedCategory!.isEmpty ||
                               unit.isEmpty ||
                               supplier.isEmpty ||
                               qty == null ||
@@ -614,17 +625,17 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     );
   }
 
-  InputDecoration _buildDecoration(String label, IconData icon) {
+  InputDecoration _buildDecoration(String label, IconData icon, {bool readOnly = false}) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: AppTheme.primaryColor),
+      prefixIcon: Icon(icon, color: readOnly ? AppTheme.mediumGrey : AppTheme.primaryColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppTheme.lightGrey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppTheme.primaryColor),
+        borderSide: BorderSide(color: readOnly ? AppTheme.lightGrey : AppTheme.primaryColor),
       ),
       filled: true,
       fillColor: AppTheme.backgroundColor,
@@ -637,12 +648,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     IconData icon, {
     bool isNumber = false,
     List<TextInputFormatter>? inputFormatters,
+    bool readOnly = false,
   }) {
     return TextField(
       controller: ctrl,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       inputFormatters: inputFormatters,
-      decoration: _buildDecoration(label, icon),
+      readOnly: readOnly,
+      decoration: _buildDecoration(label, icon, readOnly: readOnly),
     );
   }
 
@@ -1722,6 +1735,7 @@ class _CustomSearchDropdown extends StatefulWidget {
   final TextEditingController controller;
   final List<String> items;
   final void Function(String)? onChanged;
+  final bool showDropdownIcon;
 
   const _CustomSearchDropdown({
     required this.label,
@@ -1730,6 +1744,7 @@ class _CustomSearchDropdown extends StatefulWidget {
     required this.controller,
     required this.items,
     this.onChanged,
+    this.showDropdownIcon = true,
   });
 
   @override
@@ -1796,7 +1811,7 @@ class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
                 labelText: widget.label,
                 hintText: widget.hintText,
                 prefixIcon: Icon(widget.icon, color: AppTheme.primaryColor),
-                suffixIcon: IconButton(
+                suffixIcon: widget.showDropdownIcon ? IconButton(
                   icon: Icon(controller.isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down),
                   onPressed: () {
                     if (controller.isOpen) {
@@ -1807,7 +1822,7 @@ class _CustomSearchDropdownState extends State<_CustomSearchDropdown> {
                       _focusNode.requestFocus();
                     }
                   },
-                ),
+                ) : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppTheme.lightGrey),
