@@ -13,6 +13,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/utils/app_constants.dart';
 
+import 'package:yang_chow/utils/app_constants.dart';
+
 import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:google_fonts/google_fonts.dart';
