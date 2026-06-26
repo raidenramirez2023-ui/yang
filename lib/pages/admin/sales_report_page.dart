@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,6 +47,11 @@ class _SalesReportPageState extends State<SalesReportPage>
   List<Map<String, dynamic>> _locationData = [];
   bool _isLoadingLocationData = false;
   String _locationPeriod = 'All Time';
+
+  // Hide-on-scroll header
+  final ScrollController _scrollController = ScrollController();
+  bool _isHeaderVisible = true;
+  double _lastScrollOffset = 0;
 
   // Pagination state
   int _currentPage = 1;
@@ -325,6 +330,18 @@ class _SalesReportPageState extends State<SalesReportPage>
     _searchController.addListener(() {
       setState(() {});
     });
+
+    // Hide header on scroll down, show on scroll up
+    _scrollController.addListener(() {
+      final currentOffset = _scrollController.offset;
+      final diff = currentOffset - _lastScrollOffset;
+      if (diff > 8 && _isHeaderVisible) {
+        setState(() => _isHeaderVisible = false);
+      } else if (diff < -8 && !_isHeaderVisible) {
+        setState(() => _isHeaderVisible = true);
+      }
+      _lastScrollOffset = currentOffset;
+    });
   }
 
   Future<void> _fetchLocationData() async {
@@ -387,6 +404,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     _animationController.dispose();
     _cardAnimationController.dispose();
     _searchController.dispose();
+    _scrollController.dispose();
     _refreshTimer?.cancel(); // Cancel the refresh timer
     super.dispose();
   }
@@ -878,10 +896,26 @@ class _SalesReportPageState extends State<SalesReportPage>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _header(tableTransactions, metrics),
-                                const SizedBox(height: 32),
+                                // Hide-on-scroll header
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeInOut,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 200),
+                                    opacity: _isHeaderVisible ? 1.0 : 0.0,
+                                    child: _isHeaderVisible
+                                        ? Column(
+                                            children: [
+                                              _header(tableTransactions, metrics),
+                                              const SizedBox(height: 32),
+                                            ],
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ),
                                 Expanded(
                                   child: SingleChildScrollView(
+                                    controller: _scrollController,
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -971,8 +1005,6 @@ class _SalesReportPageState extends State<SalesReportPage>
                                                   ],
                                                 ],
                                               ),
-                                        const SizedBox(height: 32),
-                                        _buildLocationAnalyticsSection(),
                                         const SizedBox(height: 32),
                                         _transactionsSection(tableTransactions, metrics),
                                       ],
@@ -1239,56 +1271,187 @@ class _SalesReportPageState extends State<SalesReportPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Revenue Analytics',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                      ),
+          // ── Side-by-side on desktop, stacked on mobile ─────────────
+          if (ResponsiveUtils.isMobile(context)) ...[
+            // ── Mobile: stacked ──────────────────────────────────────
+            // Revenue header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Revenue Analytics',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _chartTypeButton('Line', Icons.show_chart_rounded),
+                      _chartTypeButton('Bar', Icons.bar_chart_rounded),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 260,
+              child: selectedChartType == 'Line'
+                  ? _buildLineChart(chartData)
+                  : _buildBarChart(chartData),
+            ),
+            const SizedBox(height: 24),
+            const Divider(color: Color(0xFFF1F5F9), thickness: 1.5),
+            const SizedBox(height: 20),
+            // Location header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Top Cities/Municipalities by Order Count',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildLocationPeriodFilter(),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_locationData.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Text('No location data available yet',
+                      style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13)),
+                ),
+              )
+            else
+              _buildLocationPieChart(),
+          ] else ...[
+            // ── Desktop: side by side ────────────────────────────────
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // LEFT — Revenue Analytics
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Revenue Analytics',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.all(4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _chartTypeButton('Line', Icons.show_chart_rounded),
+                                  _chartTypeButton('Bar', Icons.bar_chart_rounded),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         _buildLegendItem('Regular Orders', 'Regular', Colors.blue),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          height: 350,
+                          child: selectedChartType == 'Line'
+                              ? _buildLineChart(chartData)
+                              : _buildBarChart(chartData),
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Vertical divider
+                  const SizedBox(width: 24),
+                  const VerticalDivider(color: Color(0xFFF1F5F9), thickness: 1.5, width: 1),
+                  const SizedBox(width: 24),
+
+                  // RIGHT — Customer Location Forecasting
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Top Cities/Municipalities by Order Count',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildLocationPeriodFilter(),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_locationData.isEmpty)
+                          Expanded(
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.location_off_outlined, size: 40, color: AppTheme.mediumGrey),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No location data available yet',
+                                    style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          _buildLocationPieChart(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _chartTypeButton('Line', Icons.show_chart_rounded),
-                    _chartTypeButton('Bar', Icons.bar_chart_rounded),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 40),
-          SizedBox(
-            height: ResponsiveUtils.isMobile(context) ? 260 : 350,
-            child: selectedChartType == 'Line'
-                ? _buildLineChart(chartData)
-                : _buildBarChart(chartData),
-          ),
+            ),
+          ],
         ],
       ),
     );
@@ -1382,205 +1545,139 @@ class _SalesReportPageState extends State<SalesReportPage>
       return (maxVal * 1.2).clamp(1000.0, 10000000.0).toDouble();
     })();
 
-    return LineChart(
-      LineChartData(
-        maxY: lineMaxY,
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1E293B),
-            tooltipPadding: const EdgeInsets.all(12),
-            getTooltipItems: (spots) {
-              // Build the ordered list of ACTIVE stream names exactly as
-              // they were added to lineBarsData (Regular → Advance → Reservation).
-              // This ensures barIndex always maps to the correct stream name
-              // regardless of which streams are currently toggled on/off.
-              final List<String> activeLineNames = [];
-              if (activeStreams.contains('Regular')) activeLineNames.add('Regular Orders');
+    final List<String> labels = getChartLabels();
+    final int dataLength = chartData['regular']?.length ?? 0;
+    final List<_SalesReportData> chartList = List.generate(dataLength, (i) {
+      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
+      final reg = i < chartData['regular']!.length ? chartData['regular']![i] : 0.0;
+      final adv = i < chartData['advance']!.length ? chartData['advance']![i] : 0.0;
+      final res = i < chartData['reservation']!.length ? chartData['reservation']![i] : 0.0;
+      return _SalesReportData(label, reg, adv, res);
+    });
 
-              return spots.map((spot) {
-                final labels = getChartLabels();
-                final dayIndex = spot.x.toInt();
-                final dayLabel = dayIndex < labels.length 
-                    ? labels[dayIndex] 
-                    : 'Day ${dayIndex + 1}';
-
-                // Use the ordered active names list; fall back gracefully
-                final lineName = spot.barIndex < activeLineNames.length
-                    ? activeLineNames[spot.barIndex]
-                    : 'Revenue';
-
-                return LineTooltipItem(
-                  '$lineName: ${_currencyFormat.format(spot.y)}',
-                  const TextStyle(
+    return SfCartesianChart(
+      plotAreaBorderWidth: 0,
+      margin: EdgeInsets.zero,
+      tooltipBehavior: TooltipBehavior(
+        enable: true,
+        activationMode: ActivationMode.singleTap,
+        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+          final _SalesReportData item = data;
+          final double val = point.y ?? 0.0;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  series.name ?? 'Revenue',
+                  style: const TextStyle(
                     color: Colors.white,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
                   ),
-                  children: [
-                    TextSpan(
-                      text: '\n$dayLabel',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                );
-              }).toList();
-            },
-          ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 1,
-              getTitlesWidget: (value, meta) {
-                final labels = getChartLabels();
-                final dayIndex = value.toInt();
-                
-                final firstList = chartData.values.first;
-                if (dayIndex >= firstList.length || dayIndex < 0) {
-                  return const SizedBox.shrink();
-                }
-                
-                if (dayIndex < labels.length) {
-                  return SideTitleWidget(
-                    meta: meta,
-                    child: Text(
-                      labels[dayIndex],
-                      style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }
-                return const SizedBox();
-              },
-              reservedSize: 30,
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: _calculateInterval(lineMaxY),
-              getTitlesWidget: (value, meta) {
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(
-                    _formatCurrency(value),
-                    style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.label}: ${_currencyFormat.format(val)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
                   ),
-                );
-              },
-              reservedSize: 60,
+                ),
+              ],
             ),
-          ),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: _calculateInterval(lineMaxY),
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: const Color(0xFFF1F5F9).withOpacity(0.5),
-            strokeWidth: 1,
-            dashArray: [3, 3],
-          ),
-        ),
-        borderData: FlBorderData(
-          show: true,
-          border: Border.all(
-            color: const Color(0xFFF1F5F9).withOpacity(0.5),
-            width: 1,
-          ),
-        ),
-        lineBarsData: [
-          // Regular Orders
-          if (activeStreams.contains('Regular'))
-            LineChartBarData(
-              spots: List.generate(
-                chartData['regular']!.length,
-                (i) => FlSpot(i.toDouble(), chartData['regular']![i]),
-              ),
-              isCurved: true,
-              color: Colors.blue,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: Colors.blue,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.blue.withOpacity(0.08),
-              ),
-            ),
-          // Advance Orders
-          if (activeStreams.contains('Advance'))
-            LineChartBarData(
-              spots: List.generate(
-                chartData['advance']!.length,
-                (i) => FlSpot(i.toDouble(), chartData['advance']![i]),
-              ),
-              isCurved: true,
-              color: Colors.green,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: Colors.green,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.green.withOpacity(0.08),
-              ),
-            ),
-          // Event Reservations
-          if (activeStreams.contains('Reservation'))
-            LineChartBarData(
-              spots: List.generate(
-                chartData['reservation']!.length,
-                (i) => FlSpot(i.toDouble(), chartData['reservation']![i]),
-              ),
-              isCurved: true,
-              color: Colors.purple,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: Colors.purple,
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.purple.withOpacity(0.08),
-              ),
-            ),
-        ],
-        minY: 0,
+          );
+        },
       ),
+      primaryXAxis: CategoryAxis(
+        majorGridLines: const MajorGridLines(width: 0),
+        labelStyle: const TextStyle(
+          color: Color(0xFF475569),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+        axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+      ),
+      primaryYAxis: NumericAxis(
+        axisLine: const AxisLine(width: 0),
+        labelStyle: const TextStyle(
+          color: Color(0xFF475569),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+        numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+        majorGridLines: MajorGridLines(
+          color: const Color(0xFFF1F5F9).withOpacity(0.5),
+          width: 1,
+          dashArray: const [3, 3],
+        ),
+        maximum: lineMaxY,
+      ),
+      series: <CartesianSeries<_SalesReportData, String>>[
+        if (activeStreams.contains('Regular'))
+          SplineSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.regular,
+            name: 'Regular Orders',
+            color: Colors.blue,
+            width: 4,
+            animationDuration: 1000,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              shape: DataMarkerType.circle,
+              width: 6,
+              height: 6,
+              color: Colors.white,
+              borderColor: Colors.blue,
+              borderWidth: 2,
+            ),
+          ),
+        if (activeStreams.contains('Advance'))
+          SplineSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.advance,
+            name: 'Advance Orders',
+            color: Colors.green,
+            width: 4,
+            animationDuration: 1000,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              shape: DataMarkerType.circle,
+              width: 6,
+              height: 6,
+              color: Colors.white,
+              borderColor: Colors.green,
+              borderWidth: 2,
+            ),
+          ),
+        if (activeStreams.contains('Reservation'))
+          SplineSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.reservation,
+            name: 'Event Reservations',
+            color: Colors.purple,
+            width: 4,
+            animationDuration: 1000,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              shape: DataMarkerType.circle,
+              width: 6,
+              height: 6,
+              color: Colors.white,
+              borderColor: Colors.purple,
+              borderWidth: 2,
+            ),
+          ),
+      ],
     );
   }
 
@@ -1610,183 +1707,157 @@ class _SalesReportPageState extends State<SalesReportPage>
 
     final barWidth = ResponsiveUtils.isMobile(context) ? 10.0 : 16.0;
 
-    return BarChart(
-      BarChartData(
-        maxY: (maxCombinedValue * 1.2).clamp(1000.0, 10000000.0),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1E293B),
-            tooltipPadding: const EdgeInsets.all(12),
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final labels = getChartLabels();
-              final label = groupIndex < labels.length 
-                  ? labels[groupIndex] 
-                  : 'Day ${groupIndex + 1}';
-              
-              double regularVal = 0.0;
-              double advanceVal = 0.0;
-              double reservationVal = 0.0;
-              
-              if (groupIndex < chartData['regular']!.length) {
-                regularVal = chartData['regular']![groupIndex];
-              }
-              if (groupIndex < chartData['advance']!.length) {
-                advanceVal = chartData['advance']![groupIndex];
-              }
-              if (groupIndex < chartData['reservation']!.length) {
-                reservationVal = chartData['reservation']![groupIndex];
-              }
-              
-              double totalVal = 0.0;
-              List<TextSpan> breakdownSpans = [];
-              
-              if (activeStreams.contains('Regular')) {
-                totalVal += regularVal;
-                breakdownSpans.add(TextSpan(
-                  text: 'Regular: ${_currencyFormat.format(regularVal)}\n',
-                  style: const TextStyle(
-                    color: Colors.blueAccent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ));
-              }
-              if (activeStreams.contains('Advance')) {
-                totalVal += advanceVal;
-                breakdownSpans.add(TextSpan(
-                  text: 'Advance: ${_currencyFormat.format(advanceVal)}\n',
-                  style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ));
-              }
-              if (activeStreams.contains('Reservation')) {
-                totalVal += reservationVal;
-                breakdownSpans.add(TextSpan(
-                  text: 'Reservation: ${_currencyFormat.format(reservationVal)}\n',
-                  style: const TextStyle(
-                    color: Colors.purpleAccent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ));
-              }
+    final List<String> labels = getChartLabels();
+    final int dataLength = chartData['regular']?.length ?? 0;
+    final List<_SalesReportData> chartList = List.generate(dataLength, (i) {
+      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
+      final reg = i < chartData['regular']!.length ? chartData['regular']![i] : 0.0;
+      final adv = i < chartData['advance']!.length ? chartData['advance']![i] : 0.0;
+      final res = i < chartData['reservation']!.length ? chartData['reservation']![i] : 0.0;
+      return _SalesReportData(label, reg, adv, res);
+    });
 
-              return BarTooltipItem(
-                '$label\n',
-                const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+    return SfCartesianChart(
+      plotAreaBorderWidth: 0,
+      margin: EdgeInsets.zero,
+      tooltipBehavior: TooltipBehavior(
+        enable: true,
+        activationMode: ActivationMode.singleTap,
+        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+          final _SalesReportData item = data;
+          double totalVal = 0.0;
+          List<Widget> children = [];
+
+          if (activeStreams.contains('Regular')) {
+            totalVal += item.regular;
+            children.add(
+              Text(
+                'Regular: ${_currencyFormat.format(item.regular)}',
+                style: const TextStyle(color: Colors.blueAccent, fontSize: 11),
+              ),
+            );
+          }
+          if (activeStreams.contains('Advance')) {
+            totalVal += item.advance;
+            children.add(
+              Text(
+                'Advance: ${_currencyFormat.format(item.advance)}',
+                style: const TextStyle(color: Colors.greenAccent, fontSize: 11),
+              ),
+            );
+          }
+          if (activeStreams.contains('Reservation')) {
+            totalVal += item.reservation;
+            children.add(
+              Text(
+                'Reservation: ${_currencyFormat.format(item.reservation)}',
+                style: const TextStyle(color: Colors.purpleAccent, fontSize: 11),
+              ),
+            );
+          }
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                children: [
-                  ...breakdownSpans,
-                  TextSpan(
-                    text: 'Total: ${_currencyFormat.format(totalVal)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      height: 1.5,
-                    ),
+                const SizedBox(height: 4),
+                ...children,
+                const Divider(color: Colors.white24, height: 8),
+                Text(
+                  'Total: ${_currencyFormat.format(totalVal)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              );
-            },
-          ),
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 1,
-              getTitlesWidget: (value, meta) {
-                final labels = getChartLabels();
-                final index = value.toInt();
-                if (index >= labels.length || index < 0) {
-                  return const SizedBox.shrink();
-                }
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(
-                    labels[index],
-                    style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                );
-              },
-              reservedSize: 30,
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: _calculateInterval(maxCombinedValue * 1.2),
-              getTitlesWidget: (value, meta) {
-                return SideTitleWidget(
-                  meta: meta,
-                  child: Text(
-                    _formatCurrency(value),
-                    style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                );
-              },
-              reservedSize: 60,
-            ),
-          ),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: _calculateInterval(maxCombinedValue * 1.2),
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: const Color(0xFFF1F5F9).withOpacity(0.5),
-            strokeWidth: 1,
-            dashArray: [3, 3],
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        barGroups: List.generate(
-          chartData['regular']!.length,
-          (index) {
-            final reg = chartData['regular']![index];
-            final adv = chartData['advance']![index];
-            final res = chartData['reservation']![index];
-            
-            double currentY = 0.0;
-            List<BarChartRodStackItem> stackItems = [];
-            
-            if (activeStreams.contains('Regular')) {
-              stackItems.add(BarChartRodStackItem(currentY, currentY + reg, Colors.blue));
-              currentY += reg;
-            }
-            if (activeStreams.contains('Advance')) {
-              stackItems.add(BarChartRodStackItem(currentY, currentY + adv, Colors.green));
-              currentY += adv;
-            }
-            if (activeStreams.contains('Reservation')) {
-              stackItems.add(BarChartRodStackItem(currentY, currentY + res, Colors.purple));
-              currentY += res;
-            }
-            
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                  toY: currentY,
-                  width: barWidth,
-                  borderRadius: BorderRadius.circular(6),
-                  rodStackItems: stackItems,
                 ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
+      primaryXAxis: CategoryAxis(
+        majorGridLines: const MajorGridLines(width: 0),
+        labelStyle: const TextStyle(
+          color: Color(0xFF475569),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+        axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+      ),
+      primaryYAxis: NumericAxis(
+        axisLine: const AxisLine(width: 0),
+        labelStyle: const TextStyle(
+          color: Color(0xFF475569),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+        numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+        majorGridLines: MajorGridLines(
+          color: const Color(0xFFF1F5F9).withOpacity(0.5),
+          width: 1,
+          dashArray: const [3, 3],
+        ),
+        maximum: (maxCombinedValue * 1.2).clamp(1000.0, 10000000.0),
+      ),
+      series: <CartesianSeries<_SalesReportData, String>>[
+        if (activeStreams.contains('Regular'))
+          StackedColumnSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.regular,
+            name: 'Regular Orders',
+            color: Colors.blue,
+            width: 0.6,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
+            ),
+            animationDuration: 1000,
+          ),
+        if (activeStreams.contains('Advance'))
+          StackedColumnSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.advance,
+            name: 'Advance Orders',
+            color: Colors.green,
+            width: 0.6,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
+            ),
+            animationDuration: 1000,
+          ),
+        if (activeStreams.contains('Reservation'))
+          StackedColumnSeries<_SalesReportData, String>(
+            dataSource: chartList,
+            xValueMapper: (_SalesReportData data, _) => data.label,
+            yValueMapper: (_SalesReportData data, _) => data.reservation,
+            name: 'Event Reservations',
+            color: Colors.purple,
+            width: 0.6,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
+            ),
+            animationDuration: 1000,
+          ),
+      ],
     );
   }
 
@@ -2687,26 +2758,30 @@ class _SalesReportPageState extends State<SalesReportPage>
     final periods = ['All Time', 'Today', 'This Week', 'This Month', 'This Year'];
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _locationPeriod,
           dropdownColor: Colors.white,
-          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
+          isDense: true,
+          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor, size: 16),
           style: const TextStyle(
             color: AppTheme.darkGrey,
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
           items: periods.map((period) {
             return DropdownMenuItem<String>(
               value: period,
-              child: Text(period),
+              child: Text(
+                period,
+                style: const TextStyle(fontSize: 11),
+              ),
             );
           }).toList(),
           onChanged: (value) {
@@ -2738,62 +2813,36 @@ class _SalesReportPageState extends State<SalesReportPage>
       const Color(0xFF84CC16), // Lime
     ];
 
-    return Row(
-      children: [
-        // Pie Chart
-        Expanded(
-          flex: 2,
-          child: SizedBox(
-            height: 250,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 60,
-                sections: topLocations.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final location = entry.value;
-                  final orderCount = location['order_count'] as int;
-                  final percentage = totalOrders > 0 ? (orderCount / totalOrders) : 0.0;
-                  
-                  return PieChartSectionData(
-                    color: colors[index % colors.length],
-                    value: orderCount.toDouble(),
-                    title: '${(percentage * 100).toStringAsFixed(1)}%',
-                    radius: 50,
-                    titleStyle: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
-                borderData: FlBorderData(show: false),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 20),
-        // Legend
-        Expanded(
-          flex: 1,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: topLocations.asMap().entries.map((entry) {
-                final index = entry.key;
-                final location = entry.value;
-                final orderCount = location['order_count'] as int;
-                final revenue = location['total_revenue'] as double;
-                
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final chartHeight = isMobile ? 200.0 : 190.0;
+
+    // Reusable 2-Column Legend (IntrinsicHeight-safe layout using Row and Column)
+    Widget buildLegendGrid() {
+      final List<Widget> rows = [];
+      for (int i = 0; i < topLocations.length; i += 2) {
+        final location1 = topLocations[i];
+        final orderCount1 = location1['order_count'] as int;
+        final revenue1 = location1['total_revenue'] as double;
+        final color1 = colors[i % colors.length];
+
+        final location2 = (i + 1 < topLocations.length) ? topLocations[i + 1] : null;
+        final orderCount2 = location2 != null ? location2['order_count'] as int : 0;
+        final revenue2 = location2 != null ? location2['total_revenue'] as double : 0.0;
+        final color2 = location2 != null ? colors[(i + 1) % colors.length] : Colors.transparent;
+
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
                   child: Row(
                     children: [
                       Container(
-                        width: 12,
-                        height: 12,
+                        width: 8,
+                        height: 8,
                         decoration: BoxDecoration(
-                          color: colors[index % colors.length],
+                          color: color1,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -2801,33 +2850,136 @@ class _SalesReportPageState extends State<SalesReportPage>
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              location['location'] as String,
+                              location1['location'] as String,
                               style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.1,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              '$orderCount orders • ${_currencyFormat.format(revenue)}',
+                              '$orderCount1 orders • ${_currencyFormat.format(revenue1)}',
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 color: AppTheme.mediumGrey,
+                                height: 1.1,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: location2 != null
+                      ? Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: color2,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    location2['location'] as String,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.1,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    '$orderCount2 orders • ${_currencyFormat.format(revenue2)}',
+                                    style: const TextStyle(
+                                      fontSize: 9.5,
+                                      color: AppTheme.mediumGrey,
+                                      height: 1.1,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : const SizedBox(),
+                ),
+              ],
             ),
           ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: rows,
+      );
+    }
+
+    return Column(
+      children: [
+        // Pie Chart
+        SizedBox(
+          height: chartHeight,
+          child: SfCircularChart(
+            margin: EdgeInsets.zero,
+            series: <CircularSeries<_LocationPieData, String>>[
+              DoughnutSeries<_LocationPieData, String>(
+                dataSource: topLocations.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final location = entry.value;
+                  final orderCount = location['order_count'] as int;
+                  final percentage = totalOrders > 0 ? (orderCount / totalOrders) : 0.0;
+                  return _LocationPieData(
+                    location['location']?.toString() ?? '',
+                    orderCount.toDouble(),
+                    '${(percentage * 100).toStringAsFixed(1)}%',
+                    colors[index % colors.length],
+                  );
+                }).toList(),
+                xValueMapper: (_LocationPieData data, _) => data.location,
+                yValueMapper: (_LocationPieData data, _) => data.count,
+                pointColorMapper: (_LocationPieData data, _) => data.color,
+                innerRadius: '60%',
+                radius: '95%',
+                dataLabelSettings: const DataLabelSettings(
+                  isVisible: true,
+                  labelPosition: ChartDataLabelPosition.inside,
+                  textStyle: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                dataLabelMapper: (_LocationPieData data, _) => data.percentage,
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 12),
+        // Legend
+        buildLegendGrid(),
       ],
     );
   }
@@ -2851,88 +3003,82 @@ class _SalesReportPageState extends State<SalesReportPage>
       horizontalInterval = ((firstOrderCount / 4).ceil()).toDouble();
     }
     
+    final colors = [
+      const Color(0xFF4F46E5),
+      const Color(0xFF8B5CF6),
+      const Color(0xFF10B981),
+    ];
+
+    final list = topLocations.asMap().entries.map((entry) {
+      final index = entry.key;
+      final location = entry.value;
+      final orderCount = location['order_count'] as int;
+      final name = location['location']?.toString() ?? '';
+      final displayLabel = name.length > 8 ? '${name.substring(0, 8)}...' : name;
+      final color = index < 3 ? colors[index] : AppTheme.primaryColor.withOpacity(0.6);
+      return _LocationBarData(
+        displayLabel,
+        orderCount.toDouble(),
+        color,
+      );
+    }).toList();
+
     return SizedBox(
       height: 250,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxY,
-          minY: 0,
-          barTouchData: BarTouchData(enabled: true),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  if (value.toInt() >= topLocations.length) return const SizedBox();
-                  final location = topLocations[value.toInt()];
-                  final name = location['location'] as String;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      name.length > 8 ? '${name.substring(0, 8)}...' : name,
-                      style: const TextStyle(fontSize: 10, color: AppTheme.darkGrey),
-                    ),
-                  );
-                },
-                reservedSize: 60,
+      child: SfCartesianChart(
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        tooltipBehavior: TooltipBehavior(
+          enable: true,
+          activationMode: ActivationMode.singleTap,
+          builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+            final _LocationBarData item = data;
+            // Get original location name for the tooltip
+            final originalName = pointIndex < topLocations.length
+                ? topLocations[pointIndex]['location']?.toString() ?? item.location
+                : item.location;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(6),
               ),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  return Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
-                  );
-                },
-                reservedSize: 30,
-              ),
-            ),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: horizontalInterval,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: AppTheme.lightGrey,
-                strokeWidth: 1,
-              );
-            },
-          ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border.all(color: AppTheme.lightGrey),
-          ),
-          barGroups: topLocations.asMap().entries.map((entry) {
-            final index = entry.key;
-            final location = entry.value;
-            final orderCount = location['order_count'] as int;
-            
-            final colors = [
-              const Color(0xFF4F46E5),
-              const Color(0xFF8B5CF6),
-              const Color(0xFF10B981),
-            ];
-            
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                  toY: orderCount.toDouble(),
-                  color: index < 3 ? colors[index] : AppTheme.primaryColor.withOpacity(0.6),
-                  width: 20,
-                  borderRadius: BorderRadius.circular(4),
+              child: Text(
+                '$originalName\nOrders: ${item.count.toInt()}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
+              ),
             );
-          }).toList(),
+          },
         ),
+        primaryXAxis: CategoryAxis(
+          majorGridLines: const MajorGridLines(width: 0),
+          labelStyle: const TextStyle(fontSize: 10, color: AppTheme.darkGrey),
+          axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
+        ),
+        primaryYAxis: NumericAxis(
+          axisLine: const AxisLine(width: 0),
+          labelStyle: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
+          majorGridLines: MajorGridLines(
+            color: AppTheme.lightGrey,
+            width: 1,
+          ),
+          maximum: maxY,
+        ),
+        series: <CartesianSeries<_LocationBarData, String>>[
+          ColumnSeries<_LocationBarData, String>(
+            dataSource: list,
+            xValueMapper: (_LocationBarData data, _) => data.location,
+            yValueMapper: (_LocationBarData data, _) => data.count,
+            pointColorMapper: (_LocationBarData data, _) => data.color,
+            width: 0.5,
+            borderRadius: BorderRadius.circular(4),
+            animationDuration: 1000,
+          ),
+        ],
       ),
     );
   }
@@ -3489,149 +3635,95 @@ class _AnimatedChartState extends State<_AnimatedChart>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _chartAnimation,
-      builder: (context, child) {
-        return SizedBox(
-          height: 350,
-          child: LineChart(
-            LineChartData(
-              maxY: (widget.chartValues.isEmpty ? 1000.0 : widget.chartValues.reduce((a, b) => a > b ? a : b) * 1.2).clamp(1000.0, 10000000.0).toDouble(),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipColor: (_) => const Color(0xFF1E293B),
-                  tooltipPadding: const EdgeInsets.all(12),
-                  getTooltipItems: (spots) {
-                    return spots.map((spot) {
-                      final labels = _getChartLabels();
-                      final dayIndex = spot.x.toInt();
-                      final dayLabel = dayIndex < labels.length 
-                          ? labels[dayIndex] 
-                          : 'Day ${dayIndex + 1}';
-                      
-                      return LineTooltipItem(
-                        NumberFormat.currency(symbol: '₱', decimalDigits: 2).format(spot.y),
-                        const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: '\n$dayLabel',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 11,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList();
-                  },
-                ),
+    final double maxY = (widget.chartValues.isEmpty 
+        ? 1000.0 
+        : widget.chartValues.reduce((a, b) => a > b ? a : b) * 1.2)
+        .clamp(1000.0, 10000000.0)
+        .toDouble();
+
+    final labels = _getChartLabels();
+    final list = List.generate(widget.chartValues.length, (i) {
+      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
+      return _AnimatedChartData(label, widget.chartValues[i]);
+    });
+
+    return SizedBox(
+      height: 350,
+      child: SfCartesianChart(
+        plotAreaBorderWidth: 0,
+        margin: EdgeInsets.zero,
+        tooltipBehavior: TooltipBehavior(
+          enable: true,
+          activationMode: ActivationMode.singleTap,
+          builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+            final _AnimatedChartData item = data;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(8),
               ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      final labels = _getChartLabels();
-                      final dayIndex = value.toInt();
-                      
-                      if (dayIndex >= widget.chartValues.length || dayIndex < 0) {
-                        return const SizedBox.shrink();
-                      }
-                      
-                      if (dayIndex < labels.length) {
-                        return SideTitleWidget(
-                          meta: meta,
-                          child: Text(
-                            labels[dayIndex],
-                            style: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      }
-                      return const SizedBox();
-                    },
-                    reservedSize: 30,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    NumberFormat.currency(symbol: '₱', decimalDigits: 2).format(item.value),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      return SideTitleWidget(
-                        meta: meta,
-                        child: Text(
-                          _formatCurrency(value),
-                          style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      );
-                    },
-                    reservedSize: 55,
+                  const SizedBox(height: 4),
+                  Text(
+                    item.label,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 11,
+                    ),
                   ),
-                ),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ],
               ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: true,
-                horizontalInterval: 1000,
-                verticalInterval: 1,
-                getDrawingHorizontalLine: (value) => FlLine(
-                  color: const Color(0xFFF1F5F9).withOpacity(0.5),
-                  strokeWidth: 1,
-                  dashArray: [3, 3],
-                ),
-                getDrawingVerticalLine: (value) => FlLine(
-                  color: const Color(0xFFF1F5F9).withOpacity(0.3),
-                  strokeWidth: 1,
-                  dashArray: [2, 4],
-                ),
-              ),
-              borderData: FlBorderData(
-                show: true,
-                border: Border.all(
-                  color: const Color(0xFFF1F5F9).withOpacity(0.5),
-                  width: 1,
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: List.generate(
-                    widget.chartValues.length,
-                    (i) => FlSpot(i.toDouble(), widget.chartValues[i] * _chartAnimation.value),
-                  ),
-                  isCurved: true,
-                  color: Colors.red,
-                  barWidth: 5,
-                  isStrokeCapRound: true,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      return FlDotCirclePainter(
-                        radius: 6,
-                        color: Colors.red,
-                        strokeWidth: 3,
-                        strokeColor: Colors.white,
-                      );
-                    },
-                  ),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.red.withValues(alpha: 0.3 * _chartAnimation.value),
-                  ),
-                ),
-              ],
-              minY: 0,
+            );
+          },
+        ),
+        primaryXAxis: CategoryAxis(
+          majorGridLines: const MajorGridLines(width: 0),
+          labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
+          axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+        ),
+        primaryYAxis: NumericAxis(
+          axisLine: const AxisLine(width: 0),
+          labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
+          numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+          majorGridLines: MajorGridLines(
+            color: const Color(0xFFF1F5F9).withOpacity(0.5),
+            width: 1,
+            dashArray: const [3, 3],
+          ),
+          maximum: maxY,
+        ),
+        series: <CartesianSeries<_AnimatedChartData, String>>[
+          SplineSeries<_AnimatedChartData, String>(
+            dataSource: list,
+            xValueMapper: (_AnimatedChartData data, _) => data.label,
+            yValueMapper: (_AnimatedChartData data, _) => data.value,
+            color: Colors.red,
+            width: 5,
+            animationDuration: 1000,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              shape: DataMarkerType.circle,
+              width: 6,
+              height: 6,
+              color: Colors.white,
+              borderColor: Colors.red,
+              borderWidth: 2,
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -3649,4 +3741,37 @@ class _AnimatedChartState extends State<_AnimatedChart>
       return '₱${value.toStringAsFixed(0)}';
     }
   }
+}
+
+class _SalesReportData {
+  final String label;
+  final double regular;
+  final double advance;
+  final double reservation;
+
+  _SalesReportData(this.label, this.regular, this.advance, this.reservation);
+}
+
+class _LocationPieData {
+  final String location;
+  final double count;
+  final String percentage;
+  final Color color;
+
+  _LocationPieData(this.location, this.count, this.percentage, this.color);
+}
+
+class _LocationBarData {
+  final String location;
+  final double count;
+  final Color color;
+
+  _LocationBarData(this.location, this.count, this.color);
+}
+
+class _AnimatedChartData {
+  final String label;
+  final double value;
+
+  _AnimatedChartData(this.label, this.value);
 }
