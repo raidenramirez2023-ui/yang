@@ -25,6 +25,7 @@ dependencies:
 
   # Optional (you can keep or remove if unused)
   fl_chart: ^1.1.1
+  syncfusion_flutter_charts: ^26.1.39
 
   shared_preferences: ^2.2.1
   google_fonts: ^6.2.1

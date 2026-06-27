@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'dart:async';
 
-import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
 import 'package:flutter/material.dart';
 
@@ -1892,381 +1892,228 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final dayLabels = getChartLabels();
 
     // Ensure data consistency
-
     final dataLength = _weeklyRevenue.length;
-
     final labelsLength = dayLabels.length;
-
     final chartLength = dataLength < labelsLength ? dataLength : labelsLength;
 
     final maxRevenue = _weeklyRevenue.isEmpty
         ? 0.0
         : _weeklyRevenue.reduce(max);
 
-    // Add 20% headroom for labels and clarity
-
     final maxY = (maxRevenue == 0 ? 1000.0 : maxRevenue * 1.2)
         .clamp(1000.0, 10000000.0)
         .toDouble();
 
+    final weeklyFull = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    final weeklyShort = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    final dailyFull = ['10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM'];
+    final dailyShort = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+
+    String bottomLabel(int i) {
+      if (_selectedPeriod == 'Weekly') return i < weeklyShort.length ? weeklyShort[i] : 'D${i+1}';
+      if (_selectedPeriod == 'Daily') return i < dailyShort.length ? dailyShort[i] : '${i+10}:00';
+      return i < dayLabels.length ? dayLabels[i] : 'M${i+1}';
+    }
+
+    String tooltipLabel(int i) {
+      if (_selectedPeriod == 'Weekly') return i < weeklyFull.length ? weeklyFull[i] : 'Day ${i+1}';
+      if (_selectedPeriod == 'Daily') return i < dailyFull.length ? dailyFull[i] : '${i+1}:00';
+      return i < dayLabels.length ? dayLabels[i] : 'Month ${i+1}';
+    }
+
+    final chartData = List.generate(chartLength, (i) {
+      final val = i < _weeklyRevenue.length ? _weeklyRevenue[i] : 0.0;
+      return _RevenueData(bottomLabel(i), val);
+    });
+
     return Container(
       padding: const EdgeInsets.all(AppTheme.lg),
-
       decoration: _cardDecoration(),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
           Row(
             children: [
               Container(
                 width: 4,
-
-                height: 20,
-
+                height: 24,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
-                child: Text(
-                  'Revenue Analytics',
-
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-
-                    color: AppTheme.darkGrey,
-
-                    fontSize: 18,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Revenue Analytics',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.darkGrey,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _selectedPeriod == 'Weekly'
+                          ? 'This week\'s revenue overview'
+                          : _selectedPeriod == 'Daily'
+                              ? 'Today\'s hourly revenue'
+                              : _selectedPeriod == 'Monthly'
+                                  ? 'Monthly revenue breakdown'
+                                  : 'Annual revenue trend',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.mediumGrey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
               const SizedBox(width: 16),
-
               _periodSelector(),
             ],
           ),
-
           const SizedBox(height: AppTheme.lg),
-
           SizedBox(
             height: 240,
-
-            child: LineChart(
-              LineChartData(
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) =>
-                        AppTheme.darkGrey.withOpacity(0.95),
-
-                    tooltipPadding: const EdgeInsets.all(12),
-
-                    getTooltipItems: (spots) {
-                      return spots
-                          .where((spot) => spot.x.toInt() < chartLength)
-                          .map((spot) {
-                            final dayIndex = spot.x.toInt();
-
-                            String dayLabel;
-
-                            if (_selectedPeriod == 'Weekly') {
-                              // Weekly: Show full day names
-
-                              final weeklyLabels = [
-                                'Monday',
-
-                                'Tuesday',
-
-                                'Wednesday',
-
-                                'Thursday',
-
-                                'Friday',
-
-                                'Saturday',
-
-                                'Sunday',
-                              ];
-
-                              dayLabel = dayIndex < weeklyLabels.length
-                                  ? weeklyLabels[dayIndex]
-                                  : 'Day ${dayIndex + 1}';
-                            } else if (_selectedPeriod == 'Daily') {
-                              // Daily: Show time with AM/PM
-
-                              final dailyLabels = [
-                                '10:00 AM',
-
-                                '11:00 AM',
-
-                                '12:00 PM',
-
-                                '1:00 PM',
-
-                                '2:00 PM',
-
-                                '3:00 PM',
-
-                                '4:00 PM',
-
-                                '5:00 PM',
-
-                                '6:00 PM',
-
-                                '7:00 PM',
-
-                                '8:00 PM',
-                              ];
-
-                              dayLabel = dayIndex < dailyLabels.length
-                                  ? dailyLabels[dayIndex]
-                                  : '${dayIndex + 1}:00';
-                            } else {
-                              // Monthly/Annually: Use original logic
-
-                              dayLabel = dayIndex < dayLabels.length
-                                  ? dayLabels[dayIndex]
-                                  : 'Month ${dayIndex + 1}';
-                            }
-
-                            return LineTooltipItem(
-                              '₱${_formatNumber(spot.y.toInt())}',
-
-                              const TextStyle(
-                                color: Colors.white,
-
-                                fontWeight: FontWeight.bold,
-
-                                fontSize: 14,
-                              ),
-
-                              children: [
-                                TextSpan(
-                                  text: '\n$dayLabel',
-
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            );
-                          })
-                          .toList();
+            child: SfCartesianChart(
+              plotAreaBorderWidth: 0,
+              margin: EdgeInsets.zero,
+              tooltipBehavior: TooltipBehavior(
+                enable: true,
+                activationMode: ActivationMode.singleTap,
+                shouldAlwaysShow: false,
+                builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                  final _RevenueData item = data;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tooltipLabel(pointIndex),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatNumber(item.value),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              primaryXAxis: CategoryAxis(
+                majorGridLines: const MajorGridLines(width: 0),
+                labelStyle: const TextStyle(
+                  color: AppTheme.mediumGrey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+              ),
+              primaryYAxis: NumericAxis(
+                axisLine: const AxisLine(width: 0),
+                labelStyle: const TextStyle(
+                  color: AppTheme.mediumGrey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+                majorGridLines: MajorGridLines(
+                  color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                  width: 1,
+                ),
+                maximum: maxY,
+              ),
+              series: <CartesianSeries<_RevenueData, String>>[
+                SplineAreaSeries<_RevenueData, String>(
+                  dataSource: chartData,
+                  xValueMapper: (_RevenueData data, _) => data.label,
+                  yValueMapper: (_RevenueData data, _) => data.value,
+                  name: 'Revenue',
+                  enableTooltip: true,
+                  animationDuration: 0,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor.withOpacity(0.3),
+                      AppTheme.primaryLight.withOpacity(0.1),
+                      AppTheme.primaryColor.withOpacity(0.0),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderColor: AppTheme.primaryColor,
+                  borderWidth: 3.5,
+                  markerSettings: const MarkerSettings(
+                    isVisible: true,
+                    shape: DataMarkerType.circle,
+                    width: 6,
+                    height: 6,
+                    color: Colors.white,
+                    borderColor: AppTheme.primaryColor,
+                    borderWidth: 2,
+                  ),
+                  dataLabelSettings: DataLabelSettings(
+                    isVisible: true,
+                    labelAlignment: ChartDataLabelAlignment.top,
+                    builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                      final _RevenueData item = data;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 2,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH').format(item.value),
+                          style: const TextStyle(
+                            color: AppTheme.darkGrey,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
-
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 60,
-                      interval: maxY / 4,
-                      getTitlesWidget: (value, meta) {
-                        String label = '';
-                        if (value >= 1000000) {
-                          label = '₱${(value / 1000000).toStringAsFixed(1)}M';
-                        } else if (value >= 1000) {
-                          label = '₱${(value / 1000).toStringAsFixed(0)}k';
-                        } else {
-                          label = '₱${value.toStringAsFixed(0)}';
-                        }
-
-                        return SideTitleWidget(
-                          meta: meta,
-                          child: Text(
-                            label,
-                            style: const TextStyle(
-                              color: AppTheme.darkGrey,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-
-                      interval: 1, // Ensure one label per interval
-
-                      getTitlesWidget: (value, _) {
-                        final dayIndex = value.toInt();
-
-                        // Only show labels within our chart bounds
-
-                        if (dayIndex >= chartLength) {
-                          return const SizedBox.shrink();
-                        }
-
-                        String dayLabel;
-
-                        if (_selectedPeriod == 'Weekly') {
-                          // Weekly: Show day abbreviations
-
-                          final weeklyLabels = [
-                            'Mon',
-
-                            'Tue',
-
-                            'Wed',
-
-                            'Thu',
-
-                            'Fri',
-
-                            'Sat',
-
-                            'Sun',
-                          ];
-
-                          dayLabel = dayIndex < weeklyLabels.length
-                              ? weeklyLabels[dayIndex]
-                              : 'D${dayIndex + 1}';
-                        } else if (_selectedPeriod == 'Daily') {
-                          // Daily: Business hours only (10:00 AM to 8:00 PM)
-                          final dailyLabels = [
-                            '10:00', '11:00', '12:00', '13:00', '14:00',
-                            '15:00', '16:00', '17:00', '18:00', '19:00', '20:00',
-                          ];
-
-                          dayLabel = dayIndex < dailyLabels.length
-                              ? dailyLabels[dayIndex]
-                              : '${dayIndex + 10}:00';
-                        } else {
-                          // Monthly/Annually: Use original logic
-
-                          dayLabel = dayIndex < dayLabels.length
-                              ? dayLabels[dayIndex]
-                              : 'M${dayIndex + 1}';
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-
-                          child: Text(
-                            dayLabel,
-
-                            style: const TextStyle(
-                              fontSize: 11,
-
-                              color: AppTheme.darkGrey,
-
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-
-                gridData: FlGridData(
-                  show: true,
-
-                  drawVerticalLine: true,
-
-                  horizontalInterval: maxY / 4,
-
-                  verticalInterval: 1,
-
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: AppTheme.lightGrey.withOpacity(0.3),
-
-                    strokeWidth: 1,
-
-                    dashArray: [3, 3],
-                  ),
-
-                  getDrawingVerticalLine: (value) => FlLine(
-                    color: AppTheme.lightGrey.withOpacity(0.2),
-
-                    strokeWidth: 1,
-
-                    dashArray: [2, 4],
-                  ),
-                ),
-
-                borderData: FlBorderData(
-                  show: true,
-
-                  border: Border.all(
-                    color: AppTheme.lightGrey.withOpacity(0.3),
-
-                    width: 1,
-                  ),
-                ),
-
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(chartLength, (i) {
-                      // Ensure we don't go out of bounds
-
-                      final revenueValue = i < _weeklyRevenue.length
-                          ? _weeklyRevenue[i]
-                          : 0.0;
-
-                      return FlSpot(i.toDouble(), revenueValue);
-                    }),
-
-                    isCurved: true,
-
-                    color: AppTheme.primaryColor,
-
-                    barWidth: 3,
-
-                    isStrokeCapRound: true,
-
-                    dotData: FlDotData(
-                      show: true,
-
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-
-                          color: AppTheme.primaryColor,
-
-                          strokeWidth: 2,
-
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-
-                    belowBarData: BarAreaData(
-                      show: true,
-
-                      color: AppTheme.primaryColor.withOpacity(0.2),
-                    ),
-                  ),
-                ],
-
-                minY: 0,
-
-                maxY: maxY,
-              ),
+              ],
             ),
           ),
         ],
@@ -2549,40 +2396,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       alignment: Alignment.center,
 
                       children: [
-                        PieChart(
-                          PieChartData(
-                            sectionsSpace: 0,
-
-                            centerSpaceRadius: 65,
-
-                            startDegreeOffset: -90,
-
-                            sections: [
-                              PieChartSectionData(
-                                color: isReserved
-                                    ? statusColor
-                                    : AppTheme.backgroundColor,
-
-                                value: isReserved ? 100 : 0,
-
-                                title: '',
-
-                                radius: 20,
-                              ),
-
-                              PieChartSectionData(
-                                color: isReserved
-                                    ? AppTheme.backgroundColor
-                                    : statusColor.withOpacity(0.1),
-
-                                value: isReserved ? 0 : 100,
-
-                                title: '',
-
-                                radius: 15,
-                              ),
-                            ],
-                          ),
+                        SfCircularChart(
+                          margin: EdgeInsets.zero,
+                          series: <CircularSeries<_PieData, String>>[
+                            DoughnutSeries<_PieData, String>(
+                              dataSource: [
+                                _PieData('Reserved', isReserved ? 100 : 0, isReserved ? statusColor : AppTheme.backgroundColor),
+                                _PieData('Available', isReserved ? 0 : 100, isReserved ? AppTheme.backgroundColor : statusColor.withOpacity(0.1)),
+                              ],
+                              xValueMapper: (_PieData data, _) => data.x,
+                              yValueMapper: (_PieData data, _) => data.y,
+                              pointColorMapper: (_PieData data, _) => data.color,
+                              innerRadius: '80%',
+                              radius: '100%',
+                              startAngle: 270,
+                              endAngle: 630,
+                            ),
+                          ],
                         ),
 
                         Column(
@@ -3779,224 +3609,149 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               // Monthly Trends Chart
               Expanded(
                 flex: 2,
-
                 child: Container(
                   padding: const EdgeInsets.all(AppTheme.lg),
-
                   decoration: _cardDecoration(),
-
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
                       Row(
                         children: [
                           Container(
                             width: 4,
-
-                            height: 20,
-
+                            height: 24,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-
+                              gradient: const LinearGradient(
+                                colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
                           Text(
                             'Monthly Event Trends - ${DateTime.now().year}',
-
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-
                                   color: AppTheme.darkGrey,
                                 ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: AppTheme.lg),
-
                       SizedBox(
                         height: 200,
+                        child: SfCartesianChart(
+                          plotAreaBorderWidth: 0,
+                          margin: EdgeInsets.zero,
+                          tooltipBehavior: TooltipBehavior(
+                            enable: true,
+                            activationMode: ActivationMode.singleTap,
+                            shouldAlwaysShow: false,
+                            builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                              final _EventTrendData item = data;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E293B),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${item.value.toInt()} events\n${item.month}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          primaryXAxis: CategoryAxis(
+                            majorGridLines: const MajorGridLines(width: 0),
+                            labelStyle: const TextStyle(
+                              color: AppTheme.mediumGrey,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+                          ),
+                          primaryYAxis: NumericAxis(
+                            axisLine: const AxisLine(width: 0),
+                            labelStyle: const TextStyle(
+                              color: AppTheme.mediumGrey,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            majorGridLines: MajorGridLines(
+                              color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                              width: 1,
+                            ),
+                            maximum: maxY,
+                          ),
+                          series: <CartesianSeries<_EventTrendData, String>>[
+                            SplineAreaSeries<_EventTrendData, String>(
+                              dataSource: List.generate(12, (i) {
+                                return _EventTrendData(monthLabels[i], _monthlyEventTrends[i]);
+                              }),
+                              xValueMapper: (_EventTrendData data, _) => data.month,
+                              yValueMapper: (_EventTrendData data, _) => data.value,
+                              name: 'Events',
+                              enableTooltip: true,
+                              animationDuration: 0,
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppTheme.primaryColor.withOpacity(0.3),
+                                  AppTheme.primaryLight.withOpacity(0.1),
+                                  AppTheme.primaryColor.withOpacity(0.0),
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderColor: AppTheme.primaryColor,
+                              borderWidth: 3,
+                              markerSettings: const MarkerSettings(
+                                isVisible: true,
+                                shape: DataMarkerType.circle,
+                                width: 6,
+                                height: 6,
+                                color: Colors.white,
+                                borderColor: AppTheme.primaryColor,
+                                borderWidth: 2,
+                              ),
+                              dataLabelSettings: DataLabelSettings(
+                                isVisible: true,
+                                labelAlignment: ChartDataLabelAlignment.top,
+                                builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                                  final _EventTrendData item = data;
 
-                        child: LineChart(
-                          LineChartData(
-                            lineTouchData: LineTouchData(
-                              touchTooltipData: LineTouchTooltipData(
-                                getTooltipColor: (_) =>
-                                    AppTheme.darkGrey.withOpacity(0.95),
-
-                                tooltipPadding: const EdgeInsets.all(8),
-
-                                getTooltipItems: (spots) {
-                                  return spots.map((spot) {
-                                    return LineTooltipItem(
-                                      '${spot.y.toInt()} events',
-
-                                      const TextStyle(
-                                        color: Colors.white,
-
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.9),
+                                      borderRadius: BorderRadius.circular(4),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 2,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      item.value.toInt().toString(),
+                                      style: const TextStyle(
+                                        color: AppTheme.darkGrey,
+                                        fontSize: 9,
                                         fontWeight: FontWeight.bold,
-
-                                        fontSize: 12,
                                       ),
-                                    );
-                                  }).toList();
+                                    ),
+                                  );
                                 },
                               ),
-
-                              handleBuiltInTouches: true,
                             ),
-
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-
-                                  reservedSize: 35,
-
-                                  getTitlesWidget: (value, _) => Text(
-                                    value.toInt().toString(),
-
-                                    style: const TextStyle(
-                                      color: AppTheme.mediumGrey,
-
-                                      fontSize: 9,
-
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-
-                                  getTitlesWidget: (value, _) => Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-
-                                    child: Text(
-                                      monthLabels[value.toInt() % 12],
-
-                                      style: const TextStyle(
-                                        fontSize: 10,
-
-                                        color: AppTheme.mediumGrey,
-
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            gridData: FlGridData(
-                              show: true,
-
-                              drawVerticalLine: true,
-
-                              horizontalInterval: maxY / 4,
-
-                              verticalInterval: 1,
-
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: AppTheme.lightGrey.withValues(
-                                  alpha: 0.3,
-                                ),
-
-                                strokeWidth: 1,
-
-                                dashArray: [3, 3],
-                              ),
-
-                              getDrawingVerticalLine: (value) => FlLine(
-                                color: AppTheme.lightGrey.withValues(
-                                  alpha: 0.2,
-                                ),
-
-                                strokeWidth: 1,
-
-                                dashArray: [2, 4],
-                              ),
-                            ),
-
-                            borderData: FlBorderData(
-                              show: true,
-
-                              border: Border.all(
-                                color: AppTheme.lightGrey.withValues(
-                                  alpha: 0.3,
-                                ),
-
-                                width: 1,
-                              ),
-                            ),
-
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: List.generate(
-                                  12,
-
-                                  (i) => FlSpot(
-                                    i.toDouble(),
-
-                                    _monthlyEventTrends[i],
-                                  ),
-                                ),
-
-                                isCurved: true,
-
-                                color: AppTheme.primaryColor,
-
-                                barWidth: 3,
-
-                                isStrokeCapRound: true,
-
-                                dotData: FlDotData(
-                                  show: true,
-
-                                  getDotPainter:
-                                      (spot, percent, barData, index) {
-                                        return FlDotCirclePainter(
-                                          radius: 4,
-
-                                          color: AppTheme.primaryColor,
-
-                                          strokeWidth: 2,
-
-                                          strokeColor: Colors.white,
-                                        );
-                                      },
-                                ),
-
-                                belowBarData: BarAreaData(
-                                  show: true,
-
-                                  color: AppTheme.primaryColor.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            minY: 0,
-
-                            maxY: maxY,
-                          ),
+                          ],
                         ),
                       ),
                     ],
@@ -4132,214 +3887,146 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               // Monthly Trends Chart
               Container(
                 padding: const EdgeInsets.all(AppTheme.lg),
-
                 decoration: _cardDecoration(),
-
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Row(
                       children: [
                         Container(
                           width: 4,
-
-                          height: 20,
-
+                          height: 24,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
-
+                            gradient: const LinearGradient(
+                              colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-
                         const SizedBox(width: 12),
-
                         Text(
                           'Monthly Event Trends - ${DateTime.now().year}',
-
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-
                                 color: AppTheme.darkGrey,
                               ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: AppTheme.lg),
-
                     SizedBox(
                       height: 180,
-
-                      child: LineChart(
-                        LineChartData(
-                          lineTouchData: LineTouchData(
-                            touchTooltipData: LineTouchTooltipData(
-                              getTooltipColor: (_) =>
-                                  AppTheme.darkGrey.withOpacity(0.95),
-
-                              tooltipPadding: const EdgeInsets.all(8),
-
-                              getTooltipItems: (spots) {
-                                return spots.map((spot) {
-                                  return LineTooltipItem(
-                                    '${spot.y.toInt()} events',
-
-                                    const TextStyle(
-                                      color: Colors.white,
-
+                      child: SfCartesianChart(
+                        plotAreaBorderWidth: 0,
+                        margin: EdgeInsets.zero,
+                        tooltipBehavior: TooltipBehavior(
+                          enable: true,
+                          activationMode: ActivationMode.singleTap,
+                          shouldAlwaysShow: false,
+                          builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                            final _EventTrendData item = data;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E293B),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${item.value.toInt()} events\n${item.month}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        primaryXAxis: CategoryAxis(
+                          majorGridLines: const MajorGridLines(width: 0),
+                          labelStyle: const TextStyle(
+                            color: AppTheme.mediumGrey,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+                        ),
+                        primaryYAxis: NumericAxis(
+                          axisLine: const AxisLine(width: 0),
+                          labelStyle: const TextStyle(
+                            color: AppTheme.mediumGrey,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          majorGridLines: MajorGridLines(
+                            color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                            width: 1,
+                          ),
+                          maximum: maxY,
+                        ),
+                        series: <CartesianSeries<_EventTrendData, String>>[
+                          SplineAreaSeries<_EventTrendData, String>(
+                            dataSource: List.generate(12, (i) {
+                              return _EventTrendData(monthLabels[i], _monthlyEventTrends[i]);
+                            }),
+                            xValueMapper: (_EventTrendData data, _) => data.month,
+                            yValueMapper: (_EventTrendData data, _) => data.value,
+                            name: 'Events',
+                            enableTooltip: true,
+                            animationDuration: 0,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.primaryColor.withOpacity(0.3),
+                                AppTheme.primaryLight.withOpacity(0.1),
+                                AppTheme.primaryColor.withOpacity(0.0),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            borderColor: AppTheme.primaryColor,
+                            borderWidth: 3,
+                            markerSettings: const MarkerSettings(
+                              isVisible: true,
+                              shape: DataMarkerType.circle,
+                              width: 6,
+                              height: 6,
+                              color: Colors.white,
+                              borderColor: AppTheme.primaryColor,
+                              borderWidth: 2,
+                            ),
+                            dataLabelSettings: DataLabelSettings(
+                              isVisible: true,
+                              labelAlignment: ChartDataLabelAlignment.top,
+                              builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                                final _EventTrendData item = data;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(4),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    item.value.toInt().toString(),
+                                    style: const TextStyle(
+                                      color: AppTheme.darkGrey,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.bold,
-
-                                      fontSize: 12,
                                     ),
-                                  );
-                                }).toList();
+                                  ),
+                                );
                               },
                             ),
-
-                            handleBuiltInTouches: true,
                           ),
-
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-
-                                reservedSize: 35,
-
-                                getTitlesWidget: (value, _) => Text(
-                                  value.toInt().toString(),
-
-                                  style: const TextStyle(
-                                    color: AppTheme.mediumGrey,
-
-                                    fontSize: 9,
-
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-
-                            topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-
-                                getTitlesWidget: (value, _) => Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-
-                                  child: Text(
-                                    monthLabels[value.toInt() % 12],
-
-                                    style: const TextStyle(
-                                      fontSize: 10,
-
-                                      color: AppTheme.mediumGrey,
-
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          gridData: FlGridData(
-                            show: true,
-
-                            drawVerticalLine: true,
-
-                            horizontalInterval: maxY / 4,
-
-                            verticalInterval: 1,
-
-                            getDrawingHorizontalLine: (value) => FlLine(
-                              color: AppTheme.lightGrey.withOpacity(0.3),
-
-                              strokeWidth: 1,
-
-                              dashArray: [3, 3],
-                            ),
-
-                            getDrawingVerticalLine: (value) => FlLine(
-                              color: AppTheme.lightGrey.withOpacity(0.2),
-
-                              strokeWidth: 1,
-
-                              dashArray: [2, 4],
-                            ),
-                          ),
-
-                          borderData: FlBorderData(
-                            show: true,
-
-                            border: Border.all(
-                              color: AppTheme.lightGrey.withOpacity(0.3),
-
-                              width: 1,
-                            ),
-                          ),
-
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: List.generate(
-                                12,
-
-                                (i) => FlSpot(
-                                  i.toDouble(),
-
-                                  _monthlyEventTrends[i],
-                                ),
-                              ),
-
-                              isCurved: true,
-
-                              color: AppTheme.primaryColor,
-
-                              barWidth: 3,
-
-                              isStrokeCapRound: true,
-
-                              dotData: FlDotData(
-                                show: true,
-
-                                getDotPainter: (spot, percent, barData, index) {
-                                  return FlDotCirclePainter(
-                                    radius: 4,
-
-                                    color: AppTheme.primaryColor,
-
-                                    strokeWidth: 2,
-
-                                    strokeColor: Colors.white,
-                                  );
-                                },
-                              ),
-
-                              belowBarData: BarAreaData(
-                                show: true,
-
-                                color: AppTheme.primaryColor.withValues(
-                                  alpha: 0.2,
-                                ),
-                              ),
-                            ),
-                          ],
-
-                          minY: 0,
-
-                          maxY: maxY,
-                        ),
+                        ],
                       ),
                     ),
                   ],
@@ -5100,6 +4787,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   }
 }
 
+class _RevenueData {
+  _RevenueData(this.label, this.value);
+  final String label;
+  final double value;
+}
+
+class _EventTrendData {
+  _EventTrendData(this.month, this.value);
+  final String month;
+  final double value;
+}
+
+class _PieData {
+  _PieData(this.x, this.y, this.color);
+  final String x;
+  final double y;
+  final Color color;
+}
+
 // ── Data models ───────────────────────────────────────────────────────────────
 
 class _KpiData {
@@ -5698,62 +5404,34 @@ class _ActivityTile extends StatelessWidget {
   }
 }
 
-class _PulsingDot extends StatefulWidget {
+class _PulsingDot extends StatelessWidget {
   final Color color;
   final double size;
 
   const _PulsingDot({required this.color, this.size = 8.0});
 
   @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: widget.size * 2.2,
-              height: widget.size * 2.2,
-              decoration: BoxDecoration(
-                color: widget.color.withOpacity(0.4 * (1 - _pulseController.value)),
-                shape: BoxShape.circle,
-              ),
-            ),
-            Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
-        );
-      },
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: size * 2.2,
+          height: size * 2.2,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
     );
   }
 }
