@@ -2060,7 +2060,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Scaffold(
 
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFEEF2F7),
 
       body: Row(
 
@@ -2375,7 +2375,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         title: Row(

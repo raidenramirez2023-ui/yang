@@ -186,7 +186,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: AppTheme.primaryColor,

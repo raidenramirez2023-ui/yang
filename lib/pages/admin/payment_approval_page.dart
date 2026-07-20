@@ -261,7 +261,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(

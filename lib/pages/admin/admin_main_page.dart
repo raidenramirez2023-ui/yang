@@ -728,7 +728,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFFEEF2F7),
 
 
 
@@ -1698,7 +1698,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFFEEF2F7),
 
 
 
@@ -1758,7 +1758,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFFEEF2F7),
 
 
 

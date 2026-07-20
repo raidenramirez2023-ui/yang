@@ -530,7 +530,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: AppTheme.white,
