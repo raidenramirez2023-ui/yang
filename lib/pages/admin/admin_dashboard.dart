@@ -1394,8 +1394,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     final isTablet = ResponsiveUtils.isTablet(context);
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _ordersStream,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF031627), // Deep ocean dark blue
+            Color(0xFF062C54), // Rich ocean blue
+            Color(0xFF0D568C), // Shimmering wave blue
+            Color(0xFF1B82C4), // Vibrant light blue highlights
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _ordersStream,
 
       builder: (context, orderSnapshot) {
         return StreamBuilder<List<Map<String, dynamic>>>(
@@ -1625,6 +1638,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           },
         );
       },
+     ),
     );
   }
 
@@ -1657,7 +1671,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   '$greeting, Administrator!',
 
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppTheme.darkGrey,
+                    color: Colors.white,
 
                     fontWeight: FontWeight.bold,
 
@@ -1673,7 +1687,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       _formatDate(),
 
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.mediumGrey,
+                        color: Colors.white.withValues(alpha: 0.7),
 
                         fontWeight: FontWeight.w500,
                       ),
@@ -1687,7 +1701,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       height: 4,
 
                       decoration: const BoxDecoration(
-                        color: AppTheme.mediumGrey,
+                        color: Colors.white30,
 
                         shape: BoxShape.circle,
                       ),
@@ -1713,12 +1727,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           height: 18,
 
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-
             borderRadius: BorderRadius.circular(4),
 
             gradient: const LinearGradient(
-              colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+              colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
 
               begin: Alignment.topCenter,
 
@@ -1735,7 +1747,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
 
-            color: AppTheme.darkGrey,
+            color: Colors.white,
 
             letterSpacing: -0.2,
           ),

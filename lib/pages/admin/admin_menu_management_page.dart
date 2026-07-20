@@ -122,7 +122,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                     Text(
                       'MENU MANAGEMENT',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.mediumGrey,
+                            color: Colors.white.withOpacity(0.7),
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
                           ),
@@ -132,7 +132,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                       'Manage POS Menu Items',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.darkGrey,
+                            color: Colors.white,
                           ),
                     ),
                   ],

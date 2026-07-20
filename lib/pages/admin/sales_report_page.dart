@@ -632,8 +632,20 @@ class _SalesReportPageState extends State<SalesReportPage>
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF2F7),
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF031627), // Deep ocean dark blue
+              Color(0xFF062C54), // Rich ocean blue
+              Color(0xFF0D568C), // Shimmering wave blue
+              Color(0xFF1B82C4), // Vibrant light blue highlights
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: _ordersStreamVar,
           builder: (context, orderSnapshot) {
@@ -1024,6 +1036,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           },
         ),
       ),
+     ),
     );
   }
 
@@ -1039,7 +1052,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             'Sales Report',
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w800,
-              color: AppTheme.darkGrey,
+              color: Colors.white,
               letterSpacing: -0.5,
             ),
           ),
@@ -1047,7 +1060,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           Text(
             'Track your business performance and metrics',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.mediumGrey,
+              color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: AppTheme.lg),
@@ -1074,7 +1087,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 'Sales Report',
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.darkGrey,
+                  color: Colors.white,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -1082,7 +1095,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Text(
                 'Track your business performance and metrics',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mediumGrey,
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -2730,7 +2743,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: _showEventReservationPerformance
-              ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
+              ? Colors.white.withValues(alpha: 0.1)
               : Colors.transparent,
         ),
         child: Row(
@@ -2739,10 +2752,9 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 4,
               height: 18,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
                 borderRadius: BorderRadius.circular(4),
                 gradient: const LinearGradient(
-                  colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+                  colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -2753,7 +2765,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
+                color: Colors.white,
                 letterSpacing: -0.2,
               ),
             ),
@@ -2762,7 +2774,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               _showEventReservationPerformance
                   ? Icons.keyboard_arrow_up_rounded
                   : Icons.keyboard_arrow_down_rounded,
-              color: Theme.of(context).primaryColor,
+              color: Colors.white,
               size: 20,
             ),
           ],
@@ -2778,10 +2790,9 @@ class _SalesReportPageState extends State<SalesReportPage>
           width: 4,
           height: 18,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
             borderRadius: BorderRadius.circular(4),
             gradient: const LinearGradient(
-              colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+              colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -2792,7 +2803,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: AppTheme.darkGrey,
+            color: Colors.white,
             letterSpacing: -0.2,
           ),
         ),

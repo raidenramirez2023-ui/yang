@@ -722,347 +722,205 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildDesktopLayout() {
 
+    return Container(
 
+      decoration: const BoxDecoration(
 
-    return Scaffold(
+        gradient: LinearGradient(
 
+          colors: [
 
+            Color(0xFF031627), // Deep ocean dark blue
 
-      backgroundColor: const Color(0xFFEEF2F7),
+            Color(0xFF062C54), // Rich ocean blue
 
+            Color(0xFF0D568C), // Shimmering wave blue
 
+            Color(0xFF1B82C4), // Vibrant light blue highlights
 
-      body: Stack(
+          ],
 
+          begin: Alignment.topCenter,
 
+          end: Alignment.bottomCenter,
 
-        children: [
-
-
-
-          Row(
-
-
-
-            children: [
-
-
-
-              _buildSidebar(),
-
-
-
-              Expanded(
-
-
-
-                child: Column(
-
-
-
-                  children: [
-
-
-
-                    _buildModernAppBar(),
-
-
-
-                    Expanded(
-
-
-
-                      child: Container(
-
-
-
-                        padding: const EdgeInsets.all(24),
-
-
-
-                        child: _pages[_selectedIndex],
-
-
-
-                      ),
-
-
-
-                    ),
-
-
-
-                  ],
-
-
-
-                ),
-
-
-
-              ),
-
-
-
-            ],
-
-
-
-          ),
-
-
-
-          // Chat Modal Overlay
-
-
-
-          const AdminChatModal(),
-
-
-
-        ],
-
-
+        ),
 
       ),
 
+      child: Scaffold(
 
+        backgroundColor: Colors.transparent,
+
+        body: Stack(
+
+          children: [
+
+            Row(
+
+              children: [
+
+                _buildSidebar(),
+
+                Expanded(
+
+                  child: Column(
+
+                    children: [
+
+                      _buildModernAppBar(),
+
+                      Expanded(
+
+                        child: Container(
+
+                          padding: const EdgeInsets.all(24),
+
+                          child: _pages[_selectedIndex],
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                ),
+
+              ],
+
+            ),
+
+            // Chat Modal Overlay
+
+            const AdminChatModal(),
+
+          ],
+
+        ),
+
+      ),
 
     );
-
-
 
   }
 
 
 
-
-
-
-
   Widget _buildSidebar() {
 
-
-
-    return Container(
-
-
-
-      width: 260,
-
-
+    return Material(
 
       color: Colors.white,
 
+      child: SizedBox(
 
+        width: 260,
 
-      child: Column(
-
-
+        child: Column(
 
         children: [
 
-
-
           Padding(
-
-
 
             padding: const EdgeInsets.all(24),
 
-
-
             child: Row(
-
-
 
               children: [
 
-
-
                 Container(
-
-
 
                   padding: const EdgeInsets.all(8),
 
-
-
                   decoration: BoxDecoration(
-
-
 
                     color: AppTheme.primaryColor,
 
-
-
                     borderRadius: BorderRadius.circular(12),
 
-
-
                   ),
-
-
 
                   child: const Icon(
 
-
-
                     Icons.restaurant,
-
-
 
                     color: Colors.white,
 
-
-
                     size: 24,
-
-
 
                   ),
 
-
-
                 ),
-
-
 
                 const SizedBox(width: 12),
 
-
-
                 const Column(
-
-
 
                   crossAxisAlignment: CrossAxisAlignment.start,
 
-
-
                   children: [
-
-
 
                     Text(
 
-
-
                       'AdminPanel',
-
-
 
                       style: TextStyle(
 
-
-
                         fontWeight: FontWeight.bold,
-
-
 
                         fontSize: 18,
 
-
-
                         color: Color(0xFF1E293B),
-
-
 
                       ),
 
-
-
                     ),
-
-
 
                   ],
 
-
-
                 ),
-
-
 
               ],
 
-
-
             ),
-
-
 
           ),
 
 
 
-
-
-
-
           const SizedBox(height: 8),
-
-
 
           Expanded(
 
-
-
             child: ListView.builder(
-
-
 
               padding: const EdgeInsets.symmetric(horizontal: 16),
 
-
-
               itemCount: _pageTitles.length,
-
-
 
               itemBuilder: (context, index) {
 
-
-
                 final isSelected = _selectedIndex == index;
-
-
 
                 return Padding(
 
-
-
                   padding: const EdgeInsets.only(bottom: 4),
-
-
 
                   child: Material(
 
-
-
                     color: isSelected
-
-
 
                         ? AppTheme.primaryColor
 
-
-
                         : Colors.transparent,
-
-
 
                     borderRadius: BorderRadius.circular(12),
 
-
-
                     child: InkWell(
 
-
-
                       borderRadius: BorderRadius.circular(12),
-
-
 
                       onTap: () {
 
@@ -1124,115 +982,59 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                       },
 
-
-
                       child: Container(
-
-
 
                         padding: const EdgeInsets.symmetric(
 
-
-
                           horizontal: 16,
-
-
 
                           vertical: 12,
 
-
-
                         ),
-
-
 
                         child: Row(
 
-
-
                           children: [
-
-
 
                             Icon(
 
-
-
                               _pageIcons[index],
-
-
 
                               size: 20,
 
-
-
                               color: isSelected
-
-
 
                                   ? Colors.white
 
-
-
                                   : const Color(0xFF64748B),
-
-
 
                             ),
 
-
-
                             const SizedBox(width: 12),
-
-
 
                             Expanded(
 
-
-
                               child: Text(
-
-
 
                                 _pageTitles[index],
 
-
-
                                 style: TextStyle(
-
-
 
                                   fontWeight: isSelected
 
-
-
                                       ? FontWeight.w600
-
-
 
                                       : FontWeight.w500,
 
-
-
                                   color: isSelected
-
-
 
                                       ? Colors.white
 
-
-
                                       : const Color(0xFF64748B),
-
-
 
                                 ),
 
-
-
                               ),
-
-
 
                             ),
 
@@ -1350,37 +1152,21 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                           ],
 
-
-
                         ),
-
-
 
                       ),
 
-
-
                     ),
-
-
 
                   ),
 
-
-
                 );
 
-
-
               },
-
-
 
             ),
 
           ),
-
-
 
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
 
@@ -1416,396 +1202,229 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
         ],
 
-
-
       ),
 
+    ),
 
+  );
 
-    );
-
-
-
-  }
-
-
-
-
+}
 
 
 
   Widget _buildModernAppBar() {
 
-
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
-
 
     return Container(
 
-
-
       height: 70,
-
-
 
       padding: const EdgeInsets.symmetric(horizontal: 24),
 
-
-
       decoration: const BoxDecoration(
-
-
 
         color: Colors.white,
 
-
-
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
 
-
-
       ),
-
-
 
       child: Row(
 
-
-
         children: [
-
-
 
           Text(
 
-
-
             _pageTitles[_selectedIndex],
-
-
 
             style: const TextStyle(
 
-
-
               fontSize: 20,
-
-
 
               fontWeight: FontWeight.bold,
 
-
-
               color: Color(0xFF1E293B),
-
-
 
             ),
 
-
-
           ),
-
-
 
           const Spacer(),
 
-
-
           _buildAdminNotificationIcon(),
-
-
 
           const SizedBox(width: 8),
 
-
-
           const SizedBox(width: 16),
-
-
 
           Row(
 
-
-
             children: [
-
-
 
               Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
 
-
-
               const SizedBox(width: 24),
-
-
 
               Column(
 
-
-
                 mainAxisAlignment: MainAxisAlignment.center,
-
-
 
                 crossAxisAlignment: CrossAxisAlignment.end,
 
-
-
                 children: [
-
-
 
                   Text(
 
-
-
                     currentUser?.email?.split('@')[0] ?? 'Admin',
-
-
 
                     style: const TextStyle(
 
-
-
                       fontWeight: FontWeight.w600,
-
-
 
                       color: Color(0xFF1E293B),
 
-
-
                       fontSize: 14,
-
-
 
                     ),
 
-
-
                   ),
-
-
 
                   const Text(
 
-
-
                     'Admin',
-
-
 
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
 
-
-
                   ),
-
-
 
                 ],
 
-
-
               ),
-
-
 
               const SizedBox(width: 12),
 
-
-
               CircleAvatar(
-
-
 
                 radius: 18,
 
-
-
                 backgroundColor: const Color(0xFFF1F5F9),
-
-
 
                 child: const Icon(Icons.person, color: AppTheme.primaryColor),
 
-
-
               ),
-
-
 
               const SizedBox(width: 8),
 
-
-
               const Icon(
-
-
 
                 Icons.keyboard_arrow_down,
 
-
-
                 color: Color(0xFF64748B),
-
-
 
                 size: 20,
 
-
-
               ),
-
-
 
             ],
 
-
-
           ),
-
-
 
         ],
 
-
-
       ),
-
-
 
     );
 
-
-
   }
-
-
-
-
 
 
 
   Widget _buildWebMobileLayout() {
 
+    return Container(
 
+      decoration: const BoxDecoration(
 
-    return Scaffold(
+        gradient: LinearGradient(
 
+          colors: [
 
+            Color(0xFF031627), // Deep ocean dark blue
 
-      backgroundColor: const Color(0xFFEEF2F7),
+            Color(0xFF062C54), // Rich ocean blue
 
+            Color(0xFF0D568C), // Shimmering wave blue
 
+            Color(0xFF1B82C4), // Vibrant light blue highlights
 
-      appBar: _buildAppBarWithDrawer(),
+          ],
 
+          begin: Alignment.topCenter,
 
+          end: Alignment.bottomCenter,
 
-      drawer: _buildDrawer(),
-
-
-
-      body: Stack(
-
-
-
-        children: [
-
-
-
-          _pages[_selectedIndex],
-
-
-
-          // Chat Modal Overlay
-
-
-
-          const AdminChatModal(),
-
-
-
-        ],
-
-
+        ),
 
       ),
 
+      child: Scaffold(
 
+        backgroundColor: Colors.transparent,
+
+        appBar: _buildAppBarWithDrawer(),
+
+        drawer: _buildDrawer(),
+
+        body: Stack(
+
+          children: [
+
+            _pages[_selectedIndex],
+
+            // Chat Modal Overlay
+
+            const AdminChatModal(),
+
+          ],
+
+        ),
+
+      ),
 
     );
-
-
 
   }
 
 
 
-
-
-
-
   Widget _buildMobileLayout() {
-
-
-
-    return Scaffold(
-
-
-
-      backgroundColor: const Color(0xFFEEF2F7),
-
-
-
-      appBar: _buildAppBarWithDrawer(),
-
-
-
-      drawer: _buildDrawer(),
-
-
-
-      body: Stack(
-
-
-
-        children: [
-
-
-
-          _pages[_selectedIndex],
-
-
-
-          // Chat Modal Overlay
-
-
-
-          const AdminChatModal(),
-
-
-
-        ],
-
-
-
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF031627), // Deep ocean dark blue
+            Color(0xFF062C54), // Rich ocean blue
+            Color(0xFF0D568C), // Shimmering wave blue
+            Color(0xFF1B82C4), // Vibrant light blue highlights
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
-
-
-
-      bottomNavigationBar: _buildBottomNavigationBar(),
-
-
-
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: _buildAppBarWithDrawer(),
+        drawer: _buildDrawer(),
+        body: Stack(
+          children: [
+            _pages[_selectedIndex],
+            const AdminChatModal(),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
     );
-
-
-
   }
 
 
@@ -2272,7 +1891,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                               builder: (context) => Scaffold(
 
-                                backgroundColor: const Color(0xFFF8F9FA),
+                                backgroundColor: Colors.transparent,
 
                                 appBar: AppBar(
 

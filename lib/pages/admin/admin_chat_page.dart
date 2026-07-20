@@ -186,7 +186,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF2F7),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: AppTheme.primaryColor,
@@ -214,11 +214,12 @@ class _AdminChatPageState extends State<AdminChatPage> {
     return Row(
       children: [
         // Conversations List
-        Container(
-          width: 350,
+        Material(
           color: Colors.white,
-          child: Column(
-            children: [
+          child: SizedBox(
+            width: 350,
+            child: Column(
+              children: [
               // Header
               Container(
                 padding: const EdgeInsets.all(16),
@@ -287,6 +288,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
             ],
           ),
         ),
+      ),
 
         // Chat Area
         Expanded(

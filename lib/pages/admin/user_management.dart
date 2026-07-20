@@ -152,7 +152,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF2F7),
+      backgroundColor: Colors.transparent,
       body: Padding(
         padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
@@ -185,7 +185,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         Text(
           'ORGANIZATIONAL CHART',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.mediumGrey,
+            color: Colors.white.withOpacity(0.7),
             fontWeight: FontWeight.w500,
             letterSpacing: 1.2,
           ),
@@ -195,7 +195,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
           'Staff Hierarchy',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Colors.white,
           ),
         ),
       ],
