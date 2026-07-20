@@ -138,7 +138,10 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
           // Header
           Text(
             'Announcements',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 20),
 

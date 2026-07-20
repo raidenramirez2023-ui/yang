@@ -2060,17 +2060,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Scaffold(
 
-      backgroundColor: const Color(0xFFEEF2F7),
+      backgroundColor: Colors.transparent,
 
       body: Row(
 
         children: [
 
-          // Compact Sidebar
-
-          Container(
-
-            width: 200,
+          Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 200,
 
             decoration: BoxDecoration(
 
@@ -2242,6 +2241,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             ),
 
           ),
+        ),
 
           
 
@@ -2375,7 +2375,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF2F7),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         title: Row(

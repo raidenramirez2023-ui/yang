@@ -28,6 +28,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   // Controllers
   final ScrollController _horizontalScrollController = ScrollController();
 
+  // Realtime subscription
+  RealtimeChannel? _realtimeChannel;
+
   String _getPaymentStatusText(String paymentStatus) {
     switch (paymentStatus.toLowerCase()) {
       case 'fully_paid':
@@ -49,6 +52,22 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   void initState() {
     super.initState();
     _loadReservations();
+    _subscribeToReservations();
+  }
+
+  void _subscribeToReservations() {
+    _realtimeChannel = Supabase.instance.client
+        .channel('reservations_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'reservations',
+          callback: (payload) {
+            // Instantly re-fetch the full list on any change
+            _loadReservations();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadReservations() async {
@@ -124,6 +143,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   @override
   void dispose() {
+    _realtimeChannel?.unsubscribe();
     _horizontalScrollController.dispose();
     super.dispose();
   }
@@ -211,6 +231,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   Future<void> _archiveReservation(String reservationId) async {
+    // Optimistic update
+    setState(() {
+      final idx = reservations.indexWhere((r) => r['id'] == reservationId);
+      if (idx != -1) reservations[idx] = {...reservations[idx], 'is_archived': true};
+    });
     try {
       await Supabase.instance.client
           .from('reservations')
@@ -218,13 +243,18 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .eq('id', reservationId);
 
       _showSnackBar('Reservation archived successfully', Colors.green);
-      _loadReservations();
     } catch (e) {
+      _loadReservations(); // Revert on error
       _showSnackBar('Error archiving reservation: $e', Colors.red);
     }
   }
 
   Future<void> _restoreReservation(String reservationId) async {
+    // Optimistic update
+    setState(() {
+      final idx = reservations.indexWhere((r) => r['id'] == reservationId);
+      if (idx != -1) reservations[idx] = {...reservations[idx], 'is_archived': false};
+    });
     try {
       await Supabase.instance.client
           .from('reservations')
@@ -232,13 +262,17 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .eq('id', reservationId);
 
       _showSnackBar('Reservation restored', Colors.green);
-      _loadReservations();
     } catch (e) {
+      _loadReservations(); // Revert on error
       _showSnackBar('Error restoring reservation: $e', Colors.red);
     }
   }
 
   Future<void> _hardDeleteReservation(String reservationId) async {
+    // Optimistic update — remove from local list immediately
+    setState(() {
+      reservations.removeWhere((r) => r['id'] == reservationId);
+    });
     try {
       await Supabase.instance.client
           .from('reservations')
@@ -246,13 +280,21 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .eq('id', reservationId);
 
       _showSnackBar('Reservation permanently deleted', Colors.green);
-      _loadReservations();
     } catch (e) {
+      _loadReservations(); // Revert on error
       _showSnackBar('Error deleting reservation: $e', Colors.red);
     }
   }
 
   Future<void> _updateReservationStatus(String reservationId, String newStatus, [Map<String, dynamic>? reservation]) async {
+    // Optimistic local update — instant visual feedback
+    setState(() {
+      final idx = reservations.indexWhere((r) => r['id'] == reservationId);
+      if (idx != -1) {
+        reservations[idx] = {...reservations[idx], 'status': newStatus};
+      }
+    });
+
     try {
       await Supabase.instance.client
           .from('reservations')
@@ -441,7 +483,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => Scaffold(
-                      backgroundColor: const Color(0xFFEEF2F7),
+                      backgroundColor: const Color(0xFFF0F4F8),
                       appBar: AppBar(
                         title: const Text(
                           'Event Reservations', 

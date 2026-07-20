@@ -98,7 +98,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             Text(
               'CUSTOMER LIST',
               style: TextStyle(
-                color: AppTheme.primaryColor.withOpacity(0.8),
+                color: Colors.white.withOpacity(0.8),
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.5,
                 fontSize: 12,
@@ -109,7 +109,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
               'User Directory',
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: AppTheme.darkGrey,
+                color: Colors.white,
               ),
             ),
           ],
