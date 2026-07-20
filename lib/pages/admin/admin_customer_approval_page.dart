@@ -222,7 +222,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
     final filteredApproved = _filterCustomers(_approvedCustomers);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFFEEF2F7),
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,

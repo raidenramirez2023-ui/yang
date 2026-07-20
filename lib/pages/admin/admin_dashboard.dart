@@ -4900,7 +4900,7 @@ class _KpiCardState extends State<_KpiCard> {
 
         curve: Curves.easeOutCubic,
 
-        padding: const EdgeInsets.all(AppTheme.lg),
+        padding: const EdgeInsets.all(20),
 
         decoration: BoxDecoration(
           color: AppTheme.white,
@@ -4977,7 +4977,7 @@ class _KpiCardState extends State<_KpiCard> {
 
                     color: widget.data.color,
 
-                    size: 22,
+                    size: 20,
                   ),
                 ),
 
@@ -5035,9 +5035,9 @@ class _KpiCardState extends State<_KpiCard> {
               duration: const Duration(milliseconds: 200),
 
               style: TextStyle(
-                fontSize: _isHovered ? 34 : 32,
+                fontSize: _isHovered ? 22 : 20,
 
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w900,
 
                 color: AppTheme.darkGrey,
 
@@ -5088,7 +5088,7 @@ class _KpiCardState extends State<_KpiCard> {
 
         curve: Curves.easeOutCubic,
 
-        padding: const EdgeInsets.all(AppTheme.lg),
+        padding: const EdgeInsets.all(20),
 
         decoration: BoxDecoration(
           color: AppTheme.primaryColor,
@@ -5175,9 +5175,9 @@ class _KpiCardState extends State<_KpiCard> {
                   duration: const Duration(milliseconds: 200),
 
                   style: TextStyle(
-                    fontSize: _isHovered ? 36 : 34,
+                    fontSize: _isHovered ? 22 : 20,
 
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w900,
 
                     color: Colors.white,
 

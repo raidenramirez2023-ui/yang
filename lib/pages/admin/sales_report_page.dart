@@ -632,7 +632,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFEEF2F7),
       body: SafeArea(
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: _ordersStreamVar,
@@ -705,7 +705,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'status': uiStatus,
                             'internal_status': dbStatus,
                             'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': Colors.blue,
+                            'color': AppTheme.infoBlue,
                             'type': 'Regular',
                           };
                         }).toList());
@@ -742,7 +742,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'status': status[0].toUpperCase() + status.substring(1),
                             'internal_status': status,
                             'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': Colors.green,
+                            'color': AppTheme.successGreen,
                             'type': 'Advance',
                             'selected_menu_items': o['selected_menu_items'],
                           };
@@ -792,7 +792,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'status': status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Pending',
                             'internal_status': status,
                             'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': Colors.purple,
+                            'color': const Color(0xFF8B5CF6),
                             'type': 'Reservation',
                             'selected_menu_items': r['selected_menu_items'],
                           };
@@ -892,7 +892,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                         return FadeTransition(
                           opacity: _fadeAnimation,
                           child: Padding(
-                            padding: EdgeInsets.all(isDesktop ? 32 : 16),
+                            padding: EdgeInsets.all(isDesktop ? AppTheme.xxl : AppTheme.lg),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -907,7 +907,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                                         ? Column(
                                             children: [
                                               _header(tableTransactions, metrics),
-                                              const SizedBox(height: 32),
+                                              const SizedBox(height: AppTheme.xxl),
                                             ],
                                           )
                                         : const SizedBox.shrink(),
@@ -920,9 +920,9 @@ class _SalesReportPageState extends State<SalesReportPage>
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         _summaryCards(isDesktop, metrics),
-                                        const SizedBox(height: 32),
+                                        const SizedBox(height: AppTheme.xxl),
                                         _chartCard(chartValues),
-                                        const SizedBox(height: 32),
+                                        const SizedBox(height: AppTheme.xxl),
                                         _buildClickableSectionTitle(
                                           context,
                                           'Advance Order Performance',
@@ -1005,7 +1005,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                                                   ],
                                                 ],
                                               ),
-                                        const SizedBox(height: 32),
+                                        const SizedBox(height: AppTheme.xxl),
                                         _transactionsSection(tableTransactions, metrics),
                                       ],
                                     ),
@@ -1035,32 +1035,30 @@ class _SalesReportPageState extends State<SalesReportPage>
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Sales Report',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppTheme.darkGrey,
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          const SizedBox(height: AppTheme.xs),
+          Text(
             'Track your business performance and metrics',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF64748B),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppTheme.mediumGrey,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppTheme.lg),
           Row(
             children: [
               Expanded(child: _periodSelector()),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppTheme.md),
               Expanded(child: _yearSelector()),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppTheme.md),
           _exportButton(transactions, metrics),
         ],
       );
@@ -1072,30 +1070,28 @@ class _SalesReportPageState extends State<SalesReportPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Sales Report',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.darkGrey,
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppTheme.xs),
               Text(
                 'Track your business performance and metrics',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: const Color(0xFF64748B),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.mediumGrey,
                 ),
               ),
             ],
           ),
         ),
         _periodSelector(),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.md),
         _yearSelector(),
-        const SizedBox(width: 12),
+        const SizedBox(width: AppTheme.md),
         _exportButton(transactions, metrics),
       ],
     );
@@ -1103,46 +1099,61 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   Widget _periodSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
       ),
-      child: DropdownButton<String>(
-        value: selectedPeriod,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-        items: ['Daily', 'Weekly', 'Monthly', 'Annually']
-            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-            .toList(),
-        onChanged: (v) => setState(() => selectedPeriod = v!),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedPeriod,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+          dropdownColor: Colors.white,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.darkGrey,
+          ),
+          items: ['Daily', 'Weekly', 'Monthly', 'Annually']
+              .map((e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+              .toList(),
+          onChanged: (v) => setState(() => selectedPeriod = v!),
+        ),
       ),
     );
   }
 
-
   Widget _yearSelector() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today, size: 14, color: Color(0xFF64748B)),
-          const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: selectedYear,
-            underline: const SizedBox(),
-            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-            items: ['2023', '2024', '2025', '2026']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                .toList(),
-            onChanged: (v) => setState(() => selectedYear = v!),
+          const Icon(Icons.calendar_today_rounded, size: 14, color: AppTheme.mediumGrey),
+          const SizedBox(width: AppTheme.sm),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedYear,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+              dropdownColor: Colors.white,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.darkGrey,
+              ),
+              items: ['2023', '2024', '2025', '2026']
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                  .toList(),
+              onChanged: (v) => setState(() => selectedYear = v!),
+            ),
           ),
         ],
       ),
@@ -1159,10 +1170,10 @@ class _SalesReportPageState extends State<SalesReportPage>
       icon: const Icon(Icons.file_download_outlined, size: 18),
       label: const Text('Export'),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF3B82F6),
+        backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg, vertical: AppTheme.md),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
         elevation: 0,
       ),
     );
@@ -1178,43 +1189,43 @@ class _SalesReportPageState extends State<SalesReportPage>
             'Total Revenue',
             _currencyFormat.format(data['revenue']),
             Icons.payments_rounded,
-            const Color(0xFF4F46E5),
+            AppTheme.primaryColor,
             '',
             200,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppTheme.lg),
           _summaryCard(
             'Total Orders',
             data['orders'].toString(),
             Icons.shopping_bag_rounded,
-            const Color(0xFF10B981),
+            AppTheme.successGreen,
             '',
             200,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppTheme.lg),
           _summaryCard(
             'Avg. Order',
             _currencyFormat.format(data['avgOrder']),
             Icons.analytics_rounded,
-            const Color(0xFFF59E0B),
+            AppTheme.warningOrange,
             '',
             200,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppTheme.lg),
           _summaryCard(
             'Unique Customers',
             data['customers'].toString(),
             Icons.people_alt_rounded,
-            const Color(0xFFEC4899),
+            AppTheme.infoBlue,
             '',
             200,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppTheme.lg),
           _summaryCard(
             'Low Stock Items',
             data['lowStock'].toString(),
             Icons.warning_amber_rounded,
-            data['lowStock'] > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+            data['lowStock'] > 0 ? AppTheme.errorRed : AppTheme.successGreen,
             'Alert',
             200,
           ),
@@ -1244,19 +1255,19 @@ class _SalesReportPageState extends State<SalesReportPage>
       builder: (context, animationValue, child) {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 600),
-          padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 16 : 32),
+          padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? AppTheme.lg : AppTheme.xxl),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             border: Border.all(
-              color: const Color(0xFFF1F5F9).withValues(alpha: animationValue),
-              width: 1,
+              color: AppTheme.lightGrey.withValues(alpha: animationValue),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.05 * animationValue),
-                blurRadius: 20 * animationValue,
-                offset: Offset(0, 10 * animationValue),
+                color: AppTheme.darkGrey.withValues(alpha: 0.03 * animationValue),
+                blurRadius: 24 * animationValue,
+                offset: Offset(0, 8 * animationValue),
               ),
             ],
           ),
@@ -1279,20 +1290,19 @@ class _SalesReportPageState extends State<SalesReportPage>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Revenue Analytics',
-                    style: TextStyle(
-                      fontSize: 18,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: AppTheme.darkGrey,
                     ),
                   ),
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.lightGrey,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   padding: const EdgeInsets.all(4),
                   child: Row(
@@ -1305,38 +1315,37 @@ class _SalesReportPageState extends State<SalesReportPage>
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppTheme.xl),
             SizedBox(
               height: 260,
               child: selectedChartType == 'Line'
                   ? _buildLineChart(chartData)
                   : _buildBarChart(chartData),
             ),
-            const SizedBox(height: 24),
-            const Divider(color: Color(0xFFF1F5F9), thickness: 1.5),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppTheme.xl),
+            const Divider(color: AppTheme.lightGrey, thickness: 1.5),
+            const SizedBox(height: AppTheme.lg),
             // Location header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Top Cities/Municipalities by Order Count',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.mediumGrey,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppTheme.sm),
                 _buildLocationPeriodFilter(),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTheme.sm),
             if (_locationData.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
+              const Padding(
+                padding: EdgeInsets.all(24),
                 child: Center(
                   child: Text('No location data available yet',
                       style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13)),
@@ -1359,18 +1368,17 @@ class _SalesReportPageState extends State<SalesReportPage>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Revenue Analytics',
-                              style: TextStyle(
-                                fontSize: 20,
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A),
+                                color: AppTheme.darkGrey,
                               ),
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(8),
+                                color: AppTheme.lightGrey,
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                               ),
                               padding: const EdgeInsets.all(4),
                               child: Row(
@@ -1383,9 +1391,9 @@ class _SalesReportPageState extends State<SalesReportPage>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildLegendItem('Regular Orders', 'Regular', Colors.blue),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: AppTheme.sm),
+                        _buildLegendItem('Regular Orders', 'Regular', AppTheme.infoBlue),
+                        const SizedBox(height: AppTheme.xxl),
                         SizedBox(
                           height: 350,
                           child: selectedChartType == 'Line'
@@ -1397,9 +1405,9 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
 
                   // Vertical divider
-                  const SizedBox(width: 24),
-                  const VerticalDivider(color: Color(0xFFF1F5F9), thickness: 1.5, width: 1),
-                  const SizedBox(width: 24),
+                  const SizedBox(width: AppTheme.xl),
+                  const VerticalDivider(color: AppTheme.lightGrey, thickness: 1.5, width: 1),
+                  const SizedBox(width: AppTheme.xl),
 
                   // RIGHT — Customer Location Forecasting
                   Expanded(
@@ -1411,28 +1419,27 @@ class _SalesReportPageState extends State<SalesReportPage>
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'Top Cities/Municipalities by Order Count',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.mediumGrey,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppTheme.sm),
                             _buildLocationPeriodFilter(),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppTheme.sm),
                         if (_locationData.isEmpty)
                           Expanded(
                             child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.location_off_outlined, size: 40, color: AppTheme.mediumGrey),
+                                  const Icon(Icons.location_off_outlined, size: 40, color: AppTheme.mediumGrey),
                                   const SizedBox(height: 12),
                                   Text(
                                     'No location data available yet',
@@ -1466,11 +1473,11 @@ class _SalesReportPageState extends State<SalesReportPage>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: AppTheme.darkGrey.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   )
@@ -1483,7 +1490,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             Icon(
               icon,
               size: 16,
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              color: isSelected ? Theme.of(context).primaryColor : AppTheme.mediumGrey,
             ),
             const SizedBox(width: 6),
             Text(
@@ -1491,7 +1498,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                color: isSelected ? Theme.of(context).primaryColor : AppTheme.mediumGrey,
               ),
             ),
           ],
@@ -1567,8 +1574,8 @@ class _SalesReportPageState extends State<SalesReportPage>
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.darkGrey,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1598,22 +1605,22 @@ class _SalesReportPageState extends State<SalesReportPage>
       primaryXAxis: CategoryAxis(
         majorGridLines: const MajorGridLines(width: 0),
         labelStyle: const TextStyle(
-          color: Color(0xFF475569),
+          color: AppTheme.mediumGrey,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
-        axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+        axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
       ),
       primaryYAxis: NumericAxis(
         axisLine: const AxisLine(width: 0),
         labelStyle: const TextStyle(
-          color: Color(0xFF475569),
+          color: AppTheme.mediumGrey,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
         numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
         majorGridLines: MajorGridLines(
-          color: const Color(0xFFF1F5F9).withOpacity(0.5),
+          color: AppTheme.lightGrey.withValues(alpha: 0.5),
           width: 1,
           dashArray: const [3, 3],
         ),
@@ -1626,7 +1633,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.regular,
             name: 'Regular Orders',
-            color: Colors.blue,
+            color: AppTheme.infoBlue,
             width: 4,
             animationDuration: 1000,
             markerSettings: const MarkerSettings(
@@ -1635,7 +1642,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 6,
               height: 6,
               color: Colors.white,
-              borderColor: Colors.blue,
+              borderColor: AppTheme.infoBlue,
               borderWidth: 2,
             ),
           ),
@@ -1645,7 +1652,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.advance,
             name: 'Advance Orders',
-            color: Colors.green,
+            color: AppTheme.successGreen,
             width: 4,
             animationDuration: 1000,
             markerSettings: const MarkerSettings(
@@ -1654,7 +1661,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 6,
               height: 6,
               color: Colors.white,
-              borderColor: Colors.green,
+              borderColor: AppTheme.successGreen,
               borderWidth: 2,
             ),
           ),
@@ -1664,7 +1671,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.reservation,
             name: 'Event Reservations',
-            color: Colors.purple,
+            color: const Color(0xFF8B5CF6),
             width: 4,
             animationDuration: 1000,
             markerSettings: const MarkerSettings(
@@ -1673,7 +1680,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 6,
               height: 6,
               color: Colors.white,
-              borderColor: Colors.purple,
+              borderColor: const Color(0xFF8B5CF6),
               borderWidth: 2,
             ),
           ),
@@ -1733,7 +1740,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             children.add(
               Text(
                 'Regular: ${_currencyFormat.format(item.regular)}',
-                style: const TextStyle(color: Colors.blueAccent, fontSize: 11),
+                style: const TextStyle(color: AppTheme.infoBlue, fontSize: 11),
               ),
             );
           }
@@ -1742,7 +1749,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             children.add(
               Text(
                 'Advance: ${_currencyFormat.format(item.advance)}',
-                style: const TextStyle(color: Colors.greenAccent, fontSize: 11),
+                style: const TextStyle(color: AppTheme.successGreen, fontSize: 11),
               ),
             );
           }
@@ -1751,7 +1758,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             children.add(
               Text(
                 'Reservation: ${_currencyFormat.format(item.reservation)}',
-                style: const TextStyle(color: Colors.purpleAccent, fontSize: 11),
+                style: const TextStyle(color: Color(0xFFC084FC), fontSize: 11),
               ),
             );
           }
@@ -1759,8 +1766,8 @@ class _SalesReportPageState extends State<SalesReportPage>
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.darkGrey,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1793,22 +1800,22 @@ class _SalesReportPageState extends State<SalesReportPage>
       primaryXAxis: CategoryAxis(
         majorGridLines: const MajorGridLines(width: 0),
         labelStyle: const TextStyle(
-          color: Color(0xFF475569),
+          color: AppTheme.mediumGrey,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
-        axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+        axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
       ),
       primaryYAxis: NumericAxis(
         axisLine: const AxisLine(width: 0),
         labelStyle: const TextStyle(
-          color: Color(0xFF475569),
+          color: AppTheme.mediumGrey,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
         numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
         majorGridLines: MajorGridLines(
-          color: const Color(0xFFF1F5F9).withOpacity(0.5),
+          color: AppTheme.lightGrey.withValues(alpha: 0.5),
           width: 1,
           dashArray: const [3, 3],
         ),
@@ -1821,7 +1828,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.regular,
             name: 'Regular Orders',
-            color: Colors.blue,
+            color: AppTheme.infoBlue,
             width: 0.6,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(4),
@@ -1835,7 +1842,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.advance,
             name: 'Advance Orders',
-            color: Colors.green,
+            color: AppTheme.successGreen,
             width: 0.6,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(4),
@@ -1849,7 +1856,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             xValueMapper: (_SalesReportData data, _) => data.label,
             yValueMapper: (_SalesReportData data, _) => data.reservation,
             name: 'Event Reservations',
-            color: Colors.purple,
+            color: const Color(0xFF8B5CF6),
             width: 0.6,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(4),
@@ -1887,10 +1894,10 @@ class _SalesReportPageState extends State<SalesReportPage>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? color.withOpacity(0.08) : const Color(0xFFF1F5F9),
+          color: isActive ? color.withValues(alpha: 0.08) : AppTheme.lightGrey,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isActive ? color.withOpacity(0.3) : const Color(0xFFE2E8F0),
+            color: isActive ? color.withValues(alpha: 0.3) : AppTheme.lightGrey,
             width: 1.5,
           ),
         ),
@@ -1901,7 +1908,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 10,
               height: 10,
               decoration: BoxDecoration(
-                color: isActive ? color : const Color(0xFF94A3B8),
+                color: isActive ? color : AppTheme.mediumGrey,
                 shape: BoxShape.circle,
               ),
             ),
@@ -1910,13 +1917,13 @@ class _SalesReportPageState extends State<SalesReportPage>
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                color: isActive ? AppTheme.darkGrey : AppTheme.mediumGrey,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
               ),
             ),
             if (isActive) ...[
               const SizedBox(width: 4),
-              Icon(Icons.check, size: 12, color: color),
+              Icon(Icons.check_rounded, size: 12, color: color),
             ]
           ],
         ),
@@ -1928,11 +1935,18 @@ class _SalesReportPageState extends State<SalesReportPage>
     final isMobile = ResponsiveUtils.isMobile(context);
     
     return Container(
-      padding: EdgeInsets.all(isMobile ? 16 : 32),
+      padding: EdgeInsets.all(isMobile ? AppTheme.lg : AppTheme.xxl),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.darkGrey.withValues(alpha: 0.03),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1941,35 +1955,33 @@ class _SalesReportPageState extends State<SalesReportPage>
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Recent Transactions',
-                  style: TextStyle(
-                    fontSize: 20,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: AppTheme.darkGrey,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppTheme.lg),
                 _transactionFilters(transactions, metrics, isVertical: true),
               ],
             )
           else
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Recent Transactions',
-                    style: TextStyle(
-                      fontSize: 20,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                      color: AppTheme.darkGrey,
                     ),
                   ),
                 ),
                 _transactionFilters(transactions, metrics),
               ],
             ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppTheme.xxl),
           _transactionsTable(transactions),
         ],
       ),
@@ -1994,9 +2006,9 @@ class _SalesReportPageState extends State<SalesReportPage>
               metrics: metrics,
             );
           },
-          icon: const Icon(Icons.file_download_outlined, size: 18),
+          icon: const Icon(Icons.file_download_rounded, size: 18),
           label: const Text('Download CSV'),
-          style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
+          style: TextButton.styleFrom(foregroundColor: AppTheme.mediumGrey),
         ),
       );
     }
@@ -2013,9 +2025,9 @@ class _SalesReportPageState extends State<SalesReportPage>
           metrics: metrics,
         );
       },
-      icon: const Icon(Icons.file_download_outlined, size: 18),
+      icon: const Icon(Icons.file_download_rounded, size: 18),
       label: const Text('Download CSV'),
-      style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
+      style: TextButton.styleFrom(foregroundColor: AppTheme.mediumGrey),
     );
   }
 
@@ -2057,74 +2069,88 @@ class _SalesReportPageState extends State<SalesReportPage>
               Container(
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                 ),
                 child: TextField(
                   controller: _searchController,
+                  style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     hintText: 'Search transactions...',
-                    hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
+                    hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
+                    prefixIcon: Icon(Icons.search_rounded, color: AppTheme.mediumGrey, size: 18),
                     border: InputBorder.none,
+                    isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.lg),
               Row(
                 children: [
-                  const Text('Filter by:', style: TextStyle(color: Color(0xFF64748B))),
-                  const SizedBox(width: 12),
+                  Text('Filter by:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: AppTheme.md),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                       ),
-                      child: DropdownButton<String>(
-                        value: _statusFilter,
-                        underline: const SizedBox(),
-                        isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                        items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() {
-                            _statusFilter = v!;
-                            _currentPage = 1; // Reset to first page when filter changes
-                          });
-                        },
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _statusFilter,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+                          dropdownColor: Colors.white,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.darkGrey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                              .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _statusFilter = v!;
+                              _currentPage = 1; // Reset to first page when filter changes
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppTheme.md),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                       ),
-                      child: DropdownButton<String>(
-                        value: _transactionPeriod,
-                        underline: const SizedBox(),
-                        isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                        items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                            .toList(),
-                        onChanged: (v) {
-                          setState(() {
-                            _transactionPeriod = v!;
-                            _currentPage = 1; // Reset to first page when filter changes
-                          });
-                        },
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _transactionPeriod,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+                          dropdownColor: Colors.white,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.darkGrey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                              .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _transactionPeriod = v!;
+                              _currentPage = 1; // Reset to first page when filter changes
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -2139,17 +2165,19 @@ class _SalesReportPageState extends State<SalesReportPage>
                 child: Container(
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                   ),
                   child: TextField(
                     controller: _searchController,
+                    style: const TextStyle(fontSize: 14),
                     decoration: const InputDecoration(
                       hintText: 'Search transactions...',
-                      hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                      prefixIcon: Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
+                      hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
+                      prefixIcon: Icon(Icons.search_rounded, color: AppTheme.mediumGrey, size: 18),
                       border: InputBorder.none,
+                      isDense: true,
                       contentPadding: EdgeInsets.symmetric(vertical: 10),
                     ),
                     onChanged: (value) {
@@ -2160,57 +2188,69 @@ class _SalesReportPageState extends State<SalesReportPage>
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              const Text('Filter by:', style: TextStyle(color: Color(0xFF64748B))),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppTheme.lg),
+              Text('Filter by:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600)),
+              const SizedBox(width: AppTheme.md),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                 ),
-                child: DropdownButton<String>(
-                  value: _statusFilter,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                  items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _statusFilter = v!;
-                      _currentPage = 1; // Reset to first page when filter changes
-                    });
-                  },
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _statusFilter,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+                    dropdownColor: Colors.white,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.darkGrey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _statusFilter = v!;
+                        _currentPage = 1; // Reset to first page when filter changes
+                      });
+                    },
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppTheme.md),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
                 ),
-                child: DropdownButton<String>(
-                  value: _transactionPeriod,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                  items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _transactionPeriod = v!;
-                      _currentPage = 1; // Reset to first page when filter changes
-                    });
-                  },
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _transactionPeriod,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+                    dropdownColor: Colors.white,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.darkGrey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _transactionPeriod = v!;
+                        _currentPage = 1; // Reset to first page when filter changes
+                      });
+                    },
+                  ),
                 ),
               ),
             ],
           ),
-        const SizedBox(height: 32),
+        const SizedBox(height: AppTheme.xxl),
         if (filteredTransactions.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -2218,7 +2258,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               _statusFilter == 'All Status' 
                 ? 'No transactions found' 
                 : 'No ${_statusFilter.toLowerCase()} transactions found', 
-              style: const TextStyle(color: Color(0xFF64748B))
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey)
             ),
           )
         else
@@ -2230,11 +2270,11 @@ class _SalesReportPageState extends State<SalesReportPage>
                 Column(
                   children: [
                     _transactionTableHeader(),
-                    const Divider(height: 32, color: Color(0xFFF1F5F9)),
+                    const Divider(height: AppTheme.xxl, color: AppTheme.lightGrey),
                     ...paginatedTransactions.map((t) => _transactionRow(t)),
                   ],
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.xl),
               if (totalPages > 1)
                 _paginationControls(totalPages, filteredTransactions.length),
             ],
@@ -2244,8 +2284,13 @@ class _SalesReportPageState extends State<SalesReportPage>
   }
 
   Widget _transactionTableHeader() {
-    const style = TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 12);
-    return const Row(
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AppTheme.mediumGrey,
+      fontWeight: FontWeight.bold,
+      fontSize: 11,
+      letterSpacing: 0.5,
+    );
+    return Row(
       children: [
         Expanded(flex: 1, child: Text('ID', style: style)),
         Expanded(flex: 2, child: Text('CUSTOMER', style: style)),
@@ -2265,7 +2310,14 @@ class _SalesReportPageState extends State<SalesReportPage>
         children: [
           Expanded(
             flex: 1,
-            child: Text(t['id'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 12)),
+            child: Text(
+              t['id'],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+                fontSize: 12,
+              ),
+            ),
           ),
           Expanded(
             flex: 2,
@@ -2277,7 +2329,17 @@ class _SalesReportPageState extends State<SalesReportPage>
                   child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B), fontSize: 12), overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: Text(
+                    t['customer'],
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.darkGrey,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2297,10 +2359,26 @@ class _SalesReportPageState extends State<SalesReportPage>
               },
             ),
           ),
-          Expanded(flex: 2, child: Text(t['date'], style: const TextStyle(color: Color(0xFF64748B), fontSize: 12))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              t['date'],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.mediumGrey,
+                fontSize: 12,
+              ),
+            ),
+          ),
           Expanded(
             flex: 1,
-            child: Text(t['amount'], style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A), fontSize: 12)),
+            child: Text(
+              t['amount'],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppTheme.darkGrey,
+                fontSize: 12,
+              ),
+            ),
           ),
           Expanded(
             flex: 1,
@@ -2316,9 +2394,16 @@ class _SalesReportPageState extends State<SalesReportPage>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.lightGrey, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2337,8 +2422,20 @@ class _SalesReportPageState extends State<SalesReportPage>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B), fontSize: 14)),
-                      Text(t['id'], style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text(
+                        t['customer'],
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.darkGrey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        t['id'],
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.mediumGrey,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -2366,8 +2463,19 @@ class _SalesReportPageState extends State<SalesReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(t['date'], style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
-              Text(t['amount'], style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A), fontSize: 14)),
+              Text(
+                t['date'],
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.mediumGrey,
+                ),
+              ),
+              Text(
+                t['amount'],
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
             ],
           ),
         ],
@@ -2381,18 +2489,18 @@ class _SalesReportPageState extends State<SalesReportPage>
     String label;
     switch (type) {
       case 'Advance':
-        bg = const Color(0xFFDCFCE7);
-        textColor = const Color(0xFF15803D);
+        bg = AppTheme.successGreen.withValues(alpha: 0.1);
+        textColor = AppTheme.successGreen;
         label = 'Advance';
         break;
       case 'Reservation':
-        bg = const Color(0xFFF3E8FF);
-        textColor = const Color(0xFF7C3AED);
+        bg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
+        textColor = const Color(0xFF8B5CF6);
         label = 'Event Reservation';
         break;
       default:
-        bg = const Color(0xFFDBEAFE);
-        textColor = const Color(0xFF1D4ED8);
+        bg = AppTheme.infoBlue.withValues(alpha: 0.1);
+        textColor = AppTheme.infoBlue;
         label = 'Regular';
     }
     return Container(
@@ -2412,25 +2520,29 @@ class _SalesReportPageState extends State<SalesReportPage>
     switch (status) {
       case 'Ready':
       case 'Done':
-        bg = const Color(0xFFDCFCE7);
-        text = const Color(0xFF16A34A);
+        bg = AppTheme.successGreen.withValues(alpha: 0.1);
+        text = AppTheme.successGreen;
         status = 'Ready';
         break;
       case 'Preparing':
-        bg = const Color(0xFFDBEAFE);
-        text = const Color(0xFF2563EB);
+        bg = AppTheme.infoBlue.withValues(alpha: 0.1);
+        text = AppTheme.infoBlue;
         break;
       case 'Pending':
-        bg = const Color(0xFFFEF9C3);
-        text = const Color(0xFFCA8A04);
+        bg = AppTheme.warningOrange.withValues(alpha: 0.1);
+        text = AppTheme.warningOrange;
+        break;
+      case 'Confirmed':
+        bg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
+        text = const Color(0xFF8B5CF6);
         break;
       case 'Cancelled':
-        bg = const Color(0xFFFEE2E2);
-        text = const Color(0xFFDC2626);
+        bg = AppTheme.errorRed.withValues(alpha: 0.1);
+        text = AppTheme.errorRed;
         break;
       default:
-        bg = Colors.grey.shade100;
-        text = Colors.grey.shade600;
+        bg = AppTheme.lightGrey;
+        text = AppTheme.mediumGrey;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2451,9 +2563,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
       ),
       child: Column(
         children: [
@@ -2464,7 +2576,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Text(
                 'Showing $startItem-$endItem of $totalItems transactions',
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: AppTheme.mediumGrey,
                   fontSize: 12,
                 ),
               ),
@@ -2472,7 +2584,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 Text(
                   'Page $_currentPage of $totalPages',
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: AppTheme.mediumGrey,
                     fontSize: 12,
                   ),
                 ),
@@ -2488,14 +2600,14 @@ class _SalesReportPageState extends State<SalesReportPage>
                 onPressed: _currentPage > 1
                     ? () => setState(() => _currentPage--)
                     : null,
-                icon: const Icon(Icons.chevron_left, size: 20),
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
                 style: IconButton.styleFrom(
                   backgroundColor: _currentPage > 1
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFE2E8F0),
+                      ? Theme.of(context).primaryColor
+                      : AppTheme.lightGrey,
                   foregroundColor: _currentPage > 1
                       ? Colors.white
-                      : const Color(0xFF94A3B8),
+                      : AppTheme.mediumGrey,
                   minimumSize: const Size(36, 36),
                 ),
               ),
@@ -2512,14 +2624,14 @@ class _SalesReportPageState extends State<SalesReportPage>
                 onPressed: _currentPage < totalPages
                     ? () => setState(() => _currentPage++)
                     : null,
-                icon: const Icon(Icons.chevron_right, size: 20),
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
                 style: IconButton.styleFrom(
                   backgroundColor: _currentPage < totalPages
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFE2E8F0),
+                      ? Theme.of(context).primaryColor
+                      : AppTheme.lightGrey,
                   foregroundColor: _currentPage < totalPages
                       ? Colors.white
-                      : const Color(0xFF94A3B8),
+                      : AppTheme.mediumGrey,
                   minimumSize: const Size(36, 36),
                 ),
               ),
@@ -2533,7 +2645,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               child: Text(
                 'Page $_currentPage of $totalPages',
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: AppTheme.mediumGrey,
                   fontSize: 12,
                 ),
               ),
@@ -2575,12 +2687,12 @@ class _SalesReportPageState extends State<SalesReportPage>
               height: 32,
               decoration: BoxDecoration(
                 color: i == _currentPage
-                    ? const Color(0xFF3B82F6)
+                    ? Theme.of(context).primaryColor
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: i == _currentPage
                     ? null
-                    : Border.all(color: const Color(0xFFE2E8F0)),
+                    : Border.all(color: AppTheme.lightGrey, width: 1.5),
               ),
               child: Center(
                 child: Text(
@@ -2588,7 +2700,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   style: TextStyle(
                     color: i == _currentPage
                         ? Colors.white
-                        : const Color(0xFF64748B),
+                        : AppTheme.mediumGrey,
                     fontSize: 12,
                     fontWeight: i == _currentPage
                         ? FontWeight.bold
@@ -2618,7 +2730,7 @@ class _SalesReportPageState extends State<SalesReportPage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: _showEventReservationPerformance
-              ? AppTheme.primaryColor.withOpacity(0.1)
+              ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
               : Colors.transparent,
         ),
         child: Row(
@@ -2648,9 +2760,9 @@ class _SalesReportPageState extends State<SalesReportPage>
             const SizedBox(width: AppTheme.sm),
             Icon(
               _showEventReservationPerformance
-                  ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,
-              color: AppTheme.primaryColor,
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              color: Theme.of(context).primaryColor,
               size: 20,
             ),
           ],
@@ -2760,16 +2872,16 @@ class _SalesReportPageState extends State<SalesReportPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _locationPeriod,
           dropdownColor: Colors.white,
           isDense: true,
-          icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor, size: 16),
+          icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).primaryColor, size: 16),
           style: const TextStyle(
             color: AppTheme.darkGrey,
             fontSize: 11,
@@ -2780,7 +2892,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               value: period,
               child: Text(
                 period,
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
               ),
             );
           }).toList(),
@@ -2803,13 +2915,13 @@ class _SalesReportPageState extends State<SalesReportPage>
     
     // Define colors for the chart
     final colors = [
-      const Color(0xFF4F46E5), // Primary
-      const Color(0xFF10B981), // Success Green
-      const Color(0xFFF59E0B), // Amber
-      const Color(0xFFEF4444), // Error Red
-      const Color(0xFF8B5CF6), // Purple
+      Theme.of(context).primaryColor,
+      AppTheme.successGreen,
+      AppTheme.warningOrange,
+      AppTheme.errorRed,
+      AppTheme.infoBlue,
       const Color(0xFF06B6D4), // Cyan
-      const Color(0xFFEC4899), // Pink
+      const Color(0xFF8B5CF6), // Purple
       const Color(0xFF84CC16), // Lime
     ];
 
@@ -3004,9 +3116,9 @@ class _SalesReportPageState extends State<SalesReportPage>
     }
     
     final colors = [
-      const Color(0xFF4F46E5),
+      Theme.of(context).primaryColor,
       const Color(0xFF8B5CF6),
-      const Color(0xFF10B981),
+      AppTheme.successGreen,
     ];
 
     final list = topLocations.asMap().entries.map((entry) {
@@ -3015,7 +3127,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       final orderCount = location['order_count'] as int;
       final name = location['location']?.toString() ?? '';
       final displayLabel = name.length > 8 ? '${name.substring(0, 8)}...' : name;
-      final color = index < 3 ? colors[index] : AppTheme.primaryColor.withOpacity(0.6);
+      final color = index < 3 ? colors[index] : Theme.of(context).primaryColor.withValues(alpha: 0.6);
       return _LocationBarData(
         displayLabel,
         orderCount.toDouble(),
@@ -3040,8 +3152,8 @@ class _SalesReportPageState extends State<SalesReportPage>
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(6),
+                color: AppTheme.darkGrey,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
               child: Text(
                 '$originalName\nOrders: ${item.count.toInt()}',
@@ -3063,7 +3175,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           axisLine: const AxisLine(width: 0),
           labelStyle: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
           majorGridLines: MajorGridLines(
-            color: AppTheme.lightGrey,
+            color: AppTheme.lightGrey.withValues(alpha: 0.5),
             width: 1,
           ),
           maximum: maxY,
@@ -3075,7 +3187,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             yValueMapper: (_LocationBarData data, _) => data.count,
             pointColorMapper: (_LocationBarData data, _) => data.color,
             width: 0.5,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             animationDuration: 1000,
           ),
         ],
@@ -3103,12 +3215,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                 'Total AO Revenue',
                 '₱${NumberFormat('#,##0.00').format(advanceOrderRevenueTotal)}',
                 Icons.account_balance_wallet_outlined,
-                AppTheme.primaryColor,
+                Theme.of(context).primaryColor,
               ),
               _buildStatItem(
                 'AO Completed',
                 '$completedAdvanceOrdersCount',
-                Icons.check_circle_outline,
+                Icons.check_circle_outline_rounded,
                 AppTheme.successGreen,
               ),
               _buildStatItem(
@@ -3119,7 +3231,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
             ],
           ),
-          const Divider(height: 40),
+          const Divider(height: 40, color: AppTheme.lightGrey),
           const Text(
             'Popular Advance Order Items',
             style: TextStyle(
@@ -3155,10 +3267,10 @@ class _SalesReportPageState extends State<SalesReportPage>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Row(
@@ -3179,7 +3291,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
+                            color: Theme.of(context).primaryColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -3222,7 +3334,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 'Total Event Revenue',
                 '₱${NumberFormat('#,##0.00').format(eventReservationRevenueTotal)}',
                 Icons.event_available_outlined,
-                Colors.purple,
+                const Color(0xFF8B5CF6),
               ),
               _buildStatItem(
                 'Events Completed',
@@ -3238,7 +3350,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
             ],
           ),
-          const Divider(height: 40),
+          const Divider(height: 40, color: AppTheme.lightGrey),
           const Text(
             'Most Popular Event Types',
             style: TextStyle(
@@ -3272,10 +3384,10 @@ class _SalesReportPageState extends State<SalesReportPage>
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.05),
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.purple.withOpacity(0.1),
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                         ),
                       ),
                       child: Row(
@@ -3296,7 +3408,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.purple,
+                              color: const Color(0xFF8B5CF6),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -3357,13 +3469,14 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: AppTheme.white,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+      border: Border.all(color: AppTheme.lightGrey, width: 1.5),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          color: AppTheme.darkGrey.withValues(alpha: 0.03),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
         ),
       ],
     );
@@ -3405,7 +3518,7 @@ class _ItemsDisplay extends StatelessWidget {
       
       return Text(
         itemsStr.isEmpty ? 'No items' : itemsStr,
-        style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+        style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       );
@@ -3417,14 +3530,14 @@ class _ItemsDisplay extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Text(
             'Loading...',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
           );
         }
         
         if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
           return const Text(
             'No items',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
           );
         }
         
@@ -3435,7 +3548,7 @@ class _ItemsDisplay extends StatelessWidget {
         
         return Text(
           itemsStr,
-          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+          style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         );

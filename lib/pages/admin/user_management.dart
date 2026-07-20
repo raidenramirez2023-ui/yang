@@ -152,7 +152,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.withOpacity(0.05),
+      backgroundColor: const Color(0xFFEEF2F7),
       body: Padding(
         padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
