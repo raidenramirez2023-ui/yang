@@ -441,84 +441,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeBanner(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             
             _buildCriticalAlerts(),
             
-            const Text(
-              'Inventory Overview',
-              style: AppTheme.sectionHeaderStyle,
-            ),
-            const SizedBox(height: 16),
-            
-            // Simple Stats Cards
-            Row(
-              children: [
-                Expanded(child: _buildSimpleStatCard('Total Items', _totalInventoryItems.toString(), AppTheme.primaryColor, Icons.inventory_2)),
-                const SizedBox(width: 12),
-                Expanded(child: _buildSimpleStatCard('Low Stock', _lowStockItems.toString(), AppTheme.warningOrange, Icons.low_priority)),
-                const SizedBox(width: 12),
-                Expanded(child: _buildSimpleStatCard('Out of Stock', _outOfStockItems.toString(), AppTheme.errorRed, Icons.block)),
-              ],
-            ),
-            
-            const SizedBox(height: 32),
-
-            // Quick Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Quick Actions',
-                  style: AppTheme.sectionHeaderStyle,
-                ),
-                TextButton(
-                  onPressed: () => _onItemTapped(2),
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSimpleActionCard(
-                    title: 'Kitchen Requests',
-                    icon: Icons.shopping_cart,
-                    color: AppTheme.primaryColor,
-                    onTap: () => _onItemTapped(1),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSimpleActionCard(
-                    title: 'Manage Inventory',
-                    icon: Icons.edit_note,
-                    color: AppTheme.infoBlue,
-                    onTap: () => _onItemTapped(2),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildSimpleActionCard(
-                    title: 'View Storage',
-                    icon: Icons.warehouse,
-                    color: AppTheme.warningOrange,
-                    onTap: () => _onItemTapped(3),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 32),
+            _buildDashboardToolbar(),
+            const SizedBox(height: 28),
             
             _buildInventoryInsights(),
-            
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             
             _buildActivityFeed(),
-            
             const SizedBox(height: 40),
           ],
         ),
@@ -605,6 +538,233 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
+  Widget _buildDashboardToolbar() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 800;
+        
+        if (isNarrow) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Overview',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 12),
+                _buildFlatStatsRow(isNarrow: true),
+                const SizedBox(height: 16),
+                const Divider(color: AppTheme.lightGrey, height: 1),
+                const SizedBox(height: 16),
+                const Text(
+                  'Quick Actions',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 12),
+                _buildFlatActionsRow(isNarrow: true),
+              ],
+            ),
+          );
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.darkGrey.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildFlatStatsRow(isNarrow: false),
+              _buildFlatActionsRow(isNarrow: false),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFlatStatsRow({required bool isNarrow}) {
+    if (isNarrow) {
+      return Wrap(
+        spacing: 16,
+        runSpacing: 10,
+        children: [
+          _buildFlatStatItem('Total Items', _totalInventoryItems.toString(), AppTheme.primaryColor),
+          _buildFlatStatItem('Low Stock', _lowStockItems.toString(), AppTheme.warningOrange),
+          _buildFlatStatItem('Out of Stock', _outOfStockItems.toString(), AppTheme.errorRed),
+        ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFlatStatItem('Total Items', _totalInventoryItems.toString(), AppTheme.primaryColor),
+        _buildFlatDivider(),
+        _buildFlatStatItem('Low Stock', _lowStockItems.toString(), AppTheme.warningOrange),
+        _buildFlatDivider(),
+        _buildFlatStatItem('Out of Stock', _outOfStockItems.toString(), AppTheme.errorRed),
+      ],
+    );
+  }
+
+  Widget _buildFlatStatItem(String label, String value, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.darkGrey,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.mediumGrey,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFlatDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: 1,
+        height: 16,
+        color: AppTheme.lightGrey,
+      ),
+    );
+  }
+
+  Widget _buildFlatActionsRow({required bool isNarrow}) {
+    if (isNarrow) {
+      return Row(
+        children: [
+          Expanded(child: _buildFlatActionButton('Requests', Icons.shopping_cart_outlined, AppTheme.primaryColor, () => _onItemTapped(1))),
+          const SizedBox(width: 8),
+          Expanded(child: _buildFlatActionButton('Manage', Icons.edit_note_outlined, AppTheme.infoBlue, () => _onItemTapped(2))),
+          const SizedBox(width: 8),
+          Expanded(child: _buildFlatActionButton('Storage', Icons.warehouse_outlined, AppTheme.warningOrange, () => _onItemTapped(3))),
+        ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFlatActionButton('Kitchen Requests', Icons.shopping_cart_outlined, AppTheme.primaryColor, () => _onItemTapped(1)),
+        const SizedBox(width: 8),
+        _buildFlatActionButton('Manage Inventory', Icons.edit_note_outlined, AppTheme.infoBlue, () => _onItemTapped(2)),
+        const SizedBox(width: 8),
+        _buildFlatActionButton('Storage Room', Icons.warehouse_outlined, AppTheme.warningOrange, () => _onItemTapped(3)),
+      ],
+    );
+  }
+
+  Widget _buildFlatActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartEmptyState(IconData icon, String title, String subtitle) {
+    return Container(
+      height: 280,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 36, color: AppTheme.mediumGrey),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.darkGrey,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.mediumGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInventoryInsights() {
     final isMobile = ResponsiveUtils.isMobile(context);
     return Column(
@@ -668,9 +828,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           ),
           const SizedBox(height: 24),
           if (_inventoryHealthByCategory.isEmpty)
-            const SizedBox(
-              height: 330,
-              child: Center(child: Text('No data', style: TextStyle(color: AppTheme.mediumGrey))),
+            _buildChartEmptyState(
+              Icons.bar_chart_rounded,
+              'No Category Data',
+              'Inventory health details per category will display here.',
             )
           else
             SizedBox(
@@ -705,18 +866,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        reservedSize: 50,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final categoryNames = _inventoryHealthByCategory.keys.toList();
                           final index = value.toInt();
                           if (index >= 0 && index < categoryNames.length) {
                             String text = categoryNames[index];
-                            if (text.length > 8) text = '${text.substring(0, 6)}..';
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(text, style: const TextStyle(fontSize: 10, color: AppTheme.darkGrey)),
+                            if (text.length > 15) text = '${text.substring(0, 13)}…';
+                            return SideTitleWidget(
+                              meta: meta,
+                              space: 12,
+                              child: Transform.rotate(
+                                angle: -0.25,
+                                child: Text(
+                                  text,
+                                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+                                ),
+                              ),
                             );
                           }
-                          return const Text('');
+                          return const SizedBox.shrink();
                         },
                       ),
                     ),
@@ -795,8 +964,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
             children: [
               const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -809,53 +981,47 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   ),
                 ],
               ),
-              const SizedBox(width: 16),
-              Flexible(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildFilterDropdown<int>(
-                        value: _selectedYear,
-                        items: List.generate(2032 - DateTime.now().year, (index) => DateTime.now().year + index),
-                        label: 'Year',
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedYear = val);
-                            _loadDashboardData();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterDropdown<int>(
-                        value: _selectedMonth,
-                        items: List.generate(12, (index) => index + 1),
-                        label: 'Month',
-                        itemBuilder: (val) => DateFormat('MMM').format(DateTime(2000, val)),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedMonth = val);
-                            _loadDashboardData();
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterDropdown<int>(
-                        value: _selectedWeek,
-                        items: [1, 2, 3, 4],
-                        label: 'Week',
-                        itemBuilder: (val) => 'Week $val',
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedWeek = val);
-                            _loadDashboardData();
-                          }
-                        },
-                      ),
-                    ],
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _buildFilterDropdown<int>(
+                    value: _selectedYear,
+                    items: List.generate(2032 - DateTime.now().year, (index) => DateTime.now().year + index),
+                    label: 'Year',
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedYear = val);
+                        _loadDashboardData();
+                      }
+                    },
                   ),
-                ),
+                  _buildFilterDropdown<int>(
+                    value: _selectedMonth,
+                    items: List.generate(12, (index) => index + 1),
+                    label: 'Month',
+                    itemBuilder: (val) => DateFormat('MMM').format(DateTime(2000, val)),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedMonth = val);
+                        _loadDashboardData();
+                      }
+                    },
+                  ),
+                  _buildFilterDropdown<int>(
+                    value: _selectedWeek,
+                    items: [1, 2, 3, 4],
+                    label: 'Week',
+                    itemBuilder: (val) => 'Week $val',
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedWeek = val);
+                        _loadDashboardData();
+                      }
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -866,9 +1032,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           ),
           const SizedBox(height: 24),
           if (_topRequestedItems.isEmpty)
-            const SizedBox(
-              height: 250,
-              child: Center(child: Text('No requests yet', style: TextStyle(color: AppTheme.mediumGrey))),
+            _buildChartEmptyState(
+              Icons.trending_up_outlined,
+              'No Requests Found',
+              'Top requested kitchen items for this period will appear here.',
             )
           else
             SizedBox(
@@ -902,20 +1069,25 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        reservedSize: 50,
                         getTitlesWidget: (double value, TitleMeta meta) {
                           final index = value.toInt();
                           if (index >= 0 && index < _topRequestedItems.length) {
                             String name = _topRequestedItems[index]['name'];
-                            if (name.length > 8) name = '${name.substring(0, 6)}..';
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                name,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.darkGrey),
+                            if (name.length > 15) name = '${name.substring(0, 13)}…';
+                            return SideTitleWidget(
+                              meta: meta,
+                              space: 12,
+                              child: Transform.rotate(
+                                angle: -0.25,
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
+                                ),
                               ),
                             );
                           }
-                          return const Text('');
+                          return const SizedBox.shrink();
                         },
                       ),
                     ),
@@ -1159,63 +1331,160 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recent Activity',
-          style: AppTheme.sectionHeaderStyle,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Activity',
+              style: AppTheme.sectionHeaderStyle,
+            ),
+            if (_recentActivity.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${_recentActivity.length} entries',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         Container(
           decoration: AppTheme.cardDecoration(),
+          clipBehavior: Clip.antiAlias,
           child: _recentActivity.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: Text('No recent activity', style: TextStyle(color: AppTheme.mediumGrey))),
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.07),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.history_rounded,
+                            size: 32,
+                            color: AppTheme.mediumGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'No Recent Activity',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppTheme.darkGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Stock transactions will appear here.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.mediumGrey),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
-              : ListView.separated(
+              : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _recentActivity.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 60),
                   itemBuilder: (context, index) {
                     final act = _recentActivity[index];
                     final type = act['transaction_type']?.toString() ?? 'unknown';
                     final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toIso8601String()).toLocal();
-                    
-                    return ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (type == 'incoming' ? AppTheme.successGreen : AppTheme.primaryColor).withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          type == 'incoming' ? Icons.add_circle_outline : Icons.remove_circle_outline,
-                          color: type == 'incoming' ? AppTheme.successGreen : AppTheme.primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        act['item_name'] ?? 'Unknown Item',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        act['purpose'] ?? 'Stock update',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.mediumGrey),
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    final isIncoming = type == 'incoming';
+                    final accentColor = isIncoming ? AppTheme.successGreen : AppTheme.errorRed;
+                    final iconColor = isIncoming ? AppTheme.successGreen : AppTheme.primaryColor;
+                    final isEven = index.isEven;
+
+                    return Container(
+                      color: isEven ? Colors.transparent : AppTheme.backgroundColor.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            '${type == 'incoming' ? '+' : '-'}${act['quantity']}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: type == 'incoming' ? AppTheme.successGreen : AppTheme.errorRed,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: iconColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isIncoming ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                              color: iconColor,
+                              size: 16,
                             ),
                           ),
-                          Text(
-                            DateFormat('h:mm a').format(date),
-                            style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  act['item_name'] ?? 'Unknown Item',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13.5,
+                                    color: AppTheme.darkGrey,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  act['purpose'] ?? 'Stock update',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppTheme.mediumGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${isIncoming ? '+' : '-'}${act['quantity']}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: accentColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                DateFormat('h:mm a').format(date),
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppTheme.mediumGrey,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1229,70 +1498,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-  Widget _buildSimpleStatCard(String title, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.darkGrey,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.mediumGrey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-
-
-  Widget _buildSimpleActionCard({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return _HoverableActionCard(
-      title: title,
-      icon: icon,
-      color: color,
-      onTap: onTap,
-    );
-  }
 
   Widget _buildRequestCard(Map<String, dynamic> request) {
 
@@ -2040,8 +2246,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
-
-
     if (isDesktop) {
 
       return _buildDesktopLayout();
@@ -2171,7 +2375,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 
 
-                const Divider(color: AppTheme.white, height: 1),
+                Divider(color: AppTheme.white.withOpacity(0.2), height: 1),
 
                 
 
@@ -2513,189 +2717,165 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
   Widget _buildCompactSidebarItem({
-
     required IconData icon,
-
     required String title,
-
     required int index,
-
   }) {
-
     final isSelected = _selectedIndex == index;
 
-    
-
-    return Container(
-
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-
-      child: ListTile(
-
-        leading: Icon(
-
-          icon,
-
-          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
-
-          size: 20,
-
-        ),
-
-        title: Text(
-
-          title,
-
-          style: TextStyle(
-
-            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
-
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-
-            fontSize: 13,
-
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onItemTapped(index),
+          borderRadius: BorderRadius.circular(10),
+          hoverColor: AppTheme.white.withOpacity(0.08),
+          splashColor: AppTheme.white.withOpacity(0.12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.white.withOpacity(0.18) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: isSelected
+                  ? Border.all(color: AppTheme.white.withOpacity(0.25), width: 1)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.65),
+                  size: 19,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
           ),
-
         ),
-
-        onTap: () => _onItemTapped(index),
-
-        shape: RoundedRectangleBorder(
-
-          borderRadius: BorderRadius.circular(8),
-
-        ),
-
-        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
-
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-
-        dense: true,
-
       ),
-
     );
-
   }
 
 
 
   Widget _buildCompactSidebarLogoutItem() {
-
-    return Container(
-
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-
-      child: ListTile(
-
-        leading: const Icon(
-
-          Icons.logout,
-
-          color: AppTheme.white,
-
-          size: 20,
-
-        ),
-
-        title: const Text(
-
-          'Logout',
-
-          style: TextStyle(
-
-            color: AppTheme.white,
-
-            fontWeight: FontWeight.w600,
-
-            fontSize: 13,
-
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _signOut,
+          borderRadius: BorderRadius.circular(10),
+          hoverColor: Colors.red.withOpacity(0.15),
+          splashColor: Colors.red.withOpacity(0.2),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout_rounded,
+                  color: AppTheme.white.withOpacity(0.65),
+                  size: 19,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: AppTheme.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
-
         ),
-
-        onTap: _signOut,
-
-        shape: RoundedRectangleBorder(
-
-          borderRadius: BorderRadius.circular(8),
-
-        ),
-
-        tileColor: Colors.transparent,
-
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-
-        dense: true,
-
       ),
-
     );
-
   }
 
 
 
   Widget _buildSidebarItem({
-
     required IconData icon,
-
     required String title,
-
     required int index,
-
   }) {
-
     final isSelected = _selectedIndex == index;
 
-    
-
-    return Container(
-
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-
-      child: ListTile(
-
-        leading: Icon(
-
-          icon,
-
-          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
-
-          size: 24,
-
-        ),
-
-        title: Text(
-
-          title,
-
-          style: TextStyle(
-
-            color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
-
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-
-            fontSize: 15,
-
-          ),
-
-        ),
-
-        onTap: () => _onItemTapped(index),
-
-        shape: RoundedRectangleBorder(
-
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onItemTapped(index),
           borderRadius: BorderRadius.circular(12),
-
+          hoverColor: AppTheme.white.withOpacity(0.08),
+          splashColor: AppTheme.white.withOpacity(0.12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.white.withOpacity(0.18) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(color: AppTheme.white.withOpacity(0.25), width: 1)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.65),
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-
-        tileColor: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
-
       ),
-
     );
-
   }
 
 
@@ -3199,86 +3379,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 }
 
-class _HoverableActionCard extends StatefulWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
 
-  const _HoverableActionCard({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  State<_HoverableActionCard> createState() => _HoverableActionCardState();
-}
-
-class _HoverableActionCardState extends State<_HoverableActionCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _isHovered ? widget.color.withOpacity(0.08) : AppTheme.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isHovered ? widget.color.withOpacity(0.5) : AppTheme.lightGrey.withOpacity(0.5),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: _isHovered 
-                    ? widget.color.withOpacity(0.15)
-                    : Colors.black.withOpacity(0.03),
-                blurRadius: _isHovered ? 12 : 6,
-                offset: Offset(0, _isHovered ? 6 : 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: widget.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  widget.icon, 
-                  color: widget.color, 
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 
 
