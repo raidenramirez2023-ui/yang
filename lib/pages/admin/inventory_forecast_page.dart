@@ -269,13 +269,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   double _getBarChartMaxY() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return 550; // Max Y for Daily (500 + buffer)
+        return 400; // Max Y for Daily (400 + buffer)
       case 'Weekly':
-        return 1100; // Max Y for Weekly (1100 + buffer)
+        return 600; // Max Y for Weekly (600 + buffer)
       case 'Monthly':
-        return 4400; // Max Y for Monthly (4400 + buffer)
+        return 2000; // Max Y for Monthly (2000 + buffer)
       case 'Annually':
-        return 60000; // Max Y for Annually (60000 + buffer)
+        return 20000; // Max Y for Annually (20000 + buffer)
       default:
         return 100; // Default max Y
     }
@@ -284,13 +284,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   double _getBarChartInterval() {
     switch (_selectedTimeFilter) {
       case 'Daily':
-        return 50; // Interval for Daily (0,50,100,150,200,250,300,350,400,450,500)
+        return 50; // Interval for Daily (0,50,100,150,200,250,300,350,400)
       case 'Weekly':
-        return 100; // Interval for Weekly (0,100,200,300,400,500,600,700,800,900,1000,1100)
+        return 100; // Interval for Weekly (0,100,200,300,400,500,600)
       case 'Monthly':
-        return 400; // Interval for Monthly (0,400,800,1200,1600,2000,2400,2800,3200,3600,4000,4400)
+        return 400; // Interval for Monthly (0,400,800,1200,1600,2000)
       case 'Annually':
-        return 4000; // Interval for Annually (0,4000,8000,12000,16000,20000,24000,28000,32000,36000,40000,44000,48000,52000,56000)
+        return 4000; // Interval for Annually (0,4000,8000,12000,16000,20000)
       default:
         return 20; // Default interval
     }
