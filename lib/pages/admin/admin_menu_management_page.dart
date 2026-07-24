@@ -565,19 +565,43 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Helper to get MIME type from file extension
+            String _getMimeType(String filename) {
+              final ext = filename.split('.').last.toLowerCase();
+              switch (ext) {
+                case 'jpg':
+                case 'jpeg':
+                case 'jfif':
+                  return 'image/jpeg';
+                case 'png':
+                  return 'image/png';
+                case 'webp':
+                  return 'image/webp';
+                case 'svg':
+                  return 'image/svg+xml';
+                default:
+                  return 'image/jpeg';
+              }
+            }
+
             Future<void> handleImageUpload() async {
               try {
-                final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'svg', 'jfif'],
+                );
                 if (result != null) {
                   setDialogState(() => isSaving = true);
                   final fileBytes = result.files.single.bytes;
                   final filename = result.files.single.name;
+                  final mimeType = _getMimeType(filename);
                   
                   if (kIsWeb) {
                     if (fileBytes != null) {
                       await Supabase.instance.client.storage
                           .from('restaurant-assets')
-                          .uploadBinary(filename, fileBytes);
+                          .uploadBinary(filename, fileBytes,
+                              fileOptions: FileOptions(contentType: mimeType));
                       setDialogState(() {
                         selectedImagePath = filename;
                       });
@@ -588,7 +612,8 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                       final bytes = await File(path).readAsBytes();
                       await Supabase.instance.client.storage
                           .from('restaurant-assets')
-                          .uploadBinary(filename, bytes);
+                          .uploadBinary(filename, bytes,
+                              fileOptions: FileOptions(contentType: mimeType));
                       setDialogState(() {
                         selectedImagePath = filename;
                       });
