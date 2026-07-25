@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/menu_item.dart';
+import '../services/paymongo_service.dart';
 
 class PaymentPanel extends StatefulWidget {
   final List<CartItem> cart;
@@ -46,6 +49,9 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   String _method = 'Cash';
   String _entered = '';
+  bool _isPayMongoProcessing = false;
+  Timer? _pollingTimer;
+  String? _currentLinkId;
   String _selectedCashier = 'Spongebob Squarepants';
   String _selectedServer = 'Sanji';
 
@@ -91,6 +97,7 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
@@ -473,7 +480,7 @@ class _PaymentPanelState extends State<PaymentPanel>
             ),
             const SizedBox(height: 24),
             _sidebarItem('Cash', Icons.payments_outlined, 'CASH'),
-            _sidebarItem('GCash', Icons.account_balance_wallet_outlined, 'GCASH'),
+            _sidebarItem('E-wallet', Icons.qr_code_2, 'E-WALLET'),
             _sidebarCashierButton(),
             _sidebarServerButton(),
             const SizedBox(height: 20),
@@ -575,9 +582,16 @@ class _PaymentPanelState extends State<PaymentPanel>
     bool isSelected = _method == value;
     return GestureDetector(
       onTap: () {
-        setState(() => _method = value);
-        if (value == 'GCash') {
-          _showGcashQR();
+        setState(() {
+          _method = value;
+          if (value == 'E-wallet') {
+            _entered = _total.toStringAsFixed(2);
+          } else if (value == 'Cash') {
+            _entered = '';
+          }
+        });
+        if (value == 'E-wallet') {
+          _startPayMongoPayment();
         }
       },
       child: Container(
@@ -619,128 +633,300 @@ class _PaymentPanelState extends State<PaymentPanel>
     );
   }
 
-  void _showGcashQR() {
+  // ── PayMongo Payment Flow ──────────────────────────────────────────
+
+  Future<void> _startPayMongoPayment() async {
+    setState(() {
+      _entered = _total.toStringAsFixed(2);
+      _isPayMongoProcessing = true;
+    });
+
+    // Show loading dialog
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: 550,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Row(
+          children: [
+            CircularProgressIndicator(color: _indigo),
+            const SizedBox(width: 16),
+            const Text('Creating payment link...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Create PayMongo payment link with the order total
+      final response = await PayMongoService.createPaymentLink(
+        amount: _total,
+        description: 'POS Dine-In Order',
+        metadata: {
+          'source': 'pos',
+          'cashier': _selectedCashier,
+          'server': _selectedServer,
+        },
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (response['success'] == true && response['checkoutUrl'] != null) {
+        final checkoutUrl = response['checkoutUrl'];
+        final linkId = response['linkId'];
+        _currentLinkId = linkId;
+
+        // Open PayMongo checkout page in a new browser tab
+        final uri = Uri.parse(checkoutUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+        // Show "Waiting for payment" dialog and start polling
+        if (mounted) {
+          _showWaitingForPaymentDialog();
+          _startPollingForPayment(linkId);
+        }
+      } else {
+        throw Exception('Failed to create payment link');
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) Navigator.of(context).pop();
+      setState(() => _isPayMongoProcessing = false);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 24),
+                const SizedBox(width: 8),
+                const Text('Payment Error'),
               ],
             ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
+            content: Text('Failed to create payment link:\n$e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  void _showWaitingForPaymentDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(28),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: _indigo.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(Icons.qr_code_2, size: 48, color: _indigo),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Waiting for Payment...',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: _indigo.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '₱${_fmt.format(_total)}',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: _indigo,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                color: _indigo,
+                strokeWidth: 3,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'The PayMongo checkout page has been opened\nin a new browser tab.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Customer should scan the QR code to pay.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _textDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _pollingTimer?.cancel();
+              setState(() => _isPayMongoProcessing = false);
+              Navigator.pop(dialogContext);
+            },
+            child: const Text(
+              'Cancel Payment',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startPollingForPayment(String linkId) {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        final result = await PayMongoService.retrievePaymentLink(linkId);
+        if (result['isPaid'] == true) {
+          timer.cancel();
+          setState(() => _isPayMongoProcessing = false);
+
+          // Close the "Waiting for payment" dialog
+          if (mounted) Navigator.of(context).pop();
+
+          // Show payment received confirmation dialog
+          if (mounted) _showPaymentReceivedDialog();
+        }
+      } catch (e) {
+        debugPrint('PayMongo polling error: $e');
+        // Don't cancel on error — keep trying
+      }
+    });
+  }
+
+  void _showPaymentReceivedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(28),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: _green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: const Icon(Icons.check_circle, size: 48, color: _green),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Payment Received!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: _green,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
                 children: [
-                  // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'GCash Payment',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: _textDark,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.grey,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // QR Code Image
-                SizedBox(
-                  width: 500,
-                  height: 500,
-                  child: Image.asset(
-                    'assets/images/newgcash.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Instructions
-                const Text(
-                  'Scan the QR code using your GCash app',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'to complete the payment',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: _textDark,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // Close Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _indigo,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                  _paymentInfoRow('Amount', '₱${_fmt.format(_total)}'),
+                  const SizedBox(height: 8),
+                  _paymentInfoRow('Method', 'PayMongo (E-Wallet)'),
+                  const SizedBox(height: 8),
+                  _paymentInfoRow('Change', '₱0.00'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _printReceipt();
+              },
+              icon: const Icon(Icons.print, size: 20),
+              label: const Text(
+                'Print Receipt',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _indigo,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: _textDark,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
