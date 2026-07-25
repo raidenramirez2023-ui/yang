@@ -132,6 +132,7 @@ class _InventoryPageState extends State<InventoryPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            backgroundColor: Colors.white.withOpacity(0.95),
             child: Container(
               padding: const EdgeInsets.all(20),
               constraints: BoxConstraints(
@@ -412,7 +413,7 @@ class _InventoryPageState extends State<InventoryPage> {
   InputDecoration _decoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: AppTheme.primaryColor),
+      prefixIcon: Icon(icon, color: const Color(0xFFC62828)),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: AppTheme.lightGrey),
@@ -1034,19 +1035,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
                         return Container(
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppTheme.white,
-                                AppTheme.lightGrey.withOpacity(0.3),
-                              ],
-                            ),
+                            color: Colors.white.withOpacity(0.95),
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.darkGrey.withOpacity(0.1),
-                                blurRadius: 8,
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
                             ],
@@ -1089,14 +1083,13 @@ class _InventoryPageState extends State<InventoryPage> {
                                                   borderRadius:
                                                       BorderRadius.circular(12),
                                                 ),
-                                                backgroundColor: AppTheme.white,
+                                                backgroundColor: Colors.white.withOpacity(0.95),
                                                 title: const Row(
                                                   children: [
                                                     Icon(
                                                       Icons
                                                           .warning_amber_rounded,
-                                                      color: AppTheme
-                                                          .warningOrange,
+                                                      color: Colors.orange,
                                                     ),
                                                     SizedBox(width: 8),
                                                     Text(
@@ -1104,6 +1097,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                                       style: TextStyle(
                                                         color:
                                                             AppTheme.darkGrey,
+                                                        fontWeight: FontWeight.bold,
                                                       ),
                                                     ),
                                                   ],
@@ -1155,10 +1149,16 @@ class _InventoryPageState extends State<InventoryPage> {
                                                 Icon(
                                                   Icons.edit,
                                                   size: 16,
-                                                  color: AppTheme.primaryColor,
+                                                  color: Color(0xFFC62828),
                                                 ),
                                                 SizedBox(width: 8),
-                                                Text('Edit'),
+                                                Text(
+                                                  'Edit',
+                                                  style: TextStyle(
+                                                    color: AppTheme.darkGrey,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -1169,10 +1169,16 @@ class _InventoryPageState extends State<InventoryPage> {
                                                 Icon(
                                                   Icons.delete,
                                                   size: 16,
-                                                  color: AppTheme.errorRed,
+                                                  color: Colors.red,
                                                 ),
                                                 SizedBox(width: 8),
-                                                Text('Delete'),
+                                                Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    color: AppTheme.darkGrey,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -1180,7 +1186,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         child: const Icon(
                                           Icons.more_vert,
                                           size: 14,
-                                          color: AppTheme.mediumGrey,
+                                          color: AppTheme.darkGrey,
                                         ),
                                       ),
                                   ],
@@ -1190,7 +1196,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                   item['category'] ?? 'Uncategorized',
                                   style: TextStyle(
                                     fontSize: 8,
-                                    color: AppTheme.mediumGrey,
+                                    color: AppTheme.darkGrey,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   maxLines: 1,
@@ -1243,7 +1249,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                       style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800,
-                                        color: AppTheme.primaryColor,
+                                        color: AppTheme.darkGrey,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
