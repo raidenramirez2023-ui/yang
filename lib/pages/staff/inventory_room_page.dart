@@ -908,9 +908,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: const Color(0xFFC62828),
         foregroundColor: AppTheme.white,
         automaticallyImplyLeading: false,
         title: const Text('Storage Room'),
@@ -942,12 +942,26 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildStorageRoomTab(),
-          _buildIncomingTab(),
-        ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF031627), // Deep ocean dark blue
+              Color(0xFF062C54), // Rich ocean blue
+              Color(0xFF0D568C), // Shimmering wave blue
+              Color(0xFF1B82C4), // Vibrant light blue highlights
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildStorageRoomTab(),
+            _buildIncomingTab(),
+          ],
+        ),
       ),
     );
   }
@@ -960,12 +974,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           margin: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 16),
           padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 12 : 16),
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: Colors.white.withOpacity(0.95),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withOpacity(0.1),
-                blurRadius: 8,
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -1096,14 +1110,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       const Icon(
                         Icons.warehouse_outlined,
                         size: 64,
-                        color: AppTheme.mediumGrey,
+                        color: Colors.white,
                       ),
                       const SizedBox(height: 16),
                       const Text(
                         'No items found in storage',
                         style: TextStyle(
                           fontSize: 18,
-                          color: AppTheme.mediumGrey,
+                          color: Colors.white,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1141,12 +1155,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                     return Container(
                       decoration: BoxDecoration(
-                        color: AppTheme.white,
+                        color: Colors.white.withOpacity(0.95),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.darkGrey.withOpacity(0.1),
-                            blurRadius: 8,
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
                         ],
@@ -1256,23 +1270,23 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
       children: [
         // Header with actions
         Container(
-          margin: const EdgeInsets.all(16),
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.successGreen,
-                AppTheme.successGreen.withOpacity(0.8),
+                Color(0xFFC62828),
+                Color(0xFF8E0000),
               ],
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.successGreen.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: const Color(0xFFC62828).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -1323,15 +1337,15 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
         // Search bar
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: Colors.white.withOpacity(0.95),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withOpacity(0.1),
-                blurRadius: 8,
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -1404,14 +1418,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       const Icon(
                         Icons.inventory_2_outlined,
                         size: 64,
-                        color: AppTheme.mediumGrey,
+                        color: Colors.white,
                       ),
                       const SizedBox(height: 16),
                       const Text(
                         'No incoming deliveries yet',
                         style: TextStyle(
                           fontSize: 18,
-                          color: AppTheme.mediumGrey,
+                          color: Colors.white,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1420,7 +1434,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                         'Click "New Delivery" to add stock',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.mediumGrey,
+                          color: Colors.white70,
                         ),
                       ),
                     ],
@@ -1461,15 +1475,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
               final drNumbers = filteredDrNumbers;
 
-              // Pagination logic
-              final totalPages = (drNumbers.length / _incomingItemsPerPage).ceil();
-              final startIndex = (_incomingCurrentPage - 1) * _incomingItemsPerPage;
-              final endIndex = startIndex + _incomingItemsPerPage;
-              final paginatedDrNumbers = drNumbers.sublist(
-                startIndex,
-                endIndex > drNumbers.length ? drNumbers.length : endIndex,
-              );
-
               return Column(
                 children: [
                   Expanded(
@@ -1477,9 +1482,9 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       padding: EdgeInsets.all(
                         ResponsiveUtils.isMobile(context) ? 8 : 16,
                       ),
-                      itemCount: paginatedDrNumbers.length,
+                      itemCount: drNumbers.length,
                       itemBuilder: (context, index) {
-                        final drNumber = paginatedDrNumbers[index];
+                        final drNumber = drNumbers[index];
                         final drTransactions = groupedTransactions[drNumber]!;
                         final firstTransaction = drTransactions.first;
                         final itemCount = drTransactions.length;
@@ -1495,59 +1500,6 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       },
                     ),
                   ),
-                  if (totalPages > 1) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.darkGrey.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            onPressed: _incomingCurrentPage > 1
-                                ? () {
-                                    setState(() {
-                                      _incomingCurrentPage--;
-                                    });
-                                  }
-                                : null,
-                            icon: const Icon(Icons.chevron_left),
-                            color: AppTheme.successGreen,
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'Page $_incomingCurrentPage of $totalPages',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.darkGrey,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            onPressed: _incomingCurrentPage < totalPages
-                                ? () {
-                                    setState(() {
-                                      _incomingCurrentPage++;
-                                    });
-                                  }
-                                : null,
-                            icon: const Icon(Icons.chevron_right),
-                            color: AppTheme.successGreen,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               );
             },

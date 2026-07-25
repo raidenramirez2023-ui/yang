@@ -470,11 +470,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFC62828),
+            Color(0xFF8E0000),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: const Color(0xFFC62828).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -547,16 +554,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.white,
+              color: Colors.white.withOpacity(0.95),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Overview',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey, letterSpacing: 0.5),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.darkGrey, letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 12),
                 _buildFlatStatsRow(isNarrow: true),
@@ -565,7 +579,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 const SizedBox(height: 16),
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.mediumGrey, letterSpacing: 0.5),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.darkGrey, letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 12),
                 _buildFlatActionsRow(isNarrow: true),
@@ -577,14 +591,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: Colors.white.withOpacity(0.95),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withOpacity(0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -772,7 +786,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       children: [
         const Text(
           'Inventory Insights',
-          style: AppTheme.sectionHeaderStyle,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: -0.3,
+          ),
         ),
         const SizedBox(height: 16),
         if (isMobile) ...[
@@ -807,17 +826,27 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.health_and_safety_outlined, color: AppTheme.primaryColor, size: 20),
+              Icon(Icons.health_and_safety_outlined, color: Color(0xFF006994), size: 20),
               SizedBox(width: 8),
               Text(
                 'Inventory Health by Category',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkGrey),
               ),
             ],
           ),
@@ -960,7 +989,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: AppTheme.cardDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -973,11 +1012,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.trending_up, color: AppTheme.infoBlue, size: 20),
+                  Icon(Icons.trending_up, color: Color(0xFF006994), size: 20),
                   SizedBox(width: 8),
                   Text(
                     'Top 5 Requested Items',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.darkGrey),
                   ),
                 ],
               ),
@@ -1118,7 +1157,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       barRods: [
                         BarChartRodData(
                           toY: val,
-                          color: AppTheme.infoBlue,
+                          color: const Color(0xFF006994),
                           width: 24,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
@@ -1201,14 +1240,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       children: [
         Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppTheme.errorRed, size: 20),
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
             const SizedBox(width: 8),
             const Text(
               'Critical Stock Alerts',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.errorRed,
+                color: Colors.white,
               ),
             ),
             const Spacer(),
@@ -1220,12 +1259,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('View All', style: TextStyle(fontSize: 12, color: AppTheme.errorRed, fontWeight: FontWeight.bold)),
+                child: const Text('View All', style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
               ),
             if (_criticalItems.length > 5) const SizedBox(width: 8),
             Text(
               '${_criticalItems.length} items',
-              style: const TextStyle(fontSize: 12, color: AppTheme.mediumGrey),
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ],
         ),
@@ -1243,9 +1282,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 margin: const EdgeInsets.only(right: 12, bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.errorRed.withOpacity(0.05),
+                  color: Colors.white.withOpacity(0.95),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.errorRed.withOpacity(0.2)),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1255,13 +1301,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       item['name'] ?? 'Unknown',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.darkGrey),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       qty == 0 ? 'OUT OF STOCK' : 'Only $qty left',
                       style: TextStyle(
-                        color: AppTheme.errorRed,
+                        color: Colors.orange,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1336,13 +1382,18 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           children: [
             const Text(
               'Recent Activity',
-              style: AppTheme.sectionHeaderStyle,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.3,
+              ),
             ),
             if (_recentActivity.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.08),
+                  color: const Color(0xFF006994).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1350,7 +1401,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -1358,7 +1409,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         ),
         const SizedBox(height: 16),
         Container(
-          decoration: AppTheme.cardDecoration(),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           clipBehavior: Clip.antiAlias,
           child: _recentActivity.isEmpty
               ? Padding(
@@ -1590,11 +1651,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: Colors.white,
+        color: Colors.white.withOpacity(0.95),
 
         borderRadius: BorderRadius.circular(8),
 
         border: Border.all(color: statusColor.withOpacity(0.3)),
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
 
       ),
 
@@ -1623,6 +1692,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     fontWeight: FontWeight.bold,
 
                     fontSize: 14,
+
+                    color: AppTheme.darkGrey,
 
                   ),
 
@@ -2265,117 +2336,75 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Scaffold(
 
       backgroundColor: Colors.transparent,
-
-      body: Row(
-
-        children: [
-
-          Material(
-            color: Colors.transparent,
-            child: Container(
-              width: 200,
-
-            decoration: BoxDecoration(
-
-              color: AppTheme.primaryColor,
-
-              boxShadow: [
-
-                BoxShadow(
-
-                  color: AppTheme.darkGrey.withOpacity(0.1),
-
-                  blurRadius: 4,
-
-                  offset: const Offset(2, 0),
-
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF031627), // Deep ocean dark blue
+              Color(0xFF062C54), // Rich ocean blue
+              Color(0xFF0D568C), // Shimmering wave blue
+              Color(0xFF1B82C4), // Vibrant light blue highlights
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Row(
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 200,
+                decoration: BoxDecoration(
+                  color: AppTheme.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.darkGrey.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(2, 0),
+                    ),
+                  ],
                 ),
-
-              ],
-
-            ),
-
-            child: Column(
-
-              children: [
-
-                // Compact Header
-
-                Container(
-
-                  padding: const EdgeInsets.all(16),
-
-                  child: Column(
-
-                    children: [
-
-                      Container(
-
-                        padding: const EdgeInsets.all(12),
-
-                        decoration: BoxDecoration(
-
-                          color: AppTheme.white.withOpacity(0.2),
-
-                          borderRadius: BorderRadius.circular(8),
-
-                        ),
-
-                        child: const Icon(
-
-                          Icons.inventory_2,
-
-                          color: AppTheme.white,
-
-                          size: 24,
-
-                        ),
-
+                child: Column(
+                  children: [
+                    // Compact Header
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF006994).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.inventory_2,
+                              color: Color(0xFF006994),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Inventory',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                          Text(
+                            _userName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.mediumGrey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-
-                      const SizedBox(height: 8),
-
-                      const Text(
-
-                        'Inventory',
-
-                        style: TextStyle(
-
-                          fontSize: 14,
-
-                          fontWeight: FontWeight.w700,
-
-                          color: AppTheme.white,
-
-                        ),
-
-                      ),
-
-                      Text(
-
-                        _userName,
-
-                        style: const TextStyle(
-
-                          fontSize: 12,
-
-                          color: AppTheme.white,
-
-                          fontWeight: FontWeight.w500,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-                
-
-                Divider(color: AppTheme.white.withOpacity(0.2), height: 1),
+                    ),
+                    Divider(color: AppTheme.lightGrey, height: 1),
 
                 
 
@@ -2441,14 +2470,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 
 
               ],
-
             ),
-
           ),
         ),
-
           
-
           // Main Content
 
           Expanded(
@@ -2560,18 +2585,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       : _getPages()[_selectedIndex],
 
                 ),
-
               ],
-
             ),
-
           ),
-
         ],
-
       ),
-
-    );
+    ),
+  );
 
   }
 
@@ -2580,38 +2600,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        title: Row(
-          children: [
-            const Icon(Icons.dashboard_rounded),
-            const SizedBox(width: 8),
-            const Text('Inventory Dashboard'),
-          ],
-        ),
-        actions: [
-          _buildNotificationIcon(Colors.white),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDashboardData,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
-        ],
-      ),
       drawer: Drawer(
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryDark,
-              ],
-            ),
+            color: AppTheme.white,
           ),
           child: Column(
             children: [
@@ -2623,12 +2615,12 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.white.withOpacity(0.2),
+                        color: const Color(0xFF006994).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
                         Icons.inventory_2,
-                        color: AppTheme.white,
+                        color: Color(0xFF006994),
                         size: 40,
                       ),
                     ),
@@ -2638,7 +2630,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.white,
+                        color: AppTheme.darkGrey,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -2646,7 +2638,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       _userName,
                       style: const TextStyle(
                         fontSize: 14,
-                        color: AppTheme.white,
+                        color: AppTheme.mediumGrey,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2654,7 +2646,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ),
               ),
               
-              const Divider(color: AppTheme.white, height: 1),
+              const Divider(color: AppTheme.lightGrey, height: 1),
               
               // Navigation Items
               ListView(
@@ -2690,11 +2682,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 child: ListTile(
-                  leading: const Icon(Icons.logout, color: AppTheme.white),
+                  leading: const Icon(Icons.logout, color: AppTheme.darkGrey),
                   title: const Text(
                     'Logout',
                     style: TextStyle(
-                      color: AppTheme.white,
+                      color: AppTheme.darkGrey,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2708,9 +2700,50 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           ),
         ),
       ),
-      body: _isLoading && _selectedIndex == 0
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-          : _getPages()[_selectedIndex],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF031627), // Deep ocean dark blue
+              Color(0xFF062C54), // Rich ocean blue
+              Color(0xFF0D568C), // Shimmering wave blue
+              Color(0xFF1B82C4), // Vibrant light blue highlights
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Column(
+          children: [
+            AppBar(
+              backgroundColor: AppTheme.primaryColor,
+              title: Row(
+                children: [
+                  const Icon(Icons.dashboard_rounded),
+                  const SizedBox(width: 8),
+                  const Text('Inventory Dashboard'),
+                ],
+              ),
+              actions: [
+                _buildNotificationIcon(Colors.white),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadDashboardData,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: _signOut,
+                ),
+              ],
+            ),
+            Expanded(
+              child: _isLoading && _selectedIndex == 0
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+                  : _getPages()[_selectedIndex],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2730,23 +2763,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         child: InkWell(
           onTap: () => _onItemTapped(index),
           borderRadius: BorderRadius.circular(10),
-          hoverColor: AppTheme.white.withOpacity(0.08),
-          splashColor: AppTheme.white.withOpacity(0.12),
+          hoverColor: Colors.red.withOpacity(0.15),
+          splashColor: Colors.red.withOpacity(0.2),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.white.withOpacity(0.18) : Colors.transparent,
+              color: isSelected ? Colors.red.withOpacity(0.1) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               border: isSelected
-                  ? Border.all(color: AppTheme.white.withOpacity(0.25), width: 1)
+                  ? Border.all(color: Colors.red.withOpacity(0.3), width: 1)
                   : null,
             ),
             child: Row(
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.65),
+                  color: Colors.red,
                   size: 19,
                 ),
                 const SizedBox(width: 10),
@@ -2754,7 +2787,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+                      color: isSelected ? Colors.red : AppTheme.darkGrey,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 13,
                     ),
@@ -2765,7 +2798,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     width: 6,
                     height: 6,
                     decoration: const BoxDecoration(
-                      color: AppTheme.white,
+                      color: Colors.red,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -2795,14 +2828,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               children: [
                 Icon(
                   Icons.logout_rounded,
-                  color: AppTheme.white.withOpacity(0.65),
+                  color: Colors.red,
                   size: 19,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'Logout',
                   style: TextStyle(
-                    color: AppTheme.white.withOpacity(0.7),
+                    color: AppTheme.darkGrey,
                     fontWeight: FontWeight.w500,
                     fontSize: 13,
                   ),
@@ -2831,23 +2864,23 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         child: InkWell(
           onTap: () => _onItemTapped(index),
           borderRadius: BorderRadius.circular(12),
-          hoverColor: AppTheme.white.withOpacity(0.08),
-          splashColor: AppTheme.white.withOpacity(0.12),
+          hoverColor: Colors.red.withOpacity(0.15),
+          splashColor: Colors.red.withOpacity(0.2),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.white.withOpacity(0.18) : Colors.transparent,
+              color: isSelected ? Colors.red.withOpacity(0.1) : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: AppTheme.white.withOpacity(0.25), width: 1)
+                  ? Border.all(color: Colors.red.withOpacity(0.3), width: 1)
                   : null,
             ),
             child: Row(
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.65),
+                  color: Colors.red,
                   size: 22,
                 ),
                 const SizedBox(width: 12),
@@ -2855,7 +2888,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   child: Text(
                     title,
                     style: TextStyle(
-                      color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.7),
+                      color: isSelected ? Colors.red : AppTheme.darkGrey,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 14,
                     ),
@@ -2866,7 +2899,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     width: 7,
                     height: 7,
                     decoration: const BoxDecoration(
-                      color: AppTheme.white,
+                      color: Colors.red,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -2920,7 +2953,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         fontWeight: FontWeight.bold,
 
-                        color: AppTheme.darkGrey,
+                        color: Colors.white,
 
                       ),
 
@@ -2936,7 +2969,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         fontSize: 14,
 
-                        color: AppTheme.mediumGrey,
+                        color: Colors.white70,
 
                       ),
 
@@ -3026,20 +3059,27 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: Colors.white.withOpacity(0.95),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                        border: Border.all(color: const Color(0xFFC62828).withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.pending_actions, color: AppTheme.primaryColor, size: 20),
+                          Icon(Icons.pending_actions, color: const Color(0xFFC62828), size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Total Pending Requests: $pendingCount',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.darkGrey,
                             ),
                           ),
                           const Spacer(),
@@ -3047,7 +3087,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppTheme.warningOrange,
+                                color: const Color(0xFFC62828),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -3066,9 +3106,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     // All Requests Container
                     Container(
                       decoration: BoxDecoration(
-                        color: AppTheme.white,
+                        color: Colors.white.withOpacity(0.95),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.lightGrey),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: () {
                         if (requests.isEmpty) {
@@ -3076,13 +3123,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                             padding: const EdgeInsets.all(40),
                             child: Column(
                               children: [
-                                Icon(Icons.inbox_outlined, size: 60, color: AppTheme.mediumGrey),
+                                Icon(Icons.inbox_outlined, size: 60, color: AppTheme.darkGrey),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No stock requests',
                                   style: TextStyle(
                                     fontSize: 18,
-                                    color: AppTheme.mediumGrey,
+                                    color: AppTheme.darkGrey,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -3113,8 +3160,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.backgroundColor,
+                                  color: Colors.white.withOpacity(0.95),
                                   borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -3128,16 +3182,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             }
                                           : null,
                                       icon: const Icon(Icons.chevron_left),
-                                      color: AppTheme.primaryColor,
+                                      color: const Color(0xFFC62828),
                                     ),
                                     const SizedBox(width: 12),
                                     Container(
                                       width: 50,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                        color: AppTheme.white,
+                                        color: Colors.white,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: AppTheme.primaryColor),
+                                        border: Border.all(color: const Color(0xFFC62828)),
                                       ),
                                       child: TextField(
                                         textAlign: TextAlign.center,
@@ -3179,7 +3233,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                             }
                                           : null,
                                       icon: const Icon(Icons.chevron_right),
-                                      color: AppTheme.primaryColor,
+                                      color: const Color(0xFFC62828),
                                     ),
                                   ],
                                 ),
