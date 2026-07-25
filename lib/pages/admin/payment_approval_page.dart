@@ -771,8 +771,15 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       detectedRefs.any((r) => r.toString().length >= 6)
     );
 
-    // Must have verified BOTH amount and reference
-    return amountMatches && refMatches;
+    // Check Payment ID (pay_xxx format)
+    final String? detectedPaymentId = ocr['detectedPaymentId'];
+    final bool paymentIdFound = detectedPaymentId != null && detectedPaymentId.isNotEmpty;
+
+    // Check QRPh Payment Received! confirmation text
+    final bool hasQrphReceived = ocr['hasQrphReceived'] == true;
+
+    // Must have verified ALL FOUR: amount, reference, payment ID, and QRPh received
+    return amountMatches && refMatches && paymentIdFound && hasQrphReceived;
   }
 
   Widget _buildApproveButton(Map<String, dynamic> payment, String table) {
@@ -810,30 +817,88 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       detectedRefs.any((r) => r.toString().length >= 6) // Most PayMongo/GCash refs are 6+ chars
     );
 
+    // Payment ID verification (pay_xxx format)
+    final String? detectedPaymentId = ocr['detectedPaymentId'];
+    final bool paymentIdFound = detectedPaymentId != null && detectedPaymentId.isNotEmpty;
+
+    // QRPh Payment Received! confirmation
+    final bool hasQrphReceived = ocr['hasQrphReceived'] == true;
+
+    // Count how many checks passed
+    final int passedChecks = [
+      amountMatches,
+      refMatches,
+      paymentIdFound,
+      hasQrphReceived,
+    ].where((v) => v).length;
+    final bool allVerified = passedChecks == 4;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: amountMatches ? Colors.green.shade50 : Colors.orange.shade50,
+        color: allVerified ? Colors.green.shade50 : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: amountMatches ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3)),
+        border: Border.all(color: allVerified ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.image_search, color: amountMatches ? Colors.green : Colors.orange, size: 16),
+              Icon(Icons.image_search, color: allVerified ? Colors.green : Colors.orange, size: 16),
               const SizedBox(width: 8),
               const Text('OCR Verification Assistant', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: allVerified ? Colors.green.withOpacity(0.15) : Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$passedChecks/4 Verified',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: allVerified ? Colors.green.shade700 : Colors.orange.shade700,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           _buildOCRRow('Amount Detected', detectedAmount != null ? 'PHP ${detectedAmount.toStringAsFixed(2)}' : 'Not Found', amountMatches ? Icons.check_circle : (detectedAmount == null ? Icons.help_outline : Icons.warning_amber), amountMatches ? Colors.green : Colors.red),
           _buildOCRRow('Reference ID', detectedRefs.isNotEmpty ? detectedRefs.first.toString() : 'Not Found', refMatches ? Icons.check_circle : Icons.help_outline, refMatches ? Colors.green : Colors.orange),
+          _buildOCRRow('Payment ID', detectedPaymentId ?? 'Not Found', paymentIdFound ? Icons.check_circle : Icons.help_outline, paymentIdFound ? Colors.green : Colors.red),
+          _buildOCRRow('QRPh Payment Received!', hasQrphReceived ? 'Confirmed' : 'Not Found', hasQrphReceived ? Icons.check_circle : Icons.help_outline, hasQrphReceived ? Colors.green : Colors.red),
           if (!amountMatches && detectedAmount != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text('⚠️ Warning: Amount mismatch (Expected PHP ${expectedAmount.toStringAsFixed(2)})', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          if (!allVerified)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 14, color: Colors.red.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'All 4 checks must be verified before approving. Make sure the receipt shows a completed payment, not a pending QR code.',
+                        style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
