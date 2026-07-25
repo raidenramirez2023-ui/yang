@@ -2062,6 +2062,16 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
     final isDone = _kitchenStatus == 'Done';
     final isReady = _kitchenStatus == 'Ready';
 
+    // Check if today is the event day (or later) — button only enabled on/after event date
+    bool isEventDay = false;
+    try {
+      final eventDate = DateTime.parse(eventDateStr);
+      final now = DateTime.now();
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final eventDateOnly = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      isEventDay = todayDate.compareTo(eventDateOnly) >= 0;
+    } catch (_) {}
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -2376,29 +2386,40 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
                 const Spacer(),
                 // Compact Action Button
                 if (!isDone)
-                  ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _advanceStatus,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isReady ? const Color(0xFF2563EB) : const Color(0xFF16A34A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      minimumSize: const Size(0, 34),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
-                    ),
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Icon(
-                            isReady ? Icons.check_circle_outline : Icons.done_all_rounded,
-                            size: 15,
-                          ),
-                    label: Text(
-                      isReady ? 'Mark as Served' : 'Mark as Ready',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  Tooltip(
+                    message: !isEventDay ? 'Available on the event date (${formattedDate})' : '',
+                    child: ElevatedButton.icon(
+                      onPressed: (!isEventDay || _isLoading) ? null : _advanceStatus,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: !isEventDay
+                            ? const Color(0xFF94A3B8)
+                            : (isReady ? const Color(0xFF2563EB) : const Color(0xFF16A34A)),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFCBD5E1),
+                        disabledForegroundColor: const Color(0xFF94A3B8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        minimumSize: const Size(0, 34),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Icon(
+                              !isEventDay
+                                  ? Icons.lock_clock
+                                  : (isReady ? Icons.check_circle_outline : Icons.done_all_rounded),
+                              size: 15,
+                            ),
+                      label: Text(
+                        !isEventDay
+                            ? 'Mark as Ready'
+                            : (isReady ? 'Mark as Served' : 'Mark as Ready'),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
                     ),
                   )
                 else

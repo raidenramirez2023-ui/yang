@@ -68,12 +68,32 @@ class OcrService {
       caseSensitive: false,
     );
 
+    // Regex for PayMongo Payment ID (e.g., pay_hTPQJomoquN66wNxbfbjxhiJ)
+    final paymentIdRegex = RegExp(
+      r'(pay_[a-zA-Z0-9]{10,50})',
+      caseSensitive: false,
+    );
+
+    // Check for "QRPh Payment Received!" confirmation text
+    // Flexible matching: handles OCR variations like extra spaces, line breaks, case differences
+    final qrphReceivedRegex = RegExp(
+      r'QR\s*Ph\s+Payment\s+Received',
+      caseSensitive: false,
+    );
+
     final amounts = amountRegex.allMatches(text).map((m) => m.group(1)).toList();
     final refs = refRegex
         .allMatches(text)
         .map((m) => m.group(1))
         .where((r) => r != null && r.toLowerCase() != 'number' && r.toLowerCase() != 'reference')
         .toList();
+
+    // Detect Payment ID (pay_xxx format)
+    final paymentIdMatches = paymentIdRegex.allMatches(text).map((m) => m.group(1)).toList();
+    final String? detectedPaymentId = paymentIdMatches.isNotEmpty ? paymentIdMatches.first : null;
+
+    // Detect "QRPh Payment Received!" text
+    final bool hasQrphReceived = qrphReceivedRegex.hasMatch(text);
 
     // In a receipt, the largest amount found is usually the Total Paid
     double? maxAmount;
@@ -91,6 +111,8 @@ class OcrService {
       'fullText': text,
       'detectedAmount': maxAmount,
       'detectedRefs': refs,
+      'detectedPaymentId': detectedPaymentId,
+      'hasQrphReceived': hasQrphReceived,
       'isSuccess': true,
     };
   }
