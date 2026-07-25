@@ -25,6 +25,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   int _pendingOrderCount = 0;
   StreamSubscription<List<Map<String, dynamic>>>? _orderStream;
   int _lastSeenPendingCount = 0;
+  final Set<String> _dismissedNotificationIds = {};
 
   @override
   void initState() {
@@ -145,6 +146,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
                 onPageChanged: (idx) => setState(() => _currentTab = idx),
                 children: const [
                   _CombinedKitchenTab(),
+                  _UpcomingEventsTab(),
                   _FinishedOrdersTab(),
                   _InventoryRequestTab(),
                   _StockViewTab(),
@@ -272,45 +274,148 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   }
 
   // ── Notifications ───────────────────────────────────────
+  Widget _buildNewNotificationPopup(Map<String, dynamic> n) {
+    final title = _getNotificationTitle(n);
+    final subtitle = _getNotificationSubtitle(n);
+    final displayText = "$title: $subtitle";
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.primaryColor.withOpacity(0.2),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withOpacity(0.06),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                displayText,
+                style: const TextStyle(
+                  color: AppTheme.primaryDark,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _dismissedNotificationIds.add(n['id'].toString());
+                });
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  size: 10,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Notifications ───────────────────────────────────────
   Widget _buildNotificationIcon() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: NotificationService.getKitchenNotificationsStream(),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
-        final hasUnread = notifications.any((n) => !n['is_read']);
+        final unreadNotifications = notifications.where((n) => !n['is_read']).toList();
+        final hasUnread = unreadNotifications.isNotEmpty;
 
-        return Stack(
+        Map<String, dynamic>? latestUnread;
+        if (hasUnread) {
+          latestUnread = unreadNotifications.first;
+        }
+
+        final showPopup = latestUnread != null &&
+            !_dismissedNotificationIds.contains(latestUnread['id'].toString());
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => _showNotificationsDialog(notifications),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+            if (showPopup) ...[
+              _buildNewNotificationPopup(latestUnread),
+              const SizedBox(width: 8),
+            ],
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
                   borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Color(0xFF64748B),
-                  size: 18,
-                ),
-              ),
-            ),
-            if (hasUnread)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                  onTap: () {
+                    if (latestUnread != null) {
+                      setState(() {
+                        _dismissedNotificationIds.add(latestUnread!['id'].toString());
+                      });
+                    }
+                    _showNotificationsDialog(notifications);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Color(0xFF64748B),
+                      size: 18,
+                    ),
                   ),
                 ),
-              ),
+                if (hasUnread)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         );
       },
@@ -447,6 +552,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   Widget _buildBottomNav() {
     const items = [
       (Icons.restaurant, 'Kitchen'),
+      (Icons.calendar_month, 'Events'),
       (Icons.check_circle_outline, 'Finished'),
       (Icons.inventory_2_outlined, 'Requests'),
       (Icons.fact_check, 'Stock'),
@@ -602,8 +708,10 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
   // Stream subscriptions instead of StreamBuilders
   StreamSubscription<List<Map<String, dynamic>>>? _posSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _advSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _resSubscription;
   List<Map<String, dynamic>> _posRaw = [];
   List<Map<String, dynamic>> _advRaw = [];
+  List<Map<String, dynamic>> _resRaw = [];
   bool _initialLoading = true;
 
   @override
@@ -616,6 +724,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
   void dispose() {
     _posSubscription?.cancel();
     _advSubscription?.cancel();
+    _resSubscription?.cancel();
     super.dispose();
   }
 
@@ -656,6 +765,24 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
                 _kitchenStatus[key] = status == 'preparing' ? 'Preparing' :
                                       status == 'ready' ? 'Ready' :
                                       status == 'done' ? 'Done' : 'Pending';
+              }
+            }
+          });
+        });
+
+    _resSubscription = Supabase.instance.client
+        .from('reservations')
+        .stream(primaryKey: ['id'])
+        .listen((rows) {
+          if (!mounted) return;
+          setState(() {
+            _resRaw = rows;
+            _initialLoading = false;
+            // Sync local cache for NEW reservations only
+            for (final o in rows) {
+              final key = 'res_${o['id']}';
+              if (!_kitchenStatus.containsKey(key)) {
+                _kitchenStatus[key] = o['kitchen_status']?.toString() ?? 'Pending';
               }
             }
           });
@@ -716,6 +843,43 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     }
   }
 
+  // ── Update status for Event reservations ──
+  Future<void> _updateReservationStatus(String resId, String newStatus) async {
+    setState(() => _kitchenStatus['res_$resId'] = newStatus);
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .update({'kitchen_status': newStatus})
+          .eq('id', resId);
+
+      if (newStatus == 'Ready' || newStatus == 'Done') {
+        try {
+          final resData = await Supabase.instance.client
+              .from('reservations')
+              .select('customer_email, event_type, id')
+              .eq('id', resId)
+              .single();
+          
+          if (resData['customer_email'] != null) {
+            await NotificationService.sendNotification(
+              recipientEmail: resData['customer_email'],
+              actorName: 'Kitchen',
+              actionType: newStatus.toLowerCase(),
+              reservationId: resId,
+              eventType: 'Event Reservation (${resData['event_type']})',
+            );
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   List<Map<String, dynamic>> _buildOrdersList() {
     // ── Process POS orders ──
     final posOrders = _posRaw.where((o) {
@@ -725,6 +889,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     }).map((o) => {
       ...o,
       '_is_advance': false,
+      '_is_reservation': false,
       '_sort_key': o['created_at']?.toString() ?? '',
     }).toList();
 
@@ -741,6 +906,7 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       return {
         ...o,
         '_is_advance': true,
+        '_is_reservation': false,
         'kitchen_status': _kitchenStatus[key] ?? mappedStatus,
         '_sort_key': o['created_at']?.toString() ?? '',
       };
@@ -756,8 +922,27 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && status != 'awaiting_verification';
     }).toList();
 
+    // ── Process Event reservations for today ──
+    final resOrders = _resRaw.where((o) {
+      final isMenuBased = o['is_menu_based'] == true;
+      final ps = o['payment_status']?.toString().toLowerCase();
+      final isPaid = ps == 'paid' || ps == 'fully_paid';
+      
+      final eventDateStr = o['event_date']?.toString();
+      final isTodayOrPast = eventDateStr != null && eventDateStr.compareTo(todayStr) <= 0;
+      
+      final ks = _kitchenStatus['res_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
+      return isMenuBased && isPaid && isTodayOrPast && ks != 'Done' && ks != 'Ready';
+    }).map((o) => {
+      ...o,
+      '_is_advance': false,
+      '_is_reservation': true,
+      'kitchen_status': _kitchenStatus['res_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending',
+      '_sort_key': '${o['event_date']} ${o['start_time']}',
+    }).toList();
+
     // ── Combine and sort by creation time ──
-    final List<Map<String, dynamic>> allOrders = [...posOrders, ...advOrders];
+    final List<Map<String, dynamic>> allOrders = [...posOrders, ...advOrders, ...resOrders];
     allOrders.sort((a, b) {
       final aTime = DateTime.tryParse(a['_sort_key']?.toString() ?? '') ?? DateTime(0);
       final bTime = DateTime.tryParse(b['_sort_key']?.toString() ?? '') ?? DateTime(0);
@@ -794,7 +979,8 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
             final o = allOrders[i];
             final id = o['id'].toString();
             final isAdvance = o['_is_advance'] == true;
-            final statusKey = isAdvance ? 'adv_$id' : 'pos_$id';
+            final isReservation = o['_is_reservation'] == true;
+            final statusKey = isReservation ? 'res_$id' : (isAdvance ? 'adv_$id' : 'pos_$id');
 
             return FittedBox(
               fit: BoxFit.contain,
@@ -804,15 +990,20 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
                 height: 330 / 1.05,
                 child: _KitchenOrderCard(
                   order: o,
-                  kitchenStatus: isAdvance
-                      ? (o['kitchen_status'] ?? 'Pending')
-                      : (_kitchenStatus[statusKey] ?? 'Pending'),
-                  onStatusChanged: isAdvance
-                      ? (ns) => _updateAdvanceStatus(id, ns)
-                      : (ns) => _updatePosStatus(id, ns),
+                  kitchenStatus: isReservation
+                      ? (_kitchenStatus[statusKey] ?? 'Pending')
+                      : (isAdvance
+                          ? (o['kitchen_status'] ?? 'Pending')
+                          : (_kitchenStatus[statusKey] ?? 'Pending')),
+                  onStatusChanged: isReservation
+                      ? (ns) => _updateReservationStatus(id, ns)
+                      : (isAdvance
+                          ? (ns) => _updateAdvanceStatus(id, ns)
+                          : (ns) => _updatePosStatus(id, ns)),
                   statusOrder: _statusOrder,
                   statusColors: _statusColors,
                   isAdvanceOrder: isAdvance,
+                  isReservation: isReservation,
                 ),
               ),
             );
@@ -831,6 +1022,7 @@ class _KitchenOrderCard extends StatefulWidget {
   final List<String> statusOrder;
   final Map<String, Color> statusColors;
   final bool isAdvanceOrder;
+  final bool isReservation;
 
   const _KitchenOrderCard({
     required this.order,
@@ -839,6 +1031,7 @@ class _KitchenOrderCard extends StatefulWidget {
     required this.statusOrder,
     required this.statusColors,
     required this.isAdvanceOrder,
+    this.isReservation = false,
   });
 
   @override
@@ -866,8 +1059,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
   }
 
   Future<void> _loadItems() async {
-    if (widget.isAdvanceOrder) {
-      // For advance orders, items are in selected_menu_items JSON column
+    if (widget.isAdvanceOrder || widget.isReservation) {
+      // For advance orders and reservations, items are in selected_menu_items JSON column
       final selectedItems = widget.order['selected_menu_items'] as Map<String, dynamic>? ?? {};
       final List<Map<String, dynamic>> items = [];
       selectedItems.forEach((name, qty) {
@@ -1054,11 +1247,13 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                widget.isAdvanceOrder ? 'ADVANCE ORDER' : 'Order ${_formatOrderId(widget.order)}',
+                                widget.isReservation
+                                    ? 'EVENT RESERVATION'
+                                    : (widget.isAdvanceOrder ? 'ADVANCE ORDER' : 'Order ${_formatOrderId(widget.order)}'),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 16,
-                                  color: widget.isAdvanceOrder ? AppTheme.primaryColor : const Color(0xFF1E293B),
+                                  color: (widget.isAdvanceOrder || widget.isReservation) ? AppTheme.primaryColor : const Color(0xFF1E293B),
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -1087,6 +1282,11 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                                     ),
                                   ],
                                 ),
+                              if (widget.isReservation)
+                                Text(
+                                  'Event: ${widget.order['event_type'] ?? ''} on ${widget.order['event_date']} at ${widget.order['start_time'] ?? ''}',
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                                ),
                             ],
                           ),
                         ),
@@ -1098,7 +1298,8 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                       ],
                     ),
                   ),
-                  if (widget.isAdvanceOrder && widget.order['preparation_notes'] != null && widget.order['preparation_notes'].toString().isNotEmpty)
+                  if ((widget.isAdvanceOrder && widget.order['preparation_notes'] != null && widget.order['preparation_notes'].toString().isNotEmpty) ||
+                      (widget.isReservation && widget.order['special_requests'] != null && widget.order['special_requests'].toString().isNotEmpty))
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
@@ -1656,8 +1857,579 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
   }
 }
 
+
 // ══════════════════════════════════════════════════════════
-//  TAB 2 — FINISHED ORDERS
+//  TAB 2 — UPCOMING EVENTS (Future Event Reservations)
+// ══════════════════════════════════════════════════════════
+class _UpcomingEventsTab extends StatefulWidget {
+  const _UpcomingEventsTab();
+
+  @override
+  State<_UpcomingEventsTab> createState() => _UpcomingEventsTabState();
+}
+
+class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
+  List<Map<String, dynamic>> _events = [];
+  bool _loading = true;
+  StreamSubscription<List<Map<String, dynamic>>>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribe();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribe() {
+    _sub = Supabase.instance.client
+        .from('reservations')
+        .stream(primaryKey: ['id'])
+        .order('event_date', ascending: true)
+        .listen((rows) {
+          if (!mounted) return;
+          final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+          final filtered = rows.where((r) {
+            final isMenuBased = r['is_menu_based'] == true;
+            final ps = r['payment_status']?.toString().toLowerCase();
+            final isPaid = ps == 'paid' || ps == 'deposit_paid' || ps == 'fully_paid';
+            final eventDateStr = r['event_date']?.toString();
+            final isFuture = eventDateStr != null && eventDateStr.compareTo(todayStr) > 0;
+            final menuItems = r['selected_menu_items'];
+            final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
+            final isNotServed = r['kitchen_status']?.toString() != 'Done';
+            return isMenuBased && isPaid && isFuture && hasMenu && isNotServed;
+          }).toList();
+          setState(() {
+            _events = filtered;
+            _loading = false;
+          });
+        });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
+    }
+
+    if (_events.isEmpty) {
+      return _buildEmptyState(
+        Icons.calendar_month_rounded,
+        'No Upcoming Events',
+        'No approved event reservations with menu selections found.',
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.maxWidth;
+        // Determine grid column count based on available screen width
+        int crossAxisCount = 1;
+        if (width >= 1280) {
+          crossAxisCount = 3;
+        } else if (width >= 800) {
+          crossAxisCount = 2;
+        }
+
+        if (crossAxisCount > 1) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              mainAxisExtent: 320, // fixed height per card for uniform grid
+            ),
+            itemCount: _events.length,
+            itemBuilder: (context, index) {
+              return _UpcomingEventCard(event: _events[index]);
+            },
+          );
+        }
+
+        // Single column view for mobile/narrow screens
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: _events.length,
+          itemBuilder: (context, index) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: _UpcomingEventCard(event: _events[index]),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── Upcoming Event Card ───────────────────────────────────
+class _UpcomingEventCard extends StatefulWidget {
+  final Map<String, dynamic> event;
+
+  const _UpcomingEventCard({required this.event});
+
+  @override
+  State<_UpcomingEventCard> createState() => _UpcomingEventCardState();
+}
+
+class _UpcomingEventCardState extends State<_UpcomingEventCard> {
+  bool _isLoading = false;
+  late String _kitchenStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _kitchenStatus = widget.event['kitchen_status']?.toString() ?? 'Pending';
+  }
+
+  Future<void> _advanceStatus() async {
+    final nextStatus = _kitchenStatus == 'Ready' ? 'Done' : 'Ready';
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client
+          .from('reservations')
+          .update({'kitchen_status': nextStatus})
+          .eq('id', widget.event['id']);
+      if (mounted) setState(() => _kitchenStatus = nextStatus);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customerName = widget.event['customer_name']?.toString() ?? 'Guest';
+    final eventType = widget.event['event_type']?.toString() ?? 'Event';
+    final eventDateStr = widget.event['event_date']?.toString() ?? '';
+    final startTime = widget.event['start_time']?.toString() ?? '';
+    final guestCount = widget.event['number_of_guests'];
+    final menuItems = widget.event['selected_menu_items'] as Map<String, dynamic>? ?? {};
+    final specialRequests = widget.event['special_requests']?.toString() ?? '';
+
+    // Parse event date
+    String formattedDate = eventDateStr;
+    int daysUntil = 0;
+    try {
+      final eventDate = DateTime.parse(eventDateStr);
+      formattedDate = DateFormat('EEE, MMM d, yyyy').format(eventDate);
+      daysUntil = eventDate.difference(DateTime.now()).inDays + 1;
+    } catch (_) {}
+
+    // Format time
+    String formattedTime = startTime;
+    try {
+      final parts = startTime.split(':');
+      if (parts.length >= 2) {
+        final dt = DateTime(2000, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+        formattedTime = DateFormat('h:mm a').format(dt);
+      }
+    } catch (_) {}
+
+    // Urgency styling
+    Color urgencyBg;
+    Color urgencyTextColor;
+    String urgencyLabel;
+    if (daysUntil <= 1) {
+      urgencyBg = const Color(0xFFFEE2E2);
+      urgencyTextColor = const Color(0xFFDC2626);
+      urgencyLabel = 'Tomorrow!';
+    } else if (daysUntil <= 3) {
+      urgencyBg = const Color(0xFFFFEDD5);
+      urgencyTextColor = const Color(0xFFEA580C);
+      urgencyLabel = 'In $daysUntil days';
+    } else if (daysUntil <= 7) {
+      urgencyBg = const Color(0xFFFEF9C3);
+      urgencyTextColor = const Color(0xFFCA8A04);
+      urgencyLabel = 'In $daysUntil days';
+    } else {
+      urgencyBg = const Color(0xFFDCFCE7);
+      urgencyTextColor = const Color(0xFF16A34A);
+      urgencyLabel = 'In $daysUntil days';
+    }
+
+    final isDone = _kitchenStatus == 'Done';
+    final isReady = _kitchenStatus == 'Ready';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDone
+              ? const Color(0xFF86EFAC)
+              : isReady
+                  ? const Color(0xFF93C5FD)
+                  : const Color(0xFFE2E8F0),
+          width: (isDone || isReady) ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header Card Section ──────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              border: const Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: Row(
+              children: [
+                // Calendar Date Badge
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        DateFormat('MMM').format(DateTime.tryParse(eventDateStr) ?? DateTime.now()).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('d').format(DateTime.tryParse(eventDateStr) ?? DateTime.now()),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Event & Customer Title
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              eventType,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                          if (guestCount != null) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '• $guestCount guests',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Urgency Tag
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: urgencyBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    urgencyLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: urgencyTextColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Body Content ─────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Time info row
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$formattedDate at $formattedTime',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Menu Selection Header
+                  const Row(
+                    children: [
+                      Icon(Icons.restaurant_menu_rounded, size: 14, color: Color(0xFF64748B)),
+                      SizedBox(width: 6),
+                      Text(
+                        'MENU SELECTION',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF64748B),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Menu Items Chips
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: menuItems.entries.map((entry) {
+                      final qty = entry.value;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '$qty×',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  // Special Requests
+                  if (specialRequests.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.sticky_note_2_outlined, size: 14, color: Color(0xFFD97706)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              specialRequests,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF92400E),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // ── Footer Action Area ───────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
+              border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: Row(
+              children: [
+                // Status Indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDone
+                        ? const Color(0xFFDCFCE7)
+                        : (isReady ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isDone
+                            ? Icons.check_circle
+                            : (isReady ? Icons.outdoor_grill : Icons.timer_outlined),
+                        size: 13,
+                        color: isDone
+                            ? const Color(0xFF16A34A)
+                            : (isReady ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _kitchenStatus.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isDone
+                              ? const Color(0xFF16A34A)
+                              : (isReady ? const Color(0xFF2563EB) : const Color(0xFF64748B)),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                // Compact Action Button
+                if (!isDone)
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _advanceStatus,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isReady ? const Color(0xFF2563EB) : const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      minimumSize: const Size(0, 34),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Icon(
+                            isReady ? Icons.check_circle_outline : Icons.done_all_rounded,
+                            size: 15,
+                          ),
+                    label: Text(
+                      isReady ? 'Mark as Served' : 'Mark as Ready',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    ),
+                  )
+                else
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Served',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF16A34A),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+// ══════════════════════════════════════════════════════════
+//  TAB 3 — FINISHED ORDERS
 // ══════════════════════════════════════════════════════════
 class _FinishedOrdersTab extends StatefulWidget {
   const _FinishedOrdersTab();
@@ -1695,13 +2467,35 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
         return {
           ...o,
           '_is_advance': true,
+          '_is_reservation': false,
           'kitchen_status': o['status']?.toString().toLowerCase() == 'ready' ? 'Ready' : 'Done',
+        };
+      }).toList();
+
+      // Fetch done event reservations
+      final reservationsRaw = await Supabase.instance.client
+          .from('reservations')
+          .select()
+          .eq('kitchen_status', 'Done')
+          .eq('is_menu_based', true)
+          .order('event_date', ascending: false);
+
+      final List<Map<String, dynamic>> reservations = reservationsRaw.map((r) {
+        return {
+          ...r,
+          '_is_advance': false,
+          '_is_reservation': true,
+          'kitchen_status': 'Done',
+          'customer_name': r['customer_name'],
+          'created_at': r['event_date'],        // use event_date for sort
+          'total_price': 0.0,                   // reservations may not have total
         };
       }).toList();
 
       final List<Map<String, dynamic>> combined = [
         ...List<Map<String, dynamic>>.from(orders),
-        ...advanceOrders
+        ...advanceOrders,
+        ...reservations,
       ];
       
       // Sort by creation time
@@ -1716,6 +2510,7 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
       return [];
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1970,22 +2765,42 @@ class _FinishedOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isAdvance = order['_is_advance'] == true;
-    final orderId = isAdvance 
-        ? 'ADV-${order['id'].toString().substring(0, 4)}' 
-        : _formatOrderId(order);
+    final isReservation = order['_is_reservation'] == true;
+
+    final orderId = isReservation
+        ? 'EVENT'
+        : (isAdvance
+            ? 'ADV-${order['id'].toString().substring(0, 4)}'
+            : _formatOrderId(order));
+
     final customer = order['customer_name']?.toString() ?? 'Guest';
-    final total = (order['total_price'] ?? order['total_amount'] ?? 0.0).toDouble();
-    
+    final total = isReservation
+        ? null
+        : (order['total_price'] ?? order['total_amount'] ?? 0.0).toDouble();
+
     final createdAt = order['created_at'] != null
         ? DateTime.tryParse(order['created_at'].toString())
         : null;
-    final timeStr = isAdvance 
-        ? '${order['order_date']} ${order['order_time']}'
-        : (createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—');
-    
+
+    String timeStr;
+    if (isReservation) {
+      timeStr = order['event_date']?.toString() ?? '—';
+    } else if (isAdvance) {
+      timeStr = '${order['order_date']} ${order['order_time']}';
+    } else {
+      timeStr = createdAt != null ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal()) : '—';
+    }
+
     final tableNumber = order['table_number']?.toString();
-    final orderType = order['order_type']?.toString();
+    final orderType = isReservation
+        ? (order['event_type']?.toString())
+        : order['order_type']?.toString();
     final numberOfGuests = order['number_of_guests'];
+
+    // Badge color
+    Color badgeColor = isReservation
+        ? const Color(0xFF7C3AED)   // purple for events
+        : (isAdvance ? AppTheme.primaryColor : AppTheme.successGreen);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1994,8 +2809,8 @@ class _FinishedOrderCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFF1F5F9), // Lighter border
-          width: 1,
+          color: isReservation ? const Color(0xFFEDE9FE) : const Color(0xFFF1F5F9),
+          width: isReservation ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -2015,17 +2830,17 @@ class _FinishedOrderCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.successGreen.withOpacity(0.1),
+                  color: badgeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.successGreen.withOpacity(0.2),
+                    color: badgeColor.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
                 child: Text(
                   orderId,
                   style: TextStyle(
-                    color: isAdvance ? AppTheme.primaryColor : AppTheme.successGreen,
+                    color: badgeColor,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -2044,11 +2859,7 @@ class _FinishedOrderCard extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.person,
-                      size: 14,
-                      color: Color(0xFF94A3B8),
-                    ),
+                    const Icon(Icons.person, size: 14, color: Color(0xFF94A3B8)),
                     const SizedBox(width: 6),
                     Text(
                       customer.toUpperCase(),
@@ -2071,10 +2882,7 @@ class _FinishedOrderCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       timeStr,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                     ),
                   ],
                 ),
@@ -2082,60 +2890,37 @@ class _FinishedOrderCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.people,
-                        size: 14,
-                        color: Color(0xFF94A3B8),
-                      ),
+                      const Icon(Icons.people, size: 14, color: Color(0xFF94A3B8)),
                       const SizedBox(width: 6),
                       Text(
                         '$numberOfGuests',
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
-                if (isAdvance && orderType != null)
+                if ((isAdvance || isReservation) && orderType != null)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        orderType == 'Pickup' ? Icons.shopping_bag_outlined : Icons.restaurant,
+                        isReservation ? Icons.celebration : (orderType == 'Pickup' ? Icons.shopping_bag_outlined : Icons.restaurant),
                         size: 14,
                         color: const Color(0xFF94A3B8),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         orderType.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
-                if (!isAdvance && tableNumber != null && tableNumber.isNotEmpty)
+                if (!isAdvance && !isReservation && tableNumber != null && tableNumber.isNotEmpty)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.table_restaurant,
-                        size: 14,
-                        color: Color(0xFF94A3B8),
-                      ),
+                      const Icon(Icons.table_restaurant, size: 14, color: Color(0xFF94A3B8)),
                       const SizedBox(width: 6),
-                      Text(
-                        'T-$tableNumber',
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      Text('T-$tableNumber', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
               ],
@@ -2145,7 +2930,7 @@ class _FinishedOrderCard extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              '₱${NumberFormat('#,##0.00').format(total)}',
+              total != null ? '₱${NumberFormat('#,##0.00').format(total)}' : '—',
               textAlign: TextAlign.right,
               style: const TextStyle(
                 color: Color(0xFF1E293B),
@@ -2169,11 +2954,7 @@ class _FinishedOrderCard extends StatelessWidget {
                  child: Row(
                    mainAxisSize: MainAxisSize.min,
                    children: const [
-                     Icon(
-                       Icons.check,
-                       color: Colors.white,
-                       size: 14,
-                     ),
+                     Icon(Icons.check, color: Colors.white, size: 14),
                      SizedBox(width: 4),
                      Text(
                        'SERVED',
