@@ -59,6 +59,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Map<String, Map<String, int>> _transactionsByDate = {};
   List<Map<String, dynamic>> _recentActivity = [];
   List<Map<String, dynamic>> _criticalItems = [];
+  bool _hasShownCriticalModal = false;
 
 
 
@@ -227,6 +228,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             _topRequestedItems = sortedTopItems.take(5).map((e) => {'name': e.key, 'value': e.value}).toList();
             _isLoading = false;
           });
+
+          // Auto-show critical stock alerts modal on first load (after login)
+          if (!_hasShownCriticalModal && critical.isNotEmpty) {
+            _hasShownCriticalModal = true;
+            // Use addPostFrameCallback to ensure the dialog shows after build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _showCriticalStockPopup();
+              }
+            });
+          }
         }
       }
     } catch (e) {
@@ -1324,52 +1336,378 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   void _showAllCriticalItemsModal() {
+    _showCriticalStockPopup();
+  }
+
+  void _showCriticalStockPopup() {
+    final outOfStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) == 0).toList();
+    final lowStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) > 0).toList();
+
     showDialog(
       context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.6),
       builder: (context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppTheme.errorRed),
-              SizedBox(width: 8),
-              Text('Critical Stock Alerts', style: TextStyle(color: AppTheme.errorRed)),
-            ],
-          ),
-          content: SizedBox(
-            width: 400,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _criticalItems.length,
-              itemBuilder: (context, index) {
-                final item = _criticalItems[index];
-                final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                  title: Text(item['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text('Category: ${item['category'] ?? 'Other'}', style: const TextStyle(fontSize: 12)),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.errorRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Container(
+            width: 520,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.errorRed.withOpacity(0.15),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.errorRed,
+                        AppTheme.errorRed.withOpacity(0.85),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: Text(
-                      qty == 0 ? 'OUT OF STOCK' : '$qty left',
-                      style: const TextStyle(color: AppTheme.errorRed, fontWeight: FontWeight.bold, fontSize: 12),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
                     ),
                   ),
-                );
-              },
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Critical Stock Alerts',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_criticalItems.length} item${_criticalItems.length == 1 ? '' : 's'} need${_criticalItems.length == 1 ? 's' : ''} attention',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.of(context).pop(),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Summary chips
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildSummaryChip(
+                        'Out of Stock',
+                        outOfStockItems.length.toString(),
+                        AppTheme.errorRed,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildSummaryChip(
+                        'Low Stock',
+                        lowStockItems.length.toString(),
+                        AppTheme.warningOrange,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Items list
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    children: [
+                      // Out of Stock section
+                      if (outOfStockItems.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, top: 12, bottom: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.errorRed,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'OUT OF STOCK',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.errorRed,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ...outOfStockItems.map((item) => _buildCriticalItemTile(item, isOutOfStock: true)),
+                      ],
+
+                      // Low Stock section
+                      if (lowStockItems.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, top: 16, bottom: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.warningOrange,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'LOW STOCK',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.warningOrange,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ...lowStockItems.map((item) => _buildCriticalItemTile(item, isOutOfStock: false)),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+
+                // Footer
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                    border: Border(
+                      top: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _onItemTapped(2); // Go to Manage Inventory
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Manage Inventory', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text('Understood', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
         );
       },
+    );
+  }
+
+  Widget _buildSummaryChip(String label, String count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            count,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriticalItemTile(Map<String, dynamic> item, {required bool isOutOfStock}) {
+    final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+    final statusColor = isOutOfStock ? AppTheme.errorRed : AppTheme.warningOrange;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isOutOfStock ? Icons.remove_shopping_cart_rounded : Icons.trending_down_rounded,
+              color: statusColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['name'] ?? 'Unknown',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item['category'] ?? 'Other',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppTheme.mediumGrey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              isOutOfStock ? 'OUT OF STOCK' : '$qty left',
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
