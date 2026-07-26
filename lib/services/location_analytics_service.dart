@@ -12,9 +12,7 @@ class LocationAnalyticsService {
     try {
       final response = await _supabase
           .from('orders')
-          .select('customer_address, total_amount, created_at')
-          .not('customer_address', 'is', null)
-          .not('customer_address', 'eq', '')
+          .select('customer_address, discount_address, total_amount, created_at')
           .order('created_at', ascending: false);
 
       final List<Map<String, dynamic>> orders = List<Map<String, dynamic>>.from(response);
@@ -38,7 +36,14 @@ class LocationAnalyticsService {
       Map<String, Map<String, dynamic>> locationData = {};
 
       for (var order in filteredOrders) {
-        final location = (order['customer_address'] as String?)?.trim() ?? 'Unknown';
+        // Use discount_address if available (for orders with discount), otherwise use customer_address
+        final discountAddress = (order['discount_address'] as String?)?.trim();
+        final customerAddress = (order['customer_address'] as String?)?.trim();
+        final location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress) ?? 'Unknown';
+        
+        // Skip if location is still empty or unknown
+        if (location.isEmpty || location == 'Unknown') continue;
+        
         final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
 
         if (!locationData.containsKey(location)) {
@@ -65,7 +70,7 @@ class LocationAnalyticsService {
   }
 
   /// Get top N locations by order count
-  Future<List<Map<String, dynamic>>> getTopLocations({
+  Future<List<Map<String, dynamic>>> getTopLocationsByOrderCount({
     int limit = 10,
     DateTime? startDate,
     DateTime? endDate,
@@ -75,6 +80,24 @@ class LocationAnalyticsService {
       endDate: endDate,
     );
 
+    // Sort by order count (descending)
+    allLocations.sort((a, b) => (b['order_count'] as int).compareTo(a['order_count'] as int));
+    return allLocations.take(limit).toList();
+  }
+
+  /// Get top N locations by revenue
+  Future<List<Map<String, dynamic>>> getTopLocationsByRevenue({
+    int limit = 10,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final allLocations = await getLocationAnalytics(
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    // Sort by total revenue (descending)
+    allLocations.sort((a, b) => (b['total_revenue'] as double).compareTo(a['total_revenue'] as double));
     return allLocations.take(limit).toList();
   }
 
@@ -86,9 +109,7 @@ class LocationAnalyticsService {
     try {
       final response = await _supabase
           .from('orders')
-          .select('customer_address, total_amount, created_at')
-          .not('customer_address', 'is', null)
-          .not('customer_address', 'eq', '')
+          .select('customer_address, discount_address, total_amount, created_at')
           .order('created_at', ascending: false);
 
       final List<Map<String, dynamic>> orders = List<Map<String, dynamic>>.from(response);
@@ -112,7 +133,14 @@ class LocationAnalyticsService {
       Map<String, Map<String, Map<String, dynamic>>> trendData = {};
 
       for (var order in filteredOrders) {
-        final location = (order['customer_address'] as String?)?.trim() ?? 'Unknown';
+        // Use discount_address if available (for orders with discount), otherwise use customer_address
+        final discountAddress = (order['discount_address'] as String?)?.trim();
+        final customerAddress = (order['customer_address'] as String?)?.trim();
+        final location = (discountAddress?.isNotEmpty == true ? discountAddress : customerAddress) ?? 'Unknown';
+        
+        // Skip if location is still empty or unknown
+        if (location.isEmpty || location == 'Unknown') continue;
+        
         final date = DateTime.tryParse(order['created_at'] ?? '');
         if (date == null) continue;
 

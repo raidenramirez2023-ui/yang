@@ -379,10 +379,13 @@ class _SalesReportPageState extends State<SalesReportPage>
           break;
       }
 
-      final data = await _locationAnalyticsService.getLocationAnalytics(
+      // Always use revenue-based sorting
+      final data = await _locationAnalyticsService.getTopLocationsByRevenue(
+        limit: 10,
         startDate: startDate,
         endDate: endDate,
       );
+      
       if (mounted) {
         setState(() {
           _locationData = data;
@@ -527,10 +530,10 @@ class _SalesReportPageState extends State<SalesReportPage>
         if (_locationData.isNotEmpty) {
           rows.add([]);
           rows.add(['LOCATION ANALYTICS ($_locationPeriod)']);
-          rows.add(['City/Municipality', 'Order Count']);
-          final sortedLocations = _locationData.toList()..sort((a, b) => (b['order_count'] as int).compareTo(a['order_count'] as int));
+          rows.add(['City/Municipality', 'Revenue']);
+          final sortedLocations = _locationData.toList()..sort((a, b) => (b['total_revenue'] as double).compareTo(a['total_revenue'] as double));
           for (var location in sortedLocations) {
-            rows.add([location['location']?.toString() ?? 'Unknown', location['order_count']?.toString() ?? '0']);
+            rows.add([location['location']?.toString() ?? 'Unknown', location['total_revenue']?.toString() ?? '0']);
           }
         }
 
@@ -1344,7 +1347,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               children: [
                 Expanded(
                   child: Text(
-                    'Top Cities/Municipalities by Order Count',
+                    'Top Cities/Municipalities by Revenue',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.mediumGrey,
                       fontWeight: FontWeight.w600,
@@ -1434,7 +1437,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                           children: [
                             Expanded(
                               child: Text(
-                                'Top Cities/Municipalities by Order Count',
+                                'Top Cities/Municipalities by Revenue',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppTheme.mediumGrey,
                                   fontWeight: FontWeight.w600,
@@ -2861,7 +2864,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Top Cities/Municipalities by Order Count',
+                  'Top Cities/Municipalities by Revenue',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
