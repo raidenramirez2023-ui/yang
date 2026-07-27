@@ -268,8 +268,13 @@ class NotificationService {
               actionType == 'stock_approved') {
             return true;
           }
-          // Advance order tickets - only if within 2 days
+          // Advance order tickets - only if within 2 days, EXCEPT Event Reservations which always show immediately
           if (actionType == 'advance_order_ticket') {
+            final eventTypeStr = n['event_type']?.toString() ?? '';
+            if (eventTypeStr.contains('Event Reservation')) {
+              return true; // Always notify kitchen immediately of event reservations
+            }
+
             final eventDateStr = n['event_date']?.toString();
             if (eventDateStr != null) {
               try {

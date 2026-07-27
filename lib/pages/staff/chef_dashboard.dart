@@ -89,6 +89,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
         final ks = o[isAdvance ? 'status' : 'kitchen_status']?.toString() ?? 'Pending';
         final ps = o['payment_status']?.toString() ?? 'unpaid';
+        // For advance orders, only count if admin has approved (status becomes 'pending' after approval)
+        // Skip orders still awaiting admin verification
+        if (isAdvance) {
+          final advStatus = o['status']?.toString().toLowerCase() ?? '';
+          if (advStatus == 'awaiting_verification' || advStatus == 'unpaid') continue;
+        }
         if ((ks == 'Pending' || ks == 'pending') && (ps == 'paid' || ps == 'fully_paid')) pending++;
       }
 
@@ -322,7 +328,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
         _showNewOrderPopup(notification);
         break;
       case 'advance_order_ticket':
-        _showAdvanceOrderPopup(notification);
+        final eventType = notification['event_type']?.toString() ?? '';
+        if (eventType.contains('Event Reservation')) {
+          _showEventReservationPopup(notification);
+        } else {
+          _showAdvanceOrderPopup(notification);
+        }
         break;
       case 'stock_approved':
         _showStockApprovedPopup(notification);
@@ -1482,6 +1493,8 @@ _closePopup();
         return Icons.payments;
       case 'updated':
         return Icons.edit;
+      case 'advance_order_ticket':
+        return Icons.assignment;
       default:
         return Icons.notifications;
     }
@@ -1496,6 +1509,13 @@ _closePopup();
     }
     if (n['action_type'] == 'pos_order') {
       return 'New Order';
+    }
+    if (n['action_type'] == 'advance_order_ticket') {
+      final eventType = n['event_type']?.toString() ?? '';
+      if (eventType.contains('Event Reservation')) {
+        return 'Event Reservation Approved';
+      }
+      return 'New Advance Order';
     }
     switch (n['action_type']) {
       case 'created':
@@ -1522,6 +1542,13 @@ _closePopup();
     }
     if (n['action_type'] == 'pos_order') {
       return 'POS staff have order please process';
+    }
+    if (n['action_type'] == 'advance_order_ticket') {
+      final eventType = n['event_type']?.toString() ?? '';
+      if (eventType.contains('Event Reservation')) {
+        return 'An event reservation menu ticket has been approved by admin.';
+      }
+      return 'An advance order menu ticket has been approved by admin.';
     }
     return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
   }
@@ -1897,7 +1924,10 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       final ks = o['kitchen_status'];
       final ps = o['payment_status']?.toString().toLowerCase();
       final status = o['status']?.toString().toLowerCase();
-      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && status != 'awaiting_verification';
+      // Only show advance orders that have been approved by admin
+      // After admin approval: status becomes 'pending' (then 'preparing' -> 'ready' -> 'done')
+      final isApprovedAdvance = status == 'pending' || status == 'preparing' || status == 'ready';
+      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && isApprovedAdvance;
     }).toList();
 
     // ── Process Event reservations for today ──
@@ -1909,8 +1939,12 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
       final eventDateStr = o['event_date']?.toString();
       final isTodayOrPast = eventDateStr != null && eventDateStr.compareTo(todayStr) <= 0;
       
+      // Only show event reservations that have been approved by admin
+      final resStatus = o['status']?.toString().toLowerCase();
+      final isApproved = resStatus == 'confirmed' || resStatus == 'completed';
+      
       final ks = _kitchenStatus['res_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
-      return isMenuBased && isPaid && isTodayOrPast && ks != 'Done' && ks != 'Ready';
+      return isMenuBased && isPaid && isTodayOrPast && isApproved && ks != 'Done' && ks != 'Ready';
     }).map((o) => {
       ...o,
       '_is_advance': false,
@@ -2880,7 +2914,10 @@ class _UpcomingEventsTabState extends State<_UpcomingEventsTab> {
             final menuItems = r['selected_menu_items'];
             final hasMenu = menuItems != null && (menuItems as Map).isNotEmpty;
             final isNotServed = r['kitchen_status']?.toString() != 'Done';
-            return isMenuBased && isPaid && isFuture && hasMenu && isNotServed;
+            // Only show events that have been approved by admin in Payment Approvals
+            final status = r['status']?.toString().toLowerCase();
+            final isApproved = status == 'confirmed' || status == 'completed';
+            return isMenuBased && isPaid && isFuture && hasMenu && isNotServed && isApproved;
           }).toList();
           setState(() {
             _events = filtered;
