@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import nodemailer from 'npm:nodemailer'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,21 +31,34 @@ serve(async (req) => {
       )
     }
 
-    // Get SendGrid credentials from environment variables
-    const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY')
-    const senderEmail = Deno.env.get('SENDER_EMAIL') || 'chowyang783@gmail.com'
+    // Get Hostinger SMTP credentials from environment variables
+    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.hostinger.com'
+    const smtpPort = parseInt(Deno.env.get('SMTP_PORT') || '465')
+    const smtpUser = Deno.env.get('SMTP_USER')
+    const smtpPass = Deno.env.get('SMTP_PASS')
     const senderName = Deno.env.get('SENDER_NAME') || 'Yang Chow Restaurant'
 
-    if (!sendgridApiKey) {
-      console.error('SENDGRID_API_KEY not found in environment variables')
+    if (!smtpUser || !smtpPass) {
+      console.error('SMTP credentials (SMTP_USER/SMTP_PASS) not found in environment variables')
       return new Response(
-        JSON.stringify({ error: 'Email service not configured' }),
+        JSON.stringify({ error: 'Email service not configured. Please set SMTP credentials.' }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
+
+    // Create transporter using Hostinger SMTP settings
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465, // true for 465, false for 587
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    })
 
     // Build the HTML email template with 6-digit OTP code
     const htmlContent = `
@@ -86,49 +99,18 @@ serve(async (req) => {
 </html>
     `.trim()
 
-    // Send email using SendGrid API
-    const sendgridResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sendgridApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [
-          {
-            to: [{ email: email }],
-            subject: 'Your Verification Code - Yang Chow Restaurant',
-          },
-        ],
-        from: {
-          email: senderEmail,
-          name: senderName,
-        },
-        content: [
-          {
-            type: 'text/html',
-            value: htmlContent,
-          },
-        ],
-      }),
+    // Send email using SMTP
+    await transporter.sendMail({
+      from: `"${senderName}" <${smtpUser}>`,
+      to: email,
+      subject: 'Your Verification Code - Yang Chow Restaurant',
+      html: htmlContent,
     })
 
-    if (!sendgridResponse.ok) {
-      const errorText = await sendgridResponse.text()
-      console.error('SendGrid API error:', errorText)
-      return new Response(
-        JSON.stringify({ error: 'Failed to send email via SendGrid' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    console.log(`Verification email sent to: ${email}`)
+    console.log(`Verification email sent via SMTP to: ${email}`)
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Email sent successfully' }),
+      JSON.stringify({ success: true, message: 'Email sent successfully via SMTP' }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
