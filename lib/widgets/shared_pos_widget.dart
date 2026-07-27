@@ -2385,20 +2385,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-      // Send notification to kitchen/admin
-
-      await NotificationService.sendNotification(
-
-        isForAdmin: true,
-
+      // Send notification to kitchen/admin with debouncing
+      await NotificationService.handlePosOrderNotification(
         actorName: staffEmail.split('@')[0],
-
-        actionType: 'pos_order',
-
         reservationId: orderId,
-
         eventType: 'New POS Order ($transactionId)',
-
       );
 
 

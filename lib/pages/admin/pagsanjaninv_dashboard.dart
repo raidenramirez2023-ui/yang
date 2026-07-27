@@ -87,7 +87,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     _selectedWeek = _getCurrentWeekOfMonth(now);
     _loadDashboardData();
     _setupRealtimeSubscription();
-    NotificationService.startStockMonitoring();
   }
 
   void _setupRealtimeSubscription() {
@@ -118,7 +117,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   @override
   void dispose() {
-    NotificationService.stopStockMonitoring();
     _inventorySubscription?.unsubscribe();
     super.dispose();
   }
@@ -2319,7 +2317,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     }
   }
 
-  Future<void> _approveRequestCore(Map<String, dynamic> request) async {
+  Future<void> _approveRequestCore(Map<String, dynamic> request, {bool skipNotification = false}) async {
     final itemName = request['item_name']?.toString();
     final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
 
@@ -2403,14 +2401,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             .update({'status': 'Approved'})
             .eq('id', request['id']);
 
-        // Notify Kitchen
-        await NotificationService.sendNotification(
-          isForAdmin: true,
-          actorName: 'Pagsanjan Inv',
-          actionType: 'stock_approved',
-          reservationId: 'Kitchen',
-          eventType: 'Stock Approved: $itemName ($transferQty ${request['unit'] ?? ''})',
-        );
+        // Notify Kitchen (skip if this is part of bulk approval)
+        if (!skipNotification) {
+          await NotificationService.sendNotification(
+            isForAdmin: true,
+            actorName: 'Pagsanjan Inv',
+            actionType: 'stock_approved',
+            reservationId: 'Kitchen',
+            eventType: 'Stock Approved: $itemName ($transferQty ${request['unit'] ?? ''})',
+          );
+        }
 
       }
 
@@ -2425,6 +2425,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     setState(() => _isLoading = true);
 
     try {
+
+      // Set bulk operation flag to prevent stock monitoring notifications
+      NotificationService.setBulkOperation(true);
 
       final pendingRequests = await _supabase
 
@@ -2449,7 +2452,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         }
 
         setState(() => _isLoading = false);
-
+        NotificationService.setBulkOperation(false);
         return;
 
       }
@@ -2503,7 +2506,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             if (currentQuantity >= quantityNeeded) {
 
-              await _approveRequestCore(request);
+              await _approveRequestCore(request, skipNotification: true);
 
               approvedCount++;
 
@@ -2526,6 +2529,20 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         }
 
       }
+
+      // Send single notification for bulk approval
+      if (approvedCount > 0) {
+        await NotificationService.sendNotification(
+          isForAdmin: true,
+          actorName: 'Pagsanjan Inv',
+          actionType: 'stock_approved',
+          reservationId: 'Kitchen',
+          eventType: 'Stock Approved: $approvedCount item${approvedCount == 1 ? '' : 's'}',
+        );
+      }
+
+      // Reset bulk operation flag
+      NotificationService.setBulkOperation(false);
 
 
 
@@ -2591,6 +2608,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
     } finally {
 
+      // Always reset bulk operation flag
+      NotificationService.setBulkOperation(false);
       if (mounted) setState(() => _isLoading = false);
 
     }
