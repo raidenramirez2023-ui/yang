@@ -7,6 +7,12 @@ class NotificationService {
   
   static StreamSubscription? _inventorySubscription;
   static StreamSubscription? _kitchenSubscription;
+  static bool _isBulkOperation = false; // Flag to skip stock alerts during bulk operations
+  
+  // POS order debouncing
+  static Timer? _posOrderDebounceTimer;
+  static int _pendingPosOrderCount = 0;
+  static const Duration _posOrderDebounceDelay = Duration(seconds: 3);
 
   /// Check if an unread stock alert of this type exists; if not, send a notification
   static Future<void> checkAndSendStockAlert({
@@ -16,6 +22,11 @@ class NotificationService {
     required String unit,
     required String source,
   }) async {
+    // Skip stock alerts during bulk operations
+    if (_isBulkOperation) {
+      return;
+    }
+    
     try {
       final eventText = '$itemName is $status! ($quantity $unit left in $source)';
       
@@ -42,42 +53,49 @@ class NotificationService {
     }
   }
 
-  /// Start monitoring stock levels for both main inventory and kitchen inventory.
-  /// This will automatically trigger notifications when items are low or out of stock.
+  /// Set bulk operation flag to skip stock monitoring alerts
+  static void setBulkOperation(bool isBulk) {
+    _isBulkOperation = isBulk;
+  }
+
+  /// Handle POS order with debouncing to prevent notification spam
+  static Future<void> handlePosOrderNotification({
+    required String actorName,
+    required String reservationId,
+    String? eventType,
+  }) async {
+    // Increment pending count
+    _pendingPosOrderCount++;
+    
+    // Cancel existing timer if any
+    _posOrderDebounceTimer?.cancel();
+    
+    // Set new timer
+    _posOrderDebounceTimer = Timer(_posOrderDebounceDelay, () async {
+      // Send consolidated notification
+      final count = _pendingPosOrderCount;
+      _pendingPosOrderCount = 0;
+      
+      if (count > 0) {
+        await sendNotification(
+          isForAdmin: true,
+          actorName: actorName,
+          actionType: 'pos_order',
+          reservationId: reservationId,
+          eventType: count == 1 
+              ? (eventType ?? 'New POS Order') 
+              : '$count new POS orders',
+        );
+      }
+    });
+  }
+
+  /// Start monitoring stock levels for kitchen inventory only.
+  /// This will automatically trigger notifications when items are low or out of stock in the kitchen.
   static void startStockMonitoring() {
     stopStockMonitoring();
 
-    // Listen to Main Inventory
-    _inventorySubscription = _supabase
-        .from('inventory')
-        .stream(primaryKey: ['id'])
-        .listen((items) {
-          for (final item in items) {
-            final name = item['name']?.toString() ?? 'Unknown';
-            final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-            final unit = item['unit']?.toString() ?? 'pcs';
-            
-            if (qty == 0) {
-              checkAndSendStockAlert(
-                itemName: name,
-                status: 'OUT OF STOCK',
-                quantity: qty,
-                unit: unit,
-                source: 'Main Inventory',
-              );
-            } else if (qty <= 10) {
-              checkAndSendStockAlert(
-                itemName: name,
-                status: 'LOW STOCK',
-                quantity: qty,
-                unit: unit,
-                source: 'Main Inventory',
-              );
-            }
-          }
-        });
-
-    // Listen to Kitchen Inventory
+    // Listen to Kitchen Inventory only
     _kitchenSubscription = _supabase
         .from('kitchen_inventory')
         .stream(primaryKey: ['id'])
@@ -241,17 +259,48 @@ class NotificationService {
         .order('created_at', ascending: false);
   }
 
-  /// Stream for Kitchen Side (POS orders, stock approval, advance order tickets, kitchen stock alerts)
+  /// Stream for Kitchen Side (POS orders, stock approval, advance order tickets)
+  /// Also includes event reservations only when the event is within 2 days
   static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
           if (actionType == 'pos_order' ||
-              actionType == 'stock_approved' ||
-              actionType == 'advance_order_ticket') {
+              actionType == 'stock_approved') {
             return true;
           }
-          if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
-            return true;
+          // Advance order tickets - only if within 2 days
+          if (actionType == 'advance_order_ticket') {
+            final eventDateStr = n['event_date']?.toString();
+            if (eventDateStr != null) {
+              try {
+                final eventDate = DateTime.parse(eventDateStr);
+                final now = DateTime.now();
+                final daysUntilEvent = eventDate.difference(now).inDays;
+                // Only include if within 2 days (including today and tomorrow)
+                return daysUntilEvent >= 0 && daysUntilEvent <= 2;
+              } catch (e) {
+                // If date parsing fails, don't include the notification
+                return false;
+              }
+            }
+            return false;
+          }
+          // Include event reservations only if within 2 days
+          if (actionType == 'created' || actionType == 'updated' || actionType == 'paid' ||
+              actionType == 'deposit_paid' || actionType == 'fully_paid' || actionType == 'balance_cleared') {
+            final eventDateStr = n['event_date']?.toString();
+            if (eventDateStr != null) {
+              try {
+                final eventDate = DateTime.parse(eventDateStr);
+                final now = DateTime.now();
+                final daysUntilEvent = eventDate.difference(now).inDays;
+                // Only include if event is within 2 days (including today and tomorrow)
+                return daysUntilEvent >= 0 && daysUntilEvent <= 2;
+              } catch (e) {
+                // If date parsing fails, don't include the notification
+                return false;
+              }
+            }
           }
           return false;
         }).toList());
