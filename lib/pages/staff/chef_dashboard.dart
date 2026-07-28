@@ -3477,7 +3477,10 @@ class _FinishedOrdersTab extends StatefulWidget {
 class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   int _currentPage = 1;
   static const int _itemsPerPage = 50;
+  int _selectedFilter = 0; // 0: All, 1: Regular, 2: Advance, 3: Events
   late Future<List<Map<String, dynamic>>> _ordersFuture;
+  
+  final List<String> _filterLabels = ['All', 'Regular', 'Advance', 'Events'];
 
   @override
   void initState() {
@@ -3487,12 +3490,22 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
 
   Future<List<Map<String, dynamic>>> _fetchDoneOrders() async {
     try {
+      // Fetch regular POS orders
       final orders = await Supabase.instance.client
           .from('orders')
           .select()
           .inFilter('kitchen_status', ['Ready', 'Done'])
           .order('created_at', ascending: false);
 
+      final List<Map<String, dynamic>> regularOrders = orders.map((o) {
+        return {
+          ...o,
+          '_is_advance': false,
+          '_is_reservation': false,
+        };
+      }).toList();
+
+      // Fetch advance orders
       final advanceOrdersRaw = await Supabase.instance.client
           .from('advance_orders')
           .select()
@@ -3523,13 +3536,13 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           '_is_reservation': true,
           'kitchen_status': 'Done',
           'customer_name': r['customer_name'],
-          'created_at': r['event_date'],        // use event_date for sort
-          'total_price': 0.0,                   // reservations may not have total
+          'created_at': r['event_date'],
+          'total_price': 0.0,
         };
       }).toList();
 
       final List<Map<String, dynamic>> combined = [
-        ...List<Map<String, dynamic>>.from(orders),
+        ...regularOrders,
         ...advanceOrders,
         ...reservations,
       ];
@@ -3547,6 +3560,19 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
     }
   }
 
+  List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> allOrders) {
+    switch (_selectedFilter) {
+      case 1: // Regular
+        return allOrders.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).toList();
+      case 2: // Advance
+        return allOrders.where((o) => o['_is_advance'] == true).toList();
+      case 3: // Events
+        return allOrders.where((o) => o['_is_reservation'] == true).toList();
+      default: // All
+        return allOrders;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -3559,6 +3585,8 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           );
         }
         final allOrders = snap.data ?? [];
+        final filteredOrders = _filterOrders(allOrders);
+        
         if (allOrders.isEmpty) {
           return _buildEmptyState(
             Icons.hourglass_empty,
@@ -3567,7 +3595,15 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           );
         }
 
-        final int totalPages = (allOrders.length / _itemsPerPage).ceil();
+        if (filteredOrders.isEmpty) {
+          return _buildEmptyState(
+            Icons.filter_list_off,
+            'No ${_filterLabels[_selectedFilter]} orders',
+            'Try selecting a different filter.',
+          );
+        }
+
+        final int totalPages = (filteredOrders.length / _itemsPerPage).ceil();
         if (_currentPage > totalPages && totalPages > 0) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => _currentPage = totalPages);
@@ -3576,14 +3612,102 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
 
         final int startIndex = (_currentPage - 1) * _itemsPerPage;
         int endIndex = startIndex + _itemsPerPage;
-        if (endIndex > allOrders.length) endIndex = allOrders.length;
+        if (endIndex > filteredOrders.length) endIndex = filteredOrders.length;
 
-        final currentOrders = (startIndex < allOrders.length)
-            ? allOrders.sublist(startIndex, endIndex)
+        final currentOrders = (startIndex < filteredOrders.length)
+            ? filteredOrders.sublist(startIndex, endIndex)
             : <Map<String, dynamic>>[];
 
         return Column(
           children: [
+            // Filter Tabs
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                ),
+              ),
+              child: Row(
+                children: List.generate(_filterLabels.length, (index) {
+                  final isSelected = _selectedFilter == index;
+                  
+                  // Calculate count for this specific filter
+                  int count;
+                  switch (index) {
+                    case 0:
+                      count = allOrders.length;
+                      break;
+                    case 1:
+                      count = allOrders.where((o) => o['_is_reservation'] != true && o['_is_advance'] != true).length;
+                      break;
+                    case 2:
+                      count = allOrders.where((o) => o['_is_advance'] == true).length;
+                      break;
+                    case 3:
+                      count = allOrders.where((o) => o['_is_reservation'] == true).length;
+                      break;
+                    default:
+                      count = allOrders.length;
+                  }
+                  
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedFilter = index;
+                          _currentPage = 1;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? AppTheme.primaryColor.withOpacity(0.1)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSelected 
+                              ? Border.all(
+                                  color: AppTheme.primaryColor.withOpacity(0.3),
+                                  width: 1,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _filterLabels[index],
+                              style: TextStyle(
+                                color: isSelected 
+                                    ? AppTheme.primaryColor
+                                    : const Color(0xFF64748B),
+                                fontWeight: isSelected 
+                                    ? FontWeight.w800 
+                                    : FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$count',
+                              style: TextStyle(
+                                color: isSelected 
+                                    ? AppTheme.primaryColor
+                                    : const Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
             // Header Row
             Container(
               padding: const EdgeInsets.fromLTRB(40, 16, 40, 16),
