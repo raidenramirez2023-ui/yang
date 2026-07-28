@@ -139,6 +139,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   String _newReservationInfo = '';
 
+  // ── Real-time advance order tracking ───────────────────────────────
+
+  int _previousAdvanceOrderCount = 0;
+
+  bool? _showNewAdvanceOrderNotification;
+
+  String _newAdvanceOrderInfo = '';
+
   // ── UI State Variables ───────────────────────────────────────────────
 
   bool? _isVenueStatusExpanded; // Start expanded by default
@@ -164,6 +172,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     _showNewOrderNotification = false;
 
     _showNewReservationNotification = false;
+
+    _showNewAdvanceOrderNotification = false;
 
     _focusedMonth = DateTime.now();
 
@@ -315,6 +325,42 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
 
     _previousReservationCount = currentReservationCount;
+
+    // Check for new advance orders (real-time detection)
+
+    final currentAdvanceOrderCount = allAdvanceOrders.length;
+
+    if (_previousAdvanceOrderCount > 0 &&
+        currentAdvanceOrderCount > _previousAdvanceOrderCount) {
+      // New advance order detected!
+
+      final newAdvanceOrders = allAdvanceOrders
+          .take(currentAdvanceOrderCount - _previousAdvanceOrderCount)
+          .toList();
+
+      for (var newAdvanceOrder in newAdvanceOrders) {
+        final customerName = newAdvanceOrder['customer_name'] ?? 'Guest';
+
+        final orderType = newAdvanceOrder['order_type'] ?? 'Unknown';
+
+        _newAdvanceOrderInfo =
+            '$customerName - $orderType';
+
+        _showNewAdvanceOrderNotification = true;
+
+        // Auto-hide notification after 4 seconds
+
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) {
+            setState(() {
+              _showNewAdvanceOrderNotification = false;
+            });
+          }
+        });
+      }
+    }
+
+    _previousAdvanceOrderCount = currentAdvanceOrderCount;
 
     // Process events for conflict detection
 
@@ -497,7 +543,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     // Update Recent Activity
 
-    _updateActivity(todayOrders, allInventory, allReservations);
+    _updateActivity(todayOrders, allInventory, allReservations, allAdvanceOrders);
 
     // Process Confirmed Events Analytics
 
@@ -1309,12 +1355,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     List<Map<String, dynamic>> inventory,
 
     List<Map<String, dynamic>> reservations,
+
+    List<Map<String, dynamic>> advanceOrders,
   ) {
     List<_ActivityItem> activities = [];
 
-    // Latest 2 Orders
+    // Latest 5 POS Orders (for main dashboard)
 
-    for (var i = 0; i < min(2, recentOrders.length); i++) {
+    for (var i = 0; i < min(5, recentOrders.length); i++) {
       final o = recentOrders[i];
 
       final time = DateTime.tryParse(o['created_at'] ?? '');
@@ -1338,10 +1386,40 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       );
     }
 
-    // Latest Reservation (show confirmed or recent)
+    // Latest 3 Advance Orders (for main dashboard)
 
-    if (reservations.isNotEmpty) {
-      final r = reservations.first;
+    for (var i = 0; i < min(3, advanceOrders.length); i++) {
+      final ao = advanceOrders[i];
+
+      final time = DateTime.tryParse(ao['created_at'] ?? '');
+
+      final timeStr = time != null
+          ? DateFormat('HH:mm').format(time)
+          : 'Just now';
+
+      final paymentStatus = ao['payment_status']?.toString() ?? 'unpaid';
+
+      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+
+      activities.add(
+        _ActivityItem(
+          icon: isPaid ? Icons.calendar_today : Icons.pending_actions,
+
+          color: isPaid ? AppTheme.successGreen : AppTheme.warningOrange,
+
+          title: isPaid ? 'Advance Order Paid' : 'New Advance Order',
+
+          subtitle: '${ao['customer_name'] ?? 'Guest'} · ₱${ao['total_price']} · ${ao['order_date'] ?? 'TBD'}',
+
+          time: timeStr,
+        ),
+      );
+    }
+
+    // Latest 3 Reservations (for main dashboard)
+
+    for (var i = 0; i < min(3, reservations.length); i++) {
+      final r = reservations[i];
 
       final status = r['status']?.toString() ?? 'pending';
 
@@ -1362,7 +1440,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       );
     }
 
-    // Low Stock Alerts
+    // Latest 2 Low Stock Alerts (for main dashboard)
 
     final lowStockItems = inventory
         .where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) < 10)
@@ -1378,7 +1456,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
           title: 'Low Stock Alert',
 
-          subtitle: '${item['item_name']} · ${item['quantity']} left',
+          subtitle: '${item['name']} · ${item['quantity']} left',
 
           time: 'Now',
         ),
@@ -1627,6 +1705,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               right: 20,
 
                               child: _buildNewReservationNotification(),
+                            ),
+
+                          // New advance order notification overlay
+                          if (_showNewAdvanceOrderNotification ?? false)
+                            Positioned(
+                              top: 140,
+
+                              right: 20,
+
+                              child: _buildNewAdvanceOrderNotification(),
                             ),
                         ],
                       ),
@@ -3497,15 +3585,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
               ),
 
-              Text(
-                'View All Activity',
+              GestureDetector(
+                onTap: () {
+                  // Show all activity in a dialog
+                  _showAllActivityDialog(context);
+                },
+                child: Text(
+                  'View All Activity',
 
-                style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
 
-                  fontSize: 12,
+                    fontSize: 12,
 
-                  fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -3527,7 +3621,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
               physics: const NeverScrollableScrollPhysics(),
 
-              itemCount: min(_recentActivity.length, 5),
+              itemCount: min(_recentActivity.length, 10),
 
               separatorBuilder: (_, _) => const SizedBox(height: 16),
 
@@ -3535,6 +3629,57 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   _ActivityTile(item: _recentActivity[index]),
             ),
         ],
+      ),
+    );
+  }
+
+  void _showAllActivityDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 600, maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'All Recent Activity',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: _recentActivity.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text('No recent activity'),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _recentActivity.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) =>
+                            _ActivityTile(item: _recentActivity[index]),
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -4746,6 +4891,92 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
               Text(
                 _newReservationInfo,
+
+                style: const TextStyle(
+                  color: Colors.white,
+
+                  fontSize: 14,
+
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── New Advance Order Notification Widget ─────────────────────────────
+
+  Widget _buildNewAdvanceOrderNotification() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+
+      decoration: BoxDecoration(
+        color: AppTheme.warningOrange,
+
+        borderRadius: BorderRadius.circular(12),
+
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.warningOrange.withOpacity(0.3),
+
+            blurRadius: 12,
+
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+
+              borderRadius: BorderRadius.circular(8),
+            ),
+
+            child: const Icon(
+              Icons.calendar_today,
+
+              color: Colors.white,
+
+              size: 20,
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+              const Text(
+                'NEW ADVANCE ORDER!',
+
+                style: TextStyle(
+                  color: Colors.white,
+
+                  fontSize: 12,
+
+                  fontWeight: FontWeight.bold,
+
+                  letterSpacing: 0.5,
+                ),
+              ),
+
+              const SizedBox(height: 2),
+
+              Text(
+                _newAdvanceOrderInfo,
 
                 style: const TextStyle(
                   color: Colors.white,
