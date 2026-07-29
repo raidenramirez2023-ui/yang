@@ -9,6 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:yang_chow/utils/app_theme.dart';
 
@@ -18,6 +20,7 @@ import 'package:yang_chow/pages/customer/edit_profile_page.dart';
 import 'package:yang_chow/widgets/customer_chat_modal.dart';
 import 'package:yang_chow/pages/customer/customer_reviews_page.dart';
 import 'package:yang_chow/pages/customer/menu_selection_page.dart';
+import 'package:yang_chow/pages/customer/customer_order_list.dart';
 
 import 'package:yang_chow/pages/customer/transactions_page.dart';
 import 'package:yang_chow/pages/customer/paymongo_payment_page.dart';
@@ -71,8 +74,48 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   String? _lastSeenNotificationId;
 
-  // Menu selection state
+  // Pre-order cart: persists across navigation until customer explicitly clears it
+  Map<String, int> _preOrderCart = {};
 
+  Future<void> _loadCartFromPrefs() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final cartStr = prefs.getString('cart_preorder_$userId');
+    if (cartStr != null) {
+      try {
+        final Map<String, dynamic> decoded = jsonDecode(cartStr);
+        final Map<String, int> loadedCart = {};
+        for (var entry in decoded.entries) {
+          loadedCart[entry.key] = entry.value as int;
+        }
+        if (mounted) {
+          setState(() {
+            _preOrderCart = loadedCart;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error decoding cart: $e');
+      }
+    }
+  }
+
+  Future<void> _saveCartToPrefs() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final cartStr = jsonEncode(_preOrderCart);
+    await prefs.setString('cart_preorder_$userId', cartStr);
+  }
+
+  void _handleCartUpdated() {
+    setState(() {}); // trigger rebuild so badge updates
+    _saveCartToPrefs();
+  }
+
+  // Menu selection state (only set when customer confirms inside MenuSelectionPage)
   Map<String, int> _selectedMenuItems = {};
 
   final MenuReservationService _menuReservationService =
@@ -136,6 +179,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   @override
   void initState() {
     super.initState();
+    _loadCartFromPrefs();
 
     _appSettings = AppSettingsService();
 
@@ -323,6 +367,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   void _navigateToMenuSelection() async {
     final guestCount = int.tryParse(_guestsController.text.trim()) ?? 1;
 
+    // Seed MenuSelectionPage with the pre-order cart so items are pre-populated.
+    // _preOrderCart is NOT overwritten on return — it persists until customer deletes items.
     await Navigator.push(
       context,
 
@@ -332,11 +378,14 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
           guestCount: guestCount,
 
-          initialSelection: _selectedMenuItems,
+          initialSelection: Map<String, int>.from(_preOrderCart)
+            ..addAll(_selectedMenuItems),
 
           onMenuSelected: (selectedItems) {
             setState(() {
               _selectedMenuItems = selectedItems;
+              // Redirect the user to the Reservation tab so they can set the event details
+              _selectedIndex = 1;
             });
           },
         ),
@@ -406,6 +455,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         ),
       ),
       actions: [
+        _buildCartIcon(),
         _buildNotificationIcon(),
         IconButton(
           icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
@@ -965,6 +1015,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          _buildCartIcon(),
                           _buildNotificationIcon(),
                           const SizedBox(width: 4),
                           IconButton(
@@ -3219,19 +3270,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildProductCard(MenuItem item) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
+    return InkWell(
+      onTap: () => _showMenuItemDetailsDialog(item),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image Section
@@ -3304,6 +3358,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -6028,6 +6083,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           ),
         ],
       ),
+    );
+  }
+
+  // ── Cart helpers (UI lives in customer_order_list.dart) ────────────────────
+
+  Widget _buildCartIcon() {
+    return buildCartIcon(
+      selectedMenuItems: _preOrderCart,
+      onPressed: _showOrderListModal,
+    );
+  }
+
+  void _showOrderListModal() {
+    showOrderListModal(
+      context: context,
+      selectedMenuItems: _preOrderCart,
+      onProceed: _navigateToMenuSelection,
+      onCartUpdated: _handleCartUpdated,
+    );
+  }
+
+  void _showMenuItemDetailsDialog(MenuItem item) {
+    showMenuItemSheet(
+      context: context,
+      item: item,
+      selectedMenuItems: _preOrderCart,
+      onAdded: () => setState(() {}),
+      onCartUpdated: _handleCartUpdated,
     );
   }
 }
