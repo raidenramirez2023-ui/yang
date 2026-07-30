@@ -74,6 +74,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     setState(() => _isLoading = true);
     
     try {
+      // Ensure schema is updated (adds uploaded_id_url if missing)
+      await _ensureSchemaSynchronized(silent: true);
+
       // Debug: Check current user
       final currentUser = Supabase.instance.client.auth.currentUser;
       debugPrint('Current user: ${currentUser?.email}');
@@ -125,6 +128,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       // 1. Ensure column exists
       await Supabase.instance.client.rpc('exec_sql', params: {
         'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false;"
+      });
+      await Supabase.instance.client.rpc('exec_sql', params: {
+        'sql': "ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS uploaded_id_url TEXT;"
       });
       
       // 2. Notify PostgREST to reload schema cache
@@ -1961,6 +1967,75 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   buildDetailRow('Deposit Required', 'PHP ${(reservation['deposit_amount'] as double).toStringAsFixed(2)}', icon: Icons.account_balance_wallet),
                   buildDetailRow('Payment Status', _getPaymentStatusText(reservation['payment_status'] as String? ?? 'unpaid'), icon: Icons.payment),
                   buildDetailRow('Transaction Sent', reservation['price_quotation_sent'] == true ? 'Yes' : 'No', icon: Icons.email),
+                ],
+
+                if (reservation['uploaded_id_url'] != null && reservation['uploaded_id_url'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Uploaded Verification ID',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          child: Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              InteractiveViewer(
+                                minScale: 0.5,
+                                maxScale: 4.0,
+                                child: Image.network(
+                                  reservation['uploaded_id_url'].toString(),
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.black54,
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          reservation['uploaded_id_url'].toString(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Center(
+                    child: Text(
+                      'Click ID image to enlarge / verify',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
                 ],
               ],
             ),

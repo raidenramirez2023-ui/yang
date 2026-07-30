@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -175,6 +176,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   // Payment option: 'half' for deposit, 'full' for full payment
   String _paymentOption = 'half';
+
+  // ID Upload for verification
+  XFile? _selectedIdImage;
+  bool _isUploadingId = false;
+  String? _uploadedIdUrl;
 
   @override
   void initState() {
@@ -2679,6 +2685,136 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
                                   ),
                                 ),
 
+                                if (_reservationType == 'Event Place') ...[
+                                  const SizedBox(height: 24),
+                                  _buildFormLabel('VALID ID FOR IN-PERSON VERIFICATION'),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.grey.shade100,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Please upload a valid government-issued ID or school ID. This will be used by staff to verify your reservation when you arrive in person.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        if (_isUploadingId)
+                                          const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(vertical: 12.0),
+                                              child: Column(
+                                                children: [
+                                                  CircularProgressIndicator(color: AppTheme.primaryColor),
+                                                  SizedBox(height: 8),
+                                                  Text('Uploading ID, please wait...', style: TextStyle(fontSize: 12)),
+                                                ],
+                                              ),
+                                            ),
+                                          )
+                                        else if (_uploadedIdUrl != null)
+                                          Row(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  color: Colors.grey.shade200,
+                                                  child: Image.network(
+                                                    _uploadedIdUrl!,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context, error, stackTrace) =>
+                                                        const Icon(Icons.broken_image, color: Colors.grey),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'ID Uploaded Successfully',
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.green,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    TextButton.icon(
+                                                      onPressed: _pickAndUploadIdImage,
+                                                      icon: const Icon(Icons.cached, size: 16),
+                                                      label: const Text('Change ID'),
+                                                      style: TextButton.styleFrom(
+                                                        foregroundColor: AppTheme.primaryColor,
+                                                        padding: EdgeInsets.zero,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          InkWell(
+                                            onTap: _pickAndUploadIdImage,
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.symmetric(vertical: 24),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.grey.shade300,
+                                                  style: BorderStyle.solid,
+                                                ),
+                                                borderRadius: BorderRadius.circular(12),
+                                                color: Colors.white,
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Icon(
+                                                    Icons.add_photo_alternate_outlined,
+                                                    size: 36,
+                                                    color: Colors.grey.shade400,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Click to upload Valid ID',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.grey.shade600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Formats: JPG, PNG',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.grey.shade400,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
                                 const SizedBox(height: 24), // Reduced from 32
                               ],
 
@@ -3532,6 +3668,52 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     }
   }
 
+  Future<void> _pickAndUploadIdImage() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _isUploadingId = true;
+        });
+
+        final fileName = 'id_${DateTime.now().millisecondsSinceEpoch}.${pickedFile.path.split('.').last}';
+        final filePath = 'verification_ids/$fileName';
+        final fileBytes = await pickedFile.readAsBytes();
+
+        await Supabase.instance.client.storage
+            .from('avatars')
+            .uploadBinary(filePath, fileBytes);
+
+        final imageUrl = Supabase.instance.client.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+        setState(() {
+          _selectedIdImage = pickedFile;
+          _uploadedIdUrl = imageUrl;
+          _isUploadingId = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingId = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload ID: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _createReservationWithoutPayment(
     dynamic currentUser,
 
@@ -3586,6 +3768,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           totalMenuPrice: totalMenuPrice,
 
           depositAmount: paymentAmount,
+
+          uploadedIdUrl: _uploadedIdUrl,
+
         );
       } else {
         // Use traditional reservation without menu-based pricing
@@ -3610,15 +3795,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           customerPhone: null,
 
           customerAddress: null,
+
+          uploadedIdUrl: _uploadedIdUrl,
+
         );
       }
 
       if (!mounted) return;
 
-      // Clear menu selection after successful reservation
+      // Clear menu and ID selection after successful reservation
 
       setState(() {
         _selectedMenuItems.clear();
+        _selectedIdImage = null;
+        _uploadedIdUrl = null;
       });
 
       _loadCustomerReservations();

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
@@ -328,34 +329,171 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   }
 
   void _showCustomerDetails(Map<String, dynamic> customer) {
+    String? uploadedIdUrl;
+    bool isLoadingId = true;
+
+    // Fetch the uploaded ID from reservations asynchronously
+    _supabase
+        .from('reservations')
+        .select('uploaded_id_url')
+        .eq('customer_email', customer['email'] ?? '')
+        .not('uploaded_id_url', 'is', null)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .then((response) {
+      if (response.isNotEmpty && response[0]['uploaded_id_url'] != null) {
+        uploadedIdUrl = response[0]['uploaded_id_url'].toString();
+      }
+    }).catchError((e) {
+      debugPrint('Error fetching uploaded ID: $e');
+    });
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.person, color: AppTheme.primaryColor),
-            const SizedBox(width: 12),
-            const Text('Customer Details'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _detailItem('FIRST NAME', customer['firstname']),
-            _detailItem('LAST NAME', customer['lastname']),
-            _detailItem('PHONE NUMBER', customer['phone']),
-            _detailItem('EMAIL ADDRESS', customer['email']),
-            _detailItem('DATE REGISTERED', _formatDate(customer['created_at'])),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          // Poll for data if still loading
+          if (isLoadingId) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (context.mounted) {
+                setStateDialog(() => isLoadingId = false);
+              }
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.person, color: AppTheme.primaryColor),
+                const SizedBox(width: 12),
+                const Text('Customer Details'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _detailItem('FIRST NAME', customer['firstname']),
+                  _detailItem('LAST NAME', customer['lastname']),
+                  _detailItem('PHONE NUMBER', customer['phone']),
+                  _detailItem('EMAIL ADDRESS', customer['email']),
+                  _detailItem('DATE REGISTERED', _formatDate(customer['created_at'])),
+
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+
+                  // Verification ID section
+                  const Text(
+                    'VERIFICATION ID',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.mediumGrey,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (isLoadingId)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                      ),
+                    )
+                  else if (uploadedIdUrl != null && uploadedIdUrl!.isNotEmpty)
+                    InkWell(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => Dialog(
+                            child: Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                InteractiveViewer(
+                                  minScale: 0.5,
+                                  maxScale: 4.0,
+                                  child: Image.network(
+                                    uploadedIdUrl!,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.black54,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            uploadedIdUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Center(
+                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.no_photography_outlined, color: Colors.grey.shade400, size: 28),
+                          const SizedBox(width: 12),
+                          Text(
+                            'No ID uploaded yet',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (uploadedIdUrl != null && uploadedIdUrl!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: Center(
+                        child: Text(
+                          'Tap image to enlarge & verify',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

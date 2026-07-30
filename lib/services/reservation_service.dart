@@ -66,6 +66,8 @@ class ReservationService {
 
     required String? customerAddress,
 
+    String? uploadedIdUrl,
+
   }) async {
 
     try {
@@ -103,6 +105,8 @@ class ReservationService {
             'customer_phone': customerPhone,
 
             'customer_address': customerAddress,
+
+            'uploaded_id_url': uploadedIdUrl,
 
             'created_at': now.toIso8601String(),
 
@@ -187,6 +191,8 @@ class ReservationService {
 
     required double depositAmount,
 
+    String? uploadedIdUrl,
+
   }) async {
 
     try {
@@ -224,6 +230,8 @@ class ReservationService {
             'customer_phone': customerPhone,
 
             'customer_address': customerAddress,
+
+            'uploaded_id_url': uploadedIdUrl,
 
             'created_at': now.toIso8601String(),
 
