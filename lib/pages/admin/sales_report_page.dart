@@ -715,7 +715,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             'db_id': o['id'].toString(),
                             'id': '#${o['transaction_id'] ?? o['id']}',
                             'customer': name,
-                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at'])),
+                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at']).toLocal()),
                             'amount': _currencyFormat.format(o['total_amount']),
                             'status': uiStatus,
                             'internal_status': dbStatus,

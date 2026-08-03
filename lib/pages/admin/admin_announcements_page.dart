@@ -63,7 +63,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
         'image_url': imageUrlController.text.trim().isEmpty ? null : imageUrlController.text.trim(),
         'tag': tagController.text.trim().isEmpty ? 'Update' : tagController.text.trim(),
         'is_active': true,
-        'expiration_date': selectedDate?.toIso8601String(),
+        'expiration_date': selectedDate?.toUtc().toIso8601String(),
       });
 
       if (mounted) {

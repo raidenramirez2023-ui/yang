@@ -108,9 +108,9 @@ class ReservationService {
 
             'uploaded_id_url': uploadedIdUrl,
 
-            'created_at': now.toIso8601String(),
+            'created_at': now.toUtc().toIso8601String(),
 
-            'updated_at': now.toIso8601String(),
+            'updated_at': now.toUtc().toIso8601String(),
 
           })
 
@@ -233,9 +233,9 @@ class ReservationService {
 
             'uploaded_id_url': uploadedIdUrl,
 
-            'created_at': now.toIso8601String(),
+            'created_at': now.toUtc().toIso8601String(),
 
-            'updated_at': now.toIso8601String(),
+            'updated_at': now.toUtc().toIso8601String(),
 
             // Menu-based pricing fields
 
@@ -356,7 +356,7 @@ class ReservationService {
 
             'status': 'cancelled',
 
-            'cancelled_at': DateTime.now().toIso8601String(),
+            'cancelled_at': DateTime.now().toUtc().toIso8601String(),
 
             'cancellation_reason': cancellationReason,
 
@@ -452,7 +452,7 @@ class ReservationService {
 
         'start_time': newStartTime,
 
-        'updated_at': now.toIso8601String(),
+        'updated_at': now.toUtc().toIso8601String(),
 
       };
 
@@ -518,7 +518,7 @@ class ReservationService {
 
             'special_requests': specialRequests,
 
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
 
           })
 
@@ -556,7 +556,7 @@ class ReservationService {
 
       final updates = <String, dynamic>{
 
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
 
       };
 
@@ -605,7 +605,7 @@ class ReservationService {
     required String? reviewText,
   }) async {
     try {
-      final now = DateTime.now().toIso8601String();
+      final now = DateTime.now().toUtc().toIso8601String();
       await _supabase.from('reviews').upsert({
         'reservation_id': reservationId,
         'customer_email': customerEmail,
@@ -859,8 +859,8 @@ class ReservationService {
             'status': 'unpaid',
             'payment_status': 'unpaid',
             'preparation_notes': preparationNotes,
-            'created_at': now.toIso8601String(),
-            'updated_at': now.toIso8601String(),
+            'created_at': now.toUtc().toIso8601String(),
+            'updated_at': now.toUtc().toIso8601String(),
           })
           .select()
           .single();
@@ -946,7 +946,7 @@ class ReservationService {
           .from('advance_orders')
           .update({
             'status': 'cancelled',
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
             'refund_amount': refundAmount,
           })
           .eq('id', orderId);
@@ -1117,11 +1117,11 @@ class ReservationService {
 
             'price_quotation_sent': true,
 
-            'price_quotation_sent_at': now.toIso8601String(),
+            'price_quotation_sent_at': now.toUtc().toIso8601String(),
 
             'admin_set_price': true,
 
-            'updated_at': now.toIso8601String(),
+            'updated_at': now.toUtc().toIso8601String(),
 
           })
 
@@ -1189,7 +1189,7 @@ class ReservationService {
 
             'status': status,
 
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
 
           })
 
@@ -1223,7 +1223,7 @@ class ReservationService {
     try {
       final updates = <String, dynamic>{
         'payment_status': paymentStatus,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
       bool wasDepositPaid = false;
@@ -1832,7 +1832,7 @@ class ReservationService {
   }) async {
     try {
       final updates = <String, dynamic>{
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
       if (table == 'reservations') {
@@ -1915,7 +1915,7 @@ class ReservationService {
     try {
       final updates = <String, dynamic>{
         'payment_status': 'rejected',
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
       if (table == 'reservations') {

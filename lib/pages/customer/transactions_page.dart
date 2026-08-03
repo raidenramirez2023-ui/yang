@@ -62,8 +62,8 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
       final combined = [...reservations, ...advanceOrders];
       combined.sort((a, b) {
-        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toIso8601String());
-        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toIso8601String());
+        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toUtc().toIso8601String());
+        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toUtc().toIso8601String());
         return bTime.compareTo(aTime);
       });
 

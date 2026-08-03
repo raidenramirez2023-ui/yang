@@ -4334,7 +4334,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         'note': _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         'requested_by': chef,
         'status': 'Pending',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       });
 
       // Send notification to Inventory/Admin
@@ -5262,7 +5262,7 @@ class _StockViewTabState extends State<_StockViewTab> {
           'note': note,
           'requested_by': chef,
           'status': 'Pending',
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         };
       }).toList();
 

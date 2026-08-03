@@ -414,9 +414,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
         
 
-        final startDate = DateTime(_selectedYear, _selectedMonth, startDay, 0, 0, 0).toIso8601String();
+        final startDate = DateTime(_selectedYear, _selectedMonth, startDay, 0, 0, 0).toUtc().toIso8601String();
 
-        final endDate = DateTime(_selectedYear, _selectedMonth, endDay, 23, 59, 59).toIso8601String();
+        final endDate = DateTime(_selectedYear, _selectedMonth, endDay, 23, 59, 59).toUtc().toIso8601String();
 
 
 
@@ -3632,7 +3632,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     final type = act['transaction_type']?.toString() ?? 'unknown';
 
-                    final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toIso8601String()).toLocal();
+                    final date = DateTime.parse(act['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String()).toLocal();
 
                     final isIncoming = type == 'incoming';
 
@@ -4872,7 +4872,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
 
 
 
@@ -6946,9 +6946,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   // Within same status, sort by created_at descending (newest first)
 
-                  final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                  final createdAtA = DateTime.parse(a['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String());
 
-                  final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toIso8601String());
+                  final createdAtB = DateTime.parse(b['created_at']?.toString() ?? DateTime.now().toUtc().toIso8601String());
 
                   return createdAtB.compareTo(createdAtA);
 

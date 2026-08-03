@@ -40,8 +40,8 @@ class EmailVerificationService {
         'id': _generateOtpCode(), // Use another code as ID
         'email': email.toLowerCase(),
         'verification_code': otpCode,
-        'created_at': createdAt.toIso8601String(),
-        'expires_at': expiresAt.toIso8601String(),
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
         'is_used': false,
         'verified': false,
       });
@@ -112,7 +112,7 @@ class EmailVerificationService {
           .update({
             'is_used': true,
             'verified': true,
-            'verified_at': now.toIso8601String(),
+            'verified_at': now.toUtc().toIso8601String(),
           })
           .eq('verification_code', otpCode);
 
@@ -180,7 +180,7 @@ class EmailVerificationService {
       await _supabase
           .from('email_verifications')
           .delete()
-          .lt('expires_at', now.toIso8601String());
+          .lt('expires_at', now.toUtc().toIso8601String());
 
       debugPrint('Expired verification records cleaned up');
     } catch (e) {

@@ -159,7 +159,7 @@ class NotificationService {
             ?.toLowerCase(), // Helps admins know which customer
         'start_time': startTime,
         'guest_count': guestCount,
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
         'is_read': false,
       });
     } catch (e) {

@@ -2315,7 +2315,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
             'discount_address': discountAddress,
 
-            'created_at': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toUtc().toIso8601String(),
 
           })
 

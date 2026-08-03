@@ -76,7 +76,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
           .update({
             'is_approved': true,
             'approved_by': 'admn.pagsanjan@gmail.com',
-            'approved_at': DateTime.now().toIso8601String(),
+            'approved_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', customerId);
 
@@ -88,7 +88,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
             'title': 'Account Approved',
             'message': 'Your account has been approved! You can now login to your account.',
             'event_type': 'account_approved',
-            'created_at': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toUtc().toIso8601String(),
           }).onError((error, stackTrace) {
         debugPrint('Error sending notification: $error');
       });
@@ -109,7 +109,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
             'is_approved': false,
             'rejection_reason': reason,
             'approved_by': 'admn.pagsanjan@gmail.com',
-            'approved_at': DateTime.now().toIso8601String(),
+            'approved_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', customerId);
 
@@ -121,7 +121,7 @@ class _AdminCustomerApprovalPageState extends State<AdminCustomerApprovalPage> {
             'title': 'Account Rejected',
             'message': 'Your registration was rejected. Reason: $reason',
             'event_type': 'account_rejected',
-            'created_at': DateTime.now().toIso8601String(),
+            'created_at': DateTime.now().toUtc().toIso8601String(),
           }).onError((error, stackTrace) {
         debugPrint('Error sending notification: $error');
       });
