@@ -68,7 +68,7 @@ import 'package:yang_chow/pages/admin/payment_approval_page.dart';
 
 import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
 
-
+import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -530,6 +530,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Customer Chat',
 
+    'Petty Cash',
+
 
 
   ];
@@ -590,6 +592,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.chat_bubble,
 
+    Icons.account_balance_wallet,
+
 
 
   ];
@@ -649,6 +653,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
     const AdminChatPage(),
+
+    const PettyCashPage(),
 
 
 
