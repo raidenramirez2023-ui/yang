@@ -41,10 +41,10 @@ class PettyCashFund {
       'current_balance': currentBalance,
       'initial_balance': initialBalance,
       if (lastReplenishedAt != null)
-        'last_replenished_at': lastReplenishedAt!.toIso8601String(),
+        'last_replenished_at': lastReplenishedAt!.toUtc().toIso8601String(),
       'low_balance_threshold': lowBalanceThreshold,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 
@@ -167,7 +167,7 @@ class PettyCashExpense {
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
-      'expense_date': expenseDate.toIso8601String(),
+      'expense_date': expenseDate.toUtc().toIso8601String(),
       'description': description,
       'amount': amount,
       'category': category,
@@ -183,10 +183,10 @@ class PettyCashExpense {
       if (receiptNumber != null) 'receipt_number': receiptNumber,
       'status': status,
       if (approvedBy != null) 'approved_by': approvedBy,
-      if (approvedAt != null) 'approved_at': approvedAt!.toIso8601String(),
+      if (approvedAt != null) 'approved_at': approvedAt!.toUtc().toIso8601String(),
       if (notes != null) 'notes': notes,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 
@@ -282,8 +282,8 @@ class PettyCashReconciliation {
       'system_balance': systemBalance,
       'actual_cash_count': actualCashCount,
       if (notes != null) 'notes': notes,
-      'reconciled_at': reconciledAt.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
+      'reconciled_at': reconciledAt.toUtc().toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
     };
   }
 
@@ -332,10 +332,10 @@ class PettyCashCategoryBudget {
       'category': category,
       'percentage': percentage,
       'current_spent': currentSpent,
-      'period_start': periodStart.toIso8601String(),
-      'period_end': periodEnd.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'period_start': periodStart.toUtc().toIso8601String(),
+      'period_end': periodEnd.toUtc().toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 

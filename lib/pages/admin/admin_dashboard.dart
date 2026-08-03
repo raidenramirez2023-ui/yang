@@ -194,7 +194,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
               'created_at':
                   order['created_at']?.toString() ??
-                  DateTime.now().toIso8601String(),
+                  DateTime.now().toUtc().toIso8601String(),
 
               'customer_name': order['customer_name'] ?? 'Guest',
 

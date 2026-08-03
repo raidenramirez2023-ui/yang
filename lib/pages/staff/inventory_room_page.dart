@@ -698,7 +698,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           'unit': unit,
           'supplier': supplier,
           'created_by': user?.email,
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         });
       }
 
@@ -709,7 +709,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         'unit': unit,
         'supplier': supplier,
         'processed_by': receiver,
-        'created_at': deliveryTimestamp ?? DateTime.now().toIso8601String(),
+        'created_at': deliveryTimestamp ?? DateTime.now().toUtc().toIso8601String(),
         if (drNumber != null) 'purpose': 'DR: $drNumber',
         if (purpose != null) 'purpose': purpose,
       });
@@ -731,7 +731,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     
     // Generate a single DR Number (5-digit random) for this bulk delivery
     final drNumber = (10000 + Random().nextInt(90000)).toString();
-    final deliveryTimestamp = DateTime.now().toIso8601String();
+    final deliveryTimestamp = DateTime.now().toUtc().toIso8601String();
 
     for (var item in bulkItems) {
       try {
@@ -808,7 +808,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           'unit': unit,
           'supplier': supplier,
           'created_by': user?.email,
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         });
       }
 

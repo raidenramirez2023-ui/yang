@@ -348,7 +348,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             if (supplierCtrl.text.trim().isNotEmpty)
                               'supplier': supplierCtrl.text.trim(),
                             'created_by': user?.email,
-                            'created_at': DateTime.now().toIso8601String(),
+                            'created_at': DateTime.now().toUtc().toIso8601String(),
                           };
 
                           if (item == null) {

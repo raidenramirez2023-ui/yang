@@ -262,8 +262,9 @@ class ChatService {
 
   // Format message time
   static String formatMessageTime(DateTime dateTime) {
+    final localDateTime = dateTime.toLocal();
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final difference = now.difference(localDateTime);
 
     if (difference.inMinutes < 1) {
       return 'Just now';
@@ -274,13 +275,13 @@ class ChatService {
     } else if (difference.inDays < 7) {
       return '${difference.inDays}d ago';
     } else {
-      return DateFormat('MMM d').format(dateTime);
+      return DateFormat('MMM d').format(localDateTime);
     }
   }
 
   // Format detailed message time
   static String formatDetailedMessageTime(DateTime dateTime) {
-    return DateFormat('MMM d, h:mm a').format(dateTime);
+    return DateFormat('MMM d, h:mm a').format(dateTime.toLocal());
   }
 
   // Check if user is admin

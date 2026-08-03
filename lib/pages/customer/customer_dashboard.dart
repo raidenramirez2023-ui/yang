@@ -351,8 +351,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       // Sort combined results by created_at descending
       combined.sort((a, b) {
-        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toIso8601String());
-        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toIso8601String());
+        final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toUtc().toIso8601String());
+        final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toUtc().toIso8601String());
         return bTime.compareTo(aTime);
       });
 
@@ -3363,7 +3363,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   _buildProfileStat('${customerReservations.length}', 'Reservations'),
                   _buildProfileDivider(),
                   _buildProfileStat(
-                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toIso8601String())),
+                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
                     'Member Since',
                   ),
                 ],

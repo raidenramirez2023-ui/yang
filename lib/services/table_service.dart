@@ -121,7 +121,7 @@ class TableService {
       await _supabase.from('table_holds').insert({
         'table_id': tableId,
         'customer_email': customerEmail,
-        'expires_at': expiresAt.toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
       });
       
       return true;

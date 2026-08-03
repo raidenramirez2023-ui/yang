@@ -433,7 +433,7 @@ class _CustomerChatPageState extends State<CustomerChatPage> {
                             'is_read': true,
                             'created_at': DateTime.parse(dbMessages.first['created_at'])
                                 .subtract(const Duration(seconds: 1))
-                                .toIso8601String(),
+                                .toUtc().toIso8601String(),
                           },
                           ...dbMessages,
                         ];

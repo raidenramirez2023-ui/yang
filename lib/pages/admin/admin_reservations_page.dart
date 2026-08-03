@@ -222,7 +222,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .from('reservations')
           .update({
             'status': 'completed',
-            'updated_at': now.toIso8601String()
+            'updated_at': now.toUtc().toIso8601String()
           })
           .eq('id', reservation['id']);
       
@@ -245,7 +245,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     try {
       await Supabase.instance.client
           .from('reservations')
-          .update({'is_archived': true, 'updated_at': DateTime.now().toIso8601String()})
+          .update({'is_archived': true, 'updated_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', reservationId);
 
       _showSnackBar('Reservation archived successfully', Colors.green);
@@ -264,7 +264,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     try {
       await Supabase.instance.client
           .from('reservations')
-          .update({'is_archived': false, 'updated_at': DateTime.now().toIso8601String()})
+          .update({'is_archived': false, 'updated_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', reservationId);
 
       _showSnackBar('Reservation restored', Colors.green);
@@ -304,7 +304,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     try {
       await Supabase.instance.client
           .from('reservations')
-          .update({'status': newStatus, 'updated_at': DateTime.now().toIso8601String()})
+          .update({'status': newStatus, 'updated_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', reservationId);
 
       // Generate Auto Announcement on Confirm

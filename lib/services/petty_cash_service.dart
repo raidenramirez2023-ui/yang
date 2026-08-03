@@ -41,8 +41,8 @@ class PettyCashService {
             .update({
               'current_balance': initialBalance,
               'initial_balance': initialBalance,
-              'last_replenished_at': DateTime.now().toIso8601String(),
-              'updated_at': DateTime.now().toIso8601String(),
+              'last_replenished_at': DateTime.now().toUtc().toIso8601String(),
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
             })
             .eq('id', existingFund.id!);
       } else {
@@ -51,7 +51,7 @@ class PettyCashService {
           'fund_name': 'Main Petty Cash',
           'current_balance': initialBalance,
           'initial_balance': initialBalance,
-          'last_replenished_at': DateTime.now().toIso8601String(),
+          'last_replenished_at': DateTime.now().toUtc().toIso8601String(),
         });
       }
       return true;
@@ -73,8 +73,8 @@ class PettyCashService {
           .from('petty_cash_fund')
           .update({
             'current_balance': newBalance,
-            'last_replenished_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
+            'last_replenished_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', fund.id!);
 
@@ -136,10 +136,10 @@ class PettyCashService {
         query = query.eq('purchased_by', purchasedBy);
       }
       if (startDate != null) {
-        query = query.gte('expense_date', startDate.toIso8601String());
+        query = query.gte('expense_date', startDate.toUtc().toIso8601String());
       }
       if (endDate != null) {
-        query = query.lte('expense_date', endDate.toIso8601String());
+        query = query.lte('expense_date', endDate.toUtc().toIso8601String());
       }
 
       final response = await query.order('expense_date', ascending: false);
@@ -190,7 +190,7 @@ class PettyCashService {
           .from('petty_cash_fund')
           .update({
             'current_balance': newBalance,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', fund.id!);
 
@@ -200,8 +200,8 @@ class PettyCashService {
           .update({
             'status': 'approved',
             'approved_by': user.email,
-            'approved_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
+            'approved_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', expenseId);
 
@@ -269,8 +269,8 @@ class PettyCashService {
           .update({
             'status': 'rejected',
             'approved_by': user.email,
-            'approved_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
+            'approved_at': DateTime.now().toUtc().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', expenseId);
 
@@ -288,7 +288,7 @@ class PettyCashService {
           .from('petty_cash_expenses')
           .update({
             'status': 'reimbursed',
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', expenseId);
 
@@ -337,7 +337,7 @@ class PettyCashService {
               .from('petty_cash_fund')
               .update({
                 'current_balance': newBalance,
-                'updated_at': DateTime.now().toIso8601String(),
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
               })
               .eq('id', fund.id!);
         }
@@ -451,7 +451,7 @@ class PettyCashService {
           .from('petty_cash_fund')
           .update({
             'low_balance_threshold': threshold,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', fund.id!);
       return true;
@@ -480,7 +480,7 @@ class PettyCashService {
         'system_balance': systemBalance,
         'actual_cash_count': actualCashCount,
         if (notes != null) 'notes': notes,
-        'reconciled_at': DateTime.now().toIso8601String(),
+        'reconciled_at': DateTime.now().toUtc().toIso8601String(),
       });
       return true;
     } catch (e) {
@@ -515,8 +515,8 @@ class PettyCashService {
           .from('petty_cash_category_budgets')
           .select()
           .eq('category', category)
-          .gte('period_start', periodStart.toIso8601String())
-          .lte('period_end', periodEnd.toIso8601String())
+          .gte('period_start', periodStart.toUtc().toIso8601String())
+          .lte('period_end', periodEnd.toUtc().toIso8601String())
           .maybeSingle();
 
       if (response != null) {
@@ -528,16 +528,16 @@ class PettyCashService {
         'category': category,
         'percentage': 0.0,
         'current_spent': 0.0,
-        'period_start': periodStart.toIso8601String(),
-        'period_end': periodEnd.toIso8601String(),
+        'period_start': periodStart.toUtc().toIso8601String(),
+        'period_end': periodEnd.toUtc().toIso8601String(),
       });
 
       final newResponse = await _supabase
           .from('petty_cash_category_budgets')
           .select()
           .eq('category', category)
-          .gte('period_start', periodStart.toIso8601String())
-          .lte('period_end', periodEnd.toIso8601String())
+          .gte('period_start', periodStart.toUtc().toIso8601String())
+          .lte('period_end', periodEnd.toUtc().toIso8601String())
           .single();
 
       return PettyCashCategoryBudget.fromJson(newResponse);
@@ -557,7 +557,7 @@ class PettyCashService {
           .from('petty_cash_category_budgets')
           .update({
             'percentage': percentage,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', budget.id!);
       return true;
@@ -577,7 +577,7 @@ class PettyCashService {
           .from('petty_cash_category_budgets')
           .update({
             'current_spent': budget.currentSpent + amount,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', budget.id!);
       return true;
@@ -606,7 +606,7 @@ class PettyCashService {
         'supplier': supplier,
         'processed_by': processedBy,
         'purpose': 'Petty Cash Purchase',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
       };
       
       // Only add unit if it's not empty
@@ -650,8 +650,8 @@ class PettyCashService {
       final response = await _supabase
           .from('petty_cash_expenses')
           .select()
-          .gte('expense_date', start.toIso8601String())
-          .lte('expense_date', end.toIso8601String());
+          .gte('expense_date', start.toUtc().toIso8601String())
+          .lte('expense_date', end.toUtc().toIso8601String());
 
       final expenses = response
           .map((e) => PettyCashExpense.fromJson(e))
@@ -691,8 +691,8 @@ class PettyCashService {
         'top_category': topCategory,
         'top_category_amount': topAmount,
         'average_expense': expenses.isNotEmpty ? totalSpent / expenses.length : 0,
-        'start_date': start.toIso8601String(),
-        'end_date': end.toIso8601String(),
+        'start_date': start.toUtc().toIso8601String(),
+        'end_date': end.toUtc().toIso8601String(),
       };
     } catch (e) {
       debugPrint('Error getting spending report: $e');

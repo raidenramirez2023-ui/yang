@@ -163,7 +163,7 @@ class MenuIngredientsImporter {
           'storage_room': storageRoom,
           'supplier': 'Menu Ingredient Auto-Import',
           'created_by': 'pagsanjaninv@gmail.com',
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toUtc().toIso8601String(),
         });
         
         debugPrint('Added: $ingredientName (${ingredient['category']})');

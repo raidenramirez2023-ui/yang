@@ -78,7 +78,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         'remaining_balance': 0,
         'payment_amount': totalPrice,
         'status': 'confirmed',
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
       };
 
       await Supabase.instance.client
@@ -1017,7 +1017,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   String _formatDate(String dateStr) {
     try {
-      final date = DateTime.parse(dateStr);
+      final date = DateTime.parse(dateStr).toLocal();
       return DateFormat('MMM dd, yyyy').format(date);
     } catch (e) {
       return dateStr;

@@ -78,7 +78,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           .from('kitchen_requests')
           .select()
           .eq('status', 'Approved')
-          .gte('created_at', cutoffDate.toIso8601String())
+          .gte('created_at', cutoffDate.toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
       final inventory = inventoryResponse;
@@ -185,7 +185,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final List<Map<String, dynamic>> filteredData = [];
 
     for (var item in forecast) {
-      final createdAt = DateTime.parse(item['createdAt'] as String);
+      final createdAt = DateTime.parse(item['createdAt'] as String).toLocal();
       
       switch (_selectedTimeFilter) {
         case 'Daily':

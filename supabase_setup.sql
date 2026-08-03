@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS reservations (
   special_requests TEXT,
   customer_phone TEXT,
   customer_address TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- App settings table
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   setting_key TEXT UNIQUE NOT NULL,
   setting_value TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Chat messages table
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   message TEXT NOT NULL,
   is_from_customer BOOLEAN DEFAULT true,
   is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Admin chat conversations table
@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS admin_chat_conversations (
   customer_email TEXT NOT NULL,
   customer_name TEXT NOT NULL,
   session_status TEXT DEFAULT 'active',
-  last_message_at TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW()
+  last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Insert default app settings
