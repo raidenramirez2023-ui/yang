@@ -51,13 +51,18 @@ class CustomerDashboardPage extends StatefulWidget {
   State<CustomerDashboardPage> createState() => _CustomerDashboardPageState();
 }
 
-class _CustomerDashboardPageState extends State<CustomerDashboardPage> with SingleTickerProviderStateMixin {
+class _CustomerDashboardPageState extends State<CustomerDashboardPage> with TickerProviderStateMixin {
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
   int _selectedIndex = 0;
 
   bool _isLoading = false;
+
+  // Sidebar toggle for desktop & tablet
+  bool _isSidebarOpen = true; // desktop starts open; tablet starts closed handled in _buildTabletLayout
+  late AnimationController _sidebarAnimController;
+  late Animation<Offset> _sidebarSlideAnim;
 
   final ReservationService _reservationService = ReservationService();
 
@@ -118,6 +123,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   // Menu selection state (only set when customer confirms inside MenuSelectionPage)
   Map<String, int> _selectedMenuItems = {};
+
+  final Map<String, num> _inventoryCache = {};
+  final Map<String, List<Map<String, dynamic>>> _recipeCache = {};
+  bool _isFetchingInventory = false;
+  final Map<String, GlobalKey> _categoryKeys = {};
+  String _selectedCategory = '';
+  
+  ScrollController? _scrollController;
+  final Map<String, GlobalKey> _chipKeys = {};
+  bool _isScrollingToCategory = false;
 
   final MenuReservationService _menuReservationService =
       MenuReservationService();
@@ -185,6 +200,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onMenuScroll);
     _loadCartFromPrefs();
 
     _appSettings = AppSettingsService();
@@ -192,6 +208,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     _loadConfigurationSettings();
     _loadCustomerReservations();
     _loadReviewEligibility();
+    
+    _fetchInventory();
+    
+    if (MenuService.categories.isNotEmpty) {
+      _selectedCategory = MenuService.categories.first;
+    }
 
     // Fetch latest menu items from Supabase database to populate dashboard dishes and carousel images
     MenuService.fetchMenu().then((_) {
@@ -211,6 +233,21 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
     _heroPageController = PageController(initialPage: 0);
     _startHeroTimer();
+
+    // Sidebar animation controller (desktop & tablet hamburger menu)
+    _sidebarAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _sidebarSlideAnim = Tween<Offset>(
+      begin: const Offset(-1.0, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _sidebarAnimController,
+      curve: Curves.easeInOutCubic,
+    ));
+    // Desktop starts with sidebar open — advance icon to "open" state
+    _sidebarAnimController.forward();
   }
 
   void _startHeroTimer() {
@@ -329,8 +366,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   @override
   void dispose() {
+    _scrollController?.removeListener(_onMenuScroll);
+    _scrollController?.dispose();
     _heroPageController.dispose();
     _heroTimer?.cancel();
+    _sidebarAnimController.dispose();
     _eventController.dispose();
     _dateController.dispose();
     _startTimeController.dispose();
@@ -338,6 +378,45 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     _guestsController.dispose();
     _specialRequestsController.dispose();
     super.dispose();
+  }
+
+  void _onMenuScroll() {
+    if (_isScrollingToCategory) return;
+    
+    for (var i = MenuService.categories.length - 1; i >= 0; i--) {
+      final category = MenuService.categories[i];
+      final key = _categoryKeys[category];
+      if (key?.currentContext != null) {
+        final box = key!.currentContext!.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final position = box.localToGlobal(Offset.zero).dy;
+          // Offset 200 handles standard tablet/desktop scroll offset for sticky header + nav
+          if (position <= 200.0) {
+            if (_selectedCategory != category) {
+              setState(() => _selectedCategory = category);
+              
+              final chipKey = _chipKeys[category];
+              if (chipKey?.currentContext != null) {
+                Scrollable.ensureVisible(
+                  chipKey!.currentContext!,
+                  alignment: 0.5,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOutCubic,
+                );
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  GlobalKey _getChipKey(String category) {
+    if (!_chipKeys.containsKey(category)) {
+      _chipKeys[category] = GlobalKey();
+    }
+    return _chipKeys[category]!;
   }
 
   Future<void> _handleRefresh() async {
@@ -402,23 +481,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
+    final isTablet  = ResponsiveUtils.isTablet(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        systemNavigationBarColor: isDesktop ? Colors.white : AppTheme.navColor,
-        systemNavigationBarIconBrightness: isDesktop ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: (isDesktop || isTablet) ? Colors.white : AppTheme.navColor,
+        systemNavigationBarIconBrightness: (isDesktop || isTablet) ? Brightness.dark : Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: isDesktop ? AppTheme.backgroundColor : AppTheme.navColor,
+        backgroundColor: (isDesktop || isTablet) ? AppTheme.backgroundColor : AppTheme.navColor,
 
-        appBar: isDesktop
+        appBar: (isDesktop || isTablet)
             ? null
             : _buildDashboardAppBar(_getAppBarTitle()),
 
         body: Stack(
           children: [
-            isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+            isDesktop
+                ? _buildDesktopLayout()
+                : isTablet
+                    ? _buildTabletLayout()
+                    : _buildMobileLayout(),
             const CustomerChatModal(),
           ],
         ),
@@ -450,6 +534,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
       automaticallyImplyLeading: false,
+      leading: IconButton(
+        icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
+        onPressed: () => setState(() => _selectedIndex = 4),
+        tooltip: 'Account',
+      ),
       centerTitle: true,
       title: Text(
         title,
@@ -463,11 +552,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       actions: [
         _buildCartIcon(),
         _buildNotificationIcon(),
-        IconButton(
-          icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
-          onPressed: () => setState(() => _selectedIndex = 4),
-          tooltip: 'Account',
-        ),
         const SizedBox(width: 8),
       ],
     );
@@ -884,6 +968,243 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
 
   // =========================
 
+  // SHARED SIDEBAR COLUMN (used by desktop & tablet)
+
+  // =========================
+
+  Widget _buildDesktopSidebarColumn({bool closeable = false}) {
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        color: AppTheme.navColor,
+        border: Border(
+          right: BorderSide(color: Colors.white.withOpacity(0.15), width: 1),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Logo Section
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                if (closeable)
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () {
+                      _sidebarAnimController.reverse();
+                      setState(() => _isSidebarOpen = false);
+                    },
+                    tooltip: 'Close menu',
+                  ),
+                if (closeable) const SizedBox(width: 4),
+                Image.asset(
+                  'assets/images/ycplogo.png',
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Yang Chow',
+                  style: GoogleFonts.lora(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.white.withOpacity(0.2)),
+          const SizedBox(height: 16),
+
+          // Navigation Items
+          ...List.generate(4, (index) {
+            final icons = [
+              Icons.home_rounded,
+              Icons.event_available_rounded,
+              Icons.monetization_on_rounded,
+              Icons.assignment_rounded,
+            ];
+            final labels = [
+              'Home',
+              'Reservations',
+              'Transaction',
+              'Activity',
+            ];
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  color: _selectedIndex == index
+                      ? Colors.white.withOpacity(0.25)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: Icon(
+                    icons[index],
+                    color: _selectedIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.65),
+                  ),
+                  title: Text(
+                    labels[index],
+                    style: TextStyle(
+                      color: _selectedIndex == index
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.65),
+                      fontWeight: _selectedIndex == index
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      fontSize: 15,
+                    ),
+                  ),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _selectedIndex = index;
+                      if (closeable) {
+                        _isSidebarOpen = false;
+                        _sidebarAnimController.reverse();
+                      }
+                    });
+                  },
+                  hoverColor: Colors.white.withOpacity(0.1),
+                ),
+              ),
+            );
+          }),
+
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+
+  // TABLET LAYOUT (HAMBURGER SLIDE-IN SIDEBAR)
+
+  // =========================
+
+  Widget _buildTabletLayout() {
+    return Stack(
+      children: [
+        // Main layout column
+        Column(
+          children: [
+            // Header bar
+            Container(
+              color: AppTheme.navColor,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    children: [
+                      // Hamburger button
+                      IconButton(
+                        icon: AnimatedIcon(
+                          icon: AnimatedIcons.menu_close,
+                          progress: _sidebarAnimController,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => _isSidebarOpen = !_isSidebarOpen);
+                          if (_isSidebarOpen) {
+                            _sidebarAnimController.forward();
+                          } else {
+                            _sidebarAnimController.reverse();
+                          }
+                        },
+                        tooltip: 'Menu',
+                      ),
+                      const SizedBox(width: 4),
+                      // Centered title
+                      Expanded(
+                        child: Text(
+                          _getAppBarTitle(),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.lora(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      // Action icons
+                      _buildCartIcon(),
+                      _buildNotificationIcon(),
+                      IconButton(
+                        icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 24),
+                        onPressed: () => setState(() => _selectedIndex = 4),
+                        tooltip: 'Account',
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Content area
+            Expanded(
+              child: Container(
+                color: AppTheme.backgroundColor,
+                child: Padding(
+                  padding: ResponsiveUtils.getResponsivePadding(context),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: ResponsiveUtils.getMaxContentWidth(),
+                      ),
+                      child: _buildContent(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // Dim backdrop
+        if (_isSidebarOpen)
+          GestureDetector(
+            onTap: () {
+              _sidebarAnimController.reverse();
+              setState(() => _isSidebarOpen = false);
+            },
+            child: AnimatedOpacity(
+              opacity: _isSidebarOpen ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 280),
+              child: Container(
+                color: Colors.black.withOpacity(0.45),
+              ),
+            ),
+          ),
+
+        // Slide-in sidebar panel
+        SlideTransition(
+          position: _sidebarSlideAnim,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _buildDesktopSidebarColumn(closeable: true),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================
+
   // DESKTOP LAYOUT (DARK SIDEBAR)
 
   // =========================
@@ -891,103 +1212,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Vivid Red Sidebar
-        Container(
-          width: 280,
-          decoration: BoxDecoration(
-            color: AppTheme.navColor,
-            border: Border(
-              right: BorderSide(color: Colors.white.withOpacity(0.15), width: 1),
+        // Collapsible sidebar — width animates between 280 and 0
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeInOutCubic,
+          width: _isSidebarOpen ? 280 : 0,
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.centerLeft,
+              maxWidth: 280,
+              child: _buildDesktopSidebarColumn(),
             ),
-          ),
-          child: Column(
-            children: [
-              // Logo Section
-              Container(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/images/ycplogo.png',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Yang Chow',
-                      style: GoogleFonts.lora(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(height: 1, color: Colors.white.withOpacity(0.2)),
-              const SizedBox(height: 16),
-
-              // Navigation Items
-              ...List.generate(4, (index) {
-                final icons = [
-                  Icons.home_rounded,
-                  Icons.event_available_rounded,
-                  Icons.monetization_on_rounded,
-                  Icons.assignment_rounded,
-                ];
-
-                final labels = [
-                  'Home',
-                  'Reservations',
-                  'Transaction',
-                  'Activity',
-                ];
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    decoration: BoxDecoration(
-                      color: _selectedIndex == index
-                          ? Colors.white.withOpacity(0.25)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      leading: Icon(
-                        icons[index],
-                        color: _selectedIndex == index
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.65),
-                      ),
-                      title: Text(
-                        labels[index],
-                        style: TextStyle(
-                          color: _selectedIndex == index
-                              ? Colors.white
-                              : Colors.white.withOpacity(0.65),
-                          fontWeight: _selectedIndex == index
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          fontSize: 15,
-                        ),
-                      ),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => _selectedIndex = index);
-                      },
-                      hoverColor: Colors.white.withOpacity(0.1),
-                    ),
-                  ),
-                );
-              }),
-
-              const Spacer(),
-            ],
           ),
         ),
 
@@ -995,46 +1230,57 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
         Expanded(
           child: Container(
             color: AppTheme.backgroundColor,
-
             child: Column(
               children: [
                 // Header
                 Container(
-                  padding: const EdgeInsets.all(24),
-
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   color: AppTheme.navColor,
-
-                  child: Stack(
-                    alignment: Alignment.center,
+                  child: Row(
                     children: [
-                      // Centered Title
-                      Text(
-                        _getAppBarTitle(),
-                        style: GoogleFonts.lora(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
+                      // Hamburger toggle
+                      IconButton(
+                        icon: AnimatedIcon(
+                          icon: AnimatedIcons.menu_close,
+                          progress: _sidebarAnimController,
                           color: Colors.white,
                         ),
+                        onPressed: () {
+                          setState(() => _isSidebarOpen = !_isSidebarOpen);
+                          if (_isSidebarOpen) {
+                            _sidebarAnimController.forward();
+                          } else {
+                            _sidebarAnimController.reverse();
+                          }
+                        },
+                        tooltip: 'Toggle menu',
                       ),
-                      
-                      // Actions on right
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          _buildCartIcon(),
-                          _buildNotificationIcon(),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            onPressed: () => setState(() => _selectedIndex = 4),
-                            icon: const Icon(
-                              Icons.person_outline_rounded,
-                              color: Colors.white,
-                            ),
-                            tooltip: 'Account',
+                      const SizedBox(width: 4),
+                      // Centered title
+                      Expanded(
+                        child: Text(
+                          _getAppBarTitle(),
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.lora(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
-                          const SizedBox(width: 8),
-                        ],
+                        ),
                       ),
+                      // Action icons
+                      _buildCartIcon(),
+                      _buildNotificationIcon(),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        onPressed: () => setState(() => _selectedIndex = 4),
+                        icon: const Icon(
+                          Icons.person_outline_rounded,
+                          color: Colors.white,
+                        ),
+                        tooltip: 'Account',
+                      ),
+                      const SizedBox(width: 8),
                     ],
                   ),
                 ),
@@ -1416,11 +1662,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
   }
 
   Widget _buildHomeSection() {
-    return SingleChildScrollView(
+    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    return CustomScrollView(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           // ── Welcome Banner ──────────────────────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -1533,16 +1783,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
           // ── Products & Pricing menu grid ────────────────────────────────
           _buildIntegratedMenu(),
 
-          // ── Feedback section (conditional) ──────────────────────────────
-          if (_isEligibleForReview) ...[
-            const SizedBox(height: 16), // Reduced from 24
-            _buildFeedbackSection(),
-          ],
+          const SizedBox(height: 16),
+          
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Text(
+                  'Complete Menu',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyCategoryNavBarDelegate(
+            child: Container(
+              color: AppTheme.backgroundColor,
+              padding: const EdgeInsets.only(top: 8),
+              child: _buildCategoryNavBar(),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...MenuService.categories.map((category) {
+                final items = allMenu[category] ?? [];
+                if (items.isEmpty) return const SizedBox.shrink();
+                return _buildMenuCategoryBlock(category, items);
+              }).toList(),
+
+              // ── Feedback section (conditional) ──────────────────────────────
+              if (_isEligibleForReview) ...[
+                const SizedBox(height: 16), // Reduced from 24
+                _buildFeedbackSection(),
+              ],
 
 
-          const SizedBox(height: 16), // Reduced from 24
-        ],
-      ),
+              const SizedBox(height: 16), // Reduced from 24
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -3340,6 +3628,193 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
+
+  Future<void> _fetchInventory() async {
+    if (_isFetchingInventory) return;
+    if (mounted) setState(() => _isFetchingInventory = true);
+    try {
+      final supabase = Supabase.instance.client;
+      // Fetch inventory
+      final data = await supabase.from('kitchen_inventory').select('name, quantity');
+      if (data != null) {
+        final Map<String, num> newCache = {};
+        for (var item in data) {
+          final name = item['name']?.toString().toLowerCase() ?? '';
+          newCache[name] = (item['quantity'] as num?) ?? 0;
+        }
+        if (mounted) {
+          setState(() {
+            _inventoryCache.clear();
+            _inventoryCache.addAll(newCache);
+          });
+        }
+      }
+
+      // Fetch recipe ingredients
+      final recipeData = await supabase.from('recipe_ingredients').select();
+      if (recipeData != null) {
+        final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
+        for (var row in recipeData) {
+          final menuItemName = row['menu_item_name'] as String;
+          if (!newRecipeCache.containsKey(menuItemName)) {
+            newRecipeCache[menuItemName] = [];
+          }
+          newRecipeCache[menuItemName]!.add(row as Map<String, dynamic>);
+        }
+        if (mounted) {
+          setState(() {
+            _recipeCache.clear();
+            _recipeCache.addAll(newRecipeCache);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching inventory or recipes for Menu Selection: $e');
+    } finally {
+      if (mounted) setState(() => _isFetchingInventory = false);
+    }
+  }
+
+  bool _isStockAvailable(String itemName, int requestedQuantity) {
+    final recipeIngredients = _recipeCache[itemName];
+    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
+
+    for (final ing in recipeIngredients) {
+      final String ingName = ing['name'].toString().toLowerCase();
+      
+      num? stock;
+      if (_inventoryCache.containsKey(ingName)) {
+        stock = _inventoryCache[ingName];
+      } else {
+        for (final entry in _inventoryCache.entries) {
+          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
+            stock = entry.value;
+            break;
+          }
+        }
+      }
+
+      if (stock != null) {
+        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
+        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
+        
+        if (requiredQty > stock) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return false;
+        }
+        
+        if (stock <= 0) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  GlobalKey _getCategoryKey(String category) {
+    if (!_categoryKeys.containsKey(category)) {
+      _categoryKeys[category] = GlobalKey();
+    }
+    return _categoryKeys[category]!;
+  }
+
+
+
+  Widget _buildCategoryNavBar() {
+    return Container(
+      height: 50,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: MenuService.categories.length,
+        itemBuilder: (context, index) {
+          final category = MenuService.categories[index];
+          final isActive = _selectedCategory == category;
+          return Padding(
+            key: _getChipKey(category),
+            padding: const EdgeInsets.only(right: 12),
+            child: ActionChip(
+              side: BorderSide.none,
+              label: Text(
+                category,
+                style: TextStyle(
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  color: isActive ? Colors.white : AppTheme.darkGrey,
+                ),
+              ),
+              backgroundColor: isActive ? AppTheme.primaryColor : AppTheme.primaryLight.withOpacity(0.1),
+              onPressed: () async {
+                setState(() => _selectedCategory = category);
+                final key = _getCategoryKey(category);
+                if (key.currentContext != null) {
+                  _isScrollingToCategory = true;
+                  await Scrollable.ensureVisible(
+                    key.currentContext!,
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeInOutCubic,
+                  );
+                  _isScrollingToCategory = false;
+                }
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMenuCategoryBlock(String category, List<MenuItem> items) {
+    return Column(
+      key: _getCategoryKey(category),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            category,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
+            childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _buildProductCard(item);
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 
   Widget _buildIntegratedMenu() {
     return Column(
@@ -6285,11 +6760,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
     );
   }
 
+  void _proceedDirectlyToReservation() {
+    setState(() {
+      _selectedMenuItems = Map<String, int>.from(_preOrderCart);
+      _selectedIndex = 1;
+    });
+  }
+
   void _showOrderListModal() {
     showOrderListModal(
       context: context,
       selectedMenuItems: _preOrderCart,
-      onProceed: _navigateToMenuSelection,
+      onProceed: _proceedDirectlyToReservation,
       onCartUpdated: _handleCartUpdated,
     );
   }
@@ -6302,5 +6784,27 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Sing
       onAdded: () => setState(() {}),
       onCartUpdated: _handleCartUpdated,
     );
+  }
+}
+
+class _StickyCategoryNavBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyCategoryNavBarDelegate({required this.child});
+
+  @override
+  double get minExtent => 66.0;
+
+  @override
+  double get maxExtent => 66.0;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyCategoryNavBarDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 }
