@@ -20,9 +20,9 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 
-
-
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
+
+import 'package:yang_chow/pages/staff/petty_cash_expense_page.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 
@@ -891,6 +891,10 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
       const InventoryRoomPage(),
+
+
+
+      const PettyCashExpensePage(),
 
 
 
@@ -5711,6 +5715,26 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
                         index: 3,
+
+
+
+                      ),
+
+
+
+                      _buildCompactSidebarItem(
+
+
+
+                        icon: Icons.receipt_long,
+
+
+
+                        title: 'Petty Cash',
+
+
+
+                        index: 4,
 
 
 

@@ -19,8 +19,11 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   String _searchQuery = '';
   String _selectedStorageRoom = 'All';
   String _incomingSearchQuery = '';
+  String _pettyCashSearchQuery = '';
   int _incomingCurrentPage = 1;
   int _incomingItemsPerPage = 10;
+  int _pettyCashCurrentPage = 1;
+  int _pettyCashItemsPerPage = 10;
   
   static const List<String> storageRooms = [
     'All',
@@ -47,7 +50,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -294,6 +297,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 await _processBulkIncomingStock(
                                   bulkItems,
                                   receiverCtrl.text.trim(),
+                                  null,
                                 );
                                 if (context.mounted) Navigator.pop(context);
                               },
@@ -668,6 +672,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String receiver,
     String? drNumber,
     String? deliveryTimestamp,
+    String? purpose,
   ) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -706,6 +711,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         'processed_by': receiver,
         'created_at': deliveryTimestamp ?? DateTime.now().toIso8601String(),
         if (drNumber != null) 'purpose': 'DR: $drNumber',
+        if (purpose != null) 'purpose': purpose,
       });
 
       _showSuccessSnackBar('Stock added successfully!');
@@ -717,6 +723,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   Future<void> _processBulkIncomingStock(
     List<Map<String, dynamic>> bulkItems,
     String receiver,
+    String? purpose,
   ) async {
     int successCount = 0;
     int failureCount = 0;
@@ -737,6 +744,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           receiver,
           drNumber, // Pass DR Number
           deliveryTimestamp, // Pass delivery timestamp
+          purpose, // Pass purpose
         );
         successCount++;
       } catch (e) {
@@ -765,6 +773,141 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.errorRed),
+    );
+  }
+
+  Future<void> _processPettyCashToStorage(
+    String itemName,
+    int quantity,
+    String unit,
+    String supplier,
+    String transactionId,
+  ) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+
+      // Add to inventory first
+      final existingItems = await Supabase.instance.client
+          .from('inventory')
+          .select()
+          .eq('name', itemName)
+          .limit(1);
+
+      if (existingItems.isNotEmpty) {
+        final existingItem = existingItems.first;
+        final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
+        await Supabase.instance.client
+            .from('inventory')
+            .update({'quantity': currentQty + quantity})
+            .eq('id', existingItem['id']);
+      } else {
+        await Supabase.instance.client.from('inventory').insert({
+          'name': itemName,
+          'category': 'Groceries', // Default category
+          'quantity': quantity,
+          'unit': unit,
+          'supplier': supplier,
+          'created_by': user?.email,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // Update purpose to mark as transferred (no need to delete due to RLS policy)
+      print('Updating transaction $transactionId purpose to Transferred to Storage');
+      final updateResult = await Supabase.instance.client
+          .from('stock_transactions')
+          .update({'purpose': 'Transferred to Storage'})
+          .eq('id', transactionId)
+          .select();
+
+      print('Update result: $updateResult');
+      print('Update successful: ${updateResult.isNotEmpty}');
+
+      // Force UI refresh
+      setState(() {});
+
+      _showPettyCashModal(itemName, quantity, unit);
+    } catch (e) {
+      print('Error in _processPettyCashToStorage: $e');
+      _showErrorSnackBar('Failed to add to storage: $e');
+    }
+  }
+
+  void _showPettyCashModal(String itemName, int quantity, String unit) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.account_balance_wallet, color: Color(0xFF2563EB)),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Petty Cash Purchase',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    itemName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$quantity $unit',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.darkGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This item was purchased via petty cash and has been successfully added to the storage room.',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.mediumGrey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Force UI refresh to ensure button state updates
+              setState(() {});
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -939,6 +1082,13 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
               ),
               text: 'Incoming',
             ),
+            Tab(
+              icon: Icon(
+                Icons.account_balance_wallet,
+                size: ResponsiveUtils.isMobile(context) ? 20 : 24,
+              ),
+              text: 'Petty Cash',
+            ),
           ],
         ),
       ),
@@ -960,6 +1110,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           children: [
             _buildStorageRoomTab(),
             _buildIncomingTab(),
+            _buildPettyCashTab(),
           ],
         ),
       ),
@@ -1265,6 +1416,363 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     );
   }
 
+  Widget _buildPettyCashTab() {
+    return Column(
+      children: [
+        // Header
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF2563EB),
+                Color(0xFF1E40AF),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2563EB).withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.account_balance_wallet, color: AppTheme.white, size: 24),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Petty Cash Purchases',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.white,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Items purchased via petty cash',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Search bar
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _pettyCashSearchQuery = value;
+                _pettyCashCurrentPage = 1;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search by item name or supplier...',
+              prefixIcon: const Icon(
+                Icons.search,
+                color: Color(0xFF2563EB),
+              ),
+              suffixIcon: _pettyCashSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(
+                        Icons.clear,
+                        color: AppTheme.mediumGrey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _pettyCashSearchQuery = '';
+                          _pettyCashCurrentPage = 1;
+                        });
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppTheme.lightGrey),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: const Color(0xFF2563EB)),
+              ),
+              filled: true,
+              fillColor: AppTheme.backgroundColor,
+            ),
+          ),
+        ),
+
+        // Petty Cash Transactions
+        Expanded(
+          child: StreamBuilder<List<Map<String, dynamic>>>(
+            stream: Supabase.instance.client
+                .from('stock_transactions')
+                .stream(primaryKey: ['id'])
+                .order('created_at', ascending: false),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF2563EB),
+                  ),
+                );
+              }
+
+              final transactions = snapshot.data ?? [];
+
+              // Filter for petty cash purchases only (pending transfers only)
+              final pettyCashTransactions = transactions
+                  .where((t) => 
+                      t['transaction_type'] == 'incoming' && 
+                      t['purpose'] == 'Petty Cash Purchase')
+                  .toList();
+
+              if (pettyCashTransactions.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 64,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No petty cash purchases yet',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Items purchased via petty cash will appear here',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              // Filter by search query
+              final filteredTransactions = _pettyCashSearchQuery.isEmpty
+                  ? pettyCashTransactions
+                  : pettyCashTransactions.where((t) {
+                      final searchLower = _pettyCashSearchQuery.toLowerCase();
+                      final itemName = (t['item_name']?.toString() ?? '').toLowerCase();
+                      final supplier = (t['supplier']?.toString() ?? '').toLowerCase();
+                      return itemName.contains(searchLower) || supplier.contains(searchLower);
+                    }).toList();
+
+              // Pagination
+              final startIndex = (_pettyCashCurrentPage - 1) * _pettyCashItemsPerPage;
+              final endIndex = startIndex + _pettyCashItemsPerPage;
+              final paginatedTransactions = filteredTransactions.skip(startIndex).take(_pettyCashItemsPerPage).toList();
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      itemCount: paginatedTransactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = paginatedTransactions[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        transaction['item_name']?.toString() ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.darkGrey,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Petty Cash',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF2563EB),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.inventory_2_outlined, size: 16, color: AppTheme.mediumGrey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${transaction['quantity']} ${transaction['unit'] ?? 'pcs'}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: AppTheme.darkGrey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    const Icon(Icons.business, size: 16, color: AppTheme.mediumGrey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        transaction['supplier']?.toString() ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: AppTheme.darkGrey,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.person, size: 16, color: AppTheme.mediumGrey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      transaction['processed_by']?.toString() ?? 'Unknown',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.mediumGrey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    const Icon(Icons.access_time, size: 16, color: AppTheme.mediumGrey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      DateTime.parse(transaction['created_at'] as String).toString().split('.')[0],
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.mediumGrey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      await _processPettyCashToStorage(
+                                        transaction['item_name']?.toString() ?? 'Unknown',
+                                        transaction['quantity'] as int? ?? 0,
+                                        transaction['unit']?.toString() ?? 'pcs',
+                                        transaction['supplier']?.toString() ?? 'Unknown',
+                                        transaction['id']?.toString() ?? '',
+                                      );
+                                    },
+                                    icon: const Icon(Icons.add_to_photos, size: 18),
+                                    label: const Text('Add to Storage Room'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2563EB),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Pagination controls
+                  if (filteredTransactions.length > _pettyCashItemsPerPage)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            onPressed: _pettyCashCurrentPage > 1
+                                ? () {
+                                    setState(() {
+                                      _pettyCashCurrentPage--;
+                                    });
+                                  }
+                                : null,
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                          Text(
+                            'Page $_pettyCashCurrentPage',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          IconButton(
+                            onPressed: endIndex < filteredTransactions.length
+                                ? () {
+                                    setState(() {
+                                      _pettyCashCurrentPage++;
+                                    });
+                                  }
+                                : null,
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildIncomingTab() {
     return Column(
       children: [
@@ -1410,7 +1918,12 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
               final transactions = snapshot.data ?? [];
 
-              if (transactions.isEmpty) {
+              // Filter out petty cash purchases (they should only appear in Petty Cash tab)
+              final filteredTransactions = transactions
+                  .where((t) => t['purpose'] != 'Petty Cash Purchase')
+                  .toList();
+
+              if (filteredTransactions.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1444,7 +1957,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
               // Group transactions by DR Number (stored in purpose column)
               Map<String, List<Map<String, dynamic>>> groupedTransactions = {};
-              for (var transaction in transactions) {
+              for (var transaction in filteredTransactions) {
                 final purpose = transaction['purpose']?.toString() ?? '';
                 final drNumber = purpose.startsWith('DR: ') 
                     ? purpose.substring(4) 
