@@ -73,6 +73,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   String _getErrorMessage(String? message) {
+    if (message != null &&
+        (message.contains('Error sending recovery email') ||
+            message.contains('unexpected_failure'))) {
+      return 'Failed to send email. Please ensure Hostinger SMTP is configured in Supabase Dashboard -> Auth Settings -> Custom SMTP.';
+    }
     switch (message) {
       case 'User not found':
         return 'No account found with this email address';

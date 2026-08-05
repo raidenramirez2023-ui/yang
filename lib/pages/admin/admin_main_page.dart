@@ -70,11 +70,16 @@ import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
 
 import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
+import 'package:yang_chow/pages/admin/refund_management_page.dart';
+
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
 
 
 import 'package:yang_chow/services/notification_service.dart';
+
+import 'package:yang_chow/services/refund_service.dart';
+
 
 
 
@@ -126,6 +131,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   int _remainingBalanceCount = 0;
 
+  int _pendingRefundCount = 0;
+
 
 
   late Timer? _countRefreshTimer;
@@ -150,6 +157,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     _loadRemainingBalanceCount();
 
+    _loadPendingRefundCount();
+
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
 
     _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
@@ -159,6 +168,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadPendingReservationCount();
 
       _loadRemainingBalanceCount();
+
+      _loadPendingRefundCount();
 
     });
 
@@ -462,6 +473,32 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
+  Future<void> _loadPendingRefundCount() async {
+
+    try {
+
+      final count = await RefundService().getPendingRefundCount();
+
+      if (mounted) {
+
+        setState(() {
+
+          _pendingRefundCount = count;
+
+        });
+
+      }
+
+    } catch (e) {
+
+      debugPrint('Error loading pending refund count: $e');
+
+    }
+
+  }
+
+
+
   @override
 
   void dispose() {
@@ -532,6 +569,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Petty Cash',
 
+    'Refund Management',
+
 
 
   ];
@@ -594,6 +633,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.account_balance_wallet,
 
+    Icons.receipt_long,
+
 
 
   ];
@@ -655,6 +696,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const AdminChatPage(),
 
     const PettyCashPage(),
+
+    const RefundManagementPage(),
 
 
 
@@ -1139,6 +1182,42 @@ class _AdminMainPageState extends State<AdminMainPage> {
                                 child: Text(
 
                                   '$_remainingBalanceCount',
+
+                                  style: const TextStyle(
+
+                                    color: Colors.white,
+
+                                    fontSize: 11,
+
+                                    fontWeight: FontWeight.bold,
+
+                                  ),
+
+                                ),
+
+                              ),
+
+
+
+                            // Add badge for Refund Management
+
+                            if (_pageTitles[index] == 'Refund Management' && _pendingRefundCount > 0)
+
+                              Container(
+
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.orange,
+
+                                  borderRadius: BorderRadius.circular(10),
+
+                                ),
+
+                                child: Text(
+
+                                  '$_pendingRefundCount',
 
                                   style: const TextStyle(
 

@@ -131,10 +131,23 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
 
 
+  bool get _isPayInFull {
+    final option = widget.reservation['payment_option']?.toString().toLowerCase();
+    if (option == 'full') return true;
+
+    final deposit = (widget.reservation['deposit_amount'] as num?)?.toDouble();
+    final total = (widget.reservation['total_price'] as num?)?.toDouble();
+    if (deposit != null && total != null && deposit >= total && total > 0) {
+      return true;
+    }
+    return false;
+  }
+
   double get _currentDeposit {
-
+    if (_isPayInFull) {
+      return _currentPrice;
+    }
     return _pricingService.calculateDepositAmount(_currentPrice);
-
   }
 
 
@@ -847,17 +860,13 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
           SizedBox(height: 8),
 
           Text(
-
-            'Deposit will be automatically calculated (50% of total price)',
-
+            _isPayInFull
+                ? 'Full payment required upfront (Pay in Full)'
+                : 'Deposit will be automatically calculated (50% of total price)',
             style: TextStyle(
-
               fontSize: 12,
-
               color: AppTheme.mediumGrey,
-
             ),
-
           ),
 
         ],
@@ -873,7 +882,7 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
     if (_pricingBreakdown == null) return SizedBox.shrink();
 
     final currentPrice = _currentPrice;
-    final currentDeposit = _pricingService.calculateDepositAmount(currentPrice);
+    final currentDeposit = _currentDeposit;
 
     return Container(
 
@@ -923,25 +932,27 @@ class _PriceQuotationDialogState extends State<PriceQuotationDialog> {
 
           ),
 
-          _buildBreakdownRow(
+          if (!_isPayInFull) ...[
+            _buildBreakdownRow(
 
-            'Required Deposit (50%)',
+              'Required Deposit (50%)',
 
-            'PHP ${currentDeposit.toStringAsFixed(2)}',
+              'PHP ${currentDeposit.toStringAsFixed(2)}',
 
-            color: Colors.green,
+              color: Colors.green,
 
-          ),
+            ),
 
-          _buildBreakdownRow(
+            _buildBreakdownRow(
 
-            'Remaining Balance',
+              'Remaining Balance',
 
-            'PHP ${(currentPrice - currentDeposit).toStringAsFixed(2)}',
+              'PHP ${(currentPrice - currentDeposit).toStringAsFixed(2)}',
 
-            color: AppTheme.mediumGrey,
+              color: AppTheme.mediumGrey,
 
-          ),
+            ),
+          ],
 
         ],
 

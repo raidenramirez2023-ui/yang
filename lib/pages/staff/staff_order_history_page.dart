@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/services/refund_service.dart';
 
 class StaffOrderHistoryPage extends StatefulWidget {
   const StaffOrderHistoryPage({super.key});
@@ -368,15 +369,36 @@ class _OrderCardState extends State<_OrderCard> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
+                          color: (o['refund_status'] == 'full_refund')
+                              ? Colors.red.shade50
+                              : (o['refund_status'] == 'partial_refund')
+                                  ? Colors.orange.shade50
+                                  : Colors.green.shade50,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.green.shade200),
+                          border: Border.all(
+                            color: (o['refund_status'] == 'full_refund')
+                                ? Colors.red.shade200
+                                : (o['refund_status'] == 'partial_refund')
+                                    ? Colors.orange.shade200
+                                    : Colors.green.shade200,
+                          ),
                         ),
-                        child: Text('Paid',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w600)),
+                        child: Text(
+                          (o['refund_status'] == 'full_refund')
+                              ? 'Refunded'
+                              : (o['refund_status'] == 'partial_refund')
+                                  ? 'Partially Refunded'
+                                  : 'Paid',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: (o['refund_status'] == 'full_refund')
+                                ? Colors.red.shade700
+                                : (o['refund_status'] == 'partial_refund')
+                                    ? Colors.orange.shade700
+                                    : Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -575,11 +597,172 @@ class _OrderCardState extends State<_OrderCard> {
                                           color: _textDark)),
                                 ],
                               ),
+
+                              // ── Refund Action Button (Same-Day POS Orders) ─────
+                              if (o['refund_status'] != 'full_refund') ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _showPosRefundDialog(context),
+                                    icon: const Icon(Icons.assignment_return_rounded, size: 16, color: _red),
+                                    label: const Text(
+                                      'Process Cash Refund',
+                                      style: TextStyle(color: _red, fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: _red),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
             ),
         ],
+      ),
+    );
+  }
+
+  void _showPosRefundDialog(BuildContext context) {
+    final passcodeCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController();
+    bool isLoading = false;
+    String? errorMsg;
+
+    final o = widget.order;
+    final orderId = o['id'].toString();
+    final transactionId = o['transaction_id']?.toString() ?? orderId;
+    final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.assignment_return_rounded, color: _red),
+              SizedBox(width: 8),
+              Text('Process POS Cash Refund', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Order #${widget.order['transaction_id'] ?? widget.order['id']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text('Total Refund Amount: ₱ ${widget.fmt.format(totalAmount)}',
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reasonCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Refund Reason',
+                    hintText: 'e.g. Customer cancelled, wrong item',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passcodeCtrl,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Admin Passcode (Default: 1234)',
+                    hintText: 'Enter 4-digit passcode',
+                    border: const OutlineInputBorder(),
+                    errorText: errorMsg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final passcode = passcodeCtrl.text.trim();
+                      final reason = reasonCtrl.text.trim();
+                      if (passcode.isEmpty) {
+                        setDlgState(() => errorMsg = 'Please enter Admin passcode');
+                        return;
+                      }
+                      setDlgState(() {
+                        isLoading = true;
+                        errorMsg = null;
+                      });
+
+                      final isValidPasscode = await RefundService().verifyAdminPasscode(passcode);
+                      if (!isValidPasscode) {
+                        setDlgState(() {
+                          isLoading = false;
+                          errorMsg = 'Invalid passcode. Default is 1234.';
+                        });
+                        return;
+                      }
+
+                      final result = await RefundService().processImmediatePOSRefund(
+                        orderId: orderId,
+                        transactionId: transactionId,
+                        customerName: o['customer_name'] ?? 'Walk-in Customer',
+                        refundedItems: _items ?? [],
+                        refundAmount: totalAmount,
+                        originalAmount: totalAmount,
+                        reason: reason.isEmpty ? 'POS Cash Refund' : reason,
+                        staffEmail: Supabase.instance.client.auth.currentUser?.email ?? 'staff@yangchow.com',
+                      );
+
+                      if (ctx.mounted) Navigator.pop(ctx);
+
+                      if (result['success'] == true || result['id'] != null) {
+                        if (mounted) {
+                          setState(() {
+                            widget.order['refund_status'] = 'full_refund';
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('POS Cash refund processed successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(result['error']?.toString() ?? 'Failed to process refund.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text('Confirm Refund'),
+            ),
+          ],
+        ),
       ),
     );
   }

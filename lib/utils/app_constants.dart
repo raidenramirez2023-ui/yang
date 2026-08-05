@@ -78,7 +78,7 @@ class AppConstants {
 
   // Refund policy - defaults
   static const int defaultRefundPolicyDays =
-      7; // 100% refund if cancelled 7+ days before
+      4; // 100% refund if cancelled 4+ days before (0-3 days gets 50%)
   static const int defaultRefundPercentageWithinWindow =
       50; // 50% refund if within window
 
@@ -113,12 +113,33 @@ class AppConstants {
   static const String emailTypeReminder = 'reminder';
   static const String emailTypeReviewRequest = 'review_request';
   static const String emailTypeRefundProcessed = 'refund_processed';
+  static const String emailTypeRefundApproved = 'refund_approved';
+  static const String emailTypeRefundRejected = 'refund_rejected';
+  static const String emailTypeRefundCompleted = 'refund_completed';
 
   // Refund status values
   static const String refundStatusNone = 'none';
   static const String refundStatusPending = 'pending';
   static const String refundStatusCompleted = 'completed';
   static const String refundStatusFailed = 'failed';
+
+  // Refund method values
+  static const String refundMethodCash = 'cash';
+  static const String refundMethodPayMongo = 'paymongo';
+
+  // POS refund reasons
+  static const List<String> posRefundReasons = [
+    'Item unavailable',
+    'Wrong item served',
+    'Quality issue',
+    'Customer changed mind',
+    'Other',
+  ];
+
+  // Order refund status values
+  static const String orderRefundNone = 'none';
+  static const String orderRefundPartial = 'partial_refund';
+  static const String orderRefundFull = 'full_refund';
 
   // Special request categories
   static const List<String> dietaryRestrictions = [

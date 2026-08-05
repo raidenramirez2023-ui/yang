@@ -3,12 +3,11 @@ import 'package:intl/intl.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:yang_chow/services/app_settings_service.dart';
-
 import 'package:yang_chow/services/email_notification_service.dart';
 
 import 'package:yang_chow/services/pricing_service.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/refund_service.dart';
 
 
 
@@ -19,8 +18,6 @@ class ReservationService {
   static final ReservationService _instance = ReservationService._internal();
 
   static final SupabaseClient _supabase = Supabase.instance.client;
-
-  static final AppSettingsService _appSettings = AppSettingsService();
 
   static final EmailNotificationService _emailService =
 
@@ -67,49 +64,28 @@ class ReservationService {
     required String? customerAddress,
 
     String? uploadedIdUrl,
-
+    String? paymentOption = 'half',
   }) async {
-
     try {
-
       final now = DateTime.now();
 
-
-
       final response = await _supabase
-
           .from('reservations')
-
           .insert({
-
             'customer_email': customerEmail,
-
             'customer_name': customerName,
-
             'event_type': eventType,
-
             'event_date': eventDate,
-
             'start_time': startTime,
-
             'duration_hours': durationHours.toInt(),
-
             'number_of_guests': numberOfGuests,
-
             'status': 'pending',
-
             'payment_status': 'unpaid',
-
             'special_requests': specialRequests,
-
             'customer_phone': customerPhone,
-
             'customer_address': customerAddress,
-
             'uploaded_id_url': uploadedIdUrl,
-
             'created_at': now.toUtc().toIso8601String(),
-
             'updated_at': now.toUtc().toIso8601String(),
 
           })
@@ -192,37 +168,22 @@ class ReservationService {
     required double depositAmount,
 
     String? uploadedIdUrl,
-
+    String? paymentOption = 'half',
   }) async {
-
     try {
-
       final now = DateTime.now();
 
-
-
       final response = await _supabase
-
           .from('reservations')
-
           .insert({
-
             'customer_email': customerEmail,
-
             'customer_name': customerName,
-
             'event_type': eventType,
-
             'event_date': eventDate,
-
             'start_time': startTime,
-
             'duration_hours': durationHours.toInt(),
-
             'number_of_guests': numberOfGuests,
-
             'status': 'pending',
-
             'payment_status': 'unpaid',
 
             'special_requests': specialRequests,
@@ -336,11 +297,15 @@ class ReservationService {
 
       // Calculate refund amount based on cancellation policy
 
-      final refundAmount = _calculateRefundAmount(
+      final paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ?? 0.0;
+
+      final refundService = RefundService();
+
+      final refundAmount = refundService.calculateRefundAmount(
 
         eventDate: eventDate,
 
-        paymentAmount: reservation['payment_amount'] ?? 0.0,
+        paymentAmount: paymentAmount,
 
       );
 
@@ -367,6 +332,36 @@ class ReservationService {
           })
 
           .eq('id', reservationId);
+
+
+
+      // Create a refund record via RefundService (if refund is applicable)
+
+      if (refundAmount > 0) {
+
+        final paymongoPaymentId = reservation['paymongo_payment_id'] as String?;
+
+        await refundService.requestReservationRefund(
+
+          reservationId: reservationId,
+
+          customerEmail: customerEmail,
+
+          customerName: customerName,
+
+          eventType: eventType,
+
+          eventDate: eventDate,
+
+          cancellationReason: cancellationReason,
+
+          paymentAmount: paymentAmount,
+
+          paymongoPaymentId: paymongoPaymentId,
+
+        );
+
+      }
 
 
 
@@ -766,67 +761,7 @@ class ReservationService {
 
 
 
-  /// Calculate refund amount based on cancellation policy
 
-  double _calculateRefundAmount({
-
-    required String eventDate,
-
-    required double paymentAmount,
-
-  }) {
-
-    try {
-
-      final event = DateTime.parse(eventDate);
-
-      final now = DateTime.now();
-
-      final daysUntilEvent = event.difference(now).inDays;
-
-
-
-      final refundPolicyDays = _appSettings.getRefundPolicyDays();
-
-      final refundPercentageWithinWindow = _appSettings
-
-          .getRefundPercentageWithinWindow();
-
-
-
-      // 100% refund if cancelled 7+ days before
-
-      if (daysUntilEvent >= refundPolicyDays) {
-
-        return paymentAmount;
-
-      }
-
-
-
-      // Percentage refund if within window
-
-      if (daysUntilEvent > 0) {
-
-        return paymentAmount * (refundPercentageWithinWindow / 100);
-
-      }
-
-
-
-      // No refund if event date passed
-
-      return 0.0;
-
-    } catch (e) {
-
-      debugPrint('Error calculating refund: $e');
-
-      return 0.0;
-
-    }
-
-  }
 
 
 
@@ -934,9 +869,10 @@ class ReservationService {
       final double totalPrice = (order['total_price'] as num?)?.toDouble() ?? 0.0;
       final String paymentStatus = order['payment_status'] ?? 'unpaid';
       
+      final refundService = RefundService();
       double? refundAmount;
       if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {
-        refundAmount = _calculateRefundAmount(
+        refundAmount = refundService.calculateRefundAmount(
           eventDate: orderDate,
           paymentAmount: totalPrice,
         );
@@ -950,6 +886,21 @@ class ReservationService {
             'refund_amount': refundAmount,
           })
           .eq('id', orderId);
+
+      // Create refund record via RefundService if applicable
+      if (refundAmount != null && refundAmount > 0) {
+        final paymongoPaymentId = order['paymongo_payment_id'] as String?;
+        await refundService.requestAdvanceOrderRefund(
+          orderId: orderId,
+          customerEmail: customerEmail,
+          customerName: customerName,
+          orderType: orderType,
+          orderDate: orderDate,
+          cancellationReason: cancellationReason,
+          paymentAmount: totalPrice,
+          paymongoPaymentId: paymongoPaymentId,
+        );
+      }
 
       // Send cancellation email
       await _emailService.sendReservationCancelled(

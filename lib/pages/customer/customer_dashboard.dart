@@ -32,6 +32,8 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 
 import 'package:yang_chow/services/reservation_service.dart';
+import 'package:yang_chow/services/refund_service.dart';
+
 
 import 'package:yang_chow/services/menu_service.dart';
 
@@ -4213,7 +4215,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         );
 
         // Calculate payment amount based on selected payment option
-        final paymentAmount = _paymentOption == 'full' && _reservationType == 'Event Place'
+        final paymentAmount = _paymentOption == 'full'
             ? totalMenuPrice
             : _menuReservationService.calculateMenuDepositAmount(totalMenuPrice);
 
@@ -4246,6 +4248,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
           uploadedIdUrl: _uploadedIdUrl,
 
+          paymentOption: _paymentOption,
         );
       } else {
         // Use traditional reservation without menu-based pricing
@@ -4273,6 +4276,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
           uploadedIdUrl: _uploadedIdUrl,
 
+          paymentOption: _paymentOption,
         );
       }
 
@@ -4324,19 +4328,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     }
   }
 
-  String _getPaymentStatusText(String status, bool isQuoted, {bool isAdvanceOrder = false}) {
+  String _getPaymentStatusText(String status, bool isQuoted, {bool isAdvanceOrder = false, bool isPayInFull = false}) {
     if (!isQuoted) return 'AWAITING TRANSACTION';
 
     switch (status) {
       case 'deposit_paid':
-        return isAdvanceOrder ? 'FULL PAID' : 'DEPOSIT PAID';
+        return (isAdvanceOrder || isPayInFull) ? 'FULL PAID' : 'DEPOSIT PAID';
 
       case 'paid':
       case 'fully_paid':
         return 'PAID';
 
       case 'unpaid':
-        return 'DEPOSIT DUE';
+        return (isAdvanceOrder || isPayInFull) ? 'PAYMENT DUE' : 'DEPOSIT DUE';
 
       case 'refunded':
         return 'REFUNDED';
@@ -4374,11 +4378,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final depositAmount = pricingInfo['depositAmount'] as double;
     final totalPrice = pricingInfo['totalPrice'] as double;
 
-    // Only show payment option for event place reservations (not advance orders)
-    final isEventPlace = reservation['_db_table'] != 'advance_orders';
+    final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
+        reservation['payment_option'] == 'full' ||
+        (totalPrice > 0 && depositAmount >= totalPrice);
+
+    // Only show payment option selection if not forced Pay in Full
+    final isEventPlace = reservation['_db_table'] != 'advance_orders' && !isPayInFull;
 
     // Declare payment option outside builder to maintain state
-    String paymentOption = 'half'; // Default to half payment
+    String paymentOption = isPayInFull ? 'full' : 'half';
 
     showDialog(
       context: context,
@@ -4390,7 +4398,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               children: [
                 const Icon(Icons.payment, color: Colors.green),
                 const SizedBox(width: 8),
-                Text(isEventPlace ? 'Make Payment' : 'Pay Deposit'),
+                Text(isEventPlace ? 'Make Payment' : (isPayInFull ? 'Pay Full Amount' : 'Pay Deposit')),
               ],
             ),
 
@@ -4402,7 +4410,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 Text(
                   isEventPlace
                       ? 'Choose your payment option below.'
-                      : 'Complete your order by paying the full amount.',
+                      : 'Complete your payment by paying the full amount.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
 
@@ -5141,11 +5149,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   /// Show dialog to cancel a confirmed reservation with refund info
 
   void _showCancellationDialog(Map<String, dynamic> reservation) {
-    final eventDate = reservation['event_date'];
+    final eventDate = reservation['event_date'] ?? reservation['order_date'] ?? '';
 
-    final eventType = reservation['event_type'];
+    final eventType = reservation['event_type'] ?? 'Reservation';
 
-    final refundAmount = _calculateRefundAmount(eventDate);
+    final double paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ??
+        (reservation['deposit_amount'] as num?)?.toDouble() ??
+        (reservation['total_price'] as num?)?.toDouble() ??
+        (reservation['total_amount'] as num?)?.toDouble() ??
+        0.0;
+
+    final refundAmount = RefundService().calculateRefundAmount(
+      eventDate: eventDate,
+      paymentAmount: paymentAmount,
+    );
 
     void cancelReservation() async {
       if (!mounted) return;
@@ -5552,34 +5569,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final parts = dateStr.split('/');
 
     return "${parts[2]}-${parts[0].padLeft(2, '0')}-${parts[1].padLeft(2, '0')}";
-  }
-
-  /// Calculate refund amount based on days until event
-
-  double _calculateRefundAmount(String eventDate) {
-    try {
-      final event = DateTime.parse(eventDate);
-
-      final now = DateTime.now();
-
-      final daysUntilEvent = event.difference(now).inDays;
-
-      final refundPolicyDays = _appSettings.getRefundPolicyDays();
-
-      final refundPercentage = _appSettings.getRefundPercentageWithinWindow();
-
-      if (daysUntilEvent >= refundPolicyDays) {
-        return 100.0; // Full refund indicator
-      }
-
-      if (daysUntilEvent > 0) {
-        return refundPercentage.toDouble();
-      }
-
-      return 0.0; // No refund
-    } catch (e) {
-      return 0.0;
-    }
   }
 
   void _showSnackBar(String message, Color color) {
@@ -6125,6 +6114,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
 
+    final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
+        reservation['payment_option'] == 'full' ||
+        (totalPrice > 0 && depositAmount >= totalPrice);
+
     final needsDepositPayment = _reservationService.needsDepositPayment(
       reservation,
     );
@@ -6228,7 +6221,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     ),
 
                     child: Text(
-                      _getPaymentStatusText(paymentStatus, true, isAdvanceOrder: reservation['_db_table'] == 'advance_orders'),
+                      _getPaymentStatusText(
+                        paymentStatus, 
+                        true, 
+                        isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
+                        isPayInFull: isPayInFull,
+                      ),
 
                       style: TextStyle(
                         fontSize: 10,
@@ -6376,19 +6374,19 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                     _buildPricingRow('Total Price', totalPrice, Colors.black),
 
-                    _buildPricingRow(
-                      reservation['_db_table'] == 'advance_orders' 
-                          ? 'Full Payment' 
-                          : 'Deposit (50%)',
-                      depositAmount,
-                      AppTheme.successGreen,
-                    ),
+                    if (!isPayInFull) ...[
+                      _buildPricingRow(
+                        'Deposit (50%)',
+                        depositAmount,
+                        AppTheme.successGreen,
+                      ),
 
-                    _buildPricingRow(
-                      'Remaining Balance',
-                      totalPrice - depositAmount,
-                      Colors.grey,
-                    ),
+                      _buildPricingRow(
+                        'Remaining Balance',
+                        totalPrice - depositAmount,
+                        Colors.grey,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -6406,7 +6404,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     icon: Icon(Icons.payment, size: 18),
 
                     label: Text(
-                      reservation['_db_table'] == 'advance_orders'
+                      isPayInFull
                           ? 'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})'
                           : 'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
                     ),

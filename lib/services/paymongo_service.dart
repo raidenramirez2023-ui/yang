@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -108,6 +107,50 @@ class PayMongoService {
     } catch (e) {
       debugPrint('Payment link retrieval failed via RPC: $e');
       throw Exception('Payment link retrieval failed: $e');
+    }
+  }
+
+  /// Process a refund via Supabase RPC (calls PayMongo Refunds API server-side)
+  ///
+  /// [paymentId] — the original PayMongo payment ID (pay_xxx)
+  /// [amount] — refund amount in PHP (e.g., 100.00)
+  /// [reason] — 'duplicate', 'fraudulent', or 'others'
+  /// [notes] — optional internal notes
+  static Future<Map<String, dynamic>> processRefund({
+    required String paymentId,
+    required double amount,
+    String reason = 'others',
+    String notes = '',
+  }) async {
+    try {
+      final amountInCentavos = (amount * 100).round();
+
+      final response = await _supabase.rpc(
+        'process_paymongo_refund',
+        params: {
+          'p_payment_id': paymentId,
+          'p_amount': amountInCentavos,
+          'p_reason': reason,
+          'p_notes': notes,
+        },
+      );
+
+      final refundId = response?['data']?['id'] as String?;
+      final refundStatus =
+          response?['data']?['attributes']?['status'] as String?;
+
+      return {
+        'success': true,
+        'refundId': refundId,
+        'status': refundStatus,
+        'data': response,
+      };
+    } catch (e) {
+      debugPrint('PayMongo refund failed via RPC: $e');
+      return {
+        'success': false,
+        'error': 'PayMongo refund failed: $e',
+      };
     }
   }
 }
