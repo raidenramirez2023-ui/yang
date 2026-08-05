@@ -638,131 +638,313 @@ class _OrderCardState extends State<_OrderCard> {
     final transactionId = o['transaction_id']?.toString() ?? orderId;
     final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
 
+    List<Map<String, dynamic>> localItems = List<Map<String, dynamic>>.from(_items ?? []);
+    bool fetchingItems = _items == null;
+    Set<int> selectedIndices = {};
+
+    if (!fetchingItems) {
+      selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.assignment_return_rounded, color: _red),
-              SizedBox(width: 8),
-              Text('Process POS Cash Refund', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (ctx, setDlgState) {
+          // Fetch items if not already cached in state
+          if (fetchingItems) {
+            Supabase.instance.client
+                .from('order_items')
+                .select()
+                .eq('order_id', orderId)
+                .order('id')
+                .then((res) {
+              if (ctx.mounted) {
+                setDlgState(() {
+                  localItems = List<Map<String, dynamic>>.from(res);
+                  _items = localItems;
+                  fetchingItems = false;
+                  selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                });
+              }
+            }).catchError((err) {
+              if (ctx.mounted) {
+                setDlgState(() {
+                  fetchingItems = false;
+                });
+              }
+            });
+          }
+
+          // Calculate current refund total based on selected items
+          final currentRefundTotal = selectedIndices.fold<double>(0.0, (sum, i) {
+            if (i < localItems.length) {
+              final it = localItems[i];
+              final qty = (it['quantity'] as num?)?.toInt() ?? 1;
+              final price = (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+              return sum + (price * qty);
+            }
+            return sum;
+          });
+
+          final allSelected = localItems.isNotEmpty && selectedIndices.length == localItems.length;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
               children: [
-                Text('Order #${widget.order['transaction_id'] ?? widget.order['id']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text('Total Refund Amount: ₱ ${widget.fmt.format(totalAmount)}',
-                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: reasonCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Refund Reason',
-                    hintText: 'e.g. Customer cancelled, wrong item',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: passcodeCtrl,
-                  obscureText: true,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Admin Passcode (Default: 1234)',
-                    hintText: 'Enter 4-digit passcode',
-                    border: const OutlineInputBorder(),
-                    errorText: errorMsg,
-                  ),
-                ),
+                Icon(Icons.assignment_return_rounded, color: _red),
+                SizedBox(width: 8),
+                Text('Process POS Cash Refund', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _red,
-                foregroundColor: Colors.white,
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Order #${widget.order['transaction_id'] ?? widget.order['id']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 12),
+
+                    // ── Items Selection List ──
+                    const Text('Select Items to Refund:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textDark)),
+                    const SizedBox(height: 6),
+                    if (fetchingItems)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: CircularProgressIndicator(color: _red, strokeWidth: 2),
+                        ),
+                      )
+                    else if (localItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Text('No order items found.', style: TextStyle(color: _grey, fontSize: 12)),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: _border),
+                          borderRadius: BorderRadius.circular(8),
+                          color: const Color(0xFFF9FAFB),
+                        ),
+                        child: Column(
+                          children: [
+                            // Select All Header
+                            InkWell(
+                              onTap: () {
+                                setDlgState(() {
+                                  if (allSelected) {
+                                    selectedIndices.clear();
+                                  } else {
+                                    selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                                  }
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: allSelected,
+                                      activeColor: _red,
+                                      onChanged: (val) {
+                                        setDlgState(() {
+                                          if (val == true) {
+                                            selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                                          } else {
+                                            selectedIndices.clear();
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    const Text('Select All Items',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textDark)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1, color: _border),
+                            // Item List
+                            ...localItems.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final it = entry.value;
+                              final name = it['item_name'] ?? 'Item';
+                              final qty = (it['quantity'] as num?)?.toInt() ?? 1;
+                              final price = (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+                              final itemSubtotal = price * qty;
+                              final isChecked = selectedIndices.contains(idx);
+
+                              return InkWell(
+                                onTap: () {
+                                  setDlgState(() {
+                                    if (isChecked) {
+                                      selectedIndices.remove(idx);
+                                    } else {
+                                      selectedIndices.add(idx);
+                                    }
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Checkbox(
+                                        value: isChecked,
+                                        activeColor: _red,
+                                        onChanged: (val) {
+                                          setDlgState(() {
+                                            if (val == true) {
+                                              selectedIndices.add(idx);
+                                            } else {
+                                              selectedIndices.remove(idx);
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      Expanded(
+                                        child: Text('$name ×$qty',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
+                                                color: _textDark)),
+                                      ),
+                                      Text('₱ ${widget.fmt.format(itemSubtotal)}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                                              color: isChecked ? _red : _grey)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Refund Amount:',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        Text('₱ ${widget.fmt.format(currentRefundTotal)}',
+                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: reasonCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Refund Reason',
+                        hintText: 'e.g. Item unavailable, customer cancelled',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passcodeCtrl,
+                      obscureText: true,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Admin Passcode',
+                        hintText: 'Enter 4-digit passcode',
+                        border: const OutlineInputBorder(),
+                        errorText: errorMsg,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      final passcode = passcodeCtrl.text.trim();
-                      final reason = reasonCtrl.text.trim();
-                      if (passcode.isEmpty) {
-                        setDlgState(() => errorMsg = 'Please enter Admin passcode');
-                        return;
-                      }
-                      setDlgState(() {
-                        isLoading = true;
-                        errorMsg = null;
-                      });
-
-                      final isValidPasscode = await RefundService().verifyAdminPasscode(passcode);
-                      if (!isValidPasscode) {
-                        setDlgState(() {
-                          isLoading = false;
-                          errorMsg = 'Invalid passcode. Default is 1234.';
-                        });
-                        return;
-                      }
-
-                      final result = await RefundService().processImmediatePOSRefund(
-                        orderId: orderId,
-                        transactionId: transactionId,
-                        customerName: o['customer_name'] ?? 'Walk-in Customer',
-                        refundedItems: _items ?? [],
-                        refundAmount: totalAmount,
-                        originalAmount: totalAmount,
-                        reason: reason.isEmpty ? 'POS Cash Refund' : reason,
-                        staffEmail: Supabase.instance.client.auth.currentUser?.email ?? 'staff@yangchow.com',
-                      );
-
-                      if (ctx.mounted) Navigator.pop(ctx);
-
-                      if (result['success'] == true || result['id'] != null) {
-                        if (mounted) {
-                          setState(() {
-                            widget.order['refund_status'] = 'full_refund';
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('POS Cash refund processed successfully!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                      } else {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(result['error']?.toString() ?? 'Failed to process refund.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text('Confirm Refund'),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: (isLoading || selectedIndices.isEmpty)
+                    ? null
+                    : () async {
+                        final passcode = passcodeCtrl.text.trim();
+                        final reason = reasonCtrl.text.trim();
+                        if (passcode.isEmpty) {
+                          setDlgState(() => errorMsg = 'Please enter Admin passcode');
+                          return;
+                        }
+                        setDlgState(() {
+                          isLoading = true;
+                          errorMsg = null;
+                        });
+
+                        final isValidPasscode = await RefundService().verifyAdminPasscode(passcode);
+                        if (!isValidPasscode) {
+                          setDlgState(() {
+                            isLoading = false;
+                            errorMsg = 'Invalid passcode. Default is 1234.';
+                          });
+                          return;
+                        }
+
+                        final selectedItems = selectedIndices.map((i) => localItems[i]).toList();
+
+                        final result = await RefundService().processImmediatePOSRefund(
+                          orderId: orderId,
+                          transactionId: transactionId,
+                          customerName: o['customer_name'] ?? 'Walk-in Customer',
+                          refundedItems: selectedItems,
+                          refundAmount: currentRefundTotal,
+                          originalAmount: totalAmount,
+                          reason: reason.isEmpty ? 'POS Item Refund' : reason,
+                          staffEmail: Supabase.instance.client.auth.currentUser?.email ?? 'staff@yangchow.com',
+                        );
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+
+                        if (result['success'] == true || result['id'] != null) {
+                          if (mounted) {
+                            final isFullRefund = currentRefundTotal >= totalAmount;
+                            setState(() {
+                              widget.order['refund_status'] = isFullRefund ? 'full_refund' : 'partial_refund';
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('POS refund processed successfully! (₱${widget.fmt.format(currentRefundTotal)})'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(result['error']?.toString() ?? 'Failed to process refund.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                child: isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Text(selectedIndices.length == localItems.length
+                        ? 'Confirm Refund (Full)'
+                        : 'Confirm Refund (${selectedIndices.length} Item${selectedIndices.length > 1 ? 's' : ''})'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

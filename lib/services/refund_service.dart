@@ -236,10 +236,10 @@ class RefundService {
           .select()
           .single();
 
-      // Update the order's refund_status, status, and kitchen_status
+      // Update the order's refund_status, payment_status, and kitchen_status
       await _supabase.from('orders').update({
         'refund_status': isFullRefund ? 'full_refund' : 'partial_refund',
-        'status': isFullRefund ? 'refunded' : 'partially_refunded',
+        'payment_status': isFullRefund ? 'refunded' : 'partially_refunded',
         'kitchen_status': 'Done',
       }).eq('id', orderId);
 
@@ -668,7 +668,7 @@ class RefundService {
         await _supabase.from('orders').update({
           'refund_status':
               refundType == 'full' ? 'full_refund' : 'partial_refund',
-          'status': refundType == 'full' ? 'refunded' : 'partially_refunded',
+          'payment_status': refundType == 'full' ? 'refunded' : 'partially_refunded',
           'kitchen_status': 'Done',
         }).eq('id', sourceId);
       } else if (sourceTable == 'reservations') {
