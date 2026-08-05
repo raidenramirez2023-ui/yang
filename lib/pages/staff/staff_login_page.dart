@@ -302,16 +302,16 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   @override
   Widget build(BuildContext context) {
     if (_isSessionChecking) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.primaryColor),
+              CircularProgressIndicator(color: Colors.red.shade700),
               SizedBox(height: 16),
               Text(
                 'Checking staff authentication...',
-                style: TextStyle(color: AppTheme.primaryColor),
+                style: TextStyle(color: Colors.red.shade700),
               ),
             ],
           ),
@@ -342,7 +342,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: Colors.red.shade700.withOpacity(0.85),
             ),
           ),
         ),
@@ -409,7 +409,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: Colors.red.shade700.withOpacity(0.85),
             ),
           ),
         ),
@@ -418,13 +418,13 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
                 Image.asset(
                   'assets/images/ycplogo.png',
                   height: 240,
                   fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 32),
+                SizedBox(height: 32),
                 Container(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 40,
@@ -445,7 +445,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                   ),
                   child: _buildLoginForm(),
                 ),
-                const SizedBox(height: 40),
+                SizedBox(height: 40),
               ],
             ),
           ),
@@ -466,7 +466,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.85),
+              color: Colors.red.shade700.withOpacity(0.85),
             ),
           ),
         ),
@@ -476,13 +476,13 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   Image.asset(
                     'assets/images/ycplogo.png',
                     height: 200,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   Container(
                     margin: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -502,7 +502,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                     ),
                     child: _buildLoginForm(),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                 ],
               ),
             ),
@@ -521,14 +521,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         Row(
           children: [
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+              child: const Divider(color: Colors.grey, thickness: 1.5),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'STAFF LOGIN',
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: Colors.red.shade700,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                   fontSize: 13,
@@ -536,16 +536,16 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               ),
             ),
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1.5),
+              child: const Divider(color: Colors.grey, thickness: 1.5),
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
 
         // Email Input
-        const Text(
+        Text(
           'STAFF EMAIL',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -561,10 +561,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter Staff Email',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            prefixIcon: Icon(
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+            prefixIcon: const Icon(
               Icons.email_outlined,
-              color: Colors.grey.shade500,
+              color: Colors.grey,
               size: 20,
             ),
             filled: true,
@@ -573,26 +573,26 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
               horizontal: 16,
               vertical: 16,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: const OutlineInputBorder(
+            border: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.red.shade700, width: 2),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // Password Input
-        const Text(
+        Text(
           'PASSWORD',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -608,10 +608,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: 'Enter Password',
-            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            prefixIcon: Icon(
+            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+            prefixIcon: const Icon(
               Icons.lock_outline,
-              color: Colors.grey.shade500,
+              color: Colors.grey,
               size: 20,
             ),
             filled: true,
@@ -625,7 +625,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 _isPasswordVisible
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
-                color: Colors.grey.shade500,
+                color: Colors.grey,
                 size: 20,
               ),
               onPressed: () {
@@ -634,21 +634,21 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 });
               },
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: const OutlineInputBorder(
+            border: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+              borderSide: BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.red.shade700, width: 2),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Remember Me and Forgot Password Row
         Row(
@@ -669,19 +669,19 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                               _rememberMe = value ?? false;
                             });
                           },
-                    activeColor: AppTheme.primaryColor,
-                    side: BorderSide(color: Colors.grey.shade400),
+                    activeColor: Colors.red.shade700,
+                    side: const BorderSide(color: Colors.grey),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   'Remember me',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade700,
+                    color: Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -699,10 +699,10 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text(
+              child: Text(
                 'Forgot Password?',
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: Colors.red.shade700,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -710,7 +710,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
 
         // Login Button
         SizedBox(
@@ -718,12 +718,12 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : handleStaffLogin,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
               elevation: 4,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.35),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+              shadowColor: Colors.red.shade700.withOpacity(0.35),
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
               ),
             ),
             child: _isLoading
@@ -735,9 +735,9 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : const Text(
+                : Text(
                     'SIGN IN',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
