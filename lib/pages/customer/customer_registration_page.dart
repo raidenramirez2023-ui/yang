@@ -543,7 +543,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ElevatedButton(
                     onPressed: _isVerifyingEmail ? null : _verifyOtpCode,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE81E0D),
+                      backgroundColor: Colors.red.shade700,
                       foregroundColor: Colors.white,
                     ),
                     child: _isVerifyingEmail
@@ -669,16 +669,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   @override
   Widget build(BuildContext context) {
     if (_isRedirecting) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: AppTheme.primaryColor),
+              CircularProgressIndicator(color: Colors.red.shade700),
               SizedBox(height: 16),
               Text(
                 'Syncing with Google...',
-                style: TextStyle(color: AppTheme.primaryColor),
+                style: TextStyle(color: Colors.red.shade700),
               ),
             ],
           ),
@@ -709,7 +709,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.88),
+              color: Colors.red.shade700.withOpacity(0.88),
             ),
           ),
         ),
@@ -771,7 +771,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.88),
+              color: Colors.red.shade700.withOpacity(0.88),
             ),
           ),
         ),
@@ -780,13 +780,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 48),
+                SizedBox(height: 48),
                 Image.asset(
                   'assets/images/ycplogo.png',
                   height: 260,
                   fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 36),
+                SizedBox(height: 36),
                 Container(
                   margin: const EdgeInsets.symmetric(
                     horizontal: 48,
@@ -807,7 +807,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ),
                   child: Form(key: _formKey, child: _buildRegistrationForm()),
                 ),
-                const SizedBox(height: 48),
+                SizedBox(height: 48),
               ],
             ),
           ),
@@ -828,7 +828,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             child: Container(
-              color: AppTheme.primaryColor.withOpacity(0.88),
+              color: Colors.red.shade700.withOpacity(0.88),
             ),
           ),
         ),
@@ -838,13 +838,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32),
                   Image.asset(
                     'assets/images/ycplogo.png',
                     height: 220,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: 28),
                   Container(
                     margin: const EdgeInsets.symmetric(
                       horizontal: 28,
@@ -864,7 +864,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                     ),
                     child: Form(key: _formKey, child: _buildRegistrationForm()),
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32),
                 ],
               ),
             ),
@@ -883,14 +883,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         Row(
           children: [
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1),
+              child: const Divider(color: Colors.grey, thickness: 1),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 'CREATE ACCOUNT',
                 style: TextStyle(
-                  color: AppTheme.primaryColor,
+                  color: Colors.red.shade700,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.8,
                   fontSize: 12,
@@ -898,11 +898,11 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             Expanded(
-              child: Divider(color: Colors.grey.shade200, thickness: 1),
+              child: const Divider(color: Colors.grey, thickness: 1),
             ),
           ],
         ),
-        const SizedBox(height: 36),
+        SizedBox(height: 36),
 
         // First Name Input
         _buildInputField(
@@ -911,7 +911,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateFirstName,
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // Last Name Input
         _buildInputField(
@@ -920,7 +920,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateLastName,
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // Phone Number Input
         _buildInputField(
@@ -934,7 +934,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             LengthLimitingTextInputFormatter(11),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // Email Input with Verify button
         Row(
@@ -954,7 +954,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             if (!_isEmailVerified) ...[
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
@@ -962,12 +962,12 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                       ? null
                       : _sendVerificationEmail,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor: Colors.red.shade700,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
                     ),
                   ),
                   child: _isVerifyingEmail
@@ -1011,7 +1011,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ],
             ),
           ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Password Input
         _buildInputField(
@@ -1025,14 +1025,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               _isPasswordVisible
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              color: Colors.grey.shade500,
+              color: Colors.grey,
               size: 20,
             ),
             onPressed: () =>
                 setState(() => _isPasswordVisible = !_isPasswordVisible),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Confirm Password Input
         _buildInputField(
@@ -1046,7 +1046,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               _isConfirmPasswordVisible
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              color: Colors.grey.shade500,
+              color: Colors.grey,
               size: 20,
             ),
             onPressed: () => setState(
@@ -1054,7 +1054,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
 
         // Terms and Conditions
         Row(
@@ -1073,27 +1073,27 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           setState(() => _agreeToTerms = false);
                         }
                       },
-                activeColor: AppTheme.primaryColor,
-                side: BorderSide(color: Colors.grey.shade400),
+                activeColor: Colors.red.shade700,
+                side: const BorderSide(color: Colors.grey),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 'I agree to the Terms and Conditions',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade700,
+                  color: Colors.grey,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
 
         // Register Button
         SizedBox(
@@ -1102,10 +1102,10 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           child: ElevatedButton(
             onPressed: _isLoading ? null : handleRegistration,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
               elevation: 6,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
+              shadowColor: Colors.red.shade700.withOpacity(0.4),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -1129,7 +1129,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                   ),
           ),
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         // Back to Login Link
         Center(
@@ -1138,7 +1138,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             child: Text(
               'Already have an account?',
               style: TextStyle(
-                color: AppTheme.primaryColor,
+                color: Colors.red.shade700,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -1170,8 +1170,8 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, letterSpacing: -0.2),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
-        prefixIcon: Icon(icon, color: AppTheme.mediumGrey, size: 22),
+        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w400),
+        prefixIcon: Icon(icon, color: Colors.grey, size: 22),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: enabled ? Colors.white : Colors.grey.shade50,
@@ -1179,25 +1179,25 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           horizontal: 18,
           vertical: 18,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.grey, width: 1.5),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.grey, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          borderSide: BorderSide(color: Colors.red.shade700, width: 2),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.errorRed, width: 1.5),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.red, width: 1.5),
         ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppTheme.errorRed, width: 2),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
         ),
         errorStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
