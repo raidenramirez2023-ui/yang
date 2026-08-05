@@ -166,6 +166,63 @@ class EmailNotificationService {
     );
   }
 
+  /// Send refund approved notification
+  Future<bool> sendRefundApproved({
+    required String customerEmail,
+    required String customerName,
+    required double refundAmount,
+    required String refundMethod,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Refund Approved - Yang Chow Restaurant',
+      emailType: AppConstants.emailTypeRefundApproved,
+      body: _buildRefundApprovedBody(
+        customerName: customerName,
+        refundAmount: refundAmount,
+        refundMethod: refundMethod,
+      ),
+    );
+  }
+
+  /// Send refund rejected notification
+  Future<bool> sendRefundRejected({
+    required String customerEmail,
+    required String customerName,
+    required double refundAmount,
+    required String rejectionReason,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Refund Request Update - Yang Chow Restaurant',
+      emailType: AppConstants.emailTypeRefundRejected,
+      body: _buildRefundRejectedBody(
+        customerName: customerName,
+        refundAmount: refundAmount,
+        rejectionReason: rejectionReason,
+      ),
+    );
+  }
+
+  /// Send refund completed notification (money returned)
+  Future<bool> sendRefundCompleted({
+    required String customerEmail,
+    required String customerName,
+    required double refundAmount,
+    required String refundMethod,
+  }) async {
+    return _logEmailNotification(
+      recipientEmail: customerEmail,
+      subject: 'Refund Completed - Yang Chow Restaurant',
+      emailType: AppConstants.emailTypeRefundCompleted,
+      body: _buildRefundCompletedBody(
+        customerName: customerName,
+        refundAmount: refundAmount,
+        refundMethod: refundMethod,
+      ),
+    );
+  }
+
   /// Internal method to log email notification intent
   Future<bool> _logEmailNotification({
     required String recipientEmail,
@@ -524,6 +581,22 @@ $body
     required double totalPrice,
     required double depositAmount,
   }) {
+    final isPayInFull = depositAmount >= totalPrice;
+
+    final pricingBreakdownText = isPayInFull
+        ? '''PRICING BREAKDOWN:
+- Total Price: PHP ${totalPrice.toStringAsFixed(2)}
+- Payment Option: Pay in Full
+- Required Payment: PHP ${totalPrice.toStringAsFixed(2)}'''
+        : '''PRICING BREAKDOWN:
+- Total Price: PHP ${totalPrice.toStringAsFixed(2)}
+- Required Deposit (50%): PHP ${depositAmount.toStringAsFixed(2)}
+- Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}''';
+
+    final nextStepsText = isPayInFull
+        ? 'To confirm your reservation, please pay the full amount of PHP ${totalPrice.toStringAsFixed(2)}.'
+        : 'To confirm your reservation, please pay the 50% deposit amount of PHP ${depositAmount.toStringAsFixed(2)}.';
+
     return '''
 Dear $customerName,
 
@@ -538,18 +611,15 @@ EVENT DETAILS:
 - Duration: ${duration.toInt()} hours
 - Number of Guests: $guests
 
-PRICING BREAKDOWN:
-- Total Price: PHP ${totalPrice.toStringAsFixed(2)}
-- Required Deposit (50%): PHP ${depositAmount.toStringAsFixed(2)}
-- Remaining Balance: PHP ${(totalPrice - depositAmount).toStringAsFixed(2)}
+$pricingBreakdownText
 
 NEXT STEPS:
-To confirm your reservation, please pay the 50% deposit amount of PHP ${depositAmount.toStringAsFixed(2)}. 
-Once the deposit is received, your reservation will be confirmed and we will send you a confirmation email.
+$nextStepsText
+Once the payment is received, your reservation will be confirmed and we will send you a confirmation email.
 
 Payment can be made through our secure payment system or by contacting our restaurant directly.
 
-Please note that reservations are subject to availability and confirmation is only guaranteed upon receipt of the deposit payment.
+Please note that reservations are subject to availability and confirmation is only guaranteed upon receipt of the payment.
 
 If you have any questions or would like to modify your reservation details, please don't hesitate to contact us.
 
@@ -627,5 +697,106 @@ We appreciate your business and look forward to serving you!
 Best regards,
 The Yang Chow Restaurant Team
 ''';
+  }
+
+  /// Build refund approved email body
+  String _buildRefundApprovedBody({
+    required String customerName,
+    required double refundAmount,
+    required String refundMethod,
+  }) {
+    String methodInfo = '';
+    if (refundMethod == 'paymongo') {
+      methodInfo = '''
+
+REFUND TIMELINE:
+The refund will be returned to your original payment method. Estimated timelines:
+• GCash / Maya: Within 24 hours
+• Online Banking (BPI, BDO, etc.): 3-5 banking days
+• Credit/Debit Cards: Up to 30 days
+
+You will receive another email once the refund has been fully processed.''';
+    } else {
+      methodInfo = '''
+
+Please visit Yang Chow Restaurant to collect your cash refund, or coordinate with our staff for the return process.''';
+    }
+
+    return '''
+Dear $customerName,
+
+We are pleased to inform you that your refund request has been approved.
+
+REFUND DETAILS:
+Refund Amount: ₱${refundAmount.toStringAsFixed(2)}
+Refund Method: ${refundMethod == 'paymongo' ? 'Original Payment Method (PayMongo)' : 'Cash'}
+$methodInfo
+
+If you have any questions, please don't hesitate to contact us.
+
+Best regards,
+Yang Chow Restaurant Management Team
+    ''';
+  }
+
+  /// Build refund rejected email body
+  String _buildRefundRejectedBody({
+    required String customerName,
+    required double refundAmount,
+    required String rejectionReason,
+  }) {
+    return '''
+Dear $customerName,
+
+We regret to inform you that your refund request of ₱${refundAmount.toStringAsFixed(2)} has been declined.
+
+REASON:
+$rejectionReason
+
+If you believe this decision was made in error or if you have any questions, please contact us directly and we will be happy to discuss your case further.
+
+Best regards,
+Yang Chow Restaurant Management Team
+    ''';
+  }
+
+  /// Build refund completed email body
+  String _buildRefundCompletedBody({
+    required String customerName,
+    required double refundAmount,
+    required String refundMethod,
+  }) {
+    String methodInfo = '';
+    if (refundMethod == 'paymongo') {
+      methodInfo = '''
+The refund has been processed and will be returned to your original payment method.
+
+ESTIMATED ARRIVAL:
+• GCash / Maya: Within 24 hours
+• Online Banking (BPI, BDO, etc.): 3-5 banking days
+• Credit/Debit Cards: Up to 30 days
+
+If you don't see the refund within the expected timeframe, please contact us.''';
+    } else {
+      methodInfo =
+          'The cash refund has been processed. If you haven\'t received it yet, please visit our restaurant or contact our staff.';
+    }
+
+    return '''
+Dear $customerName,
+
+Your refund has been successfully processed!
+
+REFUND DETAILS:
+Amount Refunded: ₱${refundAmount.toStringAsFixed(2)}
+Refund Method: ${refundMethod == 'paymongo' ? 'Original Payment Method' : 'Cash'}
+
+$methodInfo
+
+Thank you for your patience and understanding.
+
+Best regards,
+Yang Chow Restaurant Management Team
+    ''';
   }
 }

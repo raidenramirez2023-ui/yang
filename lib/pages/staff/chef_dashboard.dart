@@ -80,6 +80,10 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
       final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
       for (final o in orders) {
+        final rs = o['refund_status']?.toString() ?? 'none';
+        final status = o['status']?.toString().toLowerCase() ?? '';
+        if (rs == 'full_refund' || status == 'refunded' || status == 'cancelled') continue;
+
         if (isAdvance) {
           final orderDateStr = o['order_date']?.toString();
           if (orderDateStr != null && orderDateStr.compareTo(todayStr) > 0) {
@@ -1890,7 +1894,12 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
     final posOrders = _posRaw.where((o) {
       final ks = _kitchenStatus['pos_${o['id']}'] ?? 'Pending';
       final ps = o['payment_status']?.toString() ?? 'unpaid';
-      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
+      final rs = o['refund_status']?.toString() ?? 'none';
+      final status = o['status']?.toString().toLowerCase() ?? '';
+
+      final isRefunded = rs == 'full_refund' || status == 'refunded' || status == 'cancelled';
+
+      return !isRefunded && ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid');
     }).map((o) => {
       ...o,
       '_is_advance': false,
@@ -1923,28 +1932,31 @@ class _CombinedKitchenTabState extends State<_CombinedKitchenTab> {
 
       final ks = o['kitchen_status'];
       final ps = o['payment_status']?.toString().toLowerCase();
+      final rs = o['refund_status']?.toString() ?? 'none';
       final status = o['status']?.toString().toLowerCase();
-      // Only show advance orders that have been approved by admin
-      // After admin approval: status becomes 'pending' (then 'preparing' -> 'ready' -> 'done')
+
+      final isRefunded = rs == 'full_refund' || status == 'refunded' || status == 'cancelled';
       final isApprovedAdvance = status == 'pending' || status == 'preparing' || status == 'ready';
-      return ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && isApprovedAdvance;
+
+      return !isRefunded && ks != 'Done' && ks != 'Ready' && (ps == 'paid' || ps == 'fully_paid') && isApprovedAdvance;
     }).toList();
 
     // ── Process Event reservations for today ──
     final resOrders = _resRaw.where((o) {
       final isMenuBased = o['is_menu_based'] == true;
       final ps = o['payment_status']?.toString().toLowerCase();
+      final rs = o['refund_status']?.toString() ?? 'none';
       final isPaid = ps == 'paid' || ps == 'fully_paid';
       
       final eventDateStr = o['event_date']?.toString();
       final isTodayOrPast = eventDateStr != null && eventDateStr.compareTo(todayStr) <= 0;
       
-      // Only show event reservations that have been approved by admin
       final resStatus = o['status']?.toString().toLowerCase();
+      final isRefunded = rs == 'full_refund' || resStatus == 'refunded' || resStatus == 'cancelled';
       final isApproved = resStatus == 'confirmed' || resStatus == 'completed';
       
       final ks = _kitchenStatus['res_${o['id']}'] ?? o['kitchen_status']?.toString() ?? 'Pending';
-      return isMenuBased && isPaid && isTodayOrPast && isApproved && ks != 'Done' && ks != 'Ready';
+      return !isRefunded && isMenuBased && isPaid && isTodayOrPast && isApproved && ks != 'Done' && ks != 'Ready';
     }).map((o) => {
       ...o,
       '_is_advance': false,
@@ -3489,75 +3501,116 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchDoneOrders() async {
+    final List<Map<String, dynamic>> result = [];
+
+    // 1. Fetch regular POS orders
     try {
-      // Fetch regular POS orders
-      final orders = await Supabase.instance.client
+      final ordersRaw = await Supabase.instance.client
           .from('orders')
           .select()
-          .inFilter('kitchen_status', ['Ready', 'Done'])
           .order('created_at', ascending: false);
 
-      final List<Map<String, dynamic>> regularOrders = orders.map((o) {
-        return {
-          ...o,
-          '_is_advance': false,
-          '_is_reservation': false,
-        };
-      }).toList();
+      for (final o in ordersRaw) {
+        final ks = o['kitchen_status']?.toString() ?? '';
+        final rs = o['refund_status']?.toString() ?? 'none';
+        final st = o['status']?.toString().toLowerCase() ?? '';
 
-      // Fetch advance orders
-      final advanceOrdersRaw = await Supabase.instance.client
+        final isDone = ks == 'Ready' ||
+            ks == 'Done' ||
+            rs == 'full_refund' ||
+            rs == 'partial_refund' ||
+            st == 'refunded' ||
+            st == 'cancelled';
+
+        if (isDone) {
+          result.add({
+            ...o,
+            '_is_advance': false,
+            '_is_reservation': false,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching POS finished orders: $e');
+    }
+
+    // 2. Fetch advance orders
+    try {
+      final advRaw = await Supabase.instance.client
           .from('advance_orders')
           .select()
-          .inFilter('status', ['ready', 'done'])
           .order('created_at', ascending: false);
 
-      final List<Map<String, dynamic>> advanceOrders = advanceOrdersRaw.map((o) {
-        return {
-          ...o,
-          '_is_advance': true,
-          '_is_reservation': false,
-          'kitchen_status': o['status']?.toString().toLowerCase() == 'ready' ? 'Ready' : 'Done',
-        };
-      }).toList();
+      for (final o in advRaw) {
+        final st = o['status']?.toString().toLowerCase() ?? '';
+        final rs = o['refund_status']?.toString() ?? 'none';
 
-      // Fetch done event reservations
-      final reservationsRaw = await Supabase.instance.client
+        final isDone = st == 'ready' ||
+            st == 'done' ||
+            st == 'cancelled' ||
+            st == 'refunded' ||
+            rs == 'full_refund' ||
+            rs == 'partial_refund';
+
+        if (isDone) {
+          result.add({
+            ...o,
+            '_is_advance': true,
+            '_is_reservation': false,
+            'kitchen_status': st == 'ready' ? 'Ready' : 'Done',
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching advance finished orders: $e');
+    }
+
+    // 3. Fetch event reservations
+    try {
+      final resRaw = await Supabase.instance.client
           .from('reservations')
           .select()
-          .eq('kitchen_status', 'Done')
           .eq('is_menu_based', true)
           .order('event_date', ascending: false);
 
-      final List<Map<String, dynamic>> reservations = reservationsRaw.map((r) {
-        return {
-          ...r,
-          '_is_advance': false,
-          '_is_reservation': true,
-          'kitchen_status': 'Done',
-          'customer_name': r['customer_name'],
-          'created_at': r['event_date'],
-          'total_price': 0.0,
-        };
-      }).toList();
+      for (final r in resRaw) {
+        final ks = r['kitchen_status']?.toString() ?? '';
+        final st = r['status']?.toString().toLowerCase() ?? '';
+        final rs = r['refund_status']?.toString() ?? 'none';
 
-      final List<Map<String, dynamic>> combined = [
-        ...regularOrders,
-        ...advanceOrders,
-        ...reservations,
-      ];
-      
-      // Sort by creation time
-      combined.sort((a, b) {
-        final aTime = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(0);
-        final bTime = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(0);
-        return bTime.compareTo(aTime);
-      });
+        final isDone = ks == 'Done' ||
+            st == 'cancelled' ||
+            st == 'refunded' ||
+            rs == 'completed' ||
+            rs == 'full_refund' ||
+            rs == 'partial_refund';
 
-      return combined;
-    } catch (_) {
-      return [];
+        if (isDone) {
+          result.add({
+            ...r,
+            '_is_advance': false,
+            '_is_reservation': true,
+            'kitchen_status': 'Done',
+            'customer_name': r['customer_name'],
+            'created_at': r['event_date'],
+            'total_price': 0.0,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching reservation finished orders: $e');
     }
+
+    // Sort by creation time descending
+    result.sort((a, b) {
+      final aTime =
+          DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(0);
+      final bTime =
+          DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(0);
+      return bTime.compareTo(aTime);
+    });
+
+    return result;
   }
 
   List<Map<String, dynamic>> _filterOrders(List<Map<String, dynamic>> allOrders) {
@@ -4105,29 +4158,45 @@ class _FinishedOrderCard extends StatelessWidget {
              flex: 2,
              child: Align(
                alignment: Alignment.centerRight,
-               child: Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                 decoration: BoxDecoration(
-                   color: AppTheme.successGreen,
-                   borderRadius: BorderRadius.circular(20),
-                 ),
-                 child: Row(
-                   mainAxisSize: MainAxisSize.min,
-                   children: const [
-                     Icon(Icons.check, color: Colors.white, size: 14),
-                     SizedBox(width: 4),
-                     Text(
-                       'SERVED',
-                       style: TextStyle(
-                         color: Colors.white,
-                         fontWeight: FontWeight.w700,
-                         fontSize: 11,
-                         letterSpacing: 0.5,
+               child: () {
+                 final rs = order['refund_status']?.toString() ?? 'none';
+                 final status = order['status']?.toString().toLowerCase() ?? '';
+                 final isRefunded = rs == 'full_refund' || rs == 'partial_refund' || status == 'refunded' || status == 'cancelled';
+                 
+                 final badgeColor = isRefunded
+                     ? (status == 'cancelled' ? Colors.red.shade700 : Colors.red)
+                     : AppTheme.successGreen;
+                 final badgeText = (rs == 'full_refund' || status == 'refunded')
+                     ? 'REFUNDED'
+                     : (status == 'cancelled'
+                         ? 'CANCELLED'
+                         : 'SERVED');
+                 final badgeIcon = isRefunded ? Icons.cancel : Icons.check;
+
+                 return Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                   decoration: BoxDecoration(
+                     color: badgeColor,
+                     borderRadius: BorderRadius.circular(20),
+                   ),
+                   child: Row(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       Icon(badgeIcon, color: Colors.white, size: 14),
+                       const SizedBox(width: 4),
+                       Text(
+                         badgeText,
+                         style: const TextStyle(
+                           color: Colors.white,
+                           fontWeight: FontWeight.w700,
+                           fontSize: 11,
+                           letterSpacing: 0.5,
+                         ),
                        ),
-                     ),
-                   ],
-                 ),
-               ),
+                     ],
+                   ),
+                 );
+               }(),
              ),
           ),
         ],
