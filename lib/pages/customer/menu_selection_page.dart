@@ -8,6 +8,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/recipe_service.dart';
+import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 
 class MenuSelectionPage extends StatefulWidget {
   final String reservationType;
@@ -124,30 +125,27 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       }
 
       if (stock != null) {
-        // Calculate required ingredient quantity based on recipe and order quantity
         final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
         final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
         
-        // Check if required quantity exceeds current stock
         if (requiredQty > stock) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.errorRed,
               duration: const Duration(seconds: 2),
             ),
           );
           return false;
         }
         
-        // Check if stock is zero - no stock available
         if (stock <= 0) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('No stock available for $itemName. No ${ing['name']} available.'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.errorRed,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -233,15 +231,22 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           children: [
             _buildHeaderSection(),
             
-            // Pricing Summary Card (Subtle version)
+            // Pricing Summary Bar
             if (selectedItems.isNotEmpty)
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.goldenAmber, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.goldenAmber.withOpacity(0.12),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -250,18 +255,26 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total: PHP ${_fmt.format(_totalPrice)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          'Total: ₱${_fmt.format(_totalPrice)}',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.darkGrey),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Deposit: PHP ${_fmt.format(_depositAmount)}',
-                          style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
+                          'Deposit Required: ₱${_fmt.format(_depositAmount)}',
+                          style: GoogleFonts.inter(color: AppTheme.primaryColor, fontWeight: FontWeight.w800, fontSize: 12),
                         ),
                       ],
                     ),
-                    Text(
-                      '${selectedItems.values.fold(0, (sum, qty) => sum + qty)} items',
-                      style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.goldGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${selectedItems.values.fold(0, (sum, qty) => sum + qty)} items selected',
+                        style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
@@ -284,7 +297,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   Widget _buildHeaderSection() {
     return Container(
       decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
+        color: AppTheme.navColor,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -297,78 +310,67 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: GestureDetector(
+                child: AnimatedTapScale(
                   onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                  ),
                 ),
               ),
               Text(
                 'Select Menu Items',
-                style: GoogleFonts.lora(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
                   letterSpacing: -0.3,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Search Bar Row
-          Row(
-            children: [
-              // Red Bordered Search Bar (Now with white background for contrast)
-              Expanded(
-                child: Container(
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    style: const TextStyle(color: AppTheme.darkGrey),
-                    decoration: InputDecoration(
-                      hintText: 'Search for products...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w400),
-                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 16),
+          // Search Bar Row
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _searchQuery = value),
+              style: GoogleFonts.inter(color: AppTheme.darkGrey, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search delicious dishes...',
+                hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14),
+                prefixIcon: Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 22),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           // Filter and Category Chips Row
           SizedBox(
-            height: 40,
+            height: 38,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                // Filter Icon Button
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
-                ),
-                // "All" Category
                 _buildCategoryChip('All'),
-                // Other Categories
                 ...MenuService.categories.map((cat) => _buildCategoryChip(cat)),
               ],
             ),
@@ -380,36 +382,23 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   Widget _buildCategoryChip(String category) {
     final bool isSelected = _selectedCategory == category;
-    return GestureDetector(
+    return AnimatedTapScale(
       onTap: () => setState(() => _selectedCategory = category),
       child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
-            width: 1.5,
-          ),
+          gradient: isSelected ? AppTheme.goldGradient : null,
+          color: !isSelected ? Colors.white.withOpacity(0.12) : null,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected) ...[
-              const Icon(Icons.check, size: 18, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
-            ],
-            Text(
-              category,
-              style: TextStyle(
-                color: isSelected ? AppTheme.primaryColor : Colors.white,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 14,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
+        child: Text(
+          category,
+          style: GoogleFonts.inter(
+            color: isSelected ? Colors.black : Colors.white,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+            fontSize: 13,
+          ),
         ),
       ),
     );
@@ -418,18 +407,18 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
   Widget _buildBottomBar() {
     return Container(
       padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).padding.bottom + 24,
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -8),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -444,18 +433,18 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   widget.reservationType == 'Advance Order' 
                       ? 'Total Amount' 
                       : 'Deposit Required',
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
                     color: AppTheme.mediumGrey,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'PHP ${_fmt.format(_depositAmount)}',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                  '₱${_fmt.format(_depositAmount)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                     color: AppTheme.primaryColor,
                     letterSpacing: -0.5,
                   ),
@@ -463,12 +452,15 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
+          AnimatedTapScale(
+            onTap: () {
               final validation = _menuService.validateMenuSelection(selectedItems);
               if (validation != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(validation)),
+                  SnackBar(
+                    content: Text(validation),
+                    backgroundColor: AppTheme.errorRed,
+                  ),
                 );
                 return;
               }
@@ -476,22 +468,26 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               widget.onMenuSelected(selectedItems);
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 6,
-              shadowColor: AppTheme.primaryColor.withOpacity(0.4),
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-              shape: RoundedRectangleBorder(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ),
-            child: const Text(
-              'Confirm Selection',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
+              child: Text(
+                'Confirm Selection',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -502,21 +498,20 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   Widget _buildCategoryGrid(List<MenuItem> items) {
     if (items.isEmpty) {
-      return const Center(
-        child: Text(
-          'No items found.',
-          style: TextStyle(color: Colors.grey),
-        ),
+      return const EmptyStateCard(
+        icon: Icons.search_off_rounded,
+        title: 'No dishes found',
+        description: 'Try adjusting your search query or select another category.',
       );
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 4 : (ResponsiveUtils.isTablet(context) ? 3 : 2),
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
+        childAspectRatio: 0.74,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -529,9 +524,9 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
 
   Widget _buildMenuItemCard(MenuItem item, int quantity) {
     return Container(
-      decoration: AppTheme.cardDecoration().copyWith(
+      decoration: AppTheme.foodCardDecoration().copyWith(
         border: quantity > 0 
-            ? Border.all(color: AppTheme.primaryColor, width: 2)
+            ? Border.all(color: AppTheme.goldenAmber, width: 2)
             : Border.all(color: Colors.transparent),
       ),
       child: Column(
@@ -550,24 +545,24 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          borderRadius: BorderRadius.circular(14),
+                          gradient: AppTheme.goldGradient,
+                          borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
+                              blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
                         child: Text(
                           '$quantity',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                          style: GoogleFonts.inter(
+                            color: Colors.black,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
@@ -576,18 +571,17 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     bottom: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.75),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.black.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'PHP ${_fmt.format(item.price)}',
-                        style: const TextStyle(
+                        '₱${_fmt.format(item.price)}',
+                        style: GoogleFonts.inter(
                           color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -601,56 +595,61 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
           Expanded(
             flex: 2,
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(10.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w800,
                       fontSize: 13,
                       color: AppTheme.darkGrey,
-                      letterSpacing: -0.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.category,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.mediumGrey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        onPressed: () => _removeFromSelection(item),
-                        icon: const Icon(Icons.remove_circle_outline, size: 20),
-                        color: quantity > 0 ? AppTheme.primaryColor : AppTheme.lightGrey,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      AnimatedTapScale(
+                        onTap: () => _removeFromSelection(item),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: quantity > 0 ? AppTheme.primaryColor.withOpacity(0.12) : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.remove,
+                            size: 16,
+                            color: quantity > 0 ? AppTheme.primaryColor : Colors.grey,
+                          ),
+                        ),
                       ),
                       Text(
                         '$quantity',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          letterSpacing: -0.3,
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          color: AppTheme.darkGrey,
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => _addToSelection(item),
-                        icon: const Icon(Icons.add_circle_outline, size: 20),
-                        color: AppTheme.primaryColor,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      AnimatedTapScale(
+                        onTap: () => _addToSelection(item),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            gradient: AppTheme.goldGradient,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -673,21 +672,17 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         height: double.infinity,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          return Container(
-            color: AppTheme.lightGrey,
-            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
+          return const AppShimmer(width: double.infinity, height: double.infinity, borderRadius: 0);
         },
         errorBuilder: (context, error, stackTrace) => Container(
           color: AppTheme.lightGrey,
-          child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
+          child: const Icon(Icons.restaurant, color: Colors.grey, size: 36),
         ),
       );
     }
     return Container(
       color: AppTheme.lightGrey,
-      child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
+      child: const Icon(Icons.restaurant, color: Colors.grey, size: 36),
     );
   }
 }
-

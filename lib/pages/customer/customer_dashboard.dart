@@ -44,7 +44,7 @@ import 'package:intl/intl.dart';
 import 'package:yang_chow/models/menu_item.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-
+import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 
 class CustomerDashboardPage extends StatefulWidget {
   const CustomerDashboardPage({super.key});
@@ -975,116 +975,287 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   // =========================
 
   Widget _buildDesktopSidebarColumn({bool closeable = false}) {
+    final navItems = [
+      {'icon': Icons.home_rounded, 'label': 'Home', 'subtitle': 'Dashboard'},
+      {'icon': Icons.event_available_rounded, 'label': 'Reservations', 'subtitle': 'Book an event'},
+      {'icon': Icons.monetization_on_rounded, 'label': 'Transaction', 'subtitle': 'Payment history'},
+      {'icon': Icons.assignment_rounded, 'label': 'Activity', 'subtitle': 'Track orders'},
+    ];
+
     return Container(
       width: 280,
-      decoration: BoxDecoration(
-        color: AppTheme.navColor,
+      decoration: const BoxDecoration(
+        color: AppTheme.forestGreen, // #16302A
         border: Border(
-          right: BorderSide(color: Colors.white.withOpacity(0.15), width: 1),
+          right: BorderSide(color: AppTheme.sidebarDivider, width: 1), // #2B4941
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logo Section
+          // Logo & Brand Section
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: AppTheme.sidebarDivider, width: 1),
+              ),
+            ),
             child: Row(
               children: [
                 if (closeable)
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       _sidebarAnimController.reverse();
                       setState(() => _isSidebarOpen = false);
                     },
-                    tooltip: 'Close menu',
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.sidebarDivider.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, color: AppTheme.sidebarInactiveText, size: 18),
+                    ),
                   ),
-                if (closeable) const SizedBox(width: 4),
-                Image.asset(
-                  'assets/images/ycplogo.png',
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.contain,
+
+                // Logo with subtle gold accent ring
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.warmGold,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.forestGreen,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/ycplogo.png',
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Yang Chow',
-                  style: GoogleFonts.lora(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
+
+                // Brand Title & Subtitle
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Yang Chow',
+                      style: GoogleFonts.lora(
+                        color: AppTheme.priceBadgeText, // #F5F1E6
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      'Customer Portal',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.sidebarSubtitle, // #8FA89E
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: Colors.white.withOpacity(0.2)),
-          const SizedBox(height: 16),
 
-          // Navigation Items
-          ...List.generate(4, (index) {
-            final icons = [
-              Icons.home_rounded,
-              Icons.event_available_rounded,
-              Icons.monetization_on_rounded,
-              Icons.assignment_rounded,
-            ];
-            final labels = [
-              'Home',
-              'Reservations',
-              'Transaction',
-              'Activity',
-            ];
+          const SizedBox(height: 12),
+
+          // Section Label
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
+            child: Text(
+              'NAVIGATION',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.sidebarSubtitle,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+
+          // Navigation Items (Rules: 3px gold left border + 10-15% gold opacity background)
+          ...List.generate(navItems.length, (index) {
+            final item = navItems[index];
+            final isSelected = _selectedIndex == index;
 
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  color: _selectedIndex == index
-                      ? Colors.white.withOpacity(0.25)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  leading: Icon(
-                    icons[index],
-                    color: _selectedIndex == index
-                        ? Colors.white
-                        : Colors.white.withOpacity(0.65),
-                  ),
-                  title: Text(
-                    labels[index],
-                    style: TextStyle(
-                      color: _selectedIndex == index
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.65),
-                      fontWeight: _selectedIndex == index
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      fontSize: 15,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _selectedIndex = index;
+                    if (closeable) {
+                      _isSidebarOpen = false;
+                      _sidebarAnimController.reverse();
+                    }
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    // Rule: 10-15% gold opacity fill when active, transparent when inactive
+                    color: isSelected
+                        ? AppTheme.warmGold.withOpacity(0.13)
+                        : Colors.transparent,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                      topLeft: Radius.circular(4),
+                      bottomLeft: Radius.circular(4),
+                    ),
+                    // Rule: 3px gold left-border accent
+                    border: Border(
+                      left: BorderSide(
+                        color: isSelected ? AppTheme.warmGold : Colors.transparent,
+                        width: 3,
+                      ),
                     ),
                   ),
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() {
-                      _selectedIndex = index;
-                      if (closeable) {
-                        _isSidebarOpen = false;
-                        _sidebarAnimController.reverse();
-                      }
-                    });
-                  },
-                  hoverColor: Colors.white.withOpacity(0.1),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item['icon'] as IconData,
+                        size: 20,
+                        color: isSelected
+                            ? AppTheme.warmGold
+                            : AppTheme.sidebarInactiveIcon, // #9DB5AB
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Label & Subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item['label'] as String,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                color: isSelected
+                                    ? AppTheme.warmGold
+                                    : AppTheme.sidebarInactiveText, // #DDE5E0
+                              ),
+                            ),
+                            Text(
+                              item['subtitle'] as String,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isSelected
+                                    ? AppTheme.warmGold.withOpacity(0.8)
+                                    : AppTheme.sidebarSubtitle, // #8FA89E
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (isSelected)
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: AppTheme.warmGold,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             );
           }),
 
           const Spacer(),
+
+          // Divider
+          const Divider(height: 1, color: AppTheme.sidebarDivider),
+
+          // User Profile Summary Tile
+          GestureDetector(
+            onTap: () => setState(() => _selectedIndex = 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppTheme.warmGold,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _getUserDisplayName().isNotEmpty
+                            ? _getUserDisplayName()[0].toUpperCase()
+                            : 'Y',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.darkBrownText,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _getUserDisplayName(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.sidebarInactiveText,
+                          ),
+                        ),
+                        Text(
+                          Supabase.instance.client.auth.currentUser?.email ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppTheme.sidebarSubtitle,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.sidebarInactiveIcon,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -1329,28 +1500,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             ),
         ),
 
-        // Modern Animated Mobile Navigation at Bottom (Floating Icons Design)
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          decoration: BoxDecoration(
-            color: AppTheme.navColor,
-          ),
+        // Modern Animated Mobile Navigation at Bottom (#16302A Forest Green & #E8B84B Warm Gold)
+        SafeArea(
+          top: false,
           child: Container(
-            height: 52,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
             decoration: const BoxDecoration(
-              color: Colors.transparent,
+              color: AppTheme.forestGreen, // #16302A
+              border: Border(top: BorderSide(color: AppTheme.sidebarDivider, width: 1)), // #2B4941
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
-                  _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
-                  _buildMobileNavItem(2, Icons.monetization_on_rounded, 'Price'),
-                  _buildMobileNavItem(3, Icons.assignment_rounded, 'Activity'),
-                ],
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildMobileNavItem(0, Icons.home_rounded, 'Home'),
+                _buildMobileNavItem(1, Icons.event_available_rounded, 'Reserve'),
+                _buildMobileNavItem(2, Icons.monetization_on_rounded, 'Price'),
+                _buildMobileNavItem(3, Icons.assignment_rounded, 'Activity'),
+              ],
             ),
           ),
         ),
@@ -1370,39 +1536,46 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 12,
-          vertical: 6,
+          horizontal: isSelected ? 18 : 12,
+          vertical: 7,
         ),
         decoration: BoxDecoration(
-          color: isSelected
-              ? Colors.white.withOpacity(0.2)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          color: isSelected ? AppTheme.warmGold : Colors.transparent, // #E8B84B warm gold when active
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.warmGold.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedScale(
               scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 250),
               child: Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-                size: 24,
+                color: isSelected ? AppTheme.darkBrownText : AppTheme.sidebarInactiveIcon, // #412402 on gold / #9DB5AB inactive
+                size: 22,
               ),
             ),
             if (isSelected) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 7),
               Text(
                 label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(
+                  color: AppTheme.darkBrownText, // #412402 Dark brown text
+                  fontWeight: FontWeight.w900,
                   fontSize: 13,
-                  letterSpacing: 0.2,
+                  letterSpacing: 0.1,
                 ),
               ),
             ],
@@ -1411,6 +1584,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       ),
     );
   }
+
 
   Widget _buildContent() {
     return Container(
@@ -1647,14 +1821,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(items.length, (index) {
+            final isActive = _currentHeroPage == index;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 6,
-              width: _currentHeroPage == index ? 28 : 6,
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              height: 7,
+              width: isActive ? 32 : 7,
               decoration: BoxDecoration(
-                color: _currentHeroPage == index ? AppTheme.primaryColor : Colors.grey.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(3),
+                gradient: isActive ? AppTheme.goldGradient : null,
+                color: isActive ? null : Colors.grey.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.goldenAmber.withOpacity(0.5),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
             );
           }),
@@ -1788,14 +1974,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           const SizedBox(height: 16),
           
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Text(
-                  'Complete Menu',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.darkGrey,
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.goldGradient,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Complete Menu',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkGrey,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -2130,73 +2330,50 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-
                 borderRadius: BorderRadius.circular(24),
-
+                border: const Border(
+                  left: BorderSide(color: AppTheme.primaryColor, width: 4),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.04),
-
                     blurRadius: 20,
-
                     offset: const Offset(0, 10),
                   ),
                 ],
               ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_reservationType == 'Event Place') ...[
+                        // Event Type
+                        _buildFormLabel('EVENT TYPE'),
 
-              child: IntrinsicHeight(
-                child: Row(
-                  children: [
-                    // Red Vertical Line Accent
-                    Container(
-                      width: 4,
+                        const SizedBox(height: 8),
 
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryColor,
+                        _buildStyledDropdown<String>(
+                          value: _selectedEventType,
 
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(24),
+                          hint: 'Select event type',
 
-                          bottomLeft: Radius.circular(24),
+                          icon: Icons.celebration_rounded,
+
+                          items: _eventTypes,
+
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedEventType = val;
+
+                              _eventController.text = val ?? '';
+                            });
+                          },
                         ),
-                      ),
-                    ),
 
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-
-                        child: Form(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-
-                            children: [
-                              if (_reservationType == 'Event Place') ...[
-                                // Event Type
-                                _buildFormLabel('EVENT TYPE'),
-
-                                const SizedBox(height: 8),
-
-                                _buildStyledDropdown<String>(
-                                  value: _selectedEventType,
-
-                                  hint: 'Select event type',
-
-                                  icon: Icons.celebration_rounded,
-
-                                  items: _eventTypes,
-
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _selectedEventType = val;
-
-                                      _eventController.text = val ?? '';
-                                    });
-                                  },
-                                ),
-
-                                const SizedBox(height: 24),
-                              ],
+                        const SizedBox(height: 24),
+                      ],
 
                               // Date
                               _buildFormLabel(_reservationType == 'Event Place' ? 'DATE' : (_advanceOrderType == 'Dine In' ? 'DINING DATE' : 'PICKUP DATE')),
@@ -2426,6 +2603,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                           TextButton(
                                             onPressed: () => setState(() {
                                               _selectedMenuItems.clear();
+                                              _preOrderCart.clear();
                                             }),
 
                                             child: const Text(
@@ -2760,7 +2938,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               // Payment Option Selection
                               if (_reservationType == 'Event Place')
                                 Container(
-                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     color: Colors.grey.shade50,
                                     borderRadius: BorderRadius.circular(16),
@@ -2768,109 +2945,118 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       color: Colors.grey.shade100,
                                     ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(
-                                                    alpha: 0.05,
-                                                  ),
-                                                  blurRadius: 4,
-                                                ),
-                                              ],
-                                            ),
-                                            child: const Icon(
-                                              Icons.payment_rounded,
-                                              color: AppTheme.primaryColor,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          const Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Material(
+                                      color: Colors.grey.shade50,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
                                               children: [
-                                                Text(
-                                                  'Payment Option',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    color: AppTheme.darkGrey,
+                                                Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black.withValues(
+                                                          alpha: 0.05,
+                                                        ),
+                                                        blurRadius: 4,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.payment_rounded,
+                                                    color: AppTheme.primaryColor,
+                                                    size: 20,
                                                   ),
                                                 ),
-                                                Text(
-                                                  'Choose how you want to pay for your reservation',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: AppTheme.mediumGrey,
+                                                const SizedBox(width: 12),
+                                                const Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        'Payment Option',
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 14,
+                                                          color: AppTheme.darkGrey,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        'Choose how you want to pay for your reservation',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: AppTheme.mediumGrey,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(height: 16),
+                                            // Radio buttons for payment options
+                                            Column(
+                                              children: [
+                                                RadioListTile<String>(
+                                                  title: const Text(
+                                                    'Pay Half (Deposit)',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  subtitle: const Text(
+                                                    'Pay 50% now as deposit, remaining balance due on event day',
+                                                    style: TextStyle(fontSize: 12),
+                                                  ),
+                                                  value: 'half',
+                                                  groupValue: _paymentOption,
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _paymentOption = value!;
+                                                    });
+                                                  },
+                                                  activeColor: AppTheme.primaryColor,
+                                                  contentPadding: EdgeInsets.zero,
+                                                  visualDensity: VisualDensity.compact,
+                                                ),
+                                                RadioListTile<String>(
+                                                  title: const Text(
+                                                    'Pay in Full',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  subtitle: const Text(
+                                                    'Pay the total amount upfront',
+                                                    style: TextStyle(fontSize: 12),
+                                                  ),
+                                                  value: 'full',
+                                                  groupValue: _paymentOption,
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _paymentOption = value!;
+                                                    });
+                                                  },
+                                                  activeColor: AppTheme.primaryColor,
+                                                  contentPadding: EdgeInsets.zero,
+                                                  visualDensity: VisualDensity.compact,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      // Radio buttons for payment options
-                                      Column(
-                                        children: [
-                                          RadioListTile<String>(
-                                            title: const Text(
-                                              'Pay Half (Deposit)',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            subtitle: const Text(
-                                              'Pay 50% now as deposit, remaining balance due on event day',
-                                              style: TextStyle(fontSize: 12),
-                                            ),
-                                            value: 'half',
-                                            groupValue: _paymentOption,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _paymentOption = value!;
-                                              });
-                                            },
-                                            activeColor: AppTheme.primaryColor,
-                                            contentPadding: EdgeInsets.zero,
-                                            visualDensity: VisualDensity.compact,
-                                          ),
-                                          RadioListTile<String>(
-                                            title: const Text(
-                                              'Pay in Full',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            subtitle: const Text(
-                                              'Pay the total amount upfront',
-                                              style: TextStyle(fontSize: 12),
-                                            ),
-                                            value: 'full',
-                                            groupValue: _paymentOption,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _paymentOption = value!;
-                                              });
-                                            },
-                                            activeColor: AppTheme.primaryColor,
-                                            contentPadding: EdgeInsets.zero,
-                                            visualDensity: VisualDensity.compact,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
 
@@ -3181,10 +3367,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
             ),
 
             const SizedBox(height: 24), // Reduced from 32
@@ -3748,32 +3930,52 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         itemBuilder: (context, index) {
           final category = MenuService.categories[index];
           final isActive = _selectedCategory == category;
-          return Padding(
+          return GestureDetector(
             key: _getChipKey(category),
-            padding: const EdgeInsets.only(right: 12),
-            child: ActionChip(
-              side: BorderSide.none,
-              label: Text(
+            onTap: () async {
+              setState(() => _selectedCategory = category);
+              final key = _getCategoryKey(category);
+              if (key.currentContext != null) {
+                _isScrollingToCategory = true;
+                await Scrollable.ensureVisible(
+                  key.currentContext!,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                );
+                _isScrollingToCategory = false;
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.warmGold : Colors.white, // #E8B84B when active
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: isActive ? Colors.transparent : AppTheme.cardBorder, // #E5E0D2
+                  width: 1.5,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.warmGold.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Text(
                 category,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                  color: isActive ? Colors.white : AppTheme.darkGrey,
+                  fontSize: 13,
+                  color: isActive ? AppTheme.darkBrownText : AppTheme.darkGrey, // #412402 on gold
+                  letterSpacing: isActive ? 0.1 : 0,
                 ),
               ),
-              backgroundColor: isActive ? AppTheme.primaryColor : AppTheme.primaryLight.withOpacity(0.1),
-              onPressed: () async {
-                setState(() => _selectedCategory = category);
-                final key = _getCategoryKey(category);
-                if (key.currentContext != null) {
-                  _isScrollingToCategory = true;
-                  await Scrollable.ensureVisible(
-                    key.currentContext!,
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeInOutCubic,
-                  );
-                  _isScrollingToCategory = false;
-                }
-              },
             ),
           );
         },
@@ -3787,14 +3989,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            category,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.primaryColor,
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                category,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.darkGrey,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
           ),
         ),
         GridView.builder(
@@ -3823,24 +4039,48 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16), // Reduced from 24
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
                 'Featured Dishes',
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: AppTheme.darkGrey,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold, // Warm Gold accent
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '🔥 TOP PICKS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.darkBrownText, // Dark brown text on gold accent
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        
-        // Menu Items Grid
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _buildMenuCategoryGrid(),
@@ -3856,10 +4096,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     if (items.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(40),
-        child: const Center(
-          child: Text(
-            'No top-selling items available.',
-            style: TextStyle(color: Colors.grey),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.no_meals_outlined, size: 42, color: AppTheme.mediumGrey),
+              const SizedBox(height: 12),
+              Text(
+                'No featured dishes available.',
+                style: GoogleFonts.inter(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ),
       );
@@ -3883,95 +4135,106 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildProductCard(MenuItem item) {
-    return InkWell(
+    return GestureDetector(
       onTap: () => _showMenuItemDetailsDialog(item),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.cardBorder, width: 1), // Light warm gray border #E5E0D2
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Section
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              child: Stack(
-                children: [
-                  _buildImageWidget(item),
-                  // Glassmorphic Price Badge
-                  Positioned(
-                    top: 12,
-                    right: 12,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.3)),
-                          ),
-                          child: Text(
-                            '₱${_fmt.format(item.price)}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image Section
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+                child: Stack(
+                  children: [
+                    _buildImageWidget(item),
+                    // Uniform Price Badge across menu grid: #16302A bg with #F5F1E6 text
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.priceBadgeBg, // #16302A Deep forest green
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
+                          ],
+                        ),
+                        child: Text(
+                          '₱${_fmt.format(item.price)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.priceBadgeText, // #F5F1E6 Off-white
                           ),
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Info Section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.darkGrey, // Near-black warm gray #2C2C2A
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Category Tag: Rust/coral #993C1D
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.categoryTagText.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      item.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        color: AppTheme.categoryTagText, // #993C1D Rust/coral
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          // Info Section
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.darkGrey,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.description ?? item.category,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey.shade500,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -4045,6 +4308,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
               table: reservation['_db_table'] ?? 'reservations',
               totalPrice: totalPrice,
               onPaymentSuccess: () {
+                if (mounted) {
+                  setState(() {
+                    _selectedMenuItems.clear();
+                    _preOrderCart.clear();
+                  });
+                }
                 _updateReservationPaymentStatus(
                   reservation['id'],
                   paymentAmount,
@@ -4286,6 +4555,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       setState(() {
         _selectedMenuItems.clear();
+        _preOrderCart.clear();
         _selectedIdImage = null;
         _uploadedIdUrl = null;
       });
@@ -4419,61 +4689,66 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 // Payment option selection (only for event place)
                 if (isEventPlace) ...[
                   Container(
-                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey.shade200),
                     ),
-                    child: Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Text(
-                            'Pay Half (Deposit)',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Material(
+                        color: Colors.grey.shade50,
+                        child: Column(
+                          children: [
+                            RadioListTile<String>(
+                              title: const Text(
+                                'Pay Half (Deposit)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'PHP ${depositAmount.toStringAsFixed(2)} - 50% deposit',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: 'half',
+                              groupValue: paymentOption,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  paymentOption = value!;
+                                });
+                              },
+                              activeColor: AppTheme.primaryColor,
+                              contentPadding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
                             ),
-                          ),
-                          subtitle: Text(
-                            'PHP ${depositAmount.toStringAsFixed(2)} - 50% deposit',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          value: 'half',
-                          groupValue: paymentOption,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              paymentOption = value!;
-                            });
-                          },
-                          activeColor: AppTheme.primaryColor,
-                          contentPadding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        RadioListTile<String>(
-                          title: const Text(
-                            'Pay in Full',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            RadioListTile<String>(
+                              title: const Text(
+                                'Pay in Full',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'PHP ${totalPrice.toStringAsFixed(2)} - Full amount',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              value: 'full',
+                              groupValue: paymentOption,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  paymentOption = value!;
+                                });
+                              },
+                              activeColor: AppTheme.primaryColor,
+                              contentPadding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
                             ),
-                          ),
-                          subtitle: Text(
-                            'PHP ${totalPrice.toStringAsFixed(2)} - Full amount',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          value: 'full',
-                          groupValue: paymentOption,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              paymentOption = value!;
-                            });
-                          },
-                          activeColor: AppTheme.primaryColor,
-                          contentPadding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -4983,74 +5258,92 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     else if (s == 'done' || s == 'completed') currentStep = 2;
     
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F3EE),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.shade100),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'ORDER PROGRESS',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
+            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
             children: List.generate(steps.length, (index) {
               final isActive = index <= currentStep;
               final isCompleted = index < currentStep;
+              final isCurrent = index == currentStep;
               
               return Expanded(
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
-                          child: Container(
-                            height: 2.5, 
-                            color: index == 0 
-                                ? Colors.transparent 
-                                : (isActive ? AppTheme.primaryColor : Colors.grey.shade200)
-                          )
-                        ),
+                        // Step circle
                         Container(
-                          width: 28,
-                          height: 28,
+                          width: isCurrent ? 34 : 28,
+                          height: isCurrent ? 34 : 28,
                           decoration: BoxDecoration(
-                            color: isActive ? AppTheme.primaryColor : Colors.white,
+                            gradient: isCurrent
+                                ? AppTheme.goldGradient
+                                : (isCompleted
+                                    ? LinearGradient(colors: [AppTheme.successGreen, Colors.teal])
+                                    : null),
+                            color: (!isCurrent && !isCompleted) ? Colors.grey.shade300 : null,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isActive ? AppTheme.primaryColor : Colors.grey.shade300, 
-                              width: 2.5
-                            ),
-                            boxShadow: isActive ? [
-                              BoxShadow(
-                                color: AppTheme.primaryColor.withOpacity(0.2),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              )
-                            ] : null,
+                            boxShadow: isCurrent
+                                ? [
+                                    BoxShadow(
+                                      color: AppTheme.goldenAmber.withOpacity(0.45),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : null,
                           ),
-                          child: isCompleted 
-                            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                            : (isActive ? Center(child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))) : null),
+                          child: Center(
+                            child: isCompleted
+                                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                                : Icon(
+                                    isCurrent
+                                        ? (index == 0 ? Icons.receipt_long_rounded : (index == 1 ? Icons.soup_kitchen_rounded : Icons.takeout_dining_rounded))
+                                        : Icons.radio_button_unchecked_rounded,
+                                    size: isCurrent ? 18 : 14,
+                                    color: (isActive || isCompleted) ? (isCurrent ? Colors.black : Colors.white) : Colors.grey.shade500,
+                                  ),
+                          ),
                         ),
-                        Expanded(
-                          child: Container(
-                            height: 2.5, 
-                            color: index == steps.length - 1 
-                                ? Colors.transparent 
-                                : (index < currentStep ? AppTheme.primaryColor : Colors.grey.shade200)
-                          )
+                        const SizedBox(height: 6),
+                        Text(
+                          steps[index],
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: isCurrent ? FontWeight.w800 : (isCompleted ? FontWeight.w600 : FontWeight.w400),
+                            color: isCurrent
+                                ? AppTheme.goldenAmber
+                                : (isCompleted ? AppTheme.darkGrey : AppTheme.mediumGrey),
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      steps[index],
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                        color: isActive ? AppTheme.darkGrey : AppTheme.mediumGrey,
+                    if (index < steps.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            gradient: index < currentStep
+                                ? LinearGradient(colors: [AppTheme.successGreen, Colors.teal])
+                                : null,
+                            color: index >= currentStep ? Colors.grey.shade300 : null,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               );
@@ -5952,6 +6245,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     if (mounted) {
                       setState(() {
                         _selectedMenuItems.clear();
+                        _preOrderCart.clear();
                         _selectedIndex = 0; // Go to home/activity
                       });
                       _loadCustomerReservations();
@@ -6025,40 +6319,50 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     }).toList();
 
     if (quotations.isEmpty) {
-      return Container(
-        margin: EdgeInsets.only(bottom: 24),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.mail_outline, color: Colors.orange, size: 20),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No Price Transactions Yet',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  Text(
-                    'Admin will send pricing transactions for your reservations',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ],
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  size: 40,
+                  color: AppTheme.warmGold,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                'No Price Transactions Yet',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.darkGrey,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Admin will send pricing transactions for your reservations here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.mediumGrey,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -6068,50 +6372,56 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.monetization_on, color: AppTheme.primaryColor),
-              SizedBox(width: 8),
-              Text(
-                'Price Transactions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.darkGrey,
-                ),
-              ),
-              Spacer(),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${quotations.length} transaction${quotations.length > 1 ? 's' : ''}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: AppTheme.warmGold,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          ...quotations.map((reservation) => _buildQuotationCard(reservation)),
-        ],
+                const SizedBox(width: 10),
+                Text(
+                  'Price Transactions',
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.darkGrey,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.forestGreen,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${quotations.length} transaction${quotations.length > 1 ? 's' : ''}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.priceBadgeText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...quotations.map((reservation) => _buildQuotationCard(reservation)),
+          ],
+        ),
       ),
-    ),
     );
   }
 
   Widget _buildQuotationCard(Map<String, dynamic> reservation) {
-    final totalPrice = reservation['total_price'] as double;
-
-    final depositAmount = reservation['deposit_amount'] as double;
-
+    final totalPrice = (reservation['total_price'] ?? 0.0) as double;
+    final depositAmount = (reservation['deposit_amount'] ?? 0.0) as double;
     final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
 
     final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
@@ -6122,426 +6432,334 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       reservation,
     );
 
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
+    final isUnpaidOrDue = paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment;
 
-      elevation: 2,
-
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-
-        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.3)),
-      ),
-
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primaryColor.withOpacity(0.05),
-
-              Colors.white,
-            ],
-
-            begin: Alignment.topLeft,
-
-            end: Alignment.bottomRight,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-        ),
-
-        child: Padding(
-          padding: EdgeInsets.all(16),
-
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(8),
-
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-
-                    child: Icon(
-                      Icons.receipt_long,
-                      color: AppTheme.primaryColor,
-                      size: 20,
-                    ),
-                  ),
-
-                  SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      children: [
-                        Text(
-                          'Price Transaction',
-
-                          style: TextStyle(
-                            fontSize: 14,
-
-                            fontWeight: FontWeight.bold,
-
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-
-                        Text(
-                          reservation['event_type'] ?? 'Event',
-
-                          style: TextStyle(
-                            fontSize: 12,
-
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-
-                    decoration: BoxDecoration(
-                      color: _getPaymentStatusColor(
-                        paymentStatus,
-                        true,
-                      ).withOpacity(0.1),
-
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-
-                    child: Text(
-                      _getPaymentStatusText(
-                        paymentStatus, 
-                        true, 
-                        isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
-                        isPayInFull: isPayInFull,
-                      ),
-
-                      style: TextStyle(
-                        fontSize: 10,
-
-                        color: _getPaymentStatusColor(paymentStatus, true),
-
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 16),
-
-              // Event Details
-              Container(
-                padding: EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.05),
-
-                  borderRadius: BorderRadius.circular(8),
-                ),
-
-                child: Column(
-                  children: [
-                    _buildQuotationDetailRow(
-                      'Date',
-                      reservation['event_date'] ?? 'N/A',
-                      Icons.calendar_today,
-                    ),
-
-                    _buildQuotationDetailRow(
-                      'Time',
-                      '${reservation['start_time']} (${reservation['duration_hours']}h)',
-                      Icons.access_time,
-                    ),
-
-                    _buildQuotationDetailRow(
-                      'Guests',
-                      '${reservation['number_of_guests']} people',
-                      Icons.people,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Menu Items (if available)
-              if (reservation['selected_menu_items'] != null) ...[
-                SizedBox(height: 16),
-
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
                 Container(
-                  padding: EdgeInsets.all(12),
-
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.05),
-
-                    borderRadius: BorderRadius.circular(8),
-
-                    border: Border.all(
-                      color: AppTheme.primaryColor.withOpacity(0.2),
-                    ),
+                    color: AppTheme.forestGreen,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-
+                  child: const Icon(
+                    Icons.receipt_long_rounded,
+                    color: AppTheme.priceBadgeText,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.restaurant_menu,
-                            color: AppTheme.primaryColor,
-                            size: 16,
-                          ),
-
-                          SizedBox(width: 4),
-
-                          Text(
-                            'Menu Items',
-
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Price Transaction',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.darkGrey,
+                        ),
                       ),
-
-                      SizedBox(height: 8),
-
-                      ..._buildMenuItemsList(
-                        reservation['selected_menu_items'],
+                      const SizedBox(height: 2),
+                      Text(
+                        reservation['event_type'] ?? 'Event',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.sidebarSubtitle,
+                        ),
                       ),
                     ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isUnpaidOrDue
+                        ? AppTheme.warmGold
+                        : AppTheme.forestGreen,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isUnpaidOrDue ? AppTheme.warmGold : AppTheme.forestGreen).withOpacity(0.2),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _getPaymentStatusText(
+                      paymentStatus, 
+                      true, 
+                      isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
+                      isPayInFull: isPayInFull,
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: isUnpaidOrDue
+                          ? AppTheme.darkBrownText
+                          : AppTheme.priceBadgeText,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ),
               ],
+            ),
 
-              SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-              // Pricing Breakdown
-              Container(
-                padding: EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: AppTheme.successGreen.withOpacity(0.05),
-
-                  borderRadius: BorderRadius.circular(8),
-
-                  border: Border.all(
-                    color: AppTheme.successGreen.withOpacity(0.2),
+            // Event Details Box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.backgroundColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Column(
+                children: [
+                  _buildQuotationDetailRow(
+                    'Date',
+                    reservation['event_date'] ?? 'N/A',
+                    Icons.calendar_today_rounded,
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  _buildQuotationDetailRow(
+                    'Time',
+                    '${reservation['start_time']} (${reservation['duration_hours']}h)',
+                    Icons.access_time_rounded,
+                  ),
+                  const SizedBox(height: 6),
+                  _buildQuotationDetailRow(
+                    'Guests',
+                    '${reservation['number_of_guests']} people',
+                    Icons.people_alt_rounded,
+                  ),
+                ],
+              ),
+            ),
 
+            // Menu Items Section
+            if (reservation['selected_menu_items'] != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.cardBorder),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.monetization_on,
-                          color: AppTheme.successGreen,
-                          size: 16,
+                        const Icon(
+                          Icons.restaurant_menu_rounded,
+                          color: AppTheme.categoryTagText,
+                          size: 18,
                         ),
-
-                        SizedBox(width: 4),
-
+                        const SizedBox(width: 6),
                         Text(
-                          'Pricing Details',
-
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-
-                            color: AppTheme.successGreen,
+                          'Menu Items',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.darkGrey,
                           ),
                         ),
                       ],
                     ),
-
-                    SizedBox(height: 8),
-
-                    _buildPricingRow('Total Price', totalPrice, Colors.black),
-
-                    if (!isPayInFull) ...[
-                      _buildPricingRow(
-                        'Deposit (50%)',
-                        depositAmount,
-                        AppTheme.successGreen,
-                      ),
-
-                      _buildPricingRow(
-                        'Remaining Balance',
-                        totalPrice - depositAmount,
-                        Colors.grey,
-                      ),
-                    ],
+                    const SizedBox(height: 10),
+                    ..._buildMenuItemsList(
+                      reservation['selected_menu_items'],
+                    ),
                   ],
                 ),
               ),
+            ],
 
-              SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-              // Action Buttons
-              if (needsDepositPayment)
-                SizedBox(
-                  width: double.infinity,
-
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showPaymentDialog(reservation),
-
-                    icon: Icon(Icons.payment, size: 18),
-
-                    label: Text(
-                      isPayInFull
-                          ? 'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})'
-                          : 'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
-                    ),
-
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.successGreen,
-
-                      foregroundColor: Colors.white,
-
-                      padding: EdgeInsets.symmetric(vertical: 12),
-
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                )
-              else if (paymentStatus == 'deposit_paid')
-                Container(
-                  width: double.infinity,
-
-                  padding: EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-
-                    borderRadius: BorderRadius.circular(8),
-
-                    border: Border.all(
-                      color: Colors.orange.withOpacity(0.3),
-                    ),
-                  ),
-
-                  child: Row(
+            // Pricing Details Box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.forestGreen.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.forestGreen.withOpacity(0.18)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Icon(
-                        Icons.pending_actions,
-                        color: Colors.orange,
-                        size: 20,
+                      const Icon(
+                        Icons.monetization_on_rounded,
+                        color: AppTheme.forestGreen,
+                        size: 18,
                       ),
-
-                      SizedBox(width: 8),
-
-                      Expanded(
-                        child: Text(
-                          reservation['_db_table'] == 'advance_orders'
-                              ? 'Full paid! Awaiting admin approval.'
-                              : 'Deposit paid! Awaiting admin approval.',
-
-                          style: TextStyle(
-                            color: Colors.orange,
-
-                            fontWeight: FontWeight.w500,
-                          ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Pricing Details',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.forestGreen,
                         ),
                       ),
                     ],
                   ),
-                )
-              else if (reservation['status'] == 'pending_admin_approval')
-                Container(
-                  width: double.infinity,
-
-                  padding: EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-
-                    borderRadius: BorderRadius.circular(8),
-
-                    border: Border.all(
-                      color: Colors.orange.withOpacity(0.3),
+                  const SizedBox(height: 10),
+                  _buildPricingRow('Total Price', totalPrice, AppTheme.darkGrey),
+                  if (!isPayInFull) ...[
+                    const SizedBox(height: 4),
+                    _buildPricingRow(
+                      'Deposit (50%)',
+                      depositAmount,
+                      AppTheme.forestGreen,
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    _buildPricingRow(
+                      'Remaining Balance',
+                      totalPrice - depositAmount,
+                      AppTheme.mediumGrey,
+                    ),
+                  ],
+                ],
+              ),
+            ),
 
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.pending_actions,
-                        color: Colors.orange,
-                        size: 20,
-                      ),
+            const SizedBox(height: 16),
 
-                      SizedBox(width: 8),
-
-                      Expanded(
-                        child: Text(
-                          'Payment received! Awaiting admin approval.',
-
-                          style: TextStyle(
-                            color: Colors.orange,
-
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+            // Action Buttons
+            if (needsDepositPayment)
+              AnimatedTapScale(
+                onTap: () => _showPaymentDialog(reservation),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warmGold,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.warmGold.withOpacity(0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                )
-              else if (reservation['status'] == 'confirmed')
-                Container(
-                  width: double.infinity,
-
-                  padding: EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-
-                    borderRadius: BorderRadius.circular(8),
-
-                    border: Border.all(
-                      color: Colors.green.withOpacity(0.3),
-                    ),
-                  ),
-
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 20),
-
-                      SizedBox(width: 8),
-
-                      Expanded(
-                        child: Text(
-                          'Reservation confirmed!',
-
-                          style: TextStyle(
-                            color: Colors.green,
-
-                            fontWeight: FontWeight.w500,
-                          ),
+                      const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        isPayInFull
+                            ? 'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})'
+                            : 'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.darkBrownText,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ],
                   ),
                 ),
-            ],
-          ),
+              )
+            else if (paymentStatus == 'deposit_paid')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pending_actions, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        reservation['_db_table'] == 'advance_orders'
+                            ? 'Full paid! Awaiting admin approval.'
+                            : 'Deposit paid! Awaiting admin approval.',
+                        style: GoogleFonts.inter(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (reservation['status'] == 'pending_admin_approval')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.pending_actions, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Payment received! Awaiting admin approval.',
+                        style: GoogleFonts.inter(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (reservation['status'] == 'confirmed')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.successGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.successGreen.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: AppTheme.successGreen, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Reservation confirmed!',
+                        style: GoogleFonts.inter(color: AppTheme.successGreen, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -6549,18 +6767,29 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   Widget _buildQuotationDetailRow(String label, String value, IconData icon) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 4),
-
+      padding: const EdgeInsets.only(bottom: 2),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: AppTheme.primaryColor),
-
-          SizedBox(width: 8),
-
+          Icon(icon, size: 16, color: AppTheme.forestGreen),
+          const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.mediumGrey,
+            ),
+          ),
           Expanded(
-            child: Text(value, style: TextStyle(color: AppTheme.darkGrey)),
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.darkGrey,
+              ),
+            ),
           ),
         ],
       ),
@@ -6584,7 +6813,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       return [
         Text(
           'No menu items selected',
-          style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          style: GoogleFonts.inter(color: AppTheme.mediumGrey, fontStyle: FontStyle.italic, fontSize: 12),
         ),
       ];
     }
@@ -6602,22 +6831,48 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         menuItems.add(
           Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  menuName,
-                  style: TextStyle(
-                    color: AppTheme.darkGrey,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        menuName,
+                        style: GoogleFonts.inter(
+                          color: AppTheme.darkGrey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.categoryTagText.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'x$qty',
+                          style: GoogleFonts.inter(
+                            color: AppTheme.categoryTagText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (price != null)
                   Text(
-                    '₱${price.toStringAsFixed(2)}   x$qty  =  ₱${totalPrice.toStringAsFixed(2)}',
-                    style: TextStyle(color: AppTheme.darkGrey, fontSize: 14),
+                    '₱${_fmt.format(totalPrice)}',
+                    style: GoogleFonts.inter(
+                      color: AppTheme.darkGrey,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
               ],
             ),
@@ -6631,26 +6886,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   Widget _buildPricingRow(String label, double amount, Color color) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 4),
-
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
         children: [
           Text(
             label,
-
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-          ),
-
-          Text(
-            'PHP ${amount.toStringAsFixed(2)}',
-
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 12,
-
-              fontWeight: FontWeight.bold,
-
+              fontWeight: FontWeight.w600,
+              color: AppTheme.darkGrey.withOpacity(0.75),
+            ),
+          ),
+          Text(
+            'PHP ${_fmt.format(amount)}',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
               color: color,
             ),
           ),
@@ -6806,3 +7058,4 @@ class _StickyCategoryNavBarDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.child != child;
   }
 }
+

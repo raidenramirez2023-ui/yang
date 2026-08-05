@@ -3,16 +3,50 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Professional App Theme System
 class AppTheme {
-  // Primary Colors (Refined for better contrast and modern feel)
-  static const Color primaryColor = Color(0xFFC62828); // Deeper, more elegant red
-  static const Color primaryDark = Color(0xFF8E0000);
+  // Deep Forest Green Palette & Warm Gold Accents
+  static const Color forestGreen = Color(0xFF16302A); // Sidebar & Top Bar background
+  static const Color navColor = Color(0xFF16302A); // Unified Top Bar & Sidebar
+  static const Color sidebarDivider = Color(0xFF2B4941);
+  static const Color sidebarInactiveText = Color(0xFFDDE5E0);
+  static const Color sidebarInactiveIcon = Color(0xFF9DB5AB);
+  static const Color sidebarSubtitle = Color(0xFF8FA89E);
 
-  // Primary gradient (welcome banner, sidebar header)
-  static LinearGradient get primaryGradient => const LinearGradient(
-    colors: [primaryColor, primaryDark],
+  // Primary Accent (Active states, CTAs, primary buttons)
+  static const Color warmGold = Color(0xFFE8B84B);
+  static const Color primaryColor = Color(0xFFE8B84B); // Primary CTA color
+  static const Color primaryDark = Color(0xFF0F221E); // Deep Forest Dark Accent
+  static const Color primaryLight = Color(0xFFF3C766); // Light Gold Accent
+  static const Color darkBrownText = Color(0xFF412402); // Text on gold accent (never black)
+
+  // Page, Card & Typography Colors
+  static const Color backgroundColor = Color(0xFFF7F3EA); // Warm off-white
+  static const Color white = Color(0xFFFFFFFF); // Card background
+  static const Color cardBorder = Color(0xFFE5E0D2); // Light warm gray border
+  static const Color darkGrey = Color(0xFF2C2C2A); // Near-black warm gray body text
+  static const Color mediumGrey = Color(0xFF8FA89E); // Muted secondary text
+  static const Color lightGrey = Color(0xFFE5E0D2); // Light warm gray
+
+  // Category Tag & Price Badge Tokens
+  static const Color categoryTagText = Color(0xFF993C1D); // Rust/coral
+  static const Color priceBadgeBg = Color(0xFF16302A); // Deep forest green
+  static const Color priceBadgeText = Color(0xFFF5F1E6); // Off-white
+
+  // Alert Badge (Strictly reserved for notifications/alerts)
+  static const Color errorRed = Color(0xFFFF3B30);
+
+  // Status & Utility Colors
+  static const Color successGreen = Color(0xFF34C759);
+  static const Color warningOrange = Color(0xFFFF9500);
+  static const Color infoBlue = Color(0xFF007AFF);
+
+  // Accent Gradients
+  static LinearGradient get goldGradient => const LinearGradient(
+    colors: [Color(0xFFF3C766), Color(0xFFE8B84B), Color(0xFFD6A232)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static LinearGradient get primaryGradient => goldGradient;
 
   // Consistent section heading style
   static const TextStyle sectionHeaderStyle = TextStyle(
@@ -24,22 +58,6 @@ class AppTheme {
 
   // Spacing helper — returns a vertical SizedBox
   static SizedBox gap(double height) => SizedBox(height: height);
-
-  static const Color primaryLight = Color(0xFFFF5F52);
-
-  // Neutral Colors (Warmer undertones for red theme)
-  static const Color darkGrey = Color(0xFF2C1E1E);
-  static const Color mediumGrey = Color(0xFF9E8E8E);
-  static const Color lightGrey = Color(0xFFF0E8E8);
-  static const Color white = Color(0xFFFFFFFF);
-  static const Color backgroundColor = Color(0xFFFFF9F9); // Subtle off-white red background
-  static const Color navColor = Color(0xFFB71C1C); // Deep Crimson for nav & header
-
-  // Accent Colors
-  static const Color successGreen = Color(0xFF34C759);
-  static const Color warningOrange = Color(0xFFFF9500);
-  static const Color errorRed = Color(0xFFFF3B30);
-  static const Color infoBlue = Color(0xFF007AFF);
 
   // Get light theme
   static ThemeData get lightTheme {
@@ -250,6 +268,49 @@ class AppTheme {
     );
   }
 
+  // Accent & Dashboard Status Colors (Consistent with Admin side)
+  static const Color regularOrderBlue = Color(0xFF1E88E5);
+  static const Color advanceOrderGreen = Color(0xFF2E7D32);
+  static const Color reservationPurple = Color(0xFF7B1FA2);
+  static const Color accentOrange = Color(0xFFFF6B35);
+  static const Color goldenAmber = Color(0xFFFFB300);
+
+  // Soft Food-App Card & Shadow Styles
+  static BoxDecoration foodCardDecoration({bool isHovered = false}) {
+    return BoxDecoration(
+      color: white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(isHovered ? 0.08 : 0.04),
+          blurRadius: isHovered ? 24 : 16,
+          offset: Offset(0, isHovered ? 8 : 4),
+          spreadRadius: isHovered ? 2 : 0,
+        ),
+      ],
+    );
+  }
+
+  // Floating CTA bar / Bottom sheet container decoration
+  static BoxDecoration floatingBarDecoration() {
+    return BoxDecoration(
+      color: white,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: [
+        BoxShadow(
+          color: primaryColor.withOpacity(0.15),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
   // Pre-defined BoxDecorations for modern cards with smooth shadows
   static BoxDecoration cardDecoration() {
     return BoxDecoration(
@@ -298,4 +359,6 @@ class AppTheme {
   static const double radiusMd = 8;
   static const double radiusLg = 12;
   static const double radiusXl = 16;
+  static const double radius2Xl = 24;
 }
+
