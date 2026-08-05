@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 
 class TransactionsPage extends StatefulWidget {
   final List<dynamic> initialTransactions;
@@ -92,20 +94,18 @@ class _TransactionsPageState extends State<TransactionsPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.navColor,
         elevation: 0,
-        shadowColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey, size: 22),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: AnimatedTapScale(
+          onTap: () => Navigator.of(context).pop(),
+          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
         ),
-        title: const Text(
-          'Transactions',
-          style: TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
+        title: Text(
+          'Transactions & Order Tracking',
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
             letterSpacing: -0.3,
           ),
         ),
@@ -116,30 +116,38 @@ class _TransactionsPageState extends State<TransactionsPage> {
         color: AppTheme.primaryColor,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: ResponsiveUtils.getResponsivePadding(context).copyWith(top: 24, bottom: 24),
+          padding: ResponsiveUtils.getResponsivePadding(context).copyWith(top: 20, bottom: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Transaction History',
-                style: TextStyle(
-                  fontSize: 28,
+              Text(
+                'My Orders & Activity',
+                style: GoogleFonts.inter(
+                  fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.darkGrey,
-                  height: 1.2,
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'A read-only record of your past and current activities.',
-                style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
+              const SizedBox(height: 6),
+              Text(
+                'Track live status, past orders, and reservation records.',
+                style: GoogleFonts.inter(fontSize: 14, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               if (_isLoading && _transactions.isEmpty)
-                const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+                Column(
+                  children: List.generate(3, (index) => const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: AppShimmer(width: double.infinity, height: 160, borderRadius: 20),
+                  )),
+                )
               else if (_transactions.isEmpty)
-                _buildEmptyState()
+                const EmptyStateCard(
+                  icon: Icons.receipt_long_rounded,
+                  title: 'No transactions found',
+                  description: 'Your order and reservation activity will appear here live once placed.',
+                )
               else
                 ListView.builder(
                   shrinkWrap: true,
@@ -157,115 +165,95 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 100),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              size: 48,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 28),
-          const Text(
-            'No transactions found',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.darkGrey, letterSpacing: -0.3),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your transaction history will appear here\nonce you complete your first booking.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTransactionCard(BuildContext context, Map<String, dynamic> tx) {
-    final status = tx['status'] ?? 'pending';
-    final paymentStatus = tx['payment_status'] ?? 'unpaid';
+    final status = tx['status']?.toString() ?? 'pending';
+    final kitchenStatus = tx['kitchen_status']?.toString() ?? status;
+    final paymentStatus = tx['payment_status']?.toString() ?? 'unpaid';
     
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.cardBorder, width: 1.2), // Light warm gray border #E5E0D2
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(19),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Card Header
+            // Card Header: #16302A Deep Forest Green
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              color: AppTheme.primaryColor.withOpacity(0.04),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              color: AppTheme.forestGreen, // #16302A
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      tx['event_type'] ?? 'Reservation',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.darkGrey,
-                        letterSpacing: -0.3,
-                      ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.warmGold, // #E8B84B Warm Gold icon container
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            tx['_db_table'] == 'advance_orders' ? Icons.fastfood_rounded : Icons.event_seat_rounded,
+                            size: 16,
+                            color: AppTheme.darkBrownText, // #412402 Dark brown icon
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            tx['event_type'] ?? 'Reservation',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.priceBadgeText, // #F5F1E6 Off-white
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   _buildStatusChip(status),
                 ],
               ),
             ),
+
+            // Live Order Stepper
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: OrderStatusStepper(status: kitchenStatus),
+            ),
             
             // Card Details
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   _buildDetailRow(Icons.calendar_today_rounded, 'Date', tx['event_date']),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _buildDetailRow(Icons.access_time_rounded, 'Time', tx['start_time']),
                   if (tx['number_of_guests'] != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     _buildDetailRow(Icons.people_alt_rounded, 'Guests', '${tx['number_of_guests']} guests'),
                   ],
-                  if (tx['_db_table'] == 'reservations') ...[
-                    const SizedBox(height: 16),
+                  if (tx['_db_table'] == 'reservations' && tx['duration_hours'] != null) ...[
+                    const SizedBox(height: 12),
                     _buildDetailRow(Icons.timer_rounded, 'Duration', '${tx['duration_hours']} hours'),
                   ],
                   
-                  const Divider(height: 36),
+                  const Divider(height: 28, thickness: 1, color: AppTheme.cardBorder),
                   
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -273,11 +261,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'PAYMENT STATUS',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
+                            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.0),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           _buildPaymentBadge(paymentStatus, isAdvanceOrder: tx['_db_table'] == 'advance_orders'),
                         ],
                       ),
@@ -285,26 +273,25 @@ class _TransactionsPageState extends State<TransactionsPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
+                            Text(
                               'TOTAL PAID',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.0),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               '₱${(tx['total_price'] as num).toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.successGreen,
-                                letterSpacing: -0.3,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.forestGreen, // #16302A Deep forest green
                               ),
                             ),
                           ],
                         )
-                      else
+                      else if (tx['id'] != null)
                         Text(
                           'Ref: ${tx['id'].toString().substring(0, 8).toUpperCase()}',
-                          style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey.withOpacity(0.7), fontStyle: FontStyle.italic),
+                          style: GoogleFonts.inter(fontSize: 11, color: AppTheme.mediumGrey, fontStyle: FontStyle.italic),
                         ),
                     ],
                   ),
@@ -320,17 +307,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget _buildDetailRow(IconData icon, String label, String? value) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppTheme.primaryColor.withOpacity(0.7)),
-        const SizedBox(width: 14),
+        Icon(icon, size: 18, color: AppTheme.forestGreen),
+        const SizedBox(width: 12),
         Text(
           '$label:',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.mediumGrey, letterSpacing: 0.3),
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.mediumGrey),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             value ?? 'N/A',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.darkGrey, letterSpacing: -0.2),
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
             textAlign: TextAlign.end,
           ),
         ),
@@ -344,7 +331,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final color = isPaid
         ? AppTheme.successGreen
         : isDepositPaid
-            ? Colors.blue
+            ? AppTheme.infoBlue
             : AppTheme.warningOrange;
     final label = isPaid
         ? 'PAID'
@@ -356,17 +343,17 @@ class _TransactionsPageState extends State<TransactionsPage> {
       children: [
         Icon(
           isPaid ? Icons.verified_rounded : Icons.pending_rounded,
-          size: 16,
+          size: 14,
           color: color,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
+          style: GoogleFonts.inter(
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             color: color,
-            letterSpacing: 0.5,
+            letterSpacing: 0.3,
           ),
         ),
       ],
@@ -401,24 +388,23 @@ class _TransactionsPageState extends State<TransactionsPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
           Text(
             status.toUpperCase(),
-            style: TextStyle(
+            style: GoogleFonts.inter(
               color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.3,
             ),
           ),
         ],
