@@ -2077,6 +2077,15 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
   }
 
   @override
+  void didUpdateWidget(covariant _KitchenOrderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order['refund_status'] != widget.order['refund_status'] ||
+        oldWidget.order['total_amount'] != widget.order['total_amount']) {
+      _loadItems();
+    }
+  }
+
+  @override
   void dispose() {
     _ticker?.cancel();
     super.dispose();

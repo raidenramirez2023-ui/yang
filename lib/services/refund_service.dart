@@ -236,12 +236,36 @@ class RefundService {
           .select()
           .single();
 
-      // Update the order's refund_status, payment_status, and kitchen_status
-      await _supabase.from('orders').update({
+      // Delete refunded items from order_items table so Kitchen view updates
+      for (final item in refundedItems) {
+        final itemId = item['id']?.toString();
+        final itemName = item['item_name']?.toString();
+        if (itemId != null && itemId.isNotEmpty) {
+          await _supabase
+              .from('order_items')
+              .delete()
+              .eq('id', itemId);
+        } else if (itemName != null && itemName.isNotEmpty) {
+          await _supabase
+              .from('order_items')
+              .delete()
+              .eq('order_id', orderId)
+              .eq('item_name', itemName);
+        }
+      }
+
+      // Update the order's refund_status, payment_status, total_amount, and (only for full refund) kitchen_status
+      final remainingTotal = (originalAmount - refundAmount).clamp(0.0, double.infinity);
+      final updateData = <String, dynamic>{
         'refund_status': isFullRefund ? 'full_refund' : 'partial_refund',
         'payment_status': isFullRefund ? 'refunded' : 'partially_refunded',
-        'kitchen_status': 'Done',
-      }).eq('id', orderId);
+        'total_amount': remainingTotal,
+      };
+      if (isFullRefund) {
+        updateData['kitchen_status'] = 'Done';
+      }
+
+      await _supabase.from('orders').update(updateData).eq('id', orderId);
 
       // Send admin notification
       await NotificationService.sendNotification(
@@ -665,12 +689,15 @@ class RefundService {
 
       if (sourceTable == 'orders') {
         final refundType = refund['refund_type'] as String;
-        await _supabase.from('orders').update({
-          'refund_status':
-              refundType == 'full' ? 'full_refund' : 'partial_refund',
-          'payment_status': refundType == 'full' ? 'refunded' : 'partially_refunded',
-          'kitchen_status': 'Done',
-        }).eq('id', sourceId);
+        final isFull = refundType == 'full';
+        final updateData = <String, dynamic>{
+          'refund_status': isFull ? 'full_refund' : 'partial_refund',
+          'payment_status': isFull ? 'refunded' : 'partially_refunded',
+        };
+        if (isFull) {
+          updateData['kitchen_status'] = 'Done';
+        }
+        await _supabase.from('orders').update(updateData).eq('id', sourceId);
       } else if (sourceTable == 'reservations') {
         await _supabase.from('reservations').update({
           'refund_status': 'completed',
