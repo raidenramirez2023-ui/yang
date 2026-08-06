@@ -475,7 +475,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.adminBackground,
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _refundService.refundsStream(),
         builder: (context, snapshot) {

@@ -19,7 +19,8 @@ class AppTheme {
   static const Color darkBrownText = Color(0xFF412402); // Text on gold accent (never black)
 
   // Page, Card & Typography Colors
-  static const Color backgroundColor = Color(0xFFF7F3EA); // Warm off-white
+  static const Color backgroundColor = Color(0xFFF7F3EA); // Warm off-white (customer side)
+  static const Color adminBackground = Color(0xFFF1F5F9); // Clean slate grey (admin side)
   static const Color white = Color(0xFFFFFFFF); // Card background
   static const Color cardBorder = Color(0xFFE5E0D2); // Light warm gray border
   static const Color darkGrey = Color(0xFF2C2C2A); // Near-black warm gray body text

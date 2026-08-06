@@ -164,6 +164,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   String? _lastSeenNotificationId;
 
+  // ── Featured Dishes (Realtime) ──
+  StreamSubscription<List<Map<String, dynamic>>>? _featuredOrdersSubscription;
+  List<Map<String, dynamic>> _featuredDishes = [];
+  bool _featuredLoading = true;
+
 
 
   // Pre-order cart: persists across navigation until customer explicitly clears it
@@ -502,6 +507,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     _sidebarAnimController.forward();
 
+    // ── Featured Dishes realtime stream ──
+    _listenToFeaturedDishes();
+
   }
 
 
@@ -718,12 +726,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-      setState(() {
-
-        customerReservations = combined;
-
-      });
-
+      if (mounted) {
+        setState(() {
+          customerReservations = combined;
+        });
+      }
     } catch (e) {
 
       debugPrint('Error loading customer records: $e');
@@ -759,6 +766,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _guestsController.dispose();
 
     _specialRequestsController.dispose();
+
+    _featuredOrdersSubscription?.cancel();
 
     super.dispose();
 
@@ -3938,9 +3947,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-          // ── Products & Pricing menu grid ────────────────────────────────
-
-          _buildIntegratedMenu(),
+          // ── Featured Dishes (Realtime from POS orders today) ───────────
+          _buildFeaturedDishesSection(),
 
 
 
@@ -8069,6 +8077,450 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
 
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  FEATURED DISHES — Realtime from POS orders today
+  // ══════════════════════════════════════════════════════════════════════
+
+  void _listenToFeaturedDishes() {
+    _featuredOrdersSubscription = Supabase.instance.client
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .listen((rows) async {
+          if (!mounted) return;
+
+          final now = DateTime.now();
+          final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+          // Filter: today only, exclude cancelled/refunded
+          final todayOrders = rows.where((o) {
+            final createdAt = o['created_at']?.toString() ?? '';
+            final isToday = createdAt.startsWith(todayStr);
+            final status = o['status']?.toString().toLowerCase() ?? '';
+            final refundStatus = o['refund_status']?.toString() ?? 'none';
+            final isCancelled = status == 'cancelled' ||
+                status == 'refunded' ||
+                refundStatus == 'full_refund';
+            return isToday && !isCancelled;
+          }).toList();
+
+          if (todayOrders.isEmpty) {
+            _populateFallbackFeaturedDishes();
+            return;
+          }
+
+          try {
+            final orderIds =
+                todayOrders.map((o) => o['id'].toString()).toList();
+            final items = await Supabase.instance.client
+                .from('order_items')
+                .select('item_name, quantity, order_id')
+                .inFilter('order_id', orderIds);
+
+            // Map order_id → created_at for recency sorting
+            final orderTimeMap = <String, String>{};
+            for (final o in todayOrders) {
+              orderTimeMap[o['id'].toString()] =
+                  o['created_at']?.toString() ?? '';
+            }
+
+            // Group by item_name
+            final Map<String, Map<String, dynamic>> grouped = {};
+            for (final item in items) {
+              final name = item['item_name']?.toString() ?? '';
+              if (name.isEmpty) continue;
+              final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+              final orderId = item['order_id']?.toString() ?? '';
+              final orderTime = orderTimeMap[orderId] ?? '';
+
+              if (!grouped.containsKey(name)) {
+                grouped[name] = {
+                  'name': name,
+                  'count': 0,
+                  'lastOrderAt': orderTime,
+                  'isFallback': false,
+                };
+              }
+              grouped[name]!['count'] =
+                  (grouped[name]!['count'] as int) + qty;
+              if (orderTime.compareTo(
+                      grouped[name]!['lastOrderAt'] as String) >
+                  0) {
+                grouped[name]!['lastOrderAt'] = orderTime;
+              }
+            }
+
+            if (grouped.isEmpty) {
+              _populateFallbackFeaturedDishes();
+              return;
+            }
+
+            // Match with MenuService for image/metadata
+            final allMenu = MenuService.getMenu();
+            final allItems = <MenuItem>[];
+            for (var list in allMenu.values) {
+              allItems.addAll(list);
+            }
+
+            for (final entry in grouped.values) {
+              final match = allItems
+                  .where((m) =>
+                      m.name.trim().toLowerCase() ==
+                      (entry['name'] as String).trim().toLowerCase())
+                  .toList();
+              if (match.isNotEmpty) {
+                entry['menuItem'] = match.first;
+              }
+            }
+
+            // Sort by most recent, take top 10
+            final sorted = grouped.values.toList()
+              ..sort((a, b) => (b['lastOrderAt'] as String)
+                  .compareTo(a['lastOrderAt'] as String));
+
+            final top10 = sorted.take(10).toList();
+
+            if (mounted) {
+              setState(() {
+                _featuredDishes = top10;
+                _featuredLoading = false;
+              });
+            }
+          } catch (e) {
+            debugPrint('Error fetching featured dishes: $e');
+            _populateFallbackFeaturedDishes();
+          }
+        });
+  }
+
+  void _populateFallbackFeaturedDishes() {
+    final allMenu = MenuService.getMenu();
+    final items = _getTopSellingItems(allMenu);
+    final fallbackList = items.take(10).map((item) => {
+          'name': item.name,
+          'count': 0,
+          'isFallback': true,
+          'menuItem': item,
+          'lastOrderAt': '',
+        }).toList();
+
+    if (mounted) {
+      setState(() {
+        _featuredDishes = fallbackList;
+        _featuredLoading = false;
+      });
+    }
+  }
+
+  Widget _buildFeaturedDishesSection() {
+    // Hide entire section when empty and not loading
+    if (!_featuredLoading && _featuredDishes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Featured Dishes',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.darkGrey,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '🔥 TOP PICKS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.darkBrownText,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Horizontal scrollable cards (Mouse drag + Touch enabled)
+        SizedBox(
+          height: 280,
+          child: _featuredLoading
+              ? _buildFeaturedShimmer()
+              : ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
+                    },
+                  ),
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _featuredDishes.length,
+                    itemBuilder: (context, index) {
+                      return _buildFeaturedDishCard(_featuredDishes[index]);
+                    },
+                  ),
+                ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildFeaturedDishCard(Map<String, dynamic> dish) {
+    final name = dish['name'] as String;
+    final count = dish['count'] as int;
+    final menuItem = dish['menuItem'] as MenuItem?;
+    final imageUrl = menuItem != null
+        ? MenuService.resolveImageUrl(
+            menuItem.customImagePath ?? menuItem.fallbackImagePath)
+        : '';
+
+    return GestureDetector(
+      onTap: menuItem != null
+          ? () => _showMenuItemDetailsDialog(menuItem)
+          : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: 220,
+        margin: const EdgeInsets.only(right: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.cardBorder, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image section
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(19)),
+                child: Stack(
+                  children: [
+                    if (imageUrl.isNotEmpty)
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: AppTheme.lightGrey,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppTheme.lightGrey,
+                          child: const Center(
+                            child: Icon(Icons.fastfood,
+                                color: Colors.grey, size: 40),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        color: AppTheme.lightGrey,
+                        width: double.infinity,
+                        height: double.infinity,
+                        child: const Center(
+                          child: Icon(Icons.fastfood,
+                              color: Colors.grey, size: 40),
+                        ),
+                      ),
+                    // Count badge (Top-Left)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.priceBadgeBg,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          dish['isFallback'] == true || count == 0
+                              ? '🔥 POPULAR'
+                              : '${count}x today',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.priceBadgeText,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Price Badge (Top-Right)
+                    if (menuItem != null)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.priceBadgeBg,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.18),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            '₱${_fmt.format(menuItem.price)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.priceBadgeText,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Info section
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.darkGrey,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (menuItem != null && menuItem.category.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.categoryTagText.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        menuItem.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.categoryTagText,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedShimmer() {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: 4,
+      itemBuilder: (context, index) {
+        return Container(
+          width: 220,
+          margin: const EdgeInsets.only(right: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.cardBorder),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGrey.withOpacity(0.5),
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(19)),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGrey.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildIntegratedMenu() {
 
