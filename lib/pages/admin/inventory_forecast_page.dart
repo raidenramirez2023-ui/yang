@@ -713,7 +713,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
               borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
             filled: true,
-            fillColor: AppTheme.backgroundColor,
+            fillColor: AppTheme.adminBackground,
           ),
           items: categories.map((category) {
             return DropdownMenuItem(value: category, child: Text(category));
@@ -1137,7 +1137,7 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundColor,
+        color: AppTheme.adminBackground,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
