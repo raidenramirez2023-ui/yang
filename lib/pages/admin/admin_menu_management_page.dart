@@ -106,7 +106,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.adminMainBackground,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         child: Column(
@@ -122,7 +122,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                     Text(
                       'MENU MANAGEMENT',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withOpacity(0.7),
+                            color: AppTheme.mediumGrey,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.2,
                           ),
@@ -132,7 +132,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                       'Manage POS Menu Items',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: AppTheme.darkGrey,
                           ),
                     ),
                   ],
@@ -302,7 +302,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: item.color.withOpacity(0.9),
+                      color: item.color.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -322,7 +322,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.75),
+                      color: Colors.black.withValues(alpha: 0.75),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -526,7 +526,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
             .from('recipe_ingredients')
             .select()
             .eq('menu_item_name', item.name);
-        if (ingResponse != null && (ingResponse as List).isNotEmpty) {
+        if ((ingResponse as List).isNotEmpty) {
           for (final row in ingResponse) {
             final unitVal = (row['unit'] as String?) ?? 'pcs';
             final catVal = (row['category'] as String?) ?? 'Groceries';
@@ -550,7 +550,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
       final invResponse = await Supabase.instance.client
           .from('kitchen_inventory')
           .select('name, category, unit');
-      if (invResponse != null && (invResponse as List).isNotEmpty) {
+      if ((invResponse as List).isNotEmpty) {
         kitchenInventory = List<Map<String, dynamic>>.from(invResponse);
       }
     } catch (e) {
@@ -696,7 +696,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: showCustomCategory ? null : selectedCategory,
+                                initialValue: showCustomCategory ? null : selectedCategory,
                                 isExpanded: true,
                                 decoration: const InputDecoration(labelText: 'Category', prefixIcon: Icon(Icons.category)),
                                 selectedItemBuilder: (context) {
@@ -835,7 +835,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                           spacing: 8,
                           runSpacing: 8,
                           children: _presetColors.map((Color c) {
-                            final bool isSelected = selectedColor.value == c.value;
+                            final bool isSelected = selectedColor.toARGB32() == c.toARGB32();
                             return InkWell(
                               onTap: () => setDialogState(() => selectedColor = c),
                               child: Container(
@@ -849,7 +849,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                     width: 2,
                                   ),
                                   boxShadow: isSelected
-                                      ? [BoxShadow(color: c.withOpacity(0.5), blurRadius: 6, spreadRadius: 1)]
+                                      ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 6, spreadRadius: 1)]
                                       : null,
                                 ),
                                 child: isSelected
@@ -911,7 +911,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                 Expanded(
                                   flex: 2,
                                   child: DropdownButtonFormField<String>(
-                                    value: ing['category'] as String,
+                                    initialValue: ing['category'] as String,
                                     isDense: true,
                                     isExpanded: true,
                                     decoration: const InputDecoration(
@@ -1094,7 +1094,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                   .maybeSingle();
 
                               final isDuplicate = existingCheck != null &&
-                                  (!isEdit || existingCheck['id'] != item!.id);
+                                  (!isEdit || existingCheck['id'] != item.id);
 
                               if (isDuplicate) {
                                 ScaffoldMessenger.of(context).showSnackBar(

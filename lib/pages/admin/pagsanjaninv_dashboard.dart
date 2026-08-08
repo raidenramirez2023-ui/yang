@@ -118,6 +118,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Map<String, Map<String, int>> _inventoryHealthByCategory = {};
 
+  // ignore: unused_field
   Map<String, Map<String, int>> _transactionsByDate = {};
 
   List<Map<String, dynamic>> _recentActivity = [];
@@ -1012,7 +1013,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           BoxShadow(
 
-            color: const Color(0xFFC62828).withOpacity(0.3),
+            color: const Color(0xFFC62828).withValues(alpha: 0.3),
 
             blurRadius: 15,
 
@@ -1040,7 +1041,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               size: 120,
 
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
 
             ),
 
@@ -1096,7 +1097,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 decoration: BoxDecoration(
 
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
 
                   borderRadius: BorderRadius.circular(20),
 
@@ -1158,17 +1159,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
 
               borderRadius: BorderRadius.circular(12),
 
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
 
               boxShadow: [
 
                 BoxShadow(
 
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
 
                   blurRadius: 10,
 
@@ -1232,17 +1233,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           decoration: BoxDecoration(
 
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
 
             borderRadius: BorderRadius.circular(12),
 
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
 
             boxShadow: [
 
               BoxShadow(
 
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
 
                 blurRadius: 10,
 
@@ -1482,11 +1483,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           decoration: BoxDecoration(
 
-            color: color.withOpacity(0.04),
+            color: color.withValues(alpha: 0.04),
 
             borderRadius: BorderRadius.circular(8),
 
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
 
           ),
 
@@ -1534,11 +1535,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: AppTheme.backgroundColor.withOpacity(0.4),
+        color: AppTheme.adminMainBackground.withValues(alpha: 0.4),
 
         borderRadius: BorderRadius.circular(14),
 
-        border: Border.all(color: AppTheme.lightGrey.withOpacity(0.6)),
+        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.6)),
 
       ),
 
@@ -1554,7 +1555,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: AppTheme.primaryColor.withOpacity(0.08),
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
 
               shape: BoxShape.circle,
 
@@ -1628,7 +1629,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             fontWeight: FontWeight.w800,
 
-            color: Colors.white,
+            color: AppTheme.adminPrimaryText,
 
             letterSpacing: -0.3,
 
@@ -1704,7 +1705,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),
 
         borderRadius: BorderRadius.circular(16),
 
@@ -1712,7 +1713,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           BoxShadow(
 
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
 
             blurRadius: 10,
 
@@ -1734,7 +1735,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             children: [
 
-              Icon(Icons.health_and_safety_outlined, color: Color(0xFF006994), size: 20),
+              Icon(Icons.health_and_safety_outlined, color: AppTheme.adminSidebarBackground, size: 20),
 
               SizedBox(width: 8),
 
@@ -2030,7 +2031,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),
 
         borderRadius: BorderRadius.circular(16),
 
@@ -2038,7 +2039,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           BoxShadow(
 
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
 
             blurRadius: 10,
 
@@ -2074,7 +2075,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 children: [
 
-                  Icon(Icons.trending_up, color: Color(0xFF006994), size: 20),
+                  Icon(Icons.trending_up, color: AppTheme.adminSidebarBackground, size: 20),
 
                   SizedBox(width: 8),
 
@@ -2414,7 +2415,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: AppTheme.backgroundColor,
+        color: AppTheme.adminMainBackground,
 
         borderRadius: BorderRadius.circular(8),
 
@@ -2544,7 +2545,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 fontWeight: FontWeight.bold,
 
-                color: Colors.white,
+                color: AppTheme.adminPrimaryText,
 
               ),
 
@@ -2578,7 +2579,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               '${_criticalItems.length} items',
 
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
+              style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
 
             ),
 
@@ -2614,17 +2615,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 decoration: BoxDecoration(
 
-                  color: Colors.white.withOpacity(0.95),
+                  color: Colors.white.withValues(alpha: 0.95),
 
                   borderRadius: BorderRadius.circular(12),
 
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
 
                   boxShadow: [
 
                     BoxShadow(
 
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
 
                       blurRadius: 10,
 
@@ -2718,7 +2719,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       barrierDismissible: true,
 
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
 
       builder: (context) {
 
@@ -2748,7 +2749,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 BoxShadow(
 
-                  color: AppTheme.errorRed.withOpacity(0.15),
+                  color: AppTheme.errorRed.withValues(alpha: 0.15),
 
                   blurRadius: 30,
 
@@ -2782,7 +2783,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         AppTheme.errorRed,
 
-                        AppTheme.errorRed.withOpacity(0.85),
+                        AppTheme.errorRed.withValues(alpha: 0.85),
 
                       ],
 
@@ -2812,7 +2813,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         decoration: BoxDecoration(
 
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
 
                           borderRadius: BorderRadius.circular(12),
 
@@ -2858,7 +2859,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                               style: TextStyle(
 
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
 
                                 fontSize: 13,
 
@@ -2886,7 +2887,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                           decoration: BoxDecoration(
 
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
 
                             shape: BoxShape.circle,
 
@@ -3228,11 +3229,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
 
         borderRadius: BorderRadius.circular(10),
 
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
 
       ),
 
@@ -3288,7 +3289,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               fontWeight: FontWeight.w600,
 
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
 
             ),
 
@@ -3320,11 +3321,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       decoration: BoxDecoration(
 
-        color: statusColor.withOpacity(0.04),
+        color: statusColor.withValues(alpha: 0.04),
 
         borderRadius: BorderRadius.circular(12),
 
-        border: Border.all(color: statusColor.withOpacity(0.12)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.12)),
 
       ),
 
@@ -3338,7 +3339,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
 
               borderRadius: BorderRadius.circular(8),
 
@@ -3412,7 +3413,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
 
               borderRadius: BorderRadius.circular(8),
 
@@ -3472,7 +3473,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 fontWeight: FontWeight.w800,
 
-                color: Colors.white,
+                color: AppTheme.adminPrimaryText,
 
                 letterSpacing: -0.3,
 
@@ -3488,7 +3489,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 decoration: BoxDecoration(
 
-                  color: const Color(0xFF006994).withOpacity(0.2),
+                  color: AppTheme.adminSidebarBackground.withValues(alpha: 0.1),
 
                   borderRadius: BorderRadius.circular(20),
 
@@ -3504,7 +3505,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     fontWeight: FontWeight.w600,
 
-                    color: Colors.white,
+                    color: AppTheme.adminSidebarBackground,
 
                   ),
 
@@ -3522,7 +3523,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           decoration: BoxDecoration(
 
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
 
             borderRadius: BorderRadius.circular(16),
 
@@ -3530,7 +3531,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               BoxShadow(
 
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
 
                 blurRadius: 10,
 
@@ -3564,7 +3565,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                           decoration: BoxDecoration(
 
-                            color: AppTheme.primaryColor.withOpacity(0.07),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.07),
 
                             shape: BoxShape.circle,
 
@@ -3646,7 +3647,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     return Container(
 
-                      color: isEven ? Colors.transparent : AppTheme.backgroundColor.withOpacity(0.5),
+                      color: isEven ? Colors.transparent : AppTheme.adminMainBackground.withValues(alpha: 0.5),
 
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
 
@@ -3662,7 +3663,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                             decoration: BoxDecoration(
 
-                              color: iconColor.withOpacity(0.1),
+                              color: iconColor.withValues(alpha: 0.1),
 
                               shape: BoxShape.circle,
 
@@ -3752,7 +3753,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                                 decoration: BoxDecoration(
 
-                                  color: accentColor.withOpacity(0.1),
+                                  color: accentColor.withValues(alpha: 0.1),
 
                                   borderRadius: BorderRadius.circular(8),
 
@@ -4004,7 +4005,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha: 0.95),
 
 
 
@@ -4012,7 +4013,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
 
 
 
@@ -4020,7 +4021,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           BoxShadow(
 
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
 
             blurRadius: 10,
 
@@ -4116,7 +4117,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
 
 
 
@@ -4340,7 +4341,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               decoration: BoxDecoration(
 
-                color: statusColor.withOpacity(0.08),
+                color: statusColor.withValues(alpha: 0.08),
 
                 borderRadius: BorderRadius.circular(6),
 
@@ -5476,33 +5477,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.adminMainBackground,
 
       body: Container(
-
-        decoration: const BoxDecoration(
-
-          gradient: LinearGradient(
-
-            colors: [
-
-              Color(0xFF031627), // Deep ocean dark blue
-
-              Color(0xFF062C54), // Rich ocean blue
-
-              Color(0xFF0D568C), // Shimmering wave blue
-
-              Color(0xFF1B82C4), // Vibrant light blue highlights
-
-            ],
-
-            begin: Alignment.topCenter,
-
-            end: Alignment.bottomCenter,
-
-          ),
-
-        ),
 
         child: Row(
 
@@ -5516,19 +5493,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 width: 200,
 
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
 
-                  color: AppTheme.white,
+                  color: AppTheme.adminSidebarBackground,
 
                   boxShadow: [
 
                     BoxShadow(
 
-                      color: AppTheme.darkGrey.withOpacity(0.1),
+                      color: Color(0x33000000),
 
-                      blurRadius: 4,
+                      blurRadius: 6,
 
-                      offset: const Offset(2, 0),
+                      offset: Offset(2, 0),
 
                     ),
 
@@ -5556,7 +5533,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                             decoration: BoxDecoration(
 
-                              color: const Color(0xFF006994).withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.15),
 
                               borderRadius: BorderRadius.circular(8),
 
@@ -5566,7 +5543,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                               Icons.inventory_2,
 
-                              color: Color(0xFF006994),
+                              color: Colors.white,
 
                               size: 24,
 
@@ -5586,7 +5563,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                               fontWeight: FontWeight.w700,
 
-                              color: AppTheme.darkGrey,
+                              color: Colors.white,
 
                             ),
 
@@ -5600,7 +5577,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                               fontSize: 12,
 
-                              color: AppTheme.mediumGrey,
+                              color: Color(0xCCFFFFFF),
 
                               fontWeight: FontWeight.w500,
 
@@ -5614,7 +5591,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     ),
 
-                    Divider(color: AppTheme.lightGrey, height: 1),
+                    Divider(color: Colors.white.withValues(alpha: 0.2), height: 1),
 
 
 
@@ -5818,7 +5795,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
 
 
-                        color: AppTheme.darkGrey.withOpacity(0.1),
+                        color: AppTheme.darkGrey.withValues(alpha: 0.1),
 
 
 
@@ -6023,16 +6000,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Widget _buildMobileLayout() {
 
     return Scaffold(
-
-      backgroundColor: Colors.transparent,
-
+      backgroundColor: AppTheme.adminMainBackground,
       drawer: Drawer(
 
         child: Container(
 
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
 
-            color: AppTheme.white,
+            color: AppTheme.adminSidebarBackground,
 
           ),
 
@@ -6056,7 +6031,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       decoration: BoxDecoration(
 
-                        color: const Color(0xFF006994).withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.15),
 
                         borderRadius: BorderRadius.circular(16),
 
@@ -6066,7 +6041,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         Icons.inventory_2,
 
-                        color: Color(0xFF006994),
+                        color: Colors.white,
 
                         size: 40,
 
@@ -6086,7 +6061,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         fontWeight: FontWeight.w700,
 
-                        color: AppTheme.darkGrey,
+                        color: Colors.white,
 
                       ),
 
@@ -6102,7 +6077,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         fontSize: 14,
 
-                        color: AppTheme.mediumGrey,
+                        color: Color(0xCCFFFFFF),
 
                         fontWeight: FontWeight.w500,
 
@@ -6118,7 +6093,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               
 
-              const Divider(color: AppTheme.lightGrey, height: 1),
+              Divider(color: Colors.white.withValues(alpha: 0.2), height: 1),
 
               
 
@@ -6190,7 +6165,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 child: ListTile(
 
-                  leading: const Icon(Icons.logout, color: AppTheme.darkGrey),
+                  leading: const Icon(Icons.logout, color: AppTheme.adminSidebarInactiveIcon),
 
                   title: const Text(
 
@@ -6198,7 +6173,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     style: TextStyle(
 
-                      color: AppTheme.darkGrey,
+                      color: AppTheme.adminSidebarInactiveText,
 
                       fontWeight: FontWeight.w600,
 
@@ -6227,30 +6202,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       ),
 
       body: Container(
-
-        decoration: const BoxDecoration(
-
-          gradient: LinearGradient(
-
-            colors: [
-
-              Color(0xFF031627), // Deep ocean dark blue
-
-              Color(0xFF062C54), // Rich ocean blue
-
-              Color(0xFF0D568C), // Shimmering wave blue
-
-              Color(0xFF1B82C4), // Vibrant light blue highlights
-
-            ],
-
-            begin: Alignment.topCenter,
-
-            end: Alignment.bottomCenter,
-
-          ),
-
-        ),
 
         child: Column(
 
@@ -6352,9 +6303,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           borderRadius: BorderRadius.circular(10),
 
-          hoverColor: Colors.red.withOpacity(0.15),
+          hoverColor: Colors.white.withValues(alpha: 0.1),
 
-          splashColor: Colors.red.withOpacity(0.2),
+          splashColor: Colors.white.withValues(alpha: 0.15),
 
           child: AnimatedContainer(
 
@@ -6364,13 +6315,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: isSelected ? Colors.red.withOpacity(0.1) : Colors.transparent,
+              color: isSelected ? AppTheme.adminActiveSidebarBackground : Colors.transparent,
 
               borderRadius: BorderRadius.circular(10),
 
               border: isSelected
 
-                  ? Border.all(color: Colors.red.withOpacity(0.3), width: 1)
+                  ? Border.all(color: AppTheme.adminActiveSidebarAccent.withValues(alpha: 0.5), width: 1)
 
                   : null,
 
@@ -6384,7 +6335,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   icon,
 
-                  color: Colors.red,
+                  color: isSelected ? AppTheme.adminActiveSidebarAccent : AppTheme.adminSidebarInactiveIcon,
 
                   size: 19,
 
@@ -6400,7 +6351,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     style: TextStyle(
 
-                      color: isSelected ? Colors.red : AppTheme.darkGrey,
+                      color: isSelected ? AppTheme.adminActiveSidebarAccent : AppTheme.adminSidebarInactiveText,
 
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
 
@@ -6422,7 +6373,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     decoration: const BoxDecoration(
 
-                      color: Colors.red,
+                      color: AppTheme.adminActiveSidebarAccent,
 
                       shape: BoxShape.circle,
 
@@ -6466,9 +6417,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           borderRadius: BorderRadius.circular(10),
 
-          hoverColor: Colors.red.withOpacity(0.15),
+          hoverColor: Colors.white.withValues(alpha: 0.1),
 
-          splashColor: Colors.red.withOpacity(0.2),
+          splashColor: Colors.white.withValues(alpha: 0.15),
 
           child: Container(
 
@@ -6478,11 +6429,11 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
               children: [
 
-                Icon(
+                const Icon(
 
                   Icons.logout_rounded,
 
-                  color: Colors.red,
+                  color: AppTheme.adminSidebarInactiveIcon,
 
                   size: 19,
 
@@ -6490,13 +6441,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                 const SizedBox(width: 10),
 
-                Text(
+                const Text(
 
                   'Logout',
 
                   style: TextStyle(
 
-                    color: AppTheme.darkGrey,
+                    color: AppTheme.adminSidebarInactiveText,
 
                     fontWeight: FontWeight.w500,
 
@@ -6554,9 +6505,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
           borderRadius: BorderRadius.circular(12),
 
-          hoverColor: Colors.red.withOpacity(0.15),
+          hoverColor: Colors.white.withValues(alpha: 0.1),
 
-          splashColor: Colors.red.withOpacity(0.2),
+          splashColor: Colors.white.withValues(alpha: 0.15),
 
           child: AnimatedContainer(
 
@@ -6566,13 +6517,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
             decoration: BoxDecoration(
 
-              color: isSelected ? Colors.red.withOpacity(0.1) : Colors.transparent,
+              color: isSelected ? AppTheme.adminActiveSidebarBackground : Colors.transparent,
 
               borderRadius: BorderRadius.circular(12),
 
               border: isSelected
 
-                  ? Border.all(color: Colors.red.withOpacity(0.3), width: 1)
+                  ? Border.all(color: AppTheme.adminActiveSidebarAccent.withValues(alpha: 0.5), width: 1)
 
                   : null,
 
@@ -6586,7 +6537,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                   icon,
 
-                  color: Colors.red,
+                  color: isSelected ? AppTheme.adminActiveSidebarAccent : AppTheme.adminSidebarInactiveIcon,
 
                   size: 22,
 
@@ -6602,7 +6553,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     style: TextStyle(
 
-                      color: isSelected ? Colors.red : AppTheme.darkGrey,
+                      color: isSelected ? AppTheme.adminActiveSidebarAccent : AppTheme.adminSidebarInactiveText,
 
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
 
@@ -6624,7 +6575,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     decoration: const BoxDecoration(
 
-                      color: Colors.red,
+                      color: AppTheme.adminActiveSidebarAccent,
 
                       shape: BoxShape.circle,
 
@@ -6714,63 +6665,33 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                     const Text(
 
-
-
                       'Kitchen Stock Requests',
 
-
-
                       style: TextStyle(
-
-
 
                         fontSize: 24,
 
-
-
                         fontWeight: FontWeight.bold,
 
-
-
-                        color: Colors.white,
-
-
+                        color: AppTheme.adminPrimaryText,
 
                       ),
-
-
 
                     ),
 
-
-
                     const SizedBox(height: 8),
 
-
-
-                    Text(
-
-
+                    const Text(
 
                       'Manage stock requests from the kitchen team',
 
-
-
                       style: TextStyle(
-
-
 
                         fontSize: 14,
 
-
-
-                        color: Colors.white70,
-
-
+                        color: AppTheme.adminSecondaryText,
 
                       ),
-
-
 
                     ),
 
@@ -6980,17 +6901,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       decoration: BoxDecoration(
 
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
 
                         borderRadius: BorderRadius.circular(12),
 
-                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
 
                         boxShadow: [
 
                           BoxShadow(
 
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
 
                             blurRadius: 12,
 
@@ -7070,7 +6991,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                                   color: isSelected 
 
-                                      ? AppTheme.primaryColor.withOpacity(0.1)
+                                      ? AppTheme.primaryColor.withValues(alpha: 0.1)
 
                                       : Colors.transparent,
 
@@ -7080,7 +7001,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                                       ? Border.all(
 
-                                          color: AppTheme.primaryColor.withOpacity(0.3),
+                                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
 
                                           width: 1.5,
 
@@ -7170,17 +7091,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                         decoration: BoxDecoration(
 
-                          color: Colors.white.withOpacity(0.95),
+                          color: Colors.white.withValues(alpha: 0.95),
 
                           borderRadius: BorderRadius.circular(8),
 
-                          border: Border.all(color: const Color(0xFFC62828).withOpacity(0.3)),
+                          border: Border.all(color: const Color(0xFFC62828).withValues(alpha: 0.3)),
 
                           boxShadow: [
 
                             BoxShadow(
 
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
 
                               blurRadius: 10,
 
@@ -7264,17 +7185,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       decoration: BoxDecoration(
 
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
 
                         borderRadius: BorderRadius.circular(12),
 
-                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
 
                         boxShadow: [
 
                           BoxShadow(
 
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
 
                             blurRadius: 10,
 
@@ -7372,7 +7293,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                                 decoration: BoxDecoration(
 
-                                  color: Colors.white.withOpacity(0.95),
+                                  color: Colors.white.withValues(alpha: 0.95),
 
                                   borderRadius: BorderRadius.circular(8),
 
@@ -7380,7 +7301,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                                     BoxShadow(
 
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withValues(alpha: 0.1),
 
                                       blurRadius: 10,
 
@@ -7712,7 +7633,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
                       leading: CircleAvatar(
 
-                        backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
 
                         child: Icon(
 

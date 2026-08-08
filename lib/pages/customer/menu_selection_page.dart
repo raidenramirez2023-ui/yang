@@ -7,7 +7,6 @@ import '../../services/menu_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/recipe_service.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 
 class MenuSelectionPage extends StatefulWidget {
@@ -66,37 +65,33 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
       final supabase = Supabase.instance.client;
       // Fetch inventory
       final data = await supabase.from('kitchen_inventory').select('name, quantity');
-      if (data != null) {
-        final Map<String, num> newCache = {};
-        for (var item in data) {
-          final name = item['name']?.toString().toLowerCase() ?? '';
-          newCache[name] = (item['quantity'] as num?) ?? 0;
-        }
-        if (mounted) {
-          setState(() {
-            _inventoryCache.clear();
-            _inventoryCache.addAll(newCache);
-          });
-        }
+      final Map<String, num> newCache = {};
+      for (var item in data) {
+        final name = item['name']?.toString().toLowerCase() ?? '';
+        newCache[name] = (item['quantity'] as num?) ?? 0;
+      }
+      if (mounted) {
+        setState(() {
+          _inventoryCache.clear();
+          _inventoryCache.addAll(newCache);
+        });
       }
 
       // Fetch recipe ingredients
       final recipeData = await supabase.from('recipe_ingredients').select();
-      if (recipeData != null) {
-        final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
-        for (var row in recipeData) {
-          final menuItemName = row['menu_item_name'] as String;
-          if (!newRecipeCache.containsKey(menuItemName)) {
-            newRecipeCache[menuItemName] = [];
-          }
-          newRecipeCache[menuItemName]!.add(row as Map<String, dynamic>);
+      final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
+      for (var row in recipeData) {
+        final menuItemName = row['menu_item_name'] as String;
+        if (!newRecipeCache.containsKey(menuItemName)) {
+          newRecipeCache[menuItemName] = [];
         }
-        if (mounted) {
-          setState(() {
-            _recipeCache.clear();
-            _recipeCache.addAll(newRecipeCache);
-          });
-        }
+        newRecipeCache[menuItemName]!.add(row);
+      }
+      if (mounted) {
+        setState(() {
+          _recipeCache.clear();
+          _recipeCache.addAll(newRecipeCache);
+        });
       }
     } catch (e) {
       debugPrint('Error fetching inventory or recipes for Menu Selection: $e');
@@ -193,13 +188,6 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
     _updatePricing();
   }
 
-  void _clearSelection() {
-    setState(() {
-      selectedItems.clear();
-    });
-    _updatePricing();
-  }
-
   List<MenuItem> _getFilteredItems() {
     final List<MenuItem> allItems = [];
     if (_selectedCategory == 'All') {
@@ -242,7 +230,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   border: Border.all(color: AppTheme.goldenAmber, width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.goldenAmber.withOpacity(0.12),
+                      color: AppTheme.goldenAmber.withValues(alpha: 0.12),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -315,7 +303,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
@@ -342,7 +330,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -389,7 +377,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           gradient: isSelected ? AppTheme.goldGradient : null,
-          color: !isSelected ? Colors.white.withOpacity(0.12) : null,
+          color: !isSelected ? Colors.white.withValues(alpha: 0.12) : null,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -416,7 +404,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -475,7 +463,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -551,7 +539,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -573,7 +561,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.8),
+                        color: Colors.black.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -618,7 +606,7 @@ class _MenuSelectionPageState extends State<MenuSelectionPage> with SingleTicker
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: quantity > 0 ? AppTheme.primaryColor.withOpacity(0.12) : Colors.grey.shade200,
+                            color: quantity > 0 ? AppTheme.primaryColor.withValues(alpha: 0.12) : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(

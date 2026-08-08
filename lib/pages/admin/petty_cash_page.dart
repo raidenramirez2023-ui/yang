@@ -48,7 +48,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.adminMainBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -85,12 +85,12 @@ class _PettyCashPageState extends State<PettyCashPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.primaryColor, AppTheme.primaryDark],
+          colors: [AppTheme.adminChatButton, AppTheme.adminFeaturedMetricCard],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: AppTheme.adminChatButton.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -101,7 +101,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: AppTheme.adminChatButton.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -129,7 +129,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   'Track inventory purchase expenses',
                   style: TextStyle(
                     fontSize: isMobile ? 11 : 13,
-                    color: Colors.white.withOpacity(0.9),
+                    color: AppTheme.mediumGrey,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -139,7 +139,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
           if (_isAdmin)
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: AppTheme.adminChatButton.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
@@ -170,8 +170,8 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.grey[100]!,
-                  Colors.grey[50]!,
+AppTheme.adminPricingBackground,
+AppTheme.adminCardBackground,
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
@@ -181,7 +181,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.warningOrange.withOpacity(0.15),
+                    color: AppTheme.warningOrange.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -214,7 +214,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                     icon: const Icon(Icons.add_rounded, size: 20),
                     label: const Text('Initialize Fund'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
+                      backgroundColor: AppTheme.adminChatButton,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -235,10 +235,10 @@ class _PettyCashPageState extends State<PettyCashPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: AppTheme.cardBorder),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
@@ -253,12 +253,12 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.adminChatButton.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
                       Icons.account_balance_wallet_rounded,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminChatButton,
                       size: 28,
                     ),
                   ),
@@ -266,9 +266,9 @@ class _PettyCashPageState extends State<PettyCashPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppTheme.warningOrange.withOpacity(0.1),
+                        color: AppTheme.warningOrange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.warningOrange.withValues(alpha: 0.3)),
                       ),
                       child: const Text(
                         'Low Balance',
@@ -298,7 +298,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 style: TextStyle(
                   fontSize: isMobile ? 28 : 36,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.adminChatButton,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -321,7 +321,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                       child: _buildModernButton(
                         icon: Icons.sync_rounded,
                         label: 'Reconcile',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.adminChatButton,
                         onPressed: _showReconciliationDialog,
                       ),
                     ),
@@ -330,7 +330,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                       child: _buildModernButton(
                         icon: Icons.history_rounded,
                         label: 'History',
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.adminChatButton,
                         onPressed: _showReconciliationHistoryDialog,
                       ),
                     ),
@@ -402,12 +402,14 @@ class _PettyCashPageState extends State<PettyCashPage> {
   }
 
   // Professional color palette
-  static const Color _primaryColor = Color(0xFF2563EB); // Professional Blue
-  static const Color _successColor = Color(0xFF059669); // Professional Green
-  static const Color _warningColor = Color(0xFFD97706); // Professional Amber
-  static const Color _errorColor = Color(0xFFDC2626); // Professional Red
-  static const Color _infoColor = Color(0xFF4F46E5); // Professional Indigo
-  static const Color _secondaryColor = Color(0xFF7C3AED); // Professional Purple
+  static const Color _primaryColor = Color(0xFFE0A020); // Admin Primary Accent (Gold)
+  static const Color _successColor = Color(0xFF2E7D32); // Forest Green
+  static const Color _warningColor = Color(0xFFFFC107); // Gold Yellow
+  // ignore: unused_field
+  static const Color _errorColor = Color(0xFFB21B21); // Ruby Red
+  static const Color _infoColor = Color(0xFFA0121A); // Crimson Red
+  // ignore: unused_field
+  static const Color _secondaryColor = Color(0xFF780A10); // Dark Crimson
 
   Widget _buildStatisticsCards() {
     return FutureBuilder<Map<String, dynamic>>(
@@ -452,7 +454,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -463,7 +465,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -502,7 +504,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -517,7 +519,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
+                    border: Border.all(color: AppTheme.cardBorder),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
@@ -549,7 +551,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
+                    border: Border.all(color: AppTheme.cardBorder),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
@@ -586,7 +588,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   child: _buildModernButton(
                     icon: Icons.bar_chart_rounded,
                     label: 'Spending Report',
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
                     onPressed: _showSpendingReportDialog,
                   ),
                 ),
@@ -595,7 +597,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   child: _buildModernButton(
                     icon: Icons.account_balance_wallet_rounded,
                     label: 'Budgets',
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
                     onPressed: _showBudgetManagementDialog,
                   ),
                 ),
@@ -633,7 +635,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppTheme.lightGrey.withOpacity(0.3),
+                      color: AppTheme.lightGrey.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -683,7 +685,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -714,7 +716,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 style: TextStyle(
                   fontSize: isMobile ? 16 : 17,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.adminChatButton,
                   letterSpacing: -0.3,
                 ),
               ),
@@ -757,14 +759,14 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.adminChatButton.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${item.itemName} x${item.quantity}',
                     style: const TextStyle(
                       fontSize: 11,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminChatButton,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -816,7 +818,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                           right: 8,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
+                              color: Colors.black.withValues(alpha: 0.5),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -838,7 +840,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                     'View Receipt',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminChatButton,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -934,7 +936,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -956,47 +958,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Color _getStatusBorderColor(String status) {
-    return Colors.grey[200]!;
-  }
-
-  Widget _buildStatusChip(String status) {
-    Color color;
-    switch (status) {
-      case 'pending':
-        color = AppTheme.warningOrange;
-        break;
-      case 'approved':
-        color = AppTheme.infoBlue;
-        break;
-      case 'rejected':
-        color = AppTheme.errorRed;
-        break;
-      case 'reimbursed':
-        color = AppTheme.successGreen;
-        break;
-      default:
-        color = AppTheme.mediumGrey;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
-      ),
-      child: Text(
-        status.capitalize(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
       ),
     );
   }
@@ -1316,7 +1277,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
                           final rec = history[index];
                           final hasDiscrepancy = rec.hasDiscrepancy;
                           final isShortage = rec.isShortage;
-                          final isSurplus = rec.isSurplus;
                           
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -1340,8 +1300,8 @@ class _PettyCashPageState extends State<PettyCashPage> {
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: isShortage
-                                                ? AppTheme.errorRed.withOpacity(0.1)
-                                                : AppTheme.successGreen.withOpacity(0.1),
+                                                ? AppTheme.errorRed.withValues(alpha: 0.1)
+                                                : AppTheme.successGreen.withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(4),
                                             border: Border.all(
                                               color: isShortage ? AppTheme.errorRed : AppTheme.successGreen,

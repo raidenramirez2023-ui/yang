@@ -275,10 +275,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: color.withOpacity(0.15), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -289,7 +289,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -321,7 +321,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppTheme.mediumGrey.withOpacity(0.8),
+                    color: AppTheme.mediumGrey.withValues(alpha: 0.8),
                     fontSize: 10,
                   ),
                 ),
@@ -344,7 +344,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -383,7 +383,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: const Color(0xFFF8F9FA),
+          fillColor: AppTheme.adminCardBackground,
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
       ),
@@ -395,7 +395,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+          valueColor: AlwaysStoppedAnimation(AppTheme.adminChatButton),
         ),
       );
     }
@@ -448,7 +448,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                         headingRowHeight: 48,
                         dataRowMinHeight: 48,
                         dataRowMaxHeight: 56,
-                        headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
+                        headingRowColor: WidgetStateProperty.all(AppTheme.adminChatButton.withValues(alpha: 0.04)),
                         headingTextStyle: const TextStyle(
                           color: AppTheme.darkGrey,
                           fontWeight: FontWeight.bold,
@@ -474,10 +474,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                           return DataRow(
                             color: WidgetStateProperty.resolveWith<Color?>((states) {
                               if (states.contains(WidgetState.hovered)) {
-                                return AppTheme.primaryColor.withOpacity(0.04);
+                                return AppTheme.adminChatButton.withValues(alpha: 0.04);
                               }
                               if (rowIndex.isEven) {
-                                return Colors.grey.withOpacity(0.018);
+                                return Colors.grey.withValues(alpha: 0.018);
                               }
                               return null;
                             }),
@@ -502,16 +502,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey.withOpacity(0.08),
+                                      color: Colors.grey.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                                      border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                                     ),
                                     child: Text(
                                       '#${item['id'].toString().substring(0, 8)}',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontFamily: 'monospace',
-                                        color: AppTheme.darkGrey.withOpacity(0.7),
+                                        color: AppTheme.darkGrey.withValues(alpha: 0.7),
                                         letterSpacing: 0.5,
                                       ),
                                       maxLines: 1,
@@ -570,9 +570,9 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.08),
+                                      color: Colors.red.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.red.withOpacity(0.25)),
+                                      border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -610,7 +610,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                       icon: const Icon(Icons.check_circle_outline, size: 14),
                                       label: const Text('Mark Paid', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.primaryColor,
+                                        backgroundColor: AppTheme.adminChatButton,
                                         foregroundColor: Colors.white,
                                         elevation: 0,
                                         shadowColor: Colors.transparent,
@@ -645,7 +645,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+          valueColor: AlwaysStoppedAnimation(AppTheme.adminChatButton),
         ),
       );
     }
@@ -669,10 +669,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           decoration: BoxDecoration(
             color: AppTheme.white,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: Border.all(color: Colors.grey.withOpacity(0.12)),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -690,7 +690,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [AppTheme.primaryColor, Color(0xFFFF6B6B)],
+                        colors: [AppTheme.adminPrimaryAccent, AppTheme.adminFeaturedMetricCard],
                       ),
                     ),
                   ),
@@ -721,16 +721,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.08),
+                                        color: Colors.grey.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                                        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                                       ),
                                       child: Text(
                                         '#${item['id'].toString().substring(0, 8)}',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontFamily: 'monospace',
-                                          color: AppTheme.mediumGrey.withOpacity(0.8),
+                                          color: AppTheme.mediumGrey.withValues(alpha: 0.8),
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -742,16 +742,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.08),
+                                  color: AppTheme.adminChatButton.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                                  border: Border.all(color: AppTheme.adminChatButton.withValues(alpha: 0.2)),
                                 ),
                                 child: Text(
                                   item['event_type']?.toString() ?? 'Reservation',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.primaryColor,
+                                    color: AppTheme.adminChatButton,
                                   ),
                                 ),
                               ),
@@ -759,7 +759,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                           ),
                           const SizedBox(height: 14),
                           // Divider
-                          Divider(color: Colors.grey.withOpacity(0.1), height: 1),
+                          Divider(color: Colors.grey.withValues(alpha: 0.1), height: 1),
                           const SizedBox(height: 12),
                           // Info rows
                           _buildInfoRow(
@@ -788,9 +788,9 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.05),
+                              color: Colors.red.withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.red.withOpacity(0.2)),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -828,7 +828,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                               icon: const Icon(Icons.check_circle_outline, size: 18),
                               label: const Text('Mark as Fully Paid', style: TextStyle(fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
+                                backgroundColor: AppTheme.adminChatButton,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -896,8 +896,8 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.02),
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.12))),
+        color: Colors.grey.withValues(alpha: 0.02),
+        border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.12))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -915,7 +915,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
             '· Page $currentPageDisplay of $totalPages',
             style: TextStyle(
               fontSize: 12,
-              color: AppTheme.mediumGrey.withOpacity(0.6),
+              color: AppTheme.mediumGrey.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(width: 16),
@@ -942,16 +942,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: enabled ? AppTheme.white : Colors.grey.withOpacity(0.05),
+          color: enabled ? AppTheme.white : Colors.grey.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: enabled ? Colors.grey.withOpacity(0.25) : Colors.grey.withOpacity(0.1),
+            color: enabled ? Colors.grey.withValues(alpha: 0.25) : Colors.grey.withValues(alpha: 0.1),
           ),
         ),
         child: Icon(
           icon,
           size: 18,
-          color: enabled ? AppTheme.primaryColor : AppTheme.mediumGrey.withOpacity(0.3),
+          color: enabled ? AppTheme.adminChatButton : AppTheme.mediumGrey.withValues(alpha: 0.3),
         ),
       ),
     );
@@ -965,7 +965,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.08),
+              color: Colors.green.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -1066,7 +1066,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.adminChatButton,
               foregroundColor: Colors.white,
             ),
             child: const Text('Confirm'),

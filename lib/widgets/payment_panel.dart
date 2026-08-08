@@ -49,8 +49,10 @@ class _PaymentPanelState extends State<PaymentPanel>
 
   String _method = 'Cash';
   String _entered = '';
+  // ignore: unused_field
   bool _isPayMongoProcessing = false;
   Timer? _pollingTimer;
+  // ignore: unused_field
   String? _currentLinkId;
   String _selectedCashier = 'Spongebob Squarepants';
   String _selectedServer = 'Sanji';
@@ -506,7 +508,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -550,7 +552,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -608,7 +610,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _indigo.withOpacity(0.1),
+                    color: _indigo.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -733,7 +735,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: _indigo.withOpacity(0.1),
+                color: _indigo.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(Icons.qr_code_2, size: 48, color: _indigo),
@@ -751,7 +753,7 @@ class _PaymentPanelState extends State<PaymentPanel>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: _indigo.withOpacity(0.08),
+                color: _indigo.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -843,7 +845,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: _green.withOpacity(0.1),
+                color: _green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(40),
               ),
               child: const Icon(Icons.check_circle, size: 48, color: _green),
@@ -945,7 +947,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -1000,8 +1002,8 @@ class _PaymentPanelState extends State<PaymentPanel>
                         ),
                         decoration: BoxDecoration(
                           color: _selectedServer == name
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.05),
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                           border: _selectedServer == name
                               ? Border.all(color: Colors.green, width: 1.5)
@@ -1060,7 +1062,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -1115,8 +1117,8 @@ class _PaymentPanelState extends State<PaymentPanel>
                         ),
                         decoration: BoxDecoration(
                           color: _selectedCashier == name
-                              ? _indigo.withOpacity(0.1)
-                              : Colors.grey.withOpacity(0.05),
+                              ? _indigo.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                           border: _selectedCashier == name
                               ? Border.all(color: _indigo, width: 1.5)
@@ -1225,7 +1227,7 @@ class _PaymentPanelState extends State<PaymentPanel>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _indigo.withOpacity(0.3),
+              color: _indigo.withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),
@@ -1296,11 +1298,11 @@ class _PaymentPanelState extends State<PaymentPanel>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isDel ? Colors.red.withOpacity(0.1) : _border,
+            color: isDel ? Colors.red.withValues(alpha: 0.1) : _border,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -1360,7 +1362,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               style: ElevatedButton.styleFrom(
                 backgroundColor: _indigo,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: _indigo.withOpacity(0.3),
+                disabledBackgroundColor: _indigo.withValues(alpha: 0.3),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),

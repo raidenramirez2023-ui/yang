@@ -191,7 +191,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -285,7 +285,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 8),
                   ),
@@ -357,11 +357,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
         width: 56,
         height: 56,
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
+          color: AppTheme.adminChatButton,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -384,12 +384,12 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: AppTheme.adminChatBadge,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
+                        color: Colors.black.withValues(alpha: 0.4),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -424,7 +424,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
+        color: AppTheme.adminChatButton,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
@@ -459,7 +459,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                   Text(
                     '$totalUnread unread message${totalUnread > 1 ? 's' : ''}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 7,
                     ),
                     maxLines: 1,
@@ -472,7 +472,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
             Container(
               padding: const EdgeInsets.all(1),
               decoration: BoxDecoration(
-                color: Colors.red,
+                color: AppTheme.adminChatBadge,
                 shape: BoxShape.circle,
               ),
               child: Text(
@@ -537,7 +537,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            child: CircularProgressIndicator(color: AppTheme.adminChatButton),
           );
         }
 
@@ -598,8 +598,8 @@ class _AdminChatModalState extends State<AdminChatModal> {
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: Icon(Icons.person, color: AppTheme.primaryColor),
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  child: Icon(Icons.person, color: AppTheme.adminChatButton),
                 ),
                 title: Text(
                   customerName,
@@ -661,7 +661,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
           ),
           child: Row(
             children: [
@@ -673,7 +673,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                 }),
               ),
               CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                 child: Icon(Icons.person, color: AppTheme.primaryColor),
               ),
               const SizedBox(width: 12),
@@ -686,7 +686,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: Color(0xFF1E293B),
+                        color: AppTheme.adminPrimaryText,
                       ),
                     ),
                     Text(
@@ -773,7 +773,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            border: Border(top: BorderSide(color: AppTheme.cardBorder)),
           ),
           child: Row(
             children: [
@@ -916,7 +916,7 @@ class _AdminChatModalState extends State<AdminChatModal> {
                     style: TextStyle(
                       color: isFromCustomer
                           ? Colors.grey.shade600
-                          : Colors.white.withOpacity(0.8),
+                          : Colors.white.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),
                   ),

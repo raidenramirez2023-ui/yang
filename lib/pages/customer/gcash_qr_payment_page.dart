@@ -27,6 +27,7 @@ class GCashQRPaymentPage extends StatefulWidget {
 class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
   bool _paymentConfirmed = false;
   bool _isLoading = false;
+  // ignore: unused_field
   File? _receiptImage;
   String? _receiptImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
@@ -391,9 +392,9 @@ class _GCashQRPaymentPageState extends State<GCashQRPaymentPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [

@@ -186,10 +186,10 @@ class _AdminChatPageState extends State<AdminChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.adminMainBackground,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.adminChatButton,
         foregroundColor: Colors.white,
         title: Row(
           children: [
@@ -224,13 +224,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                  border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.chat_bubble_outline,
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminChatButton,
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -238,7 +238,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: AppTheme.adminPrimaryText,
                       ),
                     ),
                     const Spacer(),
@@ -263,7 +263,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.adminChatButton,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -313,14 +313,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
           color: Colors.white,
           child: const Row(
             children: [
-              Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor),
+              Icon(Icons.chat_bubble_outline, color: AppTheme.adminChatButton),
               SizedBox(width: 12),
               Text(
                 'Customer Conversations',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: AppTheme.adminPrimaryText,
                 ),
               ),
             ],
@@ -339,7 +339,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+            child: CircularProgressIndicator(color: AppTheme.adminChatButton),
           );
         }
 
@@ -423,18 +423,18 @@ class _AdminChatPageState extends State<AdminChatPage> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppTheme.primaryColor.withOpacity(0.1)
+            ? AppTheme.adminChatButton.withValues(alpha: 0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isSelected
-            ? Border.all(color: AppTheme.primaryColor.withOpacity(0.3))
+            ? Border.all(color: AppTheme.adminChatButton.withValues(alpha: 0.3))
             : null,
       ),
       child: ListTile(
         onTap: () => _selectConversation(conversation),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-          child: Icon(Icons.person, color: AppTheme.primaryColor),
+          backgroundColor: AppTheme.adminChatButton.withValues(alpha: 0.1),
+          child: Icon(Icons.person, color: AppTheme.adminChatButton),
         ),
         title: Row(
           children: [
@@ -443,7 +443,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 customerName,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? AppTheme.primaryColor : Colors.black87,
+                  color: isSelected ? AppTheme.adminChatButton : Colors.black87,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -452,7 +452,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.adminChatButton,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -482,7 +482,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
           ],
         ),
         trailing: isSelected
-            ? Icon(Icons.check_circle, color: AppTheme.primaryColor, size: 20)
+            ? Icon(Icons.check_circle, color: AppTheme.adminChatButton, size: 20)
             : null,
       ),
     );
@@ -496,13 +496,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
+              color: AppTheme.adminChatButton.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.chat_bubble_outline,
               size: 80,
-              color: AppTheme.primaryColor,
+              color: AppTheme.adminChatButton,
             ),
           ),
           const SizedBox(height: 24),
@@ -539,13 +539,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
             ),
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: const Icon(Icons.person, color: AppTheme.primaryColor),
+                  backgroundColor: AppTheme.adminChatButton.withValues(alpha: 0.1),
+                  child: const Icon(Icons.person, color: AppTheme.adminChatButton),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -557,7 +557,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Color(0xFF1E293B),
+                          color: AppTheme.adminPrimaryText,
                         ),
                       ),
                       Text(
@@ -600,7 +600,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminChatButton,
                     ),
                   );
                 }
@@ -740,7 +740,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                     ),
                     decoration: BoxDecoration(
                       color: messageText == ChatService.unsentMessageSentinel
-                          ? Colors.grey.withOpacity(0.1)
+                          ? Colors.grey.withValues(alpha: 0.1)
                           : isFromCustomer
                               ? Colors.grey.shade100
                               : AppTheme.primaryColor,
@@ -776,7 +776,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                           ? loadingProgress.cumulativeBytesLoaded /
                                               loadingProgress.expectedTotalBytes!
                                           : null,
-                                      color: AppTheme.primaryColor,
+                                      color: AppTheme.adminChatButton,
                                     ),
                                   ),
                                 );
@@ -831,7 +831,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -866,7 +866,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -935,7 +935,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                           child: Text(
                             'Image selected',
                             style: TextStyle(
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.adminChatButton,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1043,7 +1043,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
             child: const Text(
               'Unsend',
               style: TextStyle(
-                color: Color(0xFFE74C3C),
+                color: AppTheme.adminChatBadge,
                 fontWeight: FontWeight.bold,
               ),
             ),
