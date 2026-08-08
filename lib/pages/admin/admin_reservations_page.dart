@@ -473,10 +473,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             decoration: BoxDecoration(
               color: AppTheme.white,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.withOpacity(0.12)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: Colors.black.withValues(alpha: 0.02),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -489,7 +489,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => Scaffold(
-                      backgroundColor: const Color(0xFFF0F4F8),
+                      backgroundColor: AppTheme.adminMainBackground,
                       appBar: AppBar(
                         title: const Text(
                           'Event Reservations', 
@@ -570,10 +570,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       decoration: BoxDecoration(
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.grey.withOpacity(0.12)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -627,7 +627,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   )
@@ -652,7 +652,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.2) : AppTheme.primaryColor.withOpacity(0.1),
+                  color: isSelected ? Colors.white.withValues(alpha: 0.2) : AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -689,7 +689,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.2),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
                           blurRadius: 20,
                           spreadRadius: 5 * value,
                         )
@@ -734,10 +734,10 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -760,7 +760,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       dataRowMinHeight: 60,
                       dataRowMaxHeight: 72,
                       dividerThickness: 0.5,
-                      headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withOpacity(0.04)),
+                      headingRowColor: WidgetStateProperty.all(AppTheme.primaryColor.withValues(alpha: 0.04)),
                       headingTextStyle: TextStyle(
                         color: AppTheme.darkGrey,
                         fontWeight: FontWeight.bold,
@@ -911,7 +911,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+        border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -987,7 +987,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.2),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
                           blurRadius: 20,
                           spreadRadius: 5 * value,
                         )
@@ -1070,13 +1070,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border(
                     left: BorderSide(color: statusColor, width: 5),
-                    top: BorderSide(color: Colors.grey.withOpacity(0.15)),
-                    right: BorderSide(color: Colors.grey.withOpacity(0.15)),
-                    bottom: BorderSide(color: Colors.grey.withOpacity(0.15)),
+                    top: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+                    right: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+                    bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -1096,7 +1096,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                               children: [
                                 Icon(
                                   Icons.celebration_rounded,
-                                  color: AppTheme.primaryColor.withOpacity(0.8),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.8),
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
@@ -1176,9 +1176,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.lightGrey.withOpacity(0.3),
+                              color: AppTheme.lightGrey.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1199,9 +1199,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.lightGrey.withOpacity(0.3),
+                              color: AppTheme.lightGrey.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1222,9 +1222,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.lightGrey.withOpacity(0.3),
+                              color: AppTheme.lightGrey.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1297,7 +1297,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -1310,7 +1310,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             Container(
               padding: const EdgeInsets.all(AppTheme.lg),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1603,111 +1603,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       ),
     );
   }
-  Widget _buildCompactDateBadge(String dateString) {
-    if (dateString.isEmpty) return const Text('N/A');
-    try {
-      final date = DateTime.parse(dateString);
-      final month = DateFormat('MMM').format(date).toUpperCase();
-      final day = DateFormat('dd').format(date);
-      
-      return Container(
-        width: 42,
-        height: 38,
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 1),
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(5),
-                  topRight: Radius.circular(5),
-                ),
-              ),
-              child: Text(
-                month,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.white,
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 2, bottom: 1),
-              child: Text(
-                day,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.darkGrey,
-                  fontSize: 14,
-                  height: 1.0,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      return Text(dateString, style: const TextStyle(fontSize: 10));
-    }
-  }
-
-  Widget _buildCompactTimeBadge(String timeString) {
-    if (timeString.isEmpty) return const Text('N/A');
-    String displayTime = timeString;
-    try {
-      if (!timeString.toUpperCase().contains('M')) {
-        String formatted = timeString;
-        if (formatted.length >= 5) formatted = formatted.substring(0, 5); 
-        final parts = formatted.split(':');
-        if (parts.length == 2) {
-          final dt = DateTime(2020, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
-          displayTime = DateFormat.jm().format(dt);
-        }
-      }
-    } catch (e) {}
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppTheme.lightGrey.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.access_time_rounded, size: 10, color: AppTheme.primaryColor),
-          const SizedBox(width: 3),
-          Text(
-            displayTime,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.darkGrey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildColumnHeader(String title, IconData icon, bool isMobile) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: isMobile ? 14 : 16, color: AppTheme.primaryColor.withOpacity(0.7)),
+        Icon(icon, size: isMobile ? 14 : 16, color: AppTheme.primaryColor.withValues(alpha: 0.7)),
         SizedBox(width: isMobile ? 4 : 8),
         Flexible(
           child: Text(
@@ -1748,9 +1648,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1851,13 +1751,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           child: InkWell(
             onTap: onPressed,
             borderRadius: BorderRadius.circular(12),
-            hoverColor: color.withOpacity(0.12),
+            hoverColor: color.withValues(alpha: 0.12),
             child: Container(
               padding: const EdgeInsets.all(4.0),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
+                color: color.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.15), width: 1),
+                border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
               ),
               child: Icon(icon, size: 14, color: color),
             ),
@@ -1935,9 +1835,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightGrey.withOpacity(0.3),
+                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                   ),
                   child: Column(
                     children: [
@@ -2098,21 +1998,24 @@ class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
+        // ignore: deprecated_member_use
         transform: Matrix4.identity()
+          // ignore: deprecated_member_use
           ..scale(_isHovered ? 1.01 : 1.0)
+          // ignore: deprecated_member_use
           ..translate(0.0, _isHovered ? -4.0 : 0.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             if (_isHovered)
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 12),
               )
             else
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),

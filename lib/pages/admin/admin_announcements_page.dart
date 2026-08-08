@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:yang_chow/utils/app_theme.dart';
 
 class AdminAnnouncementsPage extends StatefulWidget {
   const AdminAnnouncementsPage({super.key});
@@ -139,7 +140,7 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
           Text(
             'Announcements',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+              color: AppTheme.darkGrey,
               fontWeight: FontWeight.bold,
             ),
           ),

@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-import 'package:yang_chow/utils/responsive_utils.dart';
 
 class CustomerManagementPage extends StatefulWidget {
   const CustomerManagementPage({super.key});
@@ -64,7 +62,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     final totalCustomers = _allCustomers.length;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.adminMainBackground,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -99,7 +97,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             Text(
               'CUSTOMER LIST',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: AppTheme.adminSecondaryText,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.5,
                 fontSize: 12,
@@ -110,7 +108,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
               'User Directory',
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
                 fontWeight: FontWeight.w900,
-                color: Colors.white,
+                color: AppTheme.adminPrimaryText,
               ),
             ),
           ],
@@ -122,7 +120,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -163,7 +161,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -186,7 +184,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.05),
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Row(
@@ -255,10 +253,10 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.lightGrey.withOpacity(0.5)),
+        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -272,7 +270,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                   child: Text(
                     firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
                     style: const TextStyle(

@@ -27,7 +27,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
   bool _isLoading = false;
   bool _paymentCompleted = false;
   bool _isConfirmed = false;
+  // ignore: unused_field
   String? _paymentUrl;
+  // ignore: unused_field
   XFile? _receiptImage;
   String? _receiptImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
@@ -212,9 +214,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -242,9 +244,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.successGreen.withOpacity(0.1),
+                  color: AppTheme.successGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.successGreen.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -334,7 +336,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.9),
+              color: AppTheme.primaryColor.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -388,7 +390,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
             )
           : _paymentCompleted
               ? Container(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -447,9 +449,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       Container(
                         padding: EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           children: [
@@ -484,7 +486,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                           border: Border.all(color: Colors.grey.shade200),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 15,
                               offset: Offset(0, 8),
                             ),
@@ -753,9 +755,9 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.05),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
                         ),
                         child: CheckboxListTile(
                           value: _isConfirmed,
@@ -775,7 +777,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                         Container(
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.05),
+                            color: Colors.grey.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -887,7 +889,7 @@ class _GCashPaymentPageState extends State<GCashPaymentPage> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: Offset(0, -2),
                   ),

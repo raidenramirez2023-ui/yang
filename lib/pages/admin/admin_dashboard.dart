@@ -72,13 +72,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   List<double> _monthlyEventTrends = List.filled(12, 0.0);
 
   // ignore: unused_field
-
   double _averageEventDuration = 0.0;
 
   int _totalConfirmedGuests = 0;
 
   // ignore: unused_field
-
   int _averageGuestsPerEvent = 0;
 
   List<Map<String, dynamic>> _topEventTypes = [];
@@ -96,19 +94,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   String _nextEventCountdown = '';
 
   // ignore: unused_field
-
   double _venueUtilizationRate = 0.0;
 
   // ignore: unused_field
-
   int _totalExpectedGuestsToday = 0;
 
   // ignore: unused_field
-
   int _currentGuestsOnSite = 0;
 
   // ignore: unused_field
-
   double _estimatedRevenueToday = 0.0;
 
   // Recent activity (now derived from streams)
@@ -116,7 +110,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   List<_ActivityItem> _recentActivity = [];
 
   // ignore: unused_field
-
   DateTime? _lastUpdated;
 
   int _previousOrderCount = 0;
@@ -154,6 +147,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   DateTime? _focusedMonth;
 
   String _selectedPeriod = 'Weekly'; // New period selector state
+  final FocusNode _dashboardPeriodFocusNode = FocusNode(canRequestFocus: false);
 
   final String _selectedYear = '2026'; // New year selector state
 
@@ -239,9 +233,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   @override
   void dispose() {
     _controller.dispose();
-
     _realtimeTimer?.cancel();
-
+    _dashboardPeriodFocusNode.dispose();
     super.dispose();
   }
 
@@ -1473,18 +1466,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final isTablet = ResponsiveUtils.isTablet(context);
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF031627), // Deep ocean dark blue
-            Color(0xFF062C54), // Rich ocean blue
-            Color(0xFF0D568C), // Shimmering wave blue
-            Color(0xFF1B82C4), // Vibrant light blue highlights
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      color: AppTheme.adminMainBackground,
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _ordersStream,
 
@@ -1759,7 +1741,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   '$greeting, Administrator!',
 
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
+                    color: AppTheme.adminPrimaryText,
 
                     fontWeight: FontWeight.bold,
 
@@ -1775,7 +1757,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       _formatDate(),
 
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: AppTheme.adminSecondaryText,
 
                         fontWeight: FontWeight.w500,
                       ),
@@ -1788,8 +1770,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                       height: 4,
 
-                      decoration: const BoxDecoration(
-                        color: Colors.white30,
+                      decoration: BoxDecoration(
+                        color: AppTheme.adminSecondaryText.withValues(alpha: 0.4),
 
                         shape: BoxShape.circle,
                       ),
@@ -1835,7 +1817,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
 
-            color: Colors.white,
+            color: AppTheme.adminPrimaryText,
 
             letterSpacing: -0.2,
           ),
@@ -1857,7 +1839,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         icon: Icons.payments_rounded,
 
-        color: AppTheme.primaryColor,
+        color: AppTheme.adminPrimaryAccent,
 
         sub: '',
 
@@ -1873,7 +1855,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         icon: Icons.shopping_cart_outlined,
 
-        color: AppTheme.infoBlue,
+        color: AppTheme.adminProgressBar1,
 
         sub: '',
 
@@ -1889,7 +1871,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         icon: Icons.event_note_outlined,
 
-        color: const Color(0xFF8B5CF6),
+        color: AppTheme.adminProgressBar2,
 
         sub: '',
 
@@ -2039,7 +2021,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 height: 24,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                    colors: [AppTheme.adminPrimaryAccent, AppTheme.adminChatButton],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -2096,11 +2078,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: AppTheme.adminPrimaryText,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -2113,7 +2095,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         Text(
                           tooltipLabel(pointIndex),
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
                           ),
@@ -2139,7 +2121,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
-                axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+                axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
               ),
               primaryYAxis: NumericAxis(
                 axisLine: const AxisLine(width: 0),
@@ -2150,7 +2132,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 ),
                 numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
                 majorGridLines: MajorGridLines(
-                  color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                  color: AppTheme.adminCardBackground.withValues(alpha: 0.8),
                   width: 1,
                 ),
                 maximum: maxY,
@@ -2165,14 +2147,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   animationDuration: 0,
                   gradient: LinearGradient(
                     colors: [
-                      AppTheme.primaryColor.withOpacity(0.3),
-                      AppTheme.primaryLight.withOpacity(0.1),
-                      AppTheme.primaryColor.withOpacity(0.0),
+                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.3),
+                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.1),
+                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.0),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
-                  borderColor: AppTheme.primaryColor,
+                  borderColor: AppTheme.adminRevenueGraphLine,
                   borderWidth: 3.5,
                   markerSettings: const MarkerSettings(
                     isVisible: true,
@@ -2180,7 +2162,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     width: 6,
                     height: 6,
                     color: Colors.white,
-                    borderColor: AppTheme.primaryColor,
+                    borderColor: AppTheme.adminRevenueGraphLine,
                     borderWidth: 2,
                   ),
                   dataLabelSettings: DataLabelSettings(
@@ -2191,11 +2173,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(4),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 2,
                               offset: const Offset(0, 1),
                             ),
@@ -2257,7 +2239,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               padding: const EdgeInsets.all(AppTheme.md),
 
               decoration: BoxDecoration(
-                color: AppTheme.backgroundColor.withOpacity(0.5),
+                color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
 
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -2289,7 +2271,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         ),
 
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
 
                           borderRadius: BorderRadius.circular(20),
 
@@ -2336,7 +2318,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     padding: const EdgeInsets.all(8),
 
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.1),
 
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -2346,7 +2328,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
 
-                      color: AppTheme.primaryColor,
+                      color: AppTheme.adminPrimaryAccent,
 
                       size: 20,
                     ),
@@ -2366,12 +2348,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 padding: const EdgeInsets.all(AppTheme.lg),
 
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.05),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
 
                   borderRadius: BorderRadius.circular(AppTheme.radiusLg),
 
                   border: Border.all(
-                    color: AppTheme.primaryColor.withOpacity(0.2),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
                   ),
                 ),
 
@@ -2381,7 +2363,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       padding: const EdgeInsets.all(12),
 
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.adminPrimaryAccent,
 
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -2408,7 +2390,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                               fontWeight: FontWeight.bold,
 
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.adminPrimaryAccent,
 
                               letterSpacing: 1.0,
                             ),
@@ -2453,7 +2435,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                       decoration: BoxDecoration(
                         color: _getEventStatusColor(
                           _nextEvent,
-                        ).withOpacity(0.1),
+                        ).withValues(alpha: 0.1),
 
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -2482,7 +2464,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               padding: const EdgeInsets.symmetric(vertical: AppTheme.lg),
 
               decoration: BoxDecoration(
-                color: AppTheme.backgroundColor.withOpacity(0.3),
+                color: AppTheme.adminMainBackground.withValues(alpha: 0.3),
 
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -2501,8 +2483,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           series: <CircularSeries<_PieData, String>>[
                             DoughnutSeries<_PieData, String>(
                               dataSource: [
-                                _PieData('Reserved', isReserved ? 100 : 0, isReserved ? statusColor : AppTheme.backgroundColor),
-                                _PieData('Available', isReserved ? 0 : 100, isReserved ? AppTheme.backgroundColor : statusColor.withOpacity(0.1)),
+                                _PieData('Reserved', isReserved ? 100 : 0, isReserved ? statusColor : AppTheme.adminMainBackground),
+                                _PieData('Available', isReserved ? 0 : 100, isReserved ? AppTheme.adminMainBackground : statusColor.withValues(alpha: 0.1)),
                               ],
                               xValueMapper: (_PieData data, _) => data.x,
                               yValueMapper: (_PieData data, _) => data.y,
@@ -2849,7 +2831,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
 
             blurRadius: 10,
 
@@ -2875,7 +2857,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 const Icon(
                   Icons.event_note,
 
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.adminPrimaryAccent,
 
                   size: 20,
                 ),
@@ -2915,7 +2897,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     Icon(
                       Icons.event_available,
 
-                      color: AppTheme.mediumGrey.withOpacity(0.5),
+                      color: AppTheme.mediumGrey.withValues(alpha: 0.5),
 
                       size: 40,
                     ),
@@ -2974,7 +2956,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                   decoration: BoxDecoration(
                     color: isToday
-                        ? AppTheme.primaryColor.withOpacity(0.02)
+                        ? AppTheme.primaryColor.withValues(alpha: 0.02)
                         : null,
                   ),
 
@@ -2989,7 +2971,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         decoration: BoxDecoration(
                           color: isToday
                               ? AppTheme.primaryColor
-                              : AppTheme.backgroundColor,
+                              : AppTheme.adminMainBackground,
 
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -3123,7 +3105,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 decoration: const BoxDecoration(
                   border: Border(top: BorderSide(color: AppTheme.lightGrey)),
 
-                  color: Color(0xFFF9FAFB),
+                  color: AppTheme.adminCardBackground,
 
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(12),
@@ -3163,7 +3145,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                           constraints: const BoxConstraints(),
 
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.adminPrimaryAccent,
                         ),
 
                         const SizedBox(width: 8),
@@ -3181,7 +3163,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                           constraints: const BoxConstraints(),
 
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.adminPrimaryAccent,
                         ),
                       ],
                     ),
@@ -3203,7 +3185,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           height: 36,
 
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
 
             shape: BoxShape.circle,
           ),
@@ -3358,7 +3340,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
 
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
 
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -3473,18 +3455,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   Widget _buildGridCard(String label, String value, {required int type}) {
     // type: 0 = Normal, 1 = In Prep, 2 = Out of Stock, 3 = More
 
-    Color bgColor = const Color(0xFFF9FAFB); // Soft light grey
+    Color bgColor = AppTheme.adminCardBackground; // Soft light grey
 
-    Color labelColor = const Color(0xFF64748B); // Slate 500
+    Color labelColor = AppTheme.adminSecondaryText; // Slate 500
 
-    Color valueColor = const Color(0xFF0F172A); // Slate 900
+    Color valueColor = AppTheme.adminPrimaryText;
 
     if (type == 2) {
-      bgColor = const Color(0xFFFDECEE); // Light red
+      bgColor = AppTheme.adminConfirmedEventsBg.withValues(alpha: 0.3);
 
-      labelColor = const Color(0xFFB71C1C);
+      labelColor = AppTheme.adminConfirmedEventsBorder;
 
-      valueColor = const Color(0xFFB71C1C);
+      valueColor = AppTheme.adminConfirmedEventsBorder;
     }
 
     return Container(
@@ -3511,7 +3493,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               child: Container(
                 width: 4,
 
-                color: const Color(0xFF14536E),
+                color: AppTheme.adminConfirmedEventsBorder,
               ), // Dark teal accent line
             ),
 
@@ -3594,7 +3576,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   'View All Activity',
 
                   style: TextStyle(
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminPrimaryAccent,
 
                     fontSize: 12,
 
@@ -3691,14 +3673,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       return Container(
         padding: const EdgeInsets.all(AppTheme.xl),
 
-        decoration: _cardDecoration(),
+        decoration: _confirmedEventsCardDecoration(),
 
         child: Column(
           children: [
             Icon(
               Icons.event_busy,
 
-              color: AppTheme.mediumGrey.withOpacity(0.5),
+              color: AppTheme.mediumGrey.withValues(alpha: 0.5),
 
               size: 48,
             ),
@@ -3779,7 +3761,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             height: 24,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                                colors: [AppTheme.adminConfirmedEventsBorder, AppTheme.adminConfirmedEventsBorder],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ),
@@ -3811,7 +3793,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               return Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E293B),
+                                  color: AppTheme.adminPrimaryText,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -3832,7 +3814,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),
-                            axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+                            axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
                           ),
                           primaryYAxis: NumericAxis(
                             axisLine: const AxisLine(width: 0),
@@ -3842,7 +3824,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               fontWeight: FontWeight.bold,
                             ),
                             majorGridLines: MajorGridLines(
-                              color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                              color: AppTheme.adminCardBackground.withValues(alpha: 0.8),
                               width: 1,
                             ),
                             maximum: maxY,
@@ -3859,9 +3841,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                               animationDuration: 0,
                               gradient: LinearGradient(
                                 colors: [
-                                  AppTheme.primaryColor.withOpacity(0.3),
-                                  AppTheme.primaryLight.withOpacity(0.1),
-                                  AppTheme.primaryColor.withOpacity(0.0),
+                                  AppTheme.primaryColor.withValues(alpha: 0.3),
+                                  AppTheme.primaryLight.withValues(alpha: 0.1),
+                                  AppTheme.primaryColor.withValues(alpha: 0.0),
                                 ],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
@@ -3886,11 +3868,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(alpha: 0.9),
                                       borderRadius: BorderRadius.circular(4),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
+                                          color: Colors.black.withValues(alpha: 0.05),
                                           blurRadius: 2,
                                           offset: const Offset(0, 1),
                                         ),
@@ -3937,7 +3919,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             height: 20,
 
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.adminPrimaryAccent,
 
                               borderRadius: BorderRadius.circular(2),
                             ),
@@ -4024,7 +4006,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                                         fontWeight: FontWeight.bold,
 
-                                        color: AppTheme.primaryColor,
+                                        color: AppTheme.adminPrimaryAccent,
                                       ),
                                     ),
                                   ),
@@ -4055,7 +4037,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           height: 24,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                              colors: [AppTheme.adminPrimaryAccent, AppTheme.adminChatButton],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                             ),
@@ -4087,7 +4069,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
+                                color: AppTheme.adminPrimaryText,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -4108,7 +4090,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
-                          axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+                          axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
                         ),
                         primaryYAxis: NumericAxis(
                           axisLine: const AxisLine(width: 0),
@@ -4118,7 +4100,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             fontWeight: FontWeight.bold,
                           ),
                           majorGridLines: MajorGridLines(
-                            color: const Color(0xFFF0E8E8).withOpacity(0.8),
+                            color: AppTheme.adminCardBackground.withValues(alpha: 0.8),
                             width: 1,
                           ),
                           maximum: maxY,
@@ -4135,9 +4117,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                             animationDuration: 0,
                             gradient: LinearGradient(
                               colors: [
-                                AppTheme.primaryColor.withOpacity(0.3),
-                                AppTheme.primaryLight.withOpacity(0.1),
-                                AppTheme.primaryColor.withOpacity(0.0),
+                                AppTheme.primaryColor.withValues(alpha: 0.3),
+                                AppTheme.primaryLight.withValues(alpha: 0.1),
+                                AppTheme.primaryColor.withValues(alpha: 0.0),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -4161,11 +4143,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     borderRadius: BorderRadius.circular(4),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
+                                        color: Colors.black.withValues(alpha: 0.05),
                                         blurRadius: 2,
                                         offset: const Offset(0, 1),
                                       ),
@@ -4210,7 +4192,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                           height: 20,
 
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
+                            color: AppTheme.adminPrimaryAccent,
 
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -4294,7 +4276,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                                       fontWeight: FontWeight.bold,
 
-                                      color: AppTheme.primaryColor,
+                                      color: AppTheme.adminPrimaryAccent,
                                     ),
                                   ),
                                 ),
@@ -4326,7 +4308,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                 width: 4,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.adminPrimaryAccent,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -4346,7 +4328,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
@@ -4377,7 +4359,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                   children: [
                     Icon(
                       Icons.event_available_outlined,
-                      color: AppTheme.mediumGrey.withOpacity(0.4),
+                      color: AppTheme.mediumGrey.withValues(alpha: 0.4),
                       size: 44,
                     ),
                     const SizedBox(height: AppTheme.md),
@@ -4540,11 +4522,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       margin: const EdgeInsets.only(bottom: 4),
 
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.05),
+        color: statusColor.withValues(alpha: 0.05),
 
         borderRadius: BorderRadius.circular(8),
 
-        border: Border.all(color: statusColor.withOpacity(0.2)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
       ),
 
       child: Row(
@@ -4663,10 +4645,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
 
           blurRadius: 12,
 
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _confirmedEventsCardDecoration() {
+    return BoxDecoration(
+      color: AppTheme.adminConfirmedEventsBg,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      border: Border.all(color: AppTheme.adminConfirmedEventsBorder, width: 2),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.06),
+          blurRadius: 12,
           offset: const Offset(0, 4),
         ),
       ],
@@ -4748,7 +4745,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         boxShadow: [
           BoxShadow(
-            color: AppTheme.successGreen.withOpacity(0.3),
+            color: AppTheme.successGreen.withValues(alpha: 0.3),
 
             blurRadius: 12,
 
@@ -4765,7 +4762,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             padding: const EdgeInsets.all(8),
 
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
 
               borderRadius: BorderRadius.circular(8),
             ),
@@ -4828,13 +4825,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       padding: const EdgeInsets.all(16),
 
       decoration: BoxDecoration(
-        color: AppTheme.infoBlue,
+        color: AppTheme.adminProgressBar2,
 
         borderRadius: BorderRadius.circular(12),
 
         boxShadow: [
           BoxShadow(
-            color: AppTheme.infoBlue.withOpacity(0.3),
+            color: AppTheme.infoBlue.withValues(alpha: 0.3),
 
             blurRadius: 12,
 
@@ -4851,7 +4848,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             padding: const EdgeInsets.all(8),
 
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
 
               borderRadius: BorderRadius.circular(8),
             ),
@@ -4920,7 +4917,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         boxShadow: [
           BoxShadow(
-            color: AppTheme.warningOrange.withOpacity(0.3),
+            color: AppTheme.warningOrange.withValues(alpha: 0.3),
 
             blurRadius: 12,
 
@@ -4937,7 +4934,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             padding: const EdgeInsets.all(8),
 
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
 
               borderRadius: BorderRadius.circular(8),
             ),
@@ -5004,27 +5001,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
         borderRadius: BorderRadius.circular(8),
 
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
 
       child: DropdownButton<String>(
+        focusNode: _dashboardPeriodFocusNode,
         value: _selectedPeriod,
-
         underline: const SizedBox(),
-
         icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-
         items: ['Daily', 'Weekly', 'Monthly', 'Annually']
             .map(
               (e) => DropdownMenuItem(
                 value: e,
-
                 child: Text(e, style: const TextStyle(fontSize: 13)),
               ),
             )
             .toList(),
-
-        onChanged: (v) => setState(() => _selectedPeriod = v!),
+        onChanged: (v) {
+          _dashboardPeriodFocusNode.unfocus();
+          if (mounted) setState(() => _selectedPeriod = v!);
+        },
       ),
     );
   }
@@ -5161,7 +5157,7 @@ class _KpiCardState extends State<_KpiCard> {
 
             if (_isHovered)
               BoxShadow(
-                color: widget.data.color.withOpacity(0.1),
+                color: widget.data.color.withValues(alpha: 0.1),
 
                 blurRadius: 30,
 
@@ -5205,7 +5201,7 @@ class _KpiCardState extends State<_KpiCard> {
                     boxShadow: _isHovered
                         ? [
                             BoxShadow(
-                              color: widget.data.color.withOpacity(0.2),
+                              color: widget.data.color.withValues(alpha: 0.2),
 
                               blurRadius: 8,
 
@@ -5334,13 +5330,13 @@ class _KpiCardState extends State<_KpiCard> {
         padding: const EdgeInsets.all(20),
 
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
+          color: AppTheme.adminFeaturedMetricCard,
 
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
 
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withValues(
+              color: AppTheme.adminFeaturedMetricCard.withValues(
                 alpha: _isHovered ? 0.5 : 0.3,
               ),
 
@@ -5351,7 +5347,7 @@ class _KpiCardState extends State<_KpiCard> {
 
             if (_isHovered)
               BoxShadow(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
 
                 blurRadius: 40,
 
@@ -5366,13 +5362,13 @@ class _KpiCardState extends State<_KpiCard> {
 
             colors: _isHovered
                 ? [
-                    AppTheme.primaryColor,
+                    AppTheme.adminFeaturedMetricCard,
 
-                    AppTheme.primaryDark,
+                    AppTheme.adminFeaturedMetricCard,
 
-                    Colors.white.withOpacity(0.1),
+                    Colors.white.withValues(alpha: 0.1),
                   ]
-                : [AppTheme.primaryColor, AppTheme.primaryDark],
+                : [AppTheme.adminFeaturedMetricCard, AppTheme.adminFeaturedMetricCard],
           ),
         ),
 
@@ -5525,7 +5521,7 @@ class _KpiCardState extends State<_KpiCard> {
             boxShadow: _isHovered
                 ? [
                     BoxShadow(
-                      color: widget.data.color.withOpacity(0.2),
+                      color: widget.data.color.withValues(alpha: 0.2),
 
                       blurRadius: 4,
 
@@ -5551,7 +5547,7 @@ class _KpiCardState extends State<_KpiCard> {
                 boxShadow: _isHovered
                     ? [
                         BoxShadow(
-                          color: widget.data.color.withOpacity(0.4),
+                          color: widget.data.color.withValues(alpha: 0.4),
 
                           blurRadius: 6,
 
@@ -5662,7 +5658,7 @@ class _PulsingDot extends StatelessWidget {
           width: size * 2.2,
           height: size * 2.2,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
         ),

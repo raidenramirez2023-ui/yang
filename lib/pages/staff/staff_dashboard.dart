@@ -182,45 +182,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     );
   }
 
-  Widget _buildNotificationIcon() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: NotificationService.getAdminNotificationsStream().map((list) =>
-        list.where((n) => n['action_type'] == 'pos_order').toList()
-      ),
-      builder: (context, snapshot) {
-        final notifications = snapshot.data ?? [];
-        final hasUnread = notifications.any((n) => !n['is_read']);
-
-        return Stack(
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.notifications_none_rounded,
-                color: Colors.black54,
-              ),
-              onPressed: () => _showNotificationsDialog(notifications),
-              tooltip: 'Notifications',
-            ),
-            if (hasUnread)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
+  // ignore: unused_element
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
     NotificationService.markAllAsRead('', forAdmin: true);
 
@@ -243,7 +205,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.red.withOpacity(0.1),
+                        backgroundColor: Colors.red.withValues(alpha: 0.1),
                         child: Icon(
                           _getIconForAction(n['action_type']),
                           color: Colors.red,

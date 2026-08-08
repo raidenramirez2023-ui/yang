@@ -83,13 +83,13 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   Color _sourceColor(String sourceTable) {
     switch (sourceTable) {
       case 'orders':
-        return const Color(0xFF6366F1); // indigo
+        return AppTheme.adminChatButton; // Gold
       case 'reservations':
-        return AppTheme.primaryColor;
+        return AppTheme.adminChatButton;
       case 'advance_orders':
-        return const Color(0xFF0EA5E9); // sky blue
+        return AppTheme.adminChatButton;
       default:
-        return AppTheme.mediumGrey;
+        return AppTheme.adminSecondaryText;
     }
   }
 
@@ -374,7 +374,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.lock_rounded, color: AppTheme.primaryColor),
+            Icon(Icons.lock_rounded, color: AppTheme.adminChatButton),
             const SizedBox(width: 10),
             const Text('Change Refund Passcode'),
           ],
@@ -449,7 +449,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.adminChatButton,
               foregroundColor: Colors.white,
             ),
             child: const Text('Update'),
@@ -475,7 +475,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.adminBackground,
+      backgroundColor: AppTheme.adminMainBackground,
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _refundService.refundsStream(),
         builder: (context, snapshot) {
@@ -530,10 +530,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                             icon: const Icon(Icons.lock_outline, size: 18),
                             label: const Text('Change Passcode'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primaryColor,
+                              foregroundColor: AppTheme.adminChatButton,
                               side: BorderSide(
                                   color:
-                                      AppTheme.primaryColor.withOpacity(0.5)),
+                                      AppTheme.adminChatButton.withValues(alpha: 0.5)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -575,11 +575,11 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                   _currentPage = 0;
                                 }),
                                 selectedColor:
-                                    AppTheme.primaryColor.withOpacity(0.15),
-                                checkmarkColor: AppTheme.primaryColor,
+                                    AppTheme.adminChatButton.withValues(alpha: 0.15),
+                                checkmarkColor: AppTheme.adminChatButton,
                                 labelStyle: TextStyle(
                                   color: isSelected
-                                      ? AppTheme.primaryColor
+                                      ? AppTheme.adminChatButton
                                       : AppTheme.darkGrey,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
@@ -620,12 +620,12 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                                color: Colors.grey.shade300),
+                                color: AppTheme.adminSecondaryText),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                                color: Colors.grey.shade300),
+                                color: AppTheme.adminSecondaryText),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
@@ -650,7 +650,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.receipt_long_rounded,
-                            size: 64, color: Colors.grey.shade300),
+                            size: 64, color: AppTheme.adminSecondaryText),
                         const SizedBox(height: 12),
                         Text(
                           _selectedFilter == 'all'
@@ -761,7 +761,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppTheme.cardBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,7 +769,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 Row(
                   children: [
                     Icon(Icons.account_balance_wallet_rounded,
-                        size: 20, color: AppTheme.primaryColor),
+                        size: 20, color: AppTheme.adminChatButton),
                     const SizedBox(width: 8),
                     Text('Total Refunded',
                         style: TextStyle(
@@ -782,7 +782,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
                   ),
                 ),
               ],
@@ -805,7 +805,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -849,7 +849,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -864,7 +864,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _sourceColor(sourceTable).withOpacity(0.1),
+                    color: _sourceColor(sourceTable).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -883,8 +883,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: refundMethod == 'paymongo'
-                        ? Colors.indigo.withOpacity(0.1)
-                        : Colors.green.withOpacity(0.1),
+                        ? Colors.indigo.withValues(alpha: 0.1)
+                        : Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -919,7 +919,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _statusColor(status).withOpacity(0.1),
+                    color: _statusColor(status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -995,7 +995,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.adminChatButton,
                       ),
                     ),
                     Text(
@@ -1023,7 +1023,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: AppTheme.adminCardBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -1052,10 +1052,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.infoBlue.withOpacity(0.05),
+                  color: AppTheme.infoBlue.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                   border:
-                      Border.all(color: AppTheme.infoBlue.withOpacity(0.2)),
+                      Border.all(color: AppTheme.infoBlue.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1089,7 +1089,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.errorRed,
                         side: BorderSide(
-                            color: AppTheme.errorRed.withOpacity(0.5)),
+                            color: AppTheme.errorRed.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(

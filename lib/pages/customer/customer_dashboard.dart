@@ -243,6 +243,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // ignore: unused_element
   void _handleCartUpdated() {
 
     setState(() {}); // trigger rebuild so badge updates
@@ -301,6 +302,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // ignore: unused_field
   int _maxGuestCount = AppConstants.defaultMaxGuestCount;
 
 
@@ -396,7 +398,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   // ID Upload for verification
-
+  // ignore: unused_field
   XFile? _selectedIdImage;
 
   bool _isUploadingId = false;
@@ -1329,7 +1331,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               decoration: BoxDecoration(
 
-                color: AppTheme.primaryColor.withOpacity(0.12),
+                color: AppTheme.primaryColor.withValues(alpha: 0.12),
 
                 borderRadius: BorderRadius.circular(12),
 
@@ -1583,7 +1585,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       leading: CircleAvatar(
 
-                        backgroundColor: color.withOpacity(0.12),
+                        backgroundColor: color.withValues(alpha: 0.12),
 
                         radius: 22,
 
@@ -2039,7 +2041,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       decoration: BoxDecoration(
 
-                        color: AppTheme.sidebarDivider.withOpacity(0.5),
+                        color: AppTheme.sidebarDivider.withValues(alpha: 0.5),
 
                         shape: BoxShape.circle,
 
@@ -2243,7 +2245,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                     color: isSelected
 
-                        ? AppTheme.warmGold.withOpacity(0.13)
+                        ? AppTheme.warmGold.withValues(alpha: 0.13)
 
                         : Colors.transparent,
 
@@ -2341,7 +2343,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                 color: isSelected
 
-                                    ? AppTheme.warmGold.withOpacity(0.8)
+                                    ? AppTheme.warmGold.withValues(alpha: 0.8)
 
                                     : AppTheme.sidebarSubtitle, // #8FA89E
 
@@ -2729,7 +2731,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               child: Container(
 
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha: 0.45),
 
               ),
 
@@ -3107,7 +3109,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   BoxShadow(
 
-                    color: AppTheme.warmGold.withOpacity(0.35),
+                    color: AppTheme.warmGold.withValues(alpha: 0.35),
 
                     blurRadius: 10,
 
@@ -3289,7 +3291,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         decoration: BoxDecoration(
 
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.white,
+          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
 
           borderRadius: BorderRadius.circular(20),
 
@@ -3503,7 +3505,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       BoxShadow(
 
-                        color: Colors.black.withOpacity(0.18),
+                        color: Colors.black.withValues(alpha: 0.18),
 
                         blurRadius: 20,
 
@@ -3543,9 +3545,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                 Colors.transparent,
 
-                                Colors.black.withOpacity(0.1),
+                                Colors.black.withValues(alpha: 0.1),
 
-                                Colors.black.withOpacity(0.8),
+                                Colors.black.withValues(alpha: 0.8),
 
                               ],
 
@@ -3605,7 +3607,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                   style: TextStyle(
 
-                                    color: Colors.white.withOpacity(0.95),
+                                    color: Colors.white.withValues(alpha: 0.95),
 
                                     fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 13,
 
@@ -3671,7 +3673,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 gradient: isActive ? AppTheme.goldGradient : null,
 
-                color: isActive ? null : Colors.grey.withOpacity(0.3),
+                color: isActive ? null : Colors.grey.withValues(alpha: 0.3),
 
                 borderRadius: BorderRadius.circular(4),
 
@@ -3681,7 +3683,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         BoxShadow(
 
-                          color: AppTheme.goldenAmber.withOpacity(0.5),
+                          color: AppTheme.goldenAmber.withValues(alpha: 0.5),
 
                           blurRadius: 6,
 
@@ -3755,7 +3757,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   BoxShadow(
 
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
 
                     blurRadius: 20,
 
@@ -3789,7 +3791,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         shape: BoxShape.circle,
 
-                        color: Colors.white.withOpacity(0.07),
+                        color: Colors.white.withValues(alpha: 0.07),
 
                       ),
 
@@ -3813,7 +3815,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         shape: BoxShape.circle,
 
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
 
                       ),
 
@@ -3839,11 +3841,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                           decoration: BoxDecoration(
 
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
 
                             shape: BoxShape.circle,
 
-                            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
 
                             image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
 
@@ -3905,7 +3907,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                               style: TextStyle(
 
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
 
                                 fontSize: 14,
 
@@ -4112,7 +4114,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 decoration: BoxDecoration(
 
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
 
                   shape: BoxShape.circle,
 
@@ -4164,7 +4166,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         fontSize: 13,
 
-                        color: AppTheme.mediumGrey.withOpacity(0.8),
+                        color: AppTheme.mediumGrey.withValues(alpha: 0.8),
 
                         fontWeight: FontWeight.w500,
 
@@ -4244,7 +4246,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         fontStyle: FontStyle.italic,
 
-                        color: AppTheme.darkGrey.withOpacity(0.7),
+                        color: AppTheme.darkGrey.withValues(alpha: 0.7),
 
                         fontSize: 13,
 
@@ -4352,6 +4354,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // ignore: unused_element
   Future<bool> _checkCapacity(DateTime selectedDateTime) async {
 
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDateTime);
@@ -4410,6 +4413,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  // ignore: unused_element
   Future<String?> _validateInventoryStock() async {
 
     if (_selectedMenuItems.isEmpty) return null;
@@ -4682,7 +4686,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   BoxShadow(
 
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
 
                     blurRadius: 20,
 
@@ -6044,10 +6048,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                                   ),
 
+                                                  // ignore: deprecated_member_use
                                                   value: 'half',
-
+                                                  // ignore: deprecated_member_use
                                                   groupValue: _paymentOption,
-
+                                                  // ignore: deprecated_member_use
                                                   onChanged: (value) {
 
                                                     setState(() {
@@ -6090,10 +6095,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                                   ),
 
+                                                  // ignore: deprecated_member_use
                                                   value: 'full',
-
+                                                  // ignore: deprecated_member_use
                                                   groupValue: _paymentOption,
-
+                                                  // ignore: deprecated_member_use
                                                   onChanged: (value) {
 
                                                     setState(() {
@@ -6636,7 +6642,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                     shadowColor: AppTheme.primaryColor
 
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
 
 
 
@@ -6834,7 +6840,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         helperStyle: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
 
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withOpacity(0.7), size: 22),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
 
       ),
 
@@ -6868,7 +6874,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
         hintText: hint,
 
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withOpacity(0.7), size: 22),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.7), size: 22),
 
         suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.mediumGrey),
 
@@ -6946,11 +6952,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       decoration: BoxDecoration(
 
-                        color: AppTheme.primaryLight.withOpacity(0.1),
+                        color: AppTheme.primaryLight.withValues(alpha: 0.1),
 
                         shape: BoxShape.circle,
 
-                        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1), width: 3),
+                        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1), width: 3),
 
                         image: currentUser?.userMetadata?['avatar_url'] != null
 
@@ -7650,31 +7656,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       final data = await supabase.from('kitchen_inventory').select('name, quantity');
 
-      if (data != null) {
+      final Map<String, num> newCache = {};
 
-        final Map<String, num> newCache = {};
+      for (var item in data) {
 
-        for (var item in data) {
+        final name = item['name']?.toString().toLowerCase() ?? '';
 
-          final name = item['name']?.toString().toLowerCase() ?? '';
-
-          newCache[name] = (item['quantity'] as num?) ?? 0;
-
-        }
-
-        if (mounted) {
-
-          setState(() {
-
-            _inventoryCache.clear();
-
-            _inventoryCache.addAll(newCache);
-
-          });
-
-        }
+        newCache[name] = (item['quantity'] as num?) ?? 0;
 
       }
+
+      if (mounted) {
+
+        setState(() {
+
+          _inventoryCache.clear();
+
+          _inventoryCache.addAll(newCache);
+
+        });
+
+      }
+
 
 
 
@@ -7682,37 +7685,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       final recipeData = await supabase.from('recipe_ingredients').select();
 
-      if (recipeData != null) {
+      final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
 
-        final Map<String, List<Map<String, dynamic>>> newRecipeCache = {};
+      for (var row in recipeData) {
 
-        for (var row in recipeData) {
+        final menuItemName = row['menu_item_name'] as String;
 
-          final menuItemName = row['menu_item_name'] as String;
+        if (!newRecipeCache.containsKey(menuItemName)) {
 
-          if (!newRecipeCache.containsKey(menuItemName)) {
-
-            newRecipeCache[menuItemName] = [];
-
-          }
-
-          newRecipeCache[menuItemName]!.add(row as Map<String, dynamic>);
+          newRecipeCache[menuItemName] = [];
 
         }
 
-        if (mounted) {
-
-          setState(() {
-
-            _recipeCache.clear();
-
-            _recipeCache.addAll(newRecipeCache);
-
-          });
-
-        }
+        newRecipeCache[menuItemName]!.add(row);
 
       }
+
+      if (mounted) {
+
+        setState(() {
+
+          _recipeCache.clear();
+
+          _recipeCache.addAll(newRecipeCache);
+
+        });
+
+      }
+
 
     } catch (e) {
 
@@ -7728,105 +7728,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  bool _isStockAvailable(String itemName, int requestedQuantity) {
 
-    final recipeIngredients = _recipeCache[itemName];
-
-    if (recipeIngredients == null || recipeIngredients.isEmpty) return true;
-
-
-
-    for (final ing in recipeIngredients) {
-
-      final String ingName = ing['name'].toString().toLowerCase();
-
-      
-
-      num? stock;
-
-      if (_inventoryCache.containsKey(ingName)) {
-
-        stock = _inventoryCache[ingName];
-
-      } else {
-
-        for (final entry in _inventoryCache.entries) {
-
-          if (entry.key.contains(ingName) || ingName.contains(entry.key)) {
-
-            stock = entry.value;
-
-            break;
-
-          }
-
-        }
-
-      }
-
-
-
-      if (stock != null) {
-
-        final double ingredientQtyPerUnit = ing['quantity']?.toDouble() ?? 1.0;
-
-        final double requiredQty = ingredientQtyPerUnit * requestedQuantity;
-
-        
-
-        if (requiredQty > stock) {
-
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-
-            SnackBar(
-
-              content: Text('No stock available for $itemName. Need ${requiredQty.round()} ${ing['unit']} of ${ing['name']} but only ${stock.toInt()} available.'),
-
-              backgroundColor: Colors.red,
-
-              duration: const Duration(seconds: 2),
-
-            ),
-
-          );
-
-          return false;
-
-        }
-
-        
-
-        if (stock <= 0) {
-
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          ScaffoldMessenger.of(context).showSnackBar(
-
-            SnackBar(
-
-              content: Text('No stock available for $itemName. No ${ing['name']} available.'),
-
-              backgroundColor: Colors.red,
-
-              duration: const Duration(seconds: 2),
-
-            ),
-
-          );
-
-          return false;
-
-        }
-
-      }
-
-    }
-
-    return true;
-
-  }
 
 
 
@@ -7930,7 +7832,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         BoxShadow(
 
-                          color: AppTheme.warmGold.withOpacity(0.3),
+                          color: AppTheme.warmGold.withValues(alpha: 0.3),
 
                           blurRadius: 10,
 
@@ -8320,7 +8222,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           border: Border.all(color: AppTheme.cardBorder, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -8382,7 +8284,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
+                              color: Colors.black.withValues(alpha: 0.18),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -8413,7 +8315,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.18),
+                                color: Colors.black.withValues(alpha: 0.18),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -8456,7 +8358,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.categoryTagText.withOpacity(0.08),
+                        color: AppTheme.categoryTagText.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -8499,7 +8401,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 flex: 3,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.lightGrey.withOpacity(0.5),
+                    color: AppTheme.lightGrey.withValues(alpha: 0.5),
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(19)),
                   ),
@@ -8510,7 +8412,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 child: Container(
                   height: 16,
                   decoration: BoxDecoration(
-                    color: AppTheme.lightGrey.withOpacity(0.5),
+                    color: AppTheme.lightGrey.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -8522,205 +8424,106 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  // ignore: unused_element
   Widget _buildIntegratedMenu() {
-
     return Column(
-
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: [
-
         Padding(
-
           padding: const EdgeInsets.symmetric(horizontal: 16),
-
           child: Row(
-
             children: [
-
               Container(
-
                 width: 4,
-
                 height: 24,
-
                 decoration: BoxDecoration(
-
                   color: AppTheme.warmGold,
-
                   borderRadius: BorderRadius.circular(2),
-
                 ),
-
               ),
-
               const SizedBox(width: 10),
-
               Text(
-
                 'Featured Dishes',
-
                 style: GoogleFonts.inter(
-
                   fontSize: 20,
-
                   fontWeight: FontWeight.w800,
-
                   color: AppTheme.darkGrey,
-
                   letterSpacing: -0.3,
-
                 ),
-
               ),
-
               const Spacer(),
-
               Container(
-
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-
                 decoration: BoxDecoration(
-
-                  color: AppTheme.warmGold, // Warm Gold accent
-
+                  color: AppTheme.warmGold,
                   borderRadius: BorderRadius.circular(12),
-
                 ),
-
                 child: Text(
-
                   '🔥 TOP PICKS',
-
                   style: GoogleFonts.inter(
-
                     fontSize: 11,
-
                     fontWeight: FontWeight.w900,
-
-                    color: AppTheme.darkBrownText, // Dark brown text on gold accent
-
+                    color: AppTheme.darkBrownText,
                     letterSpacing: 0.5,
-
                   ),
-
                 ),
-
               ),
-
             ],
-
           ),
-
         ),
-
         const SizedBox(height: 16),
-
         Padding(
-
           padding: const EdgeInsets.symmetric(horizontal: 16),
-
           child: _buildMenuCategoryGrid(),
-
         ),
-
       ],
-
     );
-
   }
-
-
 
   Widget _buildMenuCategoryGrid() {
-
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
-
     final List<MenuItem> items = _getTopSellingItems(allMenu);
 
-
-
     if (items.isEmpty) {
-
       return Container(
-
         padding: const EdgeInsets.all(40),
-
         decoration: BoxDecoration(
-
           color: Colors.white,
-
           borderRadius: BorderRadius.circular(20),
-
           border: Border.all(color: AppTheme.cardBorder),
-
         ),
-
         child: Center(
-
           child: Column(
-
             mainAxisSize: MainAxisSize.min,
-
             children: [
-
               const Icon(Icons.no_meals_outlined, size: 42, color: AppTheme.mediumGrey),
-
               const SizedBox(height: 12),
-
               Text(
-
                 'No featured dishes available.',
-
                 style: GoogleFonts.inter(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
-
               ),
-
             ],
-
           ),
-
         ),
-
       );
-
     }
 
-
-
     return GridView.builder(
-
       shrinkWrap: true,
-
       physics: const NeverScrollableScrollPhysics(),
-
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-
         crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
-
         childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
-
         crossAxisSpacing: 12,
-
         mainAxisSpacing: 12,
-
       ),
-
       itemCount: items.length,
-
       itemBuilder: (context, index) {
-
         final item = items[index];
-
         return _buildProductCard(item);
-
       },
-
     );
-
   }
-
-
 
   Widget _buildProductCard(MenuItem item) {
 
@@ -8746,7 +8549,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
             BoxShadow(
 
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
 
               blurRadius: 12,
 
@@ -8802,7 +8605,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                             BoxShadow(
 
-                              color: Colors.black.withOpacity(0.18),
+                              color: Colors.black.withValues(alpha: 0.18),
 
                               blurRadius: 6,
 
@@ -8886,7 +8689,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                     decoration: BoxDecoration(
 
-                      color: AppTheme.categoryTagText.withOpacity(0.08),
+                      color: AppTheme.categoryTagText.withValues(alpha: 0.08),
 
                       borderRadius: BorderRadius.circular(6),
 
@@ -9694,50 +9497,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  Color _getPaymentStatusColor(String status, bool isQuoted) {
-
-    if (!isQuoted) return Colors.orange;
-
-
-
-    switch (status) {
-
-      case 'deposit_paid':
-
-        return Colors.green;
-
-
-
-      case 'paid':
-
-      case 'fully_paid':
-
-        return Colors.green;
-
-
-
-      case 'unpaid':
-
-        return Colors.orange;
-
-
-
-      case 'refunded':
-
-        return Colors.red;
-
-
-
-      default:
-
-        return Colors.grey;
-
-    }
-
-  }
-
-
-
   void _showPaymentDialog(Map<String, dynamic> reservation) {
 
     final pricingInfo = _reservationService.getReservationPricing(reservation);
@@ -9878,10 +9637,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                               ),
 
+                              // ignore: deprecated_member_use
                               value: 'half',
-
+                              // ignore: deprecated_member_use
                               groupValue: paymentOption,
-
+                              // ignore: deprecated_member_use
                               onChanged: (value) {
 
                                 setDialogState(() {
@@ -9924,10 +9684,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                               ),
 
+                              // ignore: deprecated_member_use
                               value: 'full',
-
+                              // ignore: deprecated_member_use
                               groupValue: paymentOption,
-
+                              // ignore: deprecated_member_use
                               onChanged: (value) {
 
                                 setDialogState(() {
@@ -9972,7 +9733,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   decoration: BoxDecoration(
 
-                    color: Colors.green.withOpacity(0.05),
+                    color: Colors.green.withValues(alpha: 0.05),
 
 
 
@@ -9980,7 +9741,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-                    border: Border.all(color: Colors.green.withOpacity(0.2)),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
 
                   ),
 
@@ -10220,7 +9981,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
           BoxShadow(
 
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
 
 
 
@@ -10276,7 +10037,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         ? Colors.red.shade50
 
-                        : AppTheme.primaryColor.withOpacity(0.07),
+                        : AppTheme.primaryColor.withValues(alpha: 0.07),
 
 
 
@@ -10482,7 +10243,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       decoration: BoxDecoration(
 
-                        color: AppTheme.primaryColor.withOpacity(0.05),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.05),
 
                         shape: BoxShape.circle,
 
@@ -10562,7 +10323,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                             padding: const EdgeInsets.all(16),
 
-                            color: AppTheme.primaryColor.withOpacity(0.03),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.03),
 
                             child: Row(
 
@@ -10624,7 +10385,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                         decoration: BoxDecoration(
 
-                                          color: AppTheme.successGreen.withOpacity(0.1),
+                                          color: AppTheme.successGreen.withValues(alpha: 0.1),
 
                                           borderRadius: BorderRadius.circular(20),
 
@@ -10888,7 +10649,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                   decoration: BoxDecoration(
 
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
 
                     borderRadius: BorderRadius.circular(4),
 
@@ -11050,7 +10811,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                     BoxShadow(
 
-                                      color: AppTheme.goldenAmber.withOpacity(0.45),
+                                      color: AppTheme.goldenAmber.withValues(alpha: 0.45),
 
                                       blurRadius: 10,
 
@@ -11168,7 +10929,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       children: [
 
-        Icon(icon, size: 18, color: AppTheme.primaryColor.withOpacity(0.6)),
+        Icon(icon, size: 18, color: AppTheme.primaryColor.withValues(alpha: 0.6)),
 
         const SizedBox(width: 12),
 
@@ -11286,11 +11047,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       decoration: BoxDecoration(
 
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
 
         borderRadius: BorderRadius.circular(20),
 
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
 
       ),
 
@@ -11702,7 +11463,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               decoration: BoxDecoration(
 
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
 
 
 
@@ -13122,7 +12883,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 decoration: BoxDecoration(
 
-                  color: AppTheme.warmGold.withOpacity(0.15),
+                  color: AppTheme.warmGold.withValues(alpha: 0.15),
 
                   shape: BoxShape.circle,
 
@@ -13338,7 +13099,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
           BoxShadow(
 
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
 
             blurRadius: 16,
 
@@ -13458,7 +13219,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       BoxShadow(
 
-                        color: (isUnpaidOrDue ? AppTheme.warmGold : AppTheme.forestGreen).withOpacity(0.2),
+                        color: (isUnpaidOrDue ? AppTheme.warmGold : AppTheme.forestGreen).withValues(alpha: 0.2),
 
                         blurRadius: 6,
 
@@ -13666,11 +13427,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               decoration: BoxDecoration(
 
-                color: AppTheme.forestGreen.withOpacity(0.06),
+                color: AppTheme.forestGreen.withValues(alpha: 0.06),
 
                 borderRadius: BorderRadius.circular(14),
 
-                border: Border.all(color: AppTheme.forestGreen.withOpacity(0.18)),
+                border: Border.all(color: AppTheme.forestGreen.withValues(alpha: 0.18)),
 
               ),
 
@@ -13784,7 +13545,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       BoxShadow(
 
-                        color: AppTheme.warmGold.withOpacity(0.35),
+                        color: AppTheme.warmGold.withValues(alpha: 0.35),
 
                         blurRadius: 10,
 
@@ -13846,11 +13607,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 decoration: BoxDecoration(
 
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
 
                   borderRadius: BorderRadius.circular(10),
 
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
 
                 ),
 
@@ -13894,11 +13655,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 decoration: BoxDecoration(
 
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
 
                   borderRadius: BorderRadius.circular(10),
 
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
 
                 ),
 
@@ -13938,11 +13699,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 decoration: BoxDecoration(
 
-                  color: AppTheme.successGreen.withOpacity(0.1),
+                  color: AppTheme.successGreen.withValues(alpha: 0.1),
 
                   borderRadius: BorderRadius.circular(10),
 
-                  border: Border.all(color: AppTheme.successGreen.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
 
                 ),
 
@@ -14154,7 +13915,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         decoration: BoxDecoration(
 
-                          color: AppTheme.categoryTagText.withOpacity(0.08),
+                          color: AppTheme.categoryTagText.withValues(alpha: 0.08),
 
                           borderRadius: BorderRadius.circular(6),
 
@@ -14244,7 +14005,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               fontWeight: FontWeight.w600,
 
-              color: AppTheme.darkGrey.withOpacity(0.75),
+              color: AppTheme.darkGrey.withValues(alpha: 0.75),
 
             ),
 

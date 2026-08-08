@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -13,7 +12,6 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:yang_chow/services/location_analytics_service.dart';
-import 'package:yang_chow/services/refund_service.dart';
 
 
 class SalesReportPage extends StatefulWidget {
@@ -47,13 +45,21 @@ class _SalesReportPageState extends State<SalesReportPage>
   // Location analytics
   final LocationAnalyticsService _locationAnalyticsService = LocationAnalyticsService();
   List<Map<String, dynamic>> _locationData = [];
-  bool _isLoadingLocationData = false;
   String _locationPeriod = 'All Time';
 
   // Hide-on-scroll header
   final ScrollController _scrollController = ScrollController();
   bool _isHeaderVisible = true;
   double _lastScrollOffset = 0;
+
+  // FocusNodes for DropdownButtons (canRequestFocus: false prevents primary focus deactivation notifications)
+  final FocusNode _periodDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _yearDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _statusDropdownFocusNodeMobile = FocusNode(canRequestFocus: false);
+  final FocusNode _statusDropdownFocusNodeDesktop = FocusNode(canRequestFocus: false);
+  final FocusNode _transactionPeriodFocusNodeMobile = FocusNode(canRequestFocus: false);
+  final FocusNode _transactionPeriodFocusNodeDesktop = FocusNode(canRequestFocus: false);
+  final FocusNode _locationPeriodFocusNode = FocusNode(canRequestFocus: false);
 
   // Pagination state
   int _currentPage = 1;
@@ -220,8 +226,6 @@ class _SalesReportPageState extends State<SalesReportPage>
       List<Map<String, dynamic>> reservations) {
     final now = DateTime.now();
     Map<int, double> regularData = {};
-    Map<int, double> advanceData = {};
-    Map<int, double> reservationData = {};
 
     // Helper to process regular orders only
     // Sales Report now only includes regular orders (walk-in orders)
@@ -256,12 +260,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       DateTime date,
       double amount,
       Map<int, double> periodData,
-      DateTime now, {
-      bool isAdvance = false,
-      Map<String, dynamic>? advanceOrder,
-      bool isReservation = false,
-      Map<String, dynamic>? reservation,
-  }) {
+      DateTime now) {
     switch (selectedPeriod) {
       case 'Daily':
         if (date.year == now.year && 
@@ -330,11 +329,12 @@ class _SalesReportPageState extends State<SalesReportPage>
     });
     
     _searchController.addListener(() {
-      setState(() {});
+      if (mounted) setState(() {});
     });
 
     // Hide header on scroll down, show on scroll up
     _scrollController.addListener(() {
+      if (!mounted) return;
       final currentOffset = _scrollController.offset;
       final diff = currentOffset - _lastScrollOffset;
       if (diff > 8 && _isHeaderVisible) {
@@ -347,9 +347,7 @@ class _SalesReportPageState extends State<SalesReportPage>
   }
 
   Future<void> _fetchLocationData() async {
-    setState(() {
-      _isLoadingLocationData = true;
-    });
+    if (!mounted) return;
 
     try {
       DateTime? startDate;
@@ -391,14 +389,12 @@ class _SalesReportPageState extends State<SalesReportPage>
       if (mounted) {
         setState(() {
           _locationData = data;
-          _isLoadingLocationData = false;
         });
       }
     } catch (e) {
       print('Error fetching location data: $e');
       if (mounted) {
         setState(() {
-          _isLoadingLocationData = false;
         });
       }
     }
@@ -411,6 +407,13 @@ class _SalesReportPageState extends State<SalesReportPage>
     _searchController.dispose();
     _scrollController.dispose();
     _refreshTimer?.cancel(); // Cancel the refresh timer
+    _periodDropdownFocusNode.dispose();
+    _yearDropdownFocusNode.dispose();
+    _statusDropdownFocusNodeMobile.dispose();
+    _statusDropdownFocusNodeDesktop.dispose();
+    _transactionPeriodFocusNodeMobile.dispose();
+    _transactionPeriodFocusNodeDesktop.dispose();
+    _locationPeriodFocusNode.dispose();
     super.dispose();
   }
 
@@ -436,7 +439,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF4F46E5)),
+                  CircularProgressIndicator(color: AppTheme.adminPrimaryAccent),
                   SizedBox(height: 16),
                   Text('Preparing CSV...'),
                 ],
@@ -586,7 +589,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('File saved successfully!'),
-              backgroundColor: Color(0xFF10B981),
+              backgroundColor: AppTheme.adminProgressBar1,
             ),
           );
         }
@@ -600,23 +603,13 @@ class _SalesReportPageState extends State<SalesReportPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.adminFeaturedMetricCard,
           ),
         );
       }
     }
   }
 
-
-  String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return '₱${(amount / 1000000).toStringAsFixed(1)}m';
-    } else if (amount >= 1000) {
-      return '₱${(amount / 1000).toStringAsFixed(0)}k';
-    } else {
-      return '₱${amount.toStringAsFixed(0)}';
-    }
-  }
 
   List<String> getChartLabels() {
     if (selectedPeriod == 'Daily') {
@@ -637,20 +630,8 @@ class _SalesReportPageState extends State<SalesReportPage>
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFF031627), // Deep ocean dark blue
-              Color(0xFF062C54), // Rich ocean blue
-              Color(0xFF0D568C), // Shimmering wave blue
-              Color(0xFF1B82C4), // Vibrant light blue highlights
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: AppTheme.adminMainBackground,
+      body: SafeArea(
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: _ordersStreamVar,
           builder: (context, orderSnapshot) {
@@ -1041,7 +1022,6 @@ class _SalesReportPageState extends State<SalesReportPage>
           },
         ),
       ),
-     ),
     );
   }
 
@@ -1057,7 +1037,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             'Sales Report',
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: AppTheme.adminPrimaryText,
               letterSpacing: -0.5,
             ),
           ),
@@ -1065,7 +1045,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           Text(
             'Track your business performance and metrics',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: AppTheme.adminSecondaryText,
             ),
           ),
           const SizedBox(height: AppTheme.lg),
@@ -1092,7 +1072,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 'Sales Report',
                 style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: AppTheme.adminPrimaryText,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -1100,7 +1080,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               Text(
                 'Track your business performance and metrics',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: AppTheme.adminSecondaryText,
                 ),
               ),
             ],
@@ -1125,6 +1105,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          focusNode: _periodDropdownFocusNode,
           value: selectedPeriod,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
           dropdownColor: Colors.white,
@@ -1137,7 +1118,10 @@ class _SalesReportPageState extends State<SalesReportPage>
                   value: e,
                   child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
               .toList(),
-          onChanged: (v) => setState(() => selectedPeriod = v!),
+          onChanged: (v) {
+            _periodDropdownFocusNode.unfocus();
+            if (mounted) setState(() => selectedPeriod = v!);
+          },
         ),
       ),
     );
@@ -1158,6 +1142,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           const SizedBox(width: AppTheme.sm),
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
+              focusNode: _yearDropdownFocusNode,
               value: selectedYear,
               icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
               dropdownColor: Colors.white,
@@ -1170,7 +1155,10 @@ class _SalesReportPageState extends State<SalesReportPage>
                       value: e,
                       child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
                   .toList(),
-              onChanged: (v) => setState(() => selectedYear = v!),
+              onChanged: (v) {
+                _yearDropdownFocusNode.unfocus();
+                if (mounted) setState(() => selectedYear = v!);
+              },
             ),
           ),
         ],
@@ -1207,7 +1195,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             'Total Revenue',
             _currencyFormat.format(data['revenue']),
             Icons.payments_rounded,
-            AppTheme.primaryColor,
+            AppTheme.adminChatButton,
             '',
             200,
           ),
@@ -1275,15 +1263,15 @@ class _SalesReportPageState extends State<SalesReportPage>
           duration: const Duration(milliseconds: 600),
           padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? AppTheme.lg : AppTheme.xxl),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.adminCardBackground,
             borderRadius: BorderRadius.circular(AppTheme.radiusXl),
             border: Border.all(
-              color: AppTheme.lightGrey.withValues(alpha: animationValue),
-              width: 1.5,
+              color: Colors.white.withValues(alpha: 0.08 * animationValue),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.darkGrey.withValues(alpha: 0.03 * animationValue),
+                color: Colors.black.withValues(alpha: 0.25 * animationValue),
                 blurRadius: 24 * animationValue,
                 offset: Offset(0, 8 * animationValue),
               ),
@@ -1313,13 +1301,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                     'Revenue Analytics',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.darkGrey,
+                      color: AppTheme.adminPrimaryText,
                     ),
                   ),
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.lightGrey,
+                    color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   ),
                   padding: const EdgeInsets.all(4),
@@ -1341,7 +1329,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   : _buildBarChart(chartData),
             ),
             const SizedBox(height: AppTheme.xl),
-            const Divider(color: AppTheme.lightGrey, thickness: 1.5),
+            const Divider(color: Colors.white10, thickness: 1),
             const SizedBox(height: AppTheme.lg),
             // Location header
             Row(
@@ -1351,7 +1339,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                   child: Text(
                     'Top Cities/Municipalities by Revenue',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.mediumGrey,
+                      color: AppTheme.adminSecondaryText,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1390,12 +1378,12 @@ class _SalesReportPageState extends State<SalesReportPage>
                               'Revenue Analytics',
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.darkGrey,
+                                color: AppTheme.adminPrimaryText,
                               ),
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.lightGrey,
+                                color: const Color(0xFF0F172A),
                                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                               ),
                               padding: const EdgeInsets.all(4),
@@ -1424,7 +1412,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
                   // Vertical divider
                   const SizedBox(width: AppTheme.xl),
-                  const VerticalDivider(color: AppTheme.lightGrey, thickness: 1.5, width: 1),
+                  const VerticalDivider(color: Colors.white10, thickness: 1, width: 1),
                   const SizedBox(width: AppTheme.xl),
 
                   // RIGHT — Customer Location Forecasting
@@ -1441,7 +1429,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                               child: Text(
                                 'Top Cities/Municipalities by Revenue',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.mediumGrey,
+                                  color: AppTheme.adminSecondaryText,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1490,12 +1478,12 @@ class _SalesReportPageState extends State<SalesReportPage>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? AppTheme.adminSidebarBackground : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.darkGrey.withValues(alpha: 0.05),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   )
@@ -1508,7 +1496,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             Icon(
               icon,
               size: 16,
-              color: isSelected ? Theme.of(context).primaryColor : AppTheme.mediumGrey,
+              color: isSelected ? Colors.white : AppTheme.adminSecondaryText,
             ),
             const SizedBox(width: 6),
             Text(
@@ -1516,37 +1504,13 @@ class _SalesReportPageState extends State<SalesReportPage>
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Theme.of(context).primaryColor : AppTheme.mediumGrey,
+                color: isSelected ? Colors.white : AppTheme.adminSecondaryText,
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  double _calculateInterval(double maxY) {
-    if (maxY <= 0) return 1000.0;
-    double rawInterval = maxY / 5.0;
-    
-    // Find the magnitude (power of 10) of the raw interval
-    double log10 = log(rawInterval) / ln10;
-    double powerOf10 = pow(10, log10.floor()).toDouble();
-    
-    double ratio = rawInterval / powerOf10;
-    
-    double niceRatio;
-    if (ratio < 1.5) {
-      niceRatio = 1.0;
-    } else if (ratio < 3.0) {
-      niceRatio = 2.0;
-    } else if (ratio < 7.0) {
-      niceRatio = 5.0;
-    } else {
-      niceRatio = 10.0;
-    }
-    
-    return niceRatio * powerOf10;
   }
 
   Widget _buildLineChart(Map<String, List<double>> chartData) {
@@ -1623,22 +1587,22 @@ class _SalesReportPageState extends State<SalesReportPage>
       primaryXAxis: CategoryAxis(
         majorGridLines: const MajorGridLines(width: 0),
         labelStyle: const TextStyle(
-          color: AppTheme.mediumGrey,
+          color: AppTheme.adminSecondaryText,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
-        axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
+        axisLine: const AxisLine(width: 1, color: Colors.white10),
       ),
       primaryYAxis: NumericAxis(
         axisLine: const AxisLine(width: 0),
         labelStyle: const TextStyle(
-          color: AppTheme.mediumGrey,
+          color: AppTheme.adminSecondaryText,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
         numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
         majorGridLines: MajorGridLines(
-          color: AppTheme.lightGrey.withValues(alpha: 0.5),
+          color: Colors.white.withValues(alpha: 0.08),
           width: 1,
           dashArray: const [3, 3],
         ),
@@ -1730,8 +1694,6 @@ class _SalesReportPageState extends State<SalesReportPage>
       return maxVal;
     })();
 
-    final barWidth = ResponsiveUtils.isMobile(context) ? 10.0 : 16.0;
-
     final List<String> labels = getChartLabels();
     final int dataLength = chartData['regular']?.length ?? 0;
     final List<_SalesReportData> chartList = List.generate(dataLength, (i) {
@@ -1818,22 +1780,22 @@ class _SalesReportPageState extends State<SalesReportPage>
       primaryXAxis: CategoryAxis(
         majorGridLines: const MajorGridLines(width: 0),
         labelStyle: const TextStyle(
-          color: AppTheme.mediumGrey,
+          color: AppTheme.adminSecondaryText,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
-        axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
+        axisLine: const AxisLine(width: 1, color: Colors.white10),
       ),
       primaryYAxis: NumericAxis(
         axisLine: const AxisLine(width: 0),
         labelStyle: const TextStyle(
-          color: AppTheme.mediumGrey,
+          color: AppTheme.adminSecondaryText,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),
         numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
         majorGridLines: MajorGridLines(
-          color: AppTheme.lightGrey.withValues(alpha: 0.5),
+          color: Colors.white.withValues(alpha: 0.08),
           width: 1,
           dashArray: const [3, 3],
         ),
@@ -1912,10 +1874,10 @@ class _SalesReportPageState extends State<SalesReportPage>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.08) : AppTheme.lightGrey,
+          color: isActive ? color.withValues(alpha: 0.15) : const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isActive ? color.withValues(alpha: 0.3) : AppTheme.lightGrey,
+            color: isActive ? color.withValues(alpha: 0.4) : const Color(0xFF1E293B),
             width: 1.5,
           ),
         ),
@@ -1926,7 +1888,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               width: 10,
               height: 10,
               decoration: BoxDecoration(
-                color: isActive ? color : AppTheme.mediumGrey,
+                color: isActive ? color : AppTheme.adminSecondaryText,
                 shape: BoxShape.circle,
               ),
             ),
@@ -1935,7 +1897,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? AppTheme.darkGrey : AppTheme.mediumGrey,
+                color: isActive ? AppTheme.adminPrimaryText : AppTheme.adminSecondaryText,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
               ),
             ),
@@ -2119,6 +2081,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
+                          focusNode: _statusDropdownFocusNodeMobile,
                           value: _statusFilter,
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
@@ -2131,10 +2094,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                               .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
                               .toList(),
                           onChanged: (v) {
-                            setState(() {
-                              _statusFilter = v!;
-                              _currentPage = 1; // Reset to first page when filter changes
-                            });
+                            _statusDropdownFocusNodeMobile.unfocus();
+                            if (mounted) {
+                              setState(() {
+                                _statusFilter = v!;
+                                _currentPage = 1;
+                              });
+                            }
                           },
                         ),
                       ),
@@ -2151,6 +2117,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
+                          focusNode: _transactionPeriodFocusNodeMobile,
                           value: _transactionPeriod,
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
@@ -2163,10 +2130,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                               .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
                               .toList(),
                           onChanged: (v) {
-                            setState(() {
-                              _transactionPeriod = v!;
-                              _currentPage = 1; // Reset to first page when filter changes
-                            });
+                            _transactionPeriodFocusNodeMobile.unfocus();
+                            if (mounted) {
+                              setState(() {
+                                _transactionPeriod = v!;
+                                _currentPage = 1;
+                              });
+                            }
                           },
                         ),
                       ),
@@ -2218,6 +2188,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
+                    focusNode: _statusDropdownFocusNodeDesktop,
                     value: _statusFilter,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
                     dropdownColor: Colors.white,
@@ -2229,10 +2200,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                         .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
                         .toList(),
                     onChanged: (v) {
-                      setState(() {
-                        _statusFilter = v!;
-                        _currentPage = 1; // Reset to first page when filter changes
-                      });
+                      _statusDropdownFocusNodeDesktop.unfocus();
+                      if (mounted) {
+                        setState(() {
+                          _statusFilter = v!;
+                          _currentPage = 1;
+                        });
+                      }
                     },
                   ),
                 ),
@@ -2247,6 +2221,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
+                    focusNode: _transactionPeriodFocusNodeDesktop,
                     value: _transactionPeriod,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
                     dropdownColor: Colors.white,
@@ -2258,10 +2233,13 @@ class _SalesReportPageState extends State<SalesReportPage>
                         .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
                         .toList(),
                     onChanged: (v) {
-                      setState(() {
-                        _transactionPeriod = v!;
-                        _currentPage = 1; // Reset to first page when filter changes
-                      });
+                      _transactionPeriodFocusNodeDesktop.unfocus();
+                      if (mounted) {
+                        setState(() {
+                          _transactionPeriod = v!;
+                          _currentPage = 1;
+                        });
+                      }
                     },
                   ),
                 ),
@@ -2770,7 +2748,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppTheme.adminPrimaryText,
                 letterSpacing: -0.2,
               ),
             ),
@@ -2779,7 +2757,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               _showEventReservationPerformance
                   ? Icons.keyboard_arrow_up_rounded
                   : Icons.keyboard_arrow_down_rounded,
-              color: Colors.white,
+              color: AppTheme.adminPrimaryText,
               size: 20,
             ),
           ],
@@ -2808,77 +2786,11 @@ class _SalesReportPageState extends State<SalesReportPage>
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppTheme.adminPrimaryText,
             letterSpacing: -0.2,
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildLocationAnalyticsSection() {
-    final isDesktop = ResponsiveUtils.isDesktop(context);
-    
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.lg),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionTitle(context, 'Customer Location Forecasting'),
-              _buildLocationPeriodFilter(),
-            ],
-          ),
-          const SizedBox(height: AppTheme.md),
-          if (_isLoadingLocationData)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
-              ),
-            )
-          else if (_locationData.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Column(
-                  children: [
-                    Icon(Icons.location_off_outlined, size: 48, color: AppTheme.mediumGrey),
-                    SizedBox(height: 16),
-                    Text(
-                      'No location data available yet',
-                      style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Customer addresses from POS orders will appear here',
-                      style: TextStyle(color: AppTheme.lightGrey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Top Cities/Municipalities by Revenue',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.darkGrey,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildLocationPieChart(),
-              ],
-            ),
-        ],
-      ),
     );
   }
 
@@ -2894,6 +2806,7 @@ class _SalesReportPageState extends State<SalesReportPage>
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          focusNode: _locationPeriodFocusNode,
           value: _locationPeriod,
           dropdownColor: Colors.white,
           isDense: true,
@@ -2913,7 +2826,8 @@ class _SalesReportPageState extends State<SalesReportPage>
             );
           }).toList(),
           onChanged: (value) {
-            if (value != null) {
+            _locationPeriodFocusNode.unfocus();
+            if (value != null && mounted) {
               setState(() {
                 _locationPeriod = value;
               });
@@ -3112,105 +3026,6 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _buildLocationBarChart() {
-    final topLocations = _locationData.take(5).toList();
-    
-    final double maxY;
-    if (topLocations.isEmpty) {
-      maxY = 10.0;
-    } else {
-      final firstOrderCount = topLocations.first['order_count'] as int;
-      maxY = (firstOrderCount * 1.2).toDouble();
-    }
-    
-    final double horizontalInterval;
-    if (topLocations.isEmpty) {
-      horizontalInterval = 2.0;
-    } else {
-      final firstOrderCount = topLocations.first['order_count'] as int;
-      horizontalInterval = ((firstOrderCount / 4).ceil()).toDouble();
-    }
-    
-    final colors = [
-      Theme.of(context).primaryColor,
-      const Color(0xFF8B5CF6),
-      AppTheme.successGreen,
-    ];
-
-    final list = topLocations.asMap().entries.map((entry) {
-      final index = entry.key;
-      final location = entry.value;
-      final orderCount = location['order_count'] as int;
-      final name = location['location']?.toString() ?? '';
-      final displayLabel = name.length > 8 ? '${name.substring(0, 8)}...' : name;
-      final color = index < 3 ? colors[index] : Theme.of(context).primaryColor.withValues(alpha: 0.6);
-      return _LocationBarData(
-        displayLabel,
-        orderCount.toDouble(),
-        color,
-      );
-    }).toList();
-
-    return SizedBox(
-      height: 250,
-      child: SfCartesianChart(
-        plotAreaBorderWidth: 0,
-        margin: EdgeInsets.zero,
-        tooltipBehavior: TooltipBehavior(
-          enable: true,
-          activationMode: ActivationMode.singleTap,
-          builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-            final _LocationBarData item = data;
-            // Get original location name for the tooltip
-            final originalName = pointIndex < topLocations.length
-                ? topLocations[pointIndex]['location']?.toString() ?? item.location
-                : item.location;
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.darkGrey,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-              ),
-              child: Text(
-                '$originalName\nOrders: ${item.count.toInt()}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          },
-        ),
-        primaryXAxis: CategoryAxis(
-          majorGridLines: const MajorGridLines(width: 0),
-          labelStyle: const TextStyle(fontSize: 10, color: AppTheme.darkGrey),
-          axisLine: const AxisLine(width: 1, color: AppTheme.lightGrey),
-        ),
-        primaryYAxis: NumericAxis(
-          axisLine: const AxisLine(width: 0),
-          labelStyle: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
-          majorGridLines: MajorGridLines(
-            color: AppTheme.lightGrey.withValues(alpha: 0.5),
-            width: 1,
-          ),
-          maximum: maxY,
-        ),
-        series: <CartesianSeries<_LocationBarData, String>>[
-          ColumnSeries<_LocationBarData, String>(
-            dataSource: list,
-            xValueMapper: (_LocationBarData data, _) => data.location,
-            yValueMapper: (_LocationBarData data, _) => data.count,
-            pointColorMapper: (_LocationBarData data, _) => data.color,
-            width: 0.5,
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            animationDuration: 1000,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAdvanceOrderPerformance(
     BuildContext context,
     double advanceOrderRevenueTotal,
@@ -3247,13 +3062,13 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
             ],
           ),
-          const Divider(height: 40, color: AppTheme.lightGrey),
+          const Divider(height: 40, color: Colors.white10),
           const Text(
             'Popular Advance Order Items',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: AppTheme.darkGrey,
+              color: AppTheme.adminPrimaryText,
             ),
           ),
           const SizedBox(height: 16),
@@ -3297,7 +3112,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.darkGrey,
+                              color: AppTheme.adminPrimaryText,
                             ),
                           ),
                         ),
@@ -3366,13 +3181,13 @@ class _SalesReportPageState extends State<SalesReportPage>
               ),
             ],
           ),
-          const Divider(height: 40, color: AppTheme.lightGrey),
+          const Divider(height: 40, color: Colors.white10),
           const Text(
             'Most Popular Event Types',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: AppTheme.darkGrey,
+              color: AppTheme.adminPrimaryText,
             ),
           ),
           const SizedBox(height: 16),
@@ -3414,7 +3229,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.darkGrey,
+                              color: AppTheme.adminPrimaryText,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -3465,7 +3280,7 @@ class _SalesReportPageState extends State<SalesReportPage>
               style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.mediumGrey,
+                color: AppTheme.adminSecondaryText,
               ),
             ),
           ],
@@ -3476,7 +3291,7 @@ class _SalesReportPageState extends State<SalesReportPage>
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: AppTheme.darkGrey,
+            color: AppTheme.adminPrimaryText,
           ),
         ),
       ],
@@ -3485,12 +3300,12 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: AppTheme.adminCardBackground,
       borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-      border: Border.all(color: AppTheme.lightGrey, width: 1.5),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
       boxShadow: [
         BoxShadow(
-          color: AppTheme.darkGrey.withValues(alpha: 0.03),
+          color: Colors.black.withValues(alpha: 0.25),
           blurRadius: 24,
           offset: const Offset(0, 8),
         ),
@@ -3601,8 +3416,12 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) {
+        if (mounted) setState(() => _isHovered = true);
+      },
+      onExit: (_) {
+        if (mounted) setState(() => _isHovered = false);
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
@@ -3623,7 +3442,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
             ),
             if (_isHovered)
               BoxShadow(
-                color: widget.color.withOpacity(0.15),
+                color: widget.color.withValues(alpha: 0.15),
                 blurRadius: 30,
                 offset: const Offset(0, 0),
               ),
@@ -3648,7 +3467,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: _isHovered ? [
                       BoxShadow(
-                        color: widget.color.withOpacity(0.3),
+                        color: widget.color.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -3672,8 +3491,8 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
                       boxShadow: _isHovered ? [
                         BoxShadow(
                           color: widget.growth.contains('+') 
-                              ? const Color(0xFF16A34A).withOpacity(0.2)
-                              : const Color(0xFFDC2626).withOpacity(0.2),
+                              ? const Color(0xFF16A34A).withValues(alpha: 0.2)
+                              : const Color(0xFFDC2626).withValues(alpha: 0.2),
                           blurRadius: 6,
                           offset: const Offset(0, 1),
                         ),
@@ -3696,7 +3515,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
               style: TextStyle(
-                color: const Color(0xFF64748B),
+                color: AppTheme.adminSecondaryText,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -3709,7 +3528,7 @@ class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
               style: TextStyle(
                 fontSize: _isHovered ? 22 : 20,
                 fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A),
+                color: AppTheme.adminPrimaryText,
                 letterSpacing: _isHovered ? -1.2 : -1,
               ),
               child: Text(widget.value),
@@ -3734,6 +3553,7 @@ class _AnimatedChart extends StatefulWidget {
 class _AnimatedChartState extends State<_AnimatedChart> 
     with TickerProviderStateMixin {
   late AnimationController _chartController;
+  // ignore: unused_field
   late Animation<double> _chartAnimation;
 
   @override
@@ -3789,7 +3609,7 @@ class _AnimatedChartState extends State<_AnimatedChart>
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: AppTheme.adminPrimaryText,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -3808,7 +3628,7 @@ class _AnimatedChartState extends State<_AnimatedChart>
                   Text(
                     item.label,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),
                   ),
@@ -3820,14 +3640,14 @@ class _AnimatedChartState extends State<_AnimatedChart>
         primaryXAxis: CategoryAxis(
           majorGridLines: const MajorGridLines(width: 0),
           labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-          axisLine: const AxisLine(width: 1, color: Color(0xFFEEE0E0)),
+          axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
         ),
         primaryYAxis: NumericAxis(
           axisLine: const AxisLine(width: 0),
           labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
           numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
           majorGridLines: MajorGridLines(
-            color: const Color(0xFFF1F5F9).withOpacity(0.5),
+            color: AppTheme.adminPricingBackground.withValues(alpha: 0.5),
             width: 1,
             dashArray: const [3, 3],
           ),
@@ -3861,15 +3681,6 @@ class _AnimatedChartState extends State<_AnimatedChart>
     return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
   }
 
-  String _formatCurrency(double value) {
-    if (value >= 1000000) {
-      return '₱${(value / 1000000).toStringAsFixed(1)}m';
-    } else if (value >= 1000) {
-      return '₱${(value / 1000).toStringAsFixed(0)}k';
-    } else {
-      return '₱${value.toStringAsFixed(0)}';
-    }
-  }
 }
 
 class _SalesReportData {
@@ -3890,6 +3701,7 @@ class _LocationPieData {
   _LocationPieData(this.location, this.count, this.percentage, this.color);
 }
 
+// ignore: unused_element
 class _LocationBarData {
   final String location;
   final double count;

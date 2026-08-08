@@ -772,30 +772,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildDesktopLayout() {
 
     return Container(
-
-      decoration: const BoxDecoration(
-
-        gradient: LinearGradient(
-
-          colors: [
-
-            Color(0xFF031627), // Deep ocean dark blue
-
-            Color(0xFF062C54), // Rich ocean blue
-
-            Color(0xFF0D568C), // Shimmering wave blue
-
-            Color(0xFF1B82C4), // Vibrant light blue highlights
-
-          ],
-
-          begin: Alignment.topCenter,
-
-          end: Alignment.bottomCenter,
-
-        ),
-
-      ),
+      color: AppTheme.adminMainBackground,
 
       child: Scaffold(
 
@@ -861,7 +838,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     return Material(
 
-      color: Colors.white,
+      color: AppTheme.adminSidebarBackground,
 
       child: SizedBox(
 
@@ -885,7 +862,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                   decoration: BoxDecoration(
 
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminActiveSidebarAccent,
 
                     borderRadius: BorderRadius.circular(12),
 
@@ -921,7 +898,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                         fontSize: 18,
 
-                        color: Color(0xFF1E293B),
+                        color: Colors.white,
 
                       ),
 
@@ -961,7 +938,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                     color: isSelected
 
-                        ? AppTheme.primaryColor
+                        ? AppTheme.activeSidebarItemBackground
 
                         : Colors.transparent,
 
@@ -1053,9 +1030,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                               color: isSelected
 
-                                  ? Colors.white
+                                  ? AppTheme.activeSidebarAccent
 
-                                  : const Color(0xFF64748B),
+                                  : AppTheme.sidebarInactiveIcon,
 
                             ),
 
@@ -1077,9 +1054,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                                   color: isSelected
 
-                                      ? Colors.white
+                                      ? AppTheme.activeSidebarAccent
 
-                                      : const Color(0xFF64748B),
+                                      : AppTheme.sidebarInactiveText,
 
                                 ),
 
@@ -1253,7 +1230,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           ),
 
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1, color: AppTheme.cardBorder),
 
 
 
@@ -1311,7 +1288,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
         color: Colors.white,
 
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        border: Border(bottom: BorderSide(color: AppTheme.cardBorder, width: 1)),
 
       ),
 
@@ -1329,7 +1306,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
               fontWeight: FontWeight.bold,
 
-              color: Color(0xFF1E293B),
+              color: AppTheme.adminPrimaryText,
 
             ),
 
@@ -1347,7 +1324,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
             children: [
 
-              Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
+              Container(height: 32, width: 1, color: AppTheme.cardBorder),
 
               const SizedBox(width: 24),
 
@@ -1367,7 +1344,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                       fontWeight: FontWeight.w600,
 
-                      color: Color(0xFF1E293B),
+                      color: AppTheme.adminPrimaryText,
 
                       fontSize: 14,
 
@@ -1379,7 +1356,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                     'Admin',
 
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
 
                   ),
 
@@ -1393,9 +1370,9 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                 radius: 18,
 
-                backgroundColor: const Color(0xFFF1F5F9),
+                backgroundColor: AppTheme.adminPricingBackground,
 
-                child: const Icon(Icons.person, color: AppTheme.primaryColor),
+                child: const Icon(Icons.person, color: AppTheme.adminChatButton),
 
               ),
 
@@ -1405,7 +1382,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
                 Icons.keyboard_arrow_down,
 
-                color: Color(0xFF64748B),
+                color: AppTheme.adminSecondaryText,
 
                 size: 20,
 
@@ -1428,30 +1405,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
   Widget _buildWebMobileLayout() {
 
     return Container(
-
-      decoration: const BoxDecoration(
-
-        gradient: LinearGradient(
-
-          colors: [
-
-            Color(0xFF031627), // Deep ocean dark blue
-
-            Color(0xFF062C54), // Rich ocean blue
-
-            Color(0xFF0D568C), // Shimmering wave blue
-
-            Color(0xFF1B82C4), // Vibrant light blue highlights
-
-          ],
-
-          begin: Alignment.topCenter,
-
-          end: Alignment.bottomCenter,
-
-        ),
-
-      ),
+      color: AppTheme.adminMainBackground,
 
       child: Scaffold(
 
@@ -1485,18 +1439,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   Widget _buildMobileLayout() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF031627), // Deep ocean dark blue
-            Color(0xFF062C54), // Rich ocean blue
-            Color(0xFF0D568C), // Shimmering wave blue
-            Color(0xFF1B82C4), // Vibrant light blue highlights
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      color: AppTheme.adminMainBackground,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: _buildAppBarWithDrawer(),
@@ -1562,7 +1505,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-              color: AppTheme.primaryColor,
+              color: AppTheme.adminChatButton,
 
 
 
@@ -1598,7 +1541,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-              color: Color(0xFF1E293B),
+              color: AppTheme.adminPrimaryText,
 
 
 
@@ -1634,7 +1577,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-          icon: const Icon(Icons.menu, color: Color(0xFF64748B)),
+          icon: const Icon(Icons.menu, color: AppTheme.adminSecondaryText),
 
 
 
@@ -1662,7 +1605,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-          icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
+          icon: const Icon(Icons.logout, color: AppTheme.adminSecondaryText),
 
 
 
@@ -1690,7 +1633,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-        child: Container(color: const Color(0xFFE2E8F0), height: 1),
+        child: Container(color: AppTheme.cardBorder, height: 1),
 
 
 
@@ -1750,7 +1693,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
 
 
 
@@ -1778,7 +1721,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
 
 
 
@@ -1854,7 +1797,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                        color: Color(0xFF1E293B),
+                        color: AppTheme.adminPrimaryText,
 
 
 
@@ -1926,7 +1869,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                        ? AppTheme.primaryColor
+                        ? AppTheme.adminChatButton
 
 
 
@@ -2104,7 +2047,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                                  : const Color(0xFF64748B),
+                                  : AppTheme.adminSecondaryText,
 
 
 
@@ -2152,7 +2095,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                                      : const Color(0xFF64748B),
+                                      : AppTheme.adminSecondaryText,
 
 
 
@@ -2314,7 +2257,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1, color: AppTheme.cardBorder),
 
 
 
@@ -2398,7 +2341,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-      selectedItemColor: AppTheme.primaryColor,
+      selectedItemColor: AppTheme.adminChatButton,
 
 
 
@@ -2510,7 +2453,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-              color: AppTheme.primaryColor,
+              color: AppTheme.adminChatButton,
 
 
 
@@ -2890,7 +2833,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                color: Color(0xFF64748B),
+                color: AppTheme.adminSecondaryText,
 
 
 
@@ -2942,7 +2885,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                    color: AppTheme.primaryColor,
+                    color: AppTheme.adminChatButton,
 
 
 
@@ -3078,7 +3021,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                        backgroundColor: AppTheme.primaryColor.withValues(
+                        backgroundColor: AppTheme.adminChatButton.withValues(
 
 
 
@@ -3098,7 +3041,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                          color: AppTheme.primaryColor,
+                          color: AppTheme.adminChatButton,
 
 
 

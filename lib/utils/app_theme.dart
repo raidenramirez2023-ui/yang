@@ -4,28 +4,57 @@ import 'package:google_fonts/google_fonts.dart';
 /// Professional App Theme System
 class AppTheme {
   // Deep Forest Green Palette & Warm Gold Accents
-  static const Color forestGreen = Color(0xFF16302A); // Sidebar & Top Bar background
-  static const Color navColor = Color(0xFF16302A); // Unified Top Bar & Sidebar
-  static const Color sidebarDivider = Color(0xFF2B4941);
-  static const Color sidebarInactiveText = Color(0xFFDDE5E0);
-  static const Color sidebarInactiveIcon = Color(0xFF9DB5AB);
-  static const Color sidebarSubtitle = Color(0xFF8FA89E);
+  static const Color forestGreen = Color(0xFFA0121A); // Sidebar & Top Bar background (Crimson Red)
+  static const Color navColor = Color(0xFFA0121A); // Unified Top Bar & Sidebar (Crimson Red)
+  static const Color sidebarDivider = Color(0xFF780A10);
+  static const Color sidebarInactiveText = Color(0xFFFFFFFF); // White
+  static const Color sidebarInactiveIcon = Color(0xFFFFFFFF); // White
+  static const Color sidebarSubtitle = Color(0xFFE0E0E0);
+  static const Color activeSidebarItemBackground = Color(0xFF780A10); // Active sidebar item background
+  static const Color activeSidebarAccent = Color(0xFFFFC107); // Active sidebar indicator/accent (Gold Yellow)
+
+  // Admin Side Exact Color Hex Codes - New Crimson Red Scheme
+  static const Color adminSidebarBackground = Color(0xFFA0121A); // Sidebar Background (Crimson Red)
+  static const Color adminActiveSidebarBackground = Color(0xFF780A10); // Active Sidebar Item Background
+  static const Color adminActiveSidebarAccent = Color(0xFFFFC107); // Active Sidebar Highlight/Text (Gold Yellow)
+  static const Color adminSidebarInactiveText = Color(0xFFFFFFFF); // Inactive Text/Icons (White)
+  static const Color adminSidebarInactiveIcon = Color(0xFFFFFFFF); // Inactive Icon Color (White)
+  static const Color adminMainBackground = Color(0xFFF1F5F9); // Main Background (Crisp Light Slate)
+  static const Color adminCardBackground = Color(0xFFFFFFFF); // Card Item Backgrounds (Pure Crisp White)
+  static const Color adminPricingBackground = Color(0xFFF8FAFC); // Pricing Section Background (Subtle Slate)
+  static const Color adminPrimaryAccent = Color(0xFFE0A020); // Primary Accent Color (Gold Button)
+  static const Color adminPrimaryText = Color(0xFF0F172A); // Primary Text Color (Crisp Slate Charcoal)
+  static const Color adminSecondaryText = Color(0xFF475569); // Secondary Text Color (Slate Gray)
+  static const Color adminFeaturedMetricCard = Color(0xFFB21B21); // Featured Metric Card (Red Gradient)
+  static const Color adminProgressBar1 = Color(0xFF2E7D32); // Progress Bar 1 (Forest Green)
+  static const Color adminProgressBar2 = Color(0xFFFFC107); // Progress Bar 2 (Gold Yellow)
+  static const Color adminConfirmedEventsBg = Color(0xFFE8F5E9); // Confirmed Events Card BG
+  static const Color adminConfirmedEventsBorder = Color(0xFF2E7D32); // Confirmed Events Border/Text
+  static const Color adminRevenueGraphLine = Color(0xFFB21B21); // Revenue Analytics Graph Line (Ruby Red)
+  static const Color adminChatButton = Color(0xFFE0A020); // Chat Button (Gold)
+  static const Color adminChatBadge = Color(0xFFC62828); // Chat Badge (Red)
 
   // Primary Accent (Active states, CTAs, primary buttons)
-  static const Color warmGold = Color(0xFFE8B84B);
-  static const Color primaryColor = Color(0xFFE8B84B); // Primary CTA color
+  static const Color warmGold = Color(0xFFDFA535);
+  static const Color primaryColor = Color(0xFFE2B34B); // Primary CTA color
   static const Color primaryDark = Color(0xFF0F221E); // Deep Forest Dark Accent
   static const Color primaryLight = Color(0xFFF3C766); // Light Gold Accent
   static const Color darkBrownText = Color(0xFF412402); // Text on gold accent (never black)
 
   // Page, Card & Typography Colors
   static const Color backgroundColor = Color(0xFFF7F3EA); // Warm off-white (customer side)
-  static const Color adminBackground = Color(0xFFF1F5F9); // Clean slate grey (admin side)
-  static const Color white = Color(0xFFFFFFFF); // Card background
-  static const Color cardBorder = Color(0xFFE5E0D2); // Light warm gray border
-  static const Color darkGrey = Color(0xFF2C2C2A); // Near-black warm gray body text
-  static const Color mediumGrey = Color(0xFF8FA89E); // Muted secondary text
-  static const Color lightGrey = Color(0xFFE5E0D2); // Light warm gray
+  static const Color adminBackground = Color(0xFFF1F5F9); // Admin side main background (Crisp Light Slate)
+  static const Color white = Color(0xFFFFFFFF); // Pure White Card background
+  static const Color cardBorder = Color(0xFFE2E8F0); // Light crisp slate gray border
+  static const Color darkGrey = Color(0xFF1E293B); // Crisp dark slate body text
+  static const Color mediumGrey = Color(0xFF64748B); // Muted slate secondary text
+  static const Color lightGrey = Color(0xFFF1F5F9); // Light crisp slate gray
+
+  // Admin-specific aliases for consistency
+  static const Color adminTextPrimary = adminPrimaryText;
+  static const Color adminTextSecondary = adminSecondaryText;
+  static const Color adminCardItemBackground = adminCardBackground;
+  static const Color adminBackgroundMain = adminMainBackground;
 
   // Category Tag & Price Badge Tokens
   static const Color categoryTagText = Color(0xFF993C1D); // Rust/coral
@@ -42,7 +71,14 @@ class AppTheme {
 
   // Accent Gradients
   static LinearGradient get goldGradient => const LinearGradient(
-    colors: [Color(0xFFF3C766), Color(0xFFE8B84B), Color(0xFFD6A232)],
+    colors: [Color(0xFFE2B34B), Color(0xFFDFA535), Color(0xFFC99430)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // Admin-specific gradient
+  static LinearGradient get adminGradient => const LinearGradient(
+    colors: [Color(0xFFE2B34B), Color(0xFFDFA535)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -131,10 +167,10 @@ class AppTheme {
           }),
           overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.hovered)) {
-              return primaryColor.withOpacity(0.04);
+              return primaryColor.withValues(alpha: 0.04);
             }
             if (states.contains(WidgetState.pressed)) {
-              return primaryColor.withOpacity(0.12);
+              return primaryColor.withValues(alpha: 0.12);
             }
             return null;
           }),
@@ -157,7 +193,7 @@ class AppTheme {
           }),
           overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.hovered)) {
-              return primaryColor.withOpacity(0.04);
+              return primaryColor.withValues(alpha: 0.04);
             }
             return null;
           }),
@@ -283,7 +319,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(isHovered ? 0.08 : 0.04),
+          color: Colors.black.withValues(alpha: isHovered ? 0.08 : 0.04),
           blurRadius: isHovered ? 24 : 16,
           offset: Offset(0, isHovered ? 8 : 4),
           spreadRadius: isHovered ? 2 : 0,
@@ -299,12 +335,12 @@ class AppTheme {
       borderRadius: BorderRadius.circular(24),
       boxShadow: [
         BoxShadow(
-          color: primaryColor.withOpacity(0.15),
+          color: primaryColor.withValues(alpha: 0.15),
           blurRadius: 24,
           offset: const Offset(0, 10),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.06),
+          color: Colors.black.withValues(alpha: 0.06),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -319,7 +355,7 @@ class AppTheme {
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 16,
           offset: const Offset(0, 4),
         ),
@@ -334,12 +370,12 @@ class AppTheme {
       borderRadius: BorderRadius.circular(30),
       boxShadow: [
         BoxShadow(
-          color: primaryColor.withOpacity(0.12),
+          color: primaryColor.withValues(alpha: 0.12),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 8,
           offset: const Offset(0, -2),
         ),

@@ -240,6 +240,7 @@ class EmailNotificationService {
 
       debugPrint('Email logged: $emailType to $recipientEmail');
 
+      // ignore: todo
       // TODO: Integrate with actual email service (SendGrid, AWS SES, Mailgun, etc.)
       // For now, just log the intent
       _printEmailPreview(recipientEmail, subject, body);

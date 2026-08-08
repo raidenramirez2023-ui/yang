@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/notification_service.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
 // ══════════════════════════════════════════════════════════
 //  CHEF DASHBOARD PAGE
@@ -290,8 +289,6 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
   // ── Notifications ───────────────────────────────────────
   Widget _buildNewNotificationPopup(Map<String, dynamic> n) {
-    final actionType = n['action_type']?.toString() ?? '';
-    
     // If popup is already showing, don't show another one
     if (_isPopupShowing) {
       return const SizedBox.shrink();
@@ -370,8 +367,6 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   }
 
   void _showCriticalStockAlertPopup(Map<String, dynamic> notification) {
-    final eventType = notification['event_type']?.toString() ?? 'Stock Alert';
-    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -628,9 +623,9 @@ _closePopup();
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -775,9 +770,9 @@ _closePopup();
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.1),
+                        color: Colors.purple.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                        border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -941,9 +936,9 @@ _closePopup();
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -1116,9 +1111,9 @@ _closePopup();
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
+                        color: Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -1306,9 +1301,9 @@ _closePopup();
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: iconColor.withOpacity(0.1),
+        color: iconColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: iconColor.withOpacity(0.3)),
+        border: Border.all(color: iconColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1437,7 +1432,7 @@ _closePopup();
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.red.withOpacity(0.1),
+                        backgroundColor: Colors.red.withValues(alpha: 0.1),
                         child: Icon(
                           _getIconForAction(n['action_type']),
                           color: Colors.red,
@@ -2259,7 +2254,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: Column(
@@ -2267,7 +2262,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: widget.statusColors[widget.kitchenStatus]?.withOpacity(0.08) ?? Colors.grey.shade100,
+                      color: widget.statusColors[widget.kitchenStatus]?.withValues(alpha: 0.08) ?? Colors.grey.shade100,
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                       border: const Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
                     ),
@@ -2426,12 +2421,12 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isUrgent ? Colors.red.shade400 : color.withOpacity(0.5),
+          color: isUrgent ? Colors.red.shade400 : color.withValues(alpha: 0.5),
           width: isUrgent ? 2 : 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -2444,7 +2439,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 8, vertical: widget.isAdvanceOrder ? 6 : 8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.06),
+              color: color.withValues(alpha: 0.06),
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
@@ -2593,7 +2588,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade700.withOpacity(0.9),
+                      color: Colors.red.shade700.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Icon(
@@ -2632,10 +2627,10 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: color.withOpacity(0.5),
+                              color: color.withValues(alpha: 0.5),
                             ),
                           ),
                           child: Text(
@@ -2730,7 +2725,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                               height: 22,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.12),
+                                color: color.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -2766,10 +2761,10 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.08),
+                        color: Colors.amber.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.amber.withOpacity(0.3),
+                          color: Colors.amber.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -2811,7 +2806,7 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
                       height: widget.isAdvanceOrder ? 34 : 40,
                       child: ElevatedButton.icon(
                         onPressed: isTooEarly
-                            ? () => _showPrepTimeRestrictedDialog(context, prepTime!)
+                            ? () => _showPrepTimeRestrictedDialog(context, prepTime)
                             : () => widget.onStatusChanged(nextStatus),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isTooEarly
@@ -3122,7 +3117,7 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -3150,7 +3145,7 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.25),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.25),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -3202,7 +3197,7 @@ class _UpcomingEventCardState extends State<_UpcomingEventCard> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -3727,12 +3722,12 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: isSelected 
-                              ? AppTheme.primaryColor.withOpacity(0.1)
+                              ? AppTheme.primaryColor.withValues(alpha: 0.1)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                           border: isSelected 
                               ? Border.all(
-                                  color: AppTheme.primaryColor.withOpacity(0.3),
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                   width: 1,
                                 )
                               : null,
@@ -3869,7 +3864,7 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
                 ),
                 boxShadow: isSelected ? [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   )
@@ -3951,7 +3946,7 @@ class _FinishedOrdersTabState extends State<_FinishedOrdersTab> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: isEnabled ? [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             )
@@ -4036,7 +4031,7 @@ class _FinishedOrderCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -4052,10 +4047,10 @@ class _FinishedOrderCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.1),
+                  color: badgeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: badgeColor.withOpacity(0.2),
+                    color: badgeColor.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),
@@ -4099,7 +4094,7 @@ class _FinishedOrderCard extends StatelessWidget {
                     Icon(
                       Icons.access_time,
                       size: 14,
-                      color: isAdvance ? AppTheme.primaryColor.withOpacity(0.6) : const Color(0xFF94A3B8),
+                      color: isAdvance ? AppTheme.primaryColor.withValues(alpha: 0.6) : const Color(0xFF94A3B8),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -4502,7 +4497,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
               border: Border.all(color: const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -4555,7 +4550,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                           border: Border.all(color: const Color(0xFFE5E7EB)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -4579,7 +4574,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                     bottom: BorderSide(
                                       color: const Color(
                                         0xFFE5E7EB,
-                                      ).withOpacity(0.5),
+                                      ).withValues(alpha: 0.5),
                                     ),
                                   ),
                                 ),
@@ -4730,7 +4725,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? color.withOpacity(0.1)
+                                  ? color.withValues(alpha: 0.1)
                                   : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
@@ -4964,7 +4959,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                 ),
                 boxShadow: isSelected ? [
                   BoxShadow(
-                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   )
@@ -5041,7 +5036,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: isEnabled ? [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             )
@@ -5103,7 +5098,7 @@ class _RequestHistoryCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -5132,7 +5127,7 @@ class _RequestHistoryCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: priorityColor.withOpacity(0.1),
+                        color: priorityColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -5172,9 +5167,9 @@ class _RequestHistoryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
+              color: statusColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withOpacity(0.5)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.5)),
             ),
             child: Text(
               status,
@@ -5547,7 +5542,7 @@ class _StockViewTabState extends State<_StockViewTab> {
                                 border: Border.all(color: const Color(0xFFE5E7EB)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.02),
+                                    color: Colors.black.withValues(alpha: 0.02),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -5598,7 +5593,7 @@ class _StockViewTabState extends State<_StockViewTab> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: color.withOpacity(0.2),
+                                      color: color.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -5811,11 +5806,11 @@ class _StockViewTabState extends State<_StockViewTab> {
         ),
         style: TextButton.styleFrom(
           foregroundColor: color,
-          backgroundColor: color.withOpacity(0.08),
+          backgroundColor: color.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          side: BorderSide(color: color.withOpacity(0.2), width: 1),
+          side: BorderSide(color: color.withValues(alpha: 0.2), width: 1),
         ),
       ),
     );
@@ -5835,10 +5830,10 @@ class _StockViewTabState extends State<_StockViewTab> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? color : color.withOpacity(0.08),
+            color: isSelected ? color : color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? color : color.withOpacity(0.3),
+              color: isSelected ? color : color.withValues(alpha: 0.3),
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -5858,8 +5853,8 @@ class _StockViewTabState extends State<_StockViewTab> {
                 label,
                 style: TextStyle(
                   color: isSelected
-                      ? Colors.white.withOpacity(0.9)
-                      : color.withOpacity(0.8),
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : color.withValues(alpha: 0.8),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
