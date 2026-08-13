@@ -4889,114 +4889,42 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                     }
 
+                                    // Validate 40-minutes-ahead rule for same-day Advance Orders (Dine In & Pick Up)
+                                    if (_reservationType == 'Advance Order') {
+                                      final selectedDateStr = _dateController.text.trim();
+                                      if (selectedDateStr.isNotEmpty) {
+                                        try {
+                                          final now = DateTime.now();
+                                          final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
+                                          final isToday = selectedDate.year == now.year &&
+                                              selectedDate.month == now.month &&
+                                              selectedDate.day == now.day;
 
+                                          if (isToday) {
+                                            final selectedDateTime = DateTime(
+                                              now.year,
+                                              now.month,
+                                              now.day,
+                                              pickedTime.hour,
+                                              pickedTime.minute,
+                                            );
+                                            final timeDifference = selectedDateTime.difference(now);
 
-                                    // Warning for short-notice same-day Advance Orders removed
-
-                                      // final selectedDateStr = _dateController.text.trim();
-
-                                      // if (selectedDateStr.isNotEmpty) {
-
-                                        // try {
-
-                                          // final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
-
-                                          // final isToday = selectedDate.year == now.year &&
-
-                                          //     selectedDate.month == now.month &&
-
-                                          //     selectedDate.day == now.day;
-
-
-
-                                          // if (isToday) {
-
-                                            // final selectedDateTime = DateTime(
-
-                                            //   now.year,
-
-                                            //   now.month,
-
-                                            //   now.day,
-
-                                            //   pickedTime.hour,
-
-                                            //   pickedTime.minute,
-
-                                            // );
-
-                                            // final timeDifference = selectedDateTime.difference(now);
-
-
-
-                                            // // Menu-based warning thresholds for advance orders only
-                                            // final warningThreshold = _calculateMenuBasedWarningThreshold();
-
-                                            // if (warningThreshold > 0 && timeDifference.inMinutes < warningThreshold) {
-
-                                              // final shouldContinue = await showDialog<bool>(
-
-                                              //   context: context,
-
-                                              //   builder: (context) => AlertDialog(
-
-                                              //     title: const Row(
-
-                                              //       children: [
-
-                                              //         Icon(Icons.info_outline, color: Colors.orange),
-
-                                              //         SizedBox(width: 8),
-
-                                              //         Text('Preparation Time'),
-
-                                              //       ],
-
-                                              //     ),
-
-                                              //     content: Text('Our team will do their best to prepare your order! Some items may need additional preparation time. Continue?'),
-
-                                              //     actions: [
-
-                                              //       TextButton(
-
-                                              //         onPressed: () => Navigator.pop(context, false),
-
-                                              //         child: const Text('Cancel'),
-
-                                              //       ),
-
-                                              //       ElevatedButton(
-
-                                              //         onPressed: () => Navigator.pop(context, true),
-
-                                              //         child: const Text('Continue'),
-
-                                              //       ),
-
-                                              //     ],
-
-                                              //   ),
-
-                                              // );
-
-                                              // if (shouldContinue != true) return;
-
-                                            // }
-
-                                          // }
-
-                                        // } catch (e) {
-
-                                        //   debugPrint('Error validating lead time: $e');
-
-                                        // }
-
-                                      // }
-
-                                    // }
-
-
+                                            if (timeDifference.inMinutes < 40) {
+                                              final earliestTime = now.add(const Duration(minutes: 40));
+                                              final earliestFormatted = '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+                                              _showSnackBar(
+                                                'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
+                                                Colors.red,
+                                              );
+                                              return;
+                                            }
+                                          }
+                                        } catch (e) {
+                                          debugPrint('Error validating lead time: $e');
+                                        }
+                                      }
+                                    }
 
                                     setState(() {
 
@@ -12235,6 +12163,48 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       return;
 
+    }
+
+
+
+    // Safety-net: Validate 40-minutes-ahead rule for same-day Advance Orders
+    if (_reservationType == 'Advance Order') {
+      try {
+        final now = DateTime.now();
+        final selectedDate = DateFormat('MMMM d, yyyy').parse(date);
+        final isToday = selectedDate.year == now.year &&
+            selectedDate.month == now.month &&
+            selectedDate.day == now.day;
+
+        if (isToday && startTime.isNotEmpty) {
+          // Parse time from format like "7:49 PM"
+          final timeParts = startTime.replaceAll(RegExp(r'[^\d:APMapm ]'), '').trim().split(RegExp(r'[\s:]+'));
+          if (timeParts.length >= 2) {
+            int hour = int.tryParse(timeParts[0]) ?? 0;
+            int minute = int.tryParse(timeParts[1]) ?? 0;
+            final isPM = startTime.toUpperCase().contains('PM');
+            final isAM = startTime.toUpperCase().contains('AM');
+
+            if (isPM && hour != 12) hour += 12;
+            if (isAM && hour == 12) hour = 0;
+
+            final selectedDateTime = DateTime(now.year, now.month, now.day, hour, minute);
+            final timeDifference = selectedDateTime.difference(now);
+
+            if (timeDifference.inMinutes < 40) {
+              final earliestTime = now.add(const Duration(minutes: 40));
+              final earliestFormatted = '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+              _showSnackBar(
+                'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
+                Colors.red,
+              );
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error validating lead time in submit: $e');
+      }
     }
 
 
