@@ -78,13 +78,12 @@ import 'package:yang_chow/services/menu_service.dart';
 
 import 'package:yang_chow/services/menu_reservation_service.dart';
 
+import 'package:yang_chow/models/menu_item.dart';
+
 
 
 import 'package:intl/intl.dart';
 
-
-
-import 'package:yang_chow/models/menu_item.dart';
 
 
 
@@ -4328,29 +4327,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  Duration _calculateDynamicLeadTime() {
 
-    // Advance orders require at least a 24-hour lead time
 
-    const baseLeadTime = Duration(days: 1);
 
-    
-
-    if (_selectedMenuItems.isEmpty) return baseLeadTime;
-
-    
-
-    int totalItems = _selectedMenuItems.values.fold(0, (sum, qty) => sum + qty);
-
-    int extraMinutes = (totalItems / 5).floor() * 15;
-
-    
-
-    // Add extra time for large orders on top of the 24-hour base
-
-    return baseLeadTime + Duration(minutes: extraMinutes);
-
-  }
 
 
 
@@ -4796,7 +4775,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                                   final minDate = _reservationType == 'Advance Order'
 
-                                      ? DateTime.now().add(const Duration(days: 1))
+                                      ? DateTime.now()
 
                                       : DateTime.now().add(const Duration(days: 4));
 
@@ -4878,7 +4857,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-                                  TimeOfDay? pickedTime = await showTimePicker(
+                                  final TimeOfDay? pickedTime = await showTimePicker(
 
                                     context: context,
 
@@ -4912,91 +4891,110 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-                                    // Check dynamic lead time for same-day Advance Orders
+                                    // Warning for short-notice same-day Advance Orders removed
 
-                                    // Kitchen needs at least 1 hour to prepare before the customer's time.
+                                      // final selectedDateStr = _dateController.text.trim();
 
-                                    if (_reservationType == 'Advance Order') {
+                                      // if (selectedDateStr.isNotEmpty) {
 
-                                      final now = DateTime.now();
+                                        // try {
 
-                                      final selectedDateStr = _dateController.text.trim();
+                                          // final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
 
-                                      if (selectedDateStr.isNotEmpty) {
+                                          // final isToday = selectedDate.year == now.year &&
 
-                                        try {
+                                          //     selectedDate.month == now.month &&
 
-                                          final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
-
-                                          final isToday = selectedDate.year == now.year &&
-
-                                              selectedDate.month == now.month &&
-
-                                              selectedDate.day == now.day;
+                                          //     selectedDate.day == now.day;
 
 
 
-                                          if (isToday) {
+                                          // if (isToday) {
 
-                                            final selectedDateTime = DateTime(
+                                            // final selectedDateTime = DateTime(
 
-                                              now.year,
+                                            //   now.year,
 
-                                              now.month,
+                                            //   now.month,
 
-                                              now.day,
+                                            //   now.day,
 
-                                              pickedTime.hour,
+                                            //   pickedTime.hour,
 
-                                              pickedTime.minute,
+                                            //   pickedTime.minute,
 
-                                            );
+                                            // );
 
-                                            // Lead time: at least 1 hour (+ extra for large orders)
-
-                                            // e.g. customer selects 10 AM → kitchen prepares from 9 AM
-
-                                            final leadTime = _calculateDynamicLeadTime();
-
-                                            final minSelectableTime = now.add(leadTime);
+                                            // final timeDifference = selectedDateTime.difference(now);
 
 
 
-                                            if (selectedDateTime.isBefore(minSelectableTime)) {
+                                            // // Menu-based warning thresholds for advance orders only
+                                            // final warningThreshold = _calculateMenuBasedWarningThreshold();
 
-                                              final h = leadTime.inHours;
+                                            // if (warningThreshold > 0 && timeDifference.inMinutes < warningThreshold) {
 
-                                              final m = leadTime.inMinutes % 60;
+                                              // final shouldContinue = await showDialog<bool>(
 
-                                              final leadTimeStr = h > 0
+                                              //   context: context,
 
-                                                  ? '$h hour${h > 1 ? "s" : ""} ${m > 0 ? "and $m min" : ""}'
+                                              //   builder: (context) => AlertDialog(
 
-                                                  : '$m minutes';
+                                              //     title: const Row(
 
-                                              _showSnackBar(
+                                              //       children: [
 
-                                                'Please select a time at least $leadTimeStr from now so we can prepare your order. 🍽️',
+                                              //         Icon(Icons.info_outline, color: Colors.orange),
 
-                                                Colors.orange,
+                                              //         SizedBox(width: 8),
 
-                                              );
+                                              //         Text('Preparation Time'),
 
-                                              return;
+                                              //       ],
 
-                                            }
+                                              //     ),
 
-                                          }
+                                              //     content: Text('Our team will do their best to prepare your order! Some items may need additional preparation time. Continue?'),
 
-                                        } catch (e) {
+                                              //     actions: [
 
-                                          debugPrint('Error validating lead time: $e');
+                                              //       TextButton(
 
-                                        }
+                                              //         onPressed: () => Navigator.pop(context, false),
 
-                                      }
+                                              //         child: const Text('Cancel'),
 
-                                    }
+                                              //       ),
+
+                                              //       ElevatedButton(
+
+                                              //         onPressed: () => Navigator.pop(context, true),
+
+                                              //         child: const Text('Continue'),
+
+                                              //       ),
+
+                                              //     ],
+
+                                              //   ),
+
+                                              // );
+
+                                              // if (shouldContinue != true) return;
+
+                                            // }
+
+                                          // }
+
+                                        // } catch (e) {
+
+                                        //   debugPrint('Error validating lead time: $e');
+
+                                        // }
+
+                                      // }
+
+                                    // }
 
 
 
