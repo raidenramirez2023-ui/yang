@@ -1,44 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Professional App Theme System
+/// Professional App Theme System — YCPRMS
+/// Palette: Deep Emerald (primary/nav) + Muted Gold (accent)
 class AppTheme {
-  // Deep Forest Green Palette & Warm Gold Accents
-  static const Color forestGreen = Color(0xFFA0121A); // Sidebar & Top Bar background (Crimson Red)
-  static const Color navColor = Color(0xFFA0121A); // Unified Top Bar & Sidebar (Crimson Red)
-  static const Color sidebarDivider = Color(0xFF780A10);
+  // Deep Emerald Palette & Warm Gold Accents
+  static const Color forestGreen = Color(0xFF14332E); // Sidebar & Top Bar background (Deep Emerald)
+  static const Color navColor = Color(0xFF14332E); // Unified Top Bar & Sidebar (Deep Emerald)
+  static const Color sidebarDivider = Color(0xFF0D2521);
   static const Color sidebarInactiveText = Color(0xFFFFFFFF); // White
   static const Color sidebarInactiveIcon = Color(0xFFFFFFFF); // White
-  static const Color sidebarSubtitle = Color(0xFFE0E0E0);
-  static const Color activeSidebarItemBackground = Color(0xFF780A10); // Active sidebar item background
-  static const Color activeSidebarAccent = Color(0xFFFFC107); // Active sidebar indicator/accent (Gold Yellow)
+  static const Color sidebarSubtitle = Color(0xFFC7D6D3);
+  static const Color activeSidebarItemBackground = Color(0xFF1E4A42); // Active sidebar item background
+  static const Color activeSidebarAccent = Color(0xFFD9A441); // Active sidebar indicator/accent (Muted Gold)
 
-  // Admin Side Exact Color Hex Codes - New Crimson Red Scheme
-  static const Color adminSidebarBackground = Color(0xFFA0121A); // Sidebar Background (Crimson Red)
-  static const Color adminActiveSidebarBackground = Color(0xFF780A10); // Active Sidebar Item Background
-  static const Color adminActiveSidebarAccent = Color(0xFFFFC107); // Active Sidebar Highlight/Text (Gold Yellow)
+  // Admin Side Exact Color Hex Codes — Deep Emerald Scheme
+  static const Color adminSidebarBackground = Color(0xFF14332E); // Sidebar Background (Deep Emerald)
+  static const Color adminActiveSidebarBackground = Color(0xFF1E4A42); // Active Sidebar Item Background
+  static const Color adminActiveSidebarAccent = Color(0xFFD9A441); // Active Sidebar Highlight/Text (Muted Gold)
   static const Color adminSidebarInactiveText = Color(0xFFFFFFFF); // Inactive Text/Icons (White)
   static const Color adminSidebarInactiveIcon = Color(0xFFFFFFFF); // Inactive Icon Color (White)
   static const Color adminMainBackground = Color(0xFFF1F5F9); // Main Background (Crisp Light Slate)
   static const Color adminCardBackground = Color(0xFFFFFFFF); // Card Item Backgrounds (Pure Crisp White)
   static const Color adminPricingBackground = Color(0xFFF8FAFC); // Pricing Section Background (Subtle Slate)
-  static const Color adminPrimaryAccent = Color(0xFFE0A020); // Primary Accent Color (Gold Button)
+  static const Color adminPrimaryAccent = Color(0xFFC9922E); // Primary Accent Color (Gold Button)
   static const Color adminPrimaryText = Color(0xFF0F172A); // Primary Text Color (Crisp Slate Charcoal)
   static const Color adminSecondaryText = Color(0xFF475569); // Secondary Text Color (Slate Gray)
-  static const Color adminFeaturedMetricCard = Color(0xFFB21B21); // Featured Metric Card (Red Gradient)
+  static const Color adminFeaturedMetricCard = Color(0xFF1E4A42); // Featured Metric Card (Emerald Gradient base)
   static const Color adminProgressBar1 = Color(0xFF2E7D32); // Progress Bar 1 (Forest Green)
-  static const Color adminProgressBar2 = Color(0xFFFFC107); // Progress Bar 2 (Gold Yellow)
+  static const Color adminProgressBar2 = Color(0xFFD9A441); // Progress Bar 2 (Muted Gold)
   static const Color adminConfirmedEventsBg = Color(0xFFE8F5E9); // Confirmed Events Card BG
   static const Color adminConfirmedEventsBorder = Color(0xFF2E7D32); // Confirmed Events Border/Text
-  static const Color adminRevenueGraphLine = Color(0xFFB21B21); // Revenue Analytics Graph Line (Ruby Red)
-  static const Color adminChatButton = Color(0xFFE0A020); // Chat Button (Gold)
-  static const Color adminChatBadge = Color(0xFFC62828); // Chat Badge (Red)
+  static const Color adminRevenueGraphLine = Color(0xFF14332E); // Revenue Analytics Graph Line (Deep Emerald)
+  static const Color adminChatButton = Color(0xFFC9922E); // Chat Button (Gold)
+  static const Color adminChatBadge = Color(0xFFDC2626); // Chat Badge (Professional Red)
 
   // Primary Accent (Active states, CTAs, primary buttons)
-  static const Color warmGold = Color(0xFFDFA535);
-  static const Color primaryColor = Color(0xFFE2B34B); // Primary CTA color
+  static const Color warmGold = Color(0xFFD9A441);
+  static const Color primaryColor = Color(0xFFC9922E); // Primary CTA color
   static const Color primaryDark = Color(0xFF0F221E); // Deep Forest Dark Accent
-  static const Color primaryLight = Color(0xFFF3C766); // Light Gold Accent
+  static const Color primaryLight = Color(0xFFE6C374); // Light Gold Accent
   static const Color darkBrownText = Color(0xFF412402); // Text on gold accent (never black)
 
   // Page, Card & Typography Colors
@@ -57,12 +58,12 @@ class AppTheme {
   static const Color adminBackgroundMain = adminMainBackground;
 
   // Category Tag & Price Badge Tokens
-  static const Color categoryTagText = Color(0xFF993C1D); // Rust/coral
-  static const Color priceBadgeBg = Color(0xFF16302A); // Deep forest green
+  static const Color categoryTagText = Color(0xFFB45309); // Warm terracotta
+  static const Color priceBadgeBg = Color(0xFF14332E); // Deep emerald
   static const Color priceBadgeText = Color(0xFFF5F1E6); // Off-white
 
   // Alert Badge (Strictly reserved for notifications/alerts)
-  static const Color errorRed = Color(0xFFFF3B30);
+  static const Color errorRed = Color(0xFFDC2626); // Professional red, distinct from brand palette
 
   // Status & Utility Colors
   static const Color successGreen = Color(0xFF34C759);
@@ -71,14 +72,14 @@ class AppTheme {
 
   // Accent Gradients
   static LinearGradient get goldGradient => const LinearGradient(
-    colors: [Color(0xFFE2B34B), Color(0xFFDFA535), Color(0xFFC99430)],
+    colors: [Color(0xFFE6C374), Color(0xFFD9A441), Color(0xFFC9922E)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   // Admin-specific gradient
   static LinearGradient get adminGradient => const LinearGradient(
-    colors: [Color(0xFFE2B34B), Color(0xFFDFA535)],
+    colors: [Color(0xFFE6C374), Color(0xFFD9A441)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -310,7 +311,7 @@ class AppTheme {
   static const Color advanceOrderGreen = Color(0xFF2E7D32);
   static const Color reservationPurple = Color(0xFF7B1FA2);
   static const Color accentOrange = Color(0xFFFF6B35);
-  static const Color goldenAmber = Color(0xFFFFB300);
+  static const Color goldenAmber = Color(0xFFD9A441);
 
   // Soft Food-App Card & Shadow Styles
   static BoxDecoration foodCardDecoration({bool isHovered = false}) {
@@ -398,4 +399,3 @@ class AppTheme {
   static const double radiusXl = 16;
   static const double radius2Xl = 24;
 }
-
