@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/services/delivery_receipt_ocr_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -162,26 +164,50 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                   ),
                   const SizedBox(height: 16),
 
-                  // Add item button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      _showAddBulkItemDialog(
-                        allItems,
-                        (item) {
-                          setDialogState(() {
-                            bulkItems.add(item);
-                          });
+                  // Add item & Upload receipt buttons
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _showAddBulkItemDialog(
+                            allItems,
+                            (item) {
+                              setDialogState(() {
+                                bulkItems.add(item);
+                              });
+                            },
+                          );
                         },
-                      );
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Item'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: AppTheme.white,
-                    ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Item'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: AppTheme.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          _handleUploadDeliveryReceipt(
+                            allItems,
+                            (List<Map<String, dynamic>> items) {
+                              setDialogState(() {
+                                bulkItems.addAll(items);
+                              });
+                            },
+                          );
+                        },
+                        icon: const Icon(Icons.upload_file, size: 20),
+                        label: const Text('Upload Delivery Receipt'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
+
 
                   // Bulk items list
                   Expanded(
@@ -315,6 +341,326 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _handleUploadDeliveryReceipt(
+    List<Map<String, dynamic>> allItems,
+    Function(List<Map<String, dynamic>>) onItemsAdded,
+  ) async {
+    try {
+      // Open file picker
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'jfif'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) {
+        _showErrorSnackBar('Could not read the selected file.');
+        return;
+      }
+
+      // Show loading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: AppTheme.primaryColor,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Scanning Delivery Receipt...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.mediumGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Scanning and auto-matching with inventory...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.mediumGrey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Fetch fresh inventory items directly from database
+      List<Map<String, dynamic>> inventoryItems = allItems;
+      try {
+        final res = await Supabase.instance.client
+            .from('inventory')
+            .select('name, category, unit, supplier');
+        if (res.isNotEmpty) {
+          inventoryItems = List<Map<String, dynamic>>.from(res);
+        }
+      } catch (e) {
+        debugPrint('Error fetching inventory for OCR matching: $e');
+      }
+
+      // Call OCR service
+      final ocrResult = await DeliveryReceiptOcrService.parseDeliveryReceipt(
+        fileBytes: file.bytes!,
+        fileName: file.name,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (ocrResult['success'] != true) {
+        _showErrorSnackBar(ocrResult['error'] ?? 'Failed to scan receipt');
+        return;
+      }
+
+      final List<dynamic> parsedItems = ocrResult['items'] ?? [];
+      final String? detectedSupplier = ocrResult['supplier'];
+
+      if (parsedItems.isEmpty) {
+        _showErrorSnackBar('No items found in the delivery receipt.');
+        return;
+      }
+
+      // Match parsed items against inventory using similarity
+      final List<Map<String, dynamic>> itemsToAdd = [];
+      int matchedCount = 0;
+      final List<String> unmatchedNames = [];
+
+      for (final parsed in parsedItems) {
+        final String parsedName = (parsed['name'] ?? '').toString().trim();
+        final int parsedQty = parsed['quantity'] ?? 0;
+        final String parsedUnit = (parsed['unit'] ?? 'Pcs').toString().trim();
+
+        if (parsedName.isEmpty || parsedQty <= 0) continue;
+
+        // Find best match in inventory
+        Map<String, dynamic>? bestMatch;
+        double highestScore = 0.0;
+
+        for (final inv in inventoryItems) {
+          final invName = inv['name']?.toString() ?? '';
+          final score = DeliveryReceiptOcrService.calculateSimilarity(parsedName, invName);
+          if (score > highestScore && score >= 0.50) {
+            highestScore = score;
+            bestMatch = inv;
+          }
+        }
+
+        if (bestMatch != null) {
+          matchedCount++;
+          itemsToAdd.add({
+            'name': bestMatch['name'] ?? parsedName,
+            'category': bestMatch['category'] ?? 'Groceries',
+            'quantity': parsedQty,
+            'unit': (bestMatch['unit'] != null && bestMatch['unit'].toString().trim().isNotEmpty)
+                ? bestMatch['unit'].toString().trim()
+                : parsedUnit,
+            'supplier': (bestMatch['supplier'] != null && bestMatch['supplier'].toString().trim().isNotEmpty)
+                ? bestMatch['supplier'].toString().trim()
+                : (detectedSupplier ?? ''),
+          });
+        } else {
+          // Add as new item with default/detected info
+          unmatchedNames.add(parsedName);
+          itemsToAdd.add({
+            'name': parsedName,
+            'category': 'Groceries',
+            'quantity': parsedQty,
+            'unit': parsedUnit.isNotEmpty ? parsedUnit : 'Pcs',
+            'supplier': detectedSupplier ?? '',
+          });
+        }
+      }
+
+      // Add all items to the bulk list
+      if (itemsToAdd.isNotEmpty) {
+        onItemsAdded(itemsToAdd);
+      }
+
+      // Show results summary
+      if (!mounted) return;
+      _showReceiptScanResults(itemsToAdd.length, matchedCount, unmatchedNames);
+    } catch (e) {
+      if (mounted) {
+        try {
+          Navigator.of(context).pop();
+        } catch (_) {}
+      }
+      _showErrorSnackBar('Error processing receipt: $e');
+    }
+  }
+
+  void _showReceiptScanResults(int totalAdded, int matchedCount, List<String> unmatchedNames) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_outline,
+                      color: AppTheme.successGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Delivery Receipt Scanned',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.darkGrey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Total added banner
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.successGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.successGreen.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.inventory_2,
+                      color: AppTheme.successGreen,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '$totalAdded item${totalAdded > 1 ? 's' : ''} added to the delivery list ($matchedCount auto-matched with inventory)',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.darkGrey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Note on new / unmatched items if any
+              if (unmatchedNames.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            color: Colors.blue,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${unmatchedNames.length} new item${unmatchedNames.length > 1 ? 's' : ''} added (not in inventory yet):',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.darkGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ...unmatchedNames.map(
+                        (name) => Padding(
+                          padding: const EdgeInsets.only(left: 26, bottom: 2),
+                          child: Text(
+                            '• $name',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.mediumGrey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: AppTheme.white,
+                  ),
+                  child: const Text('OK'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
