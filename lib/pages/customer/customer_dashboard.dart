@@ -7919,12 +7919,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           if (!mounted) return;
 
           final now = DateTime.now();
-          final todayStr = DateFormat('yyyy-MM-dd').format(now);
+          final startOfToday = DateTime(now.year, now.month, now.day);
 
           // Filter: today only, exclude cancelled/refunded
           final todayOrders = rows.where((o) {
-            final createdAt = o['created_at']?.toString() ?? '';
-            final isToday = createdAt.startsWith(todayStr);
+            final createdAtStr = o['created_at']?.toString() ?? '';
+            if (createdAtStr.isEmpty) return false;
+            final dt = DateTime.tryParse(createdAtStr)?.toLocal();
+            if (dt == null) return false;
+            final isToday = dt.isAfter(startOfToday.subtract(const Duration(seconds: 1)));
+
             final status = o['status']?.toString().toLowerCase() ?? '';
             final refundStatus = o['refund_status']?.toString() ?? 'none';
             final isCancelled = status == 'cancelled' ||
