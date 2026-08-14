@@ -2215,11 +2215,22 @@ class _KitchenOrderCardState extends State<_KitchenOrderCard> {
     final elapsed = createdAt != null
         ? DateTime.now().difference(createdAt.toLocal())
         : null;
-    final elapsedStr = elapsed != null
-        ? elapsed.inMinutes < 1
-              ? 'Just now'
-              : '${elapsed.inMinutes} min ago'
-        : '';
+    String formatElapsed(Duration elapsed) {
+      if (elapsed.inMinutes < 1) {
+        return 'Just now';
+      } else if (elapsed.inMinutes < 60) {
+        final minutes = elapsed.inMinutes;
+        return minutes == 1 ? '1 min ago' : '$minutes mins ago';
+      } else if (elapsed.inHours < 24) {
+        final hours = elapsed.inHours;
+        return hours == 1 ? '1 hour ago' : '$hours hours ago';
+      } else {
+        final days = elapsed.inDays;
+        return days == 1 ? '1 day ago' : '$days days ago';
+      }
+    }
+
+    final elapsedStr = elapsed != null ? formatElapsed(elapsed) : '';
 
     final currentIdx = widget.statusOrder.indexOf(status);
     final nextStatus = currentIdx < widget.statusOrder.length - 1
