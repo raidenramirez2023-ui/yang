@@ -257,23 +257,31 @@ class MenuService {
 
 
   /// Converts any image path (local 'assets/images/FILENAME', filename, or URL) to its Supabase public URL.
-
-  /// Paths that are already URLs (http/https) are returned unchanged.
-
+  /// Automatically converts Unsplash webpage URLs to raw direct image URLs.
   static String resolveImageUrl(String? path) {
-
     if (path == null || path.isEmpty) return '';
+
+    // Auto-convert Unsplash webpage URLs (e.g., https://unsplash.com/photos/title-ID) to direct image URLs
+    if (path.contains('unsplash.com/photos/')) {
+      try {
+        final uri = Uri.parse(path);
+        final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+        if (segments.isNotEmpty) {
+          final lastSegment = segments.last;
+          final parts = lastSegment.split('-');
+          final photoId = parts.last;
+          return 'https://images.unsplash.com/photo-$photoId?auto=format&fit=crop&w=800&q=80';
+        }
+      } catch (_) {}
+    }
 
     if (path.startsWith('http')) return path;
 
     if (path.startsWith('assets/images/')) {
-
       return AppConstants.imageUrl(path.replaceFirst('assets/images/', ''));
-
     }
 
     return AppConstants.imageUrl(path);
-
   }
 
 
