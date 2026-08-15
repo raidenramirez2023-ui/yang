@@ -68,11 +68,15 @@ class PettyCashService {
       if (fund == null) return false;
 
       final newBalance = fund.currentBalance + amount;
+      final newInitial = (fund.initialBalance <= 0 || fund.initialBalance < newBalance)
+          ? newBalance
+          : (fund.initialBalance + amount);
 
       await _supabase
           .from('petty_cash_fund')
           .update({
             'current_balance': newBalance,
+            'initial_balance': newInitial,
             'last_replenished_at': DateTime.now().toUtc().toIso8601String(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
