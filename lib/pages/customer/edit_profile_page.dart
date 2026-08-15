@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -456,12 +457,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       child: Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.navColor,
           elevation: 0,
           shadowColor: Colors.transparent,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.darkGrey, size: 22),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
             onPressed: () async {
               if (!_isChanged) {
                 Navigator.of(context).pop();
@@ -473,13 +474,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
               }
             },
           ),
-          title: const Text(
+          title: Text(
             'Edit Profile',
-            style: TextStyle(
-              color: AppTheme.darkGrey,
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-              letterSpacing: -0.3,
+            style: GoogleFonts.lora(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 22,
             ),
           ),
           centerTitle: true,

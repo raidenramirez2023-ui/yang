@@ -102,11 +102,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
         ),
         title: Text(
           'Transactions & Order Tracking',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.lora(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            letterSpacing: -0.3,
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
           ),
         ),
         centerTitle: true,

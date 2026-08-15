@@ -3013,16 +3013,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
         // Modern Animated Mobile Navigation at Bottom (#16302A Forest Green & #E8B84B Warm Gold)
-
-        SafeArea(
-
-          top: false,
-
-          child: Container(
-
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-
-            decoration: const BoxDecoration(
+        if (MediaQuery.of(context).viewInsets.bottom == 0)
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              decoration: const BoxDecoration(
 
               color: AppTheme.forestGreen, // #16302A
 
@@ -9294,16 +9290,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
       setState(() {
-
+        for (final key in _selectedMenuItems.keys) {
+          _preOrderCart.remove(key);
+        }
         _selectedMenuItems.clear();
-
-        _preOrderCart.clear();
 
         _selectedIdImage = null;
 
         _uploadedIdUrl = null;
 
       });
+
+      _saveCartToPrefs();
 
 
 
@@ -12674,14 +12672,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                     if (mounted) {
 
                       setState(() {
-
+                        for (final key in _selectedMenuItems.keys) {
+                          _preOrderCart.remove(key);
+                        }
                         _selectedMenuItems.clear();
-
-                        _preOrderCart.clear();
 
                         _selectedIndex = 0; // Go to home/activity
 
                       });
+                      _saveCartToPrefs();
 
                       _loadCustomerReservations();
 
@@ -14207,11 +14206,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  void _proceedDirectlyToReservation() {
+  void _proceedDirectlyToReservation(Map<String, int> selectedSubset) {
 
     setState(() {
 
-      _selectedMenuItems = Map<String, int>.from(_preOrderCart);
+      _selectedMenuItems = Map<String, int>.from(selectedSubset);
 
       _selectedIndex = 1;
 
@@ -14223,15 +14222,23 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
   void _showOrderListModal() {
 
-    showOrderListModal(
+    Navigator.push(
 
-      context: context,
+      context,
 
-      selectedMenuItems: _preOrderCart,
+      MaterialPageRoute(
 
-      onProceed: _proceedDirectlyToReservation,
+        builder: (context) => CustomerOrderListPage(
 
-      onCartUpdated: _handleCartUpdated,
+          selectedMenuItems: _preOrderCart,
+
+          onProceed: _proceedDirectlyToReservation,
+
+          onCartUpdated: _handleCartUpdated,
+
+        ),
+
+      ),
 
     );
 
