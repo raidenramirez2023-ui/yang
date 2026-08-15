@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -299,19 +300,55 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     );
   }
 
+  // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────
+  static const Color _forestGreen = Color(0xFF990000); // dark red
+  static const Color _activeEmerald = Color(0xFFAA0000); // medium red
+  static const Color _warmGold = Color(0xFFFFD166); // warm gold accent
+  static const Color _primaryGold = Color(0xFFC9922E); // amber gold
+  static const Color _darkForest = Color(0xFF770000); // darkest red
+  static const Color _deepBurgundy = Color(0xFF380202); // deep wine burgundy
+
   @override
   Widget build(BuildContext context) {
     if (_isSessionChecking) {
       return Scaffold(
+        backgroundColor: _deepBurgundy,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Colors.red.shade700),
-              SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withOpacity(0.3),
+                  border: Border.all(color: _warmGold.withOpacity(0.5), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _warmGold.withOpacity(0.2),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    color: _warmGold,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               Text(
                 'Checking staff authentication...',
-                style: TextStyle(color: Colors.red.shade700),
+                style: GoogleFonts.poppins(
+                  color: _warmGold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
@@ -323,75 +360,255 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     final isTablet = ResponsiveUtils.isTablet(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _deepBurgundy,
       body: isDesktop
           ? _buildDesktopLayout()
           : (isTablet ? _buildTabletLayout() : _buildMobileLayout()),
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.85),
+  Widget _buildBackground() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/YangChow.jpg',
+              fit: BoxFit.cover,
             ),
           ),
-        ),
-        Row(
-          children: [
-            Expanded(
-              flex: 5,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/ycplogo.png',
-                      width: 450,
-                      height: 450,
-                      fit: BoxFit.contain,
-                    ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _deepBurgundy.withOpacity(0.94),
+                    _darkForest.withOpacity(0.90),
+                    _forestGreen.withOpacity(0.86),
+                    const Color(0xFF220000).withOpacity(0.96),
                   ],
                 ),
               ),
             ),
-            Expanded(
-              flex: 5,
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 40,
-                    ),
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 30,
-                          offset: Offset(0, 15),
-                        ),
-                      ],
-                    ),
-                    child: _buildLoginForm(),
-                  ),
+          ),
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _primaryGold.withOpacity(0.25),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
+          Positioned(
+            bottom: -80,
+            left: -80,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _warmGold.withOpacity(0.18),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureBadge(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: _warmGold),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFFFFFAEB),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Stack(
+      children: [
+        _buildBackground(),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Row(
+              children: [
+                // Left Brand Showcase
+                Expanded(
+                  flex: 6,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 48),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withOpacity(0.25),
+                              border: Border.all(
+                                color: _warmGold.withOpacity(0.4),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _warmGold.withOpacity(0.25),
+                                  blurRadius: 40,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/ycplogo.png',
+                              width: 240,
+                              height: 240,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          Text(
+                            'YANG CHOW',
+                            style: GoogleFonts.cinzel(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              color: _warmGold,
+                              letterSpacing: 3,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.6),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'STAFF & OPERATIONS PORTAL',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFFFE8B2),
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _primaryGold.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 16,
+                              runSpacing: 8,
+                              children: [
+                                _buildFeatureBadge(Icons.soup_kitchen, 'Kitchen & Orders'),
+                                _buildFeatureBadge(Icons.inventory_2_outlined, 'Inventory Control'),
+                                _buildFeatureBadge(Icons.point_of_sale, 'POS & Cashier'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Right Login Form Card
+                Expanded(
+                  flex: 5,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        margin: const EdgeInsets.only(right: 48),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _primaryGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.35),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                            BoxShadow(
+                              color: _primaryGold.withOpacity(0.15),
+                              blurRadius: 20,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                height: 5,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [_primaryGold, _warmGold, _forestGreen],
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                  vertical: 38,
+                                ),
+                                child: _buildLoginForm(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -400,52 +617,88 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   Widget _buildTabletLayout() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.85),
-            ),
-          ),
-        ),
+        _buildBackground(),
         Center(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(height: 40),
-                Image.asset(
-                  'assets/images/ycplogo.png',
-                  height: 240,
-                  fit: BoxFit.contain,
-                ),
-                SizedBox(height: 32),
                 Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 0,
-                  ),
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(40),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
+                    shape: BoxShape.circle,
+                    color: Colors.black.withOpacity(0.25),
+                    border: Border.all(
+                      color: _warmGold.withOpacity(0.4),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 30,
-                        offset: Offset(0, 15),
+                        color: _warmGold.withOpacity(0.2),
+                        blurRadius: 25,
                       ),
                     ],
                   ),
-                  child: _buildLoginForm(),
+                  child: Image.asset(
+                    'assets/images/ycplogo.png',
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-                SizedBox(height: 40),
+                const SizedBox(height: 16),
+                Text(
+                  'YANG CHOW',
+                  style: GoogleFonts.cinzel(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: _warmGold,
+                    letterSpacing: 2.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _primaryGold.withOpacity(0.4),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                      BoxShadow(
+                        color: _primaryGold.withOpacity(0.15),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [_primaryGold, _warmGold, _forestGreen],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(36),
+                          child: _buildLoginForm(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -457,55 +710,108 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
   Widget _buildMobileLayout() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.85),
-            ),
-          ),
-        ),
+        _buildBackground(),
         SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(height: 24),
-                  Image.asset(
-                    'assets/images/ycplogo.png',
-                    height: 200,
-                    fit: BoxFit.contain,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              final isSmallPhone = screenWidth < 380;
+              final logoSize = isSmallPhone ? 70.0 : 85.0;
+
+              return Center(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallPhone ? 12 : 20,
+                    vertical: isSmallPhone ? 20 : 28,
                   ),
-                  SizedBox(height: 24),
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 0,
-                    ),
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isSmallPhone ? 10 : 12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withOpacity(0.25),
+                          border: Border.all(
+                            color: _warmGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _warmGold.withOpacity(0.2),
+                              blurRadius: 20,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: _buildLoginForm(),
+                        child: Image.asset(
+                          'assets/images/ycplogo.png',
+                          height: logoSize,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'YANG CHOW',
+                        style: GoogleFonts.cinzel(
+                          fontSize: isSmallPhone ? 20 : 22,
+                          fontWeight: FontWeight.w800,
+                          color: _warmGold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: _primaryGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 25,
+                              offset: const Offset(0, 10),
+                            ),
+                            BoxShadow(
+                              color: _primaryGold.withOpacity(0.12),
+                              blurRadius: 15,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                height: 4,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [_primaryGold, _warmGold, _forestGreen],
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallPhone ? 16 : 24,
+                                  vertical: isSmallPhone ? 22 : 28,
+                                ),
+                                child: _buildLoginForm(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 24),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -517,149 +823,175 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Role Indicator
-        Row(
-          children: [
-            Expanded(
-              child: const Divider(color: Colors.grey, thickness: 1.5),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'STAFF LOGIN',
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  fontSize: 13,
-                ),
+        // Role Indicator Badge
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: _forestGreen.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: _primaryGold.withOpacity(0.5),
+                width: 1,
               ),
             ),
-            Expanded(
-              child: const Divider(color: Colors.grey, thickness: 1.5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.admin_panel_settings_outlined, size: 15, color: _forestGreen),
+                const SizedBox(width: 6),
+                Text(
+                  'STAFF PORTAL',
+                  style: GoogleFonts.poppins(
+                    color: _forestGreen,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        SizedBox(height: 32),
+        const SizedBox(height: 18),
+
+        // Welcome Header
+        Text(
+          'Staff Login',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF330505),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Authorized staff & operational access only',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 12.5,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 26),
 
         // Email Input
         Text(
-          'STAFF EMAIL',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: 1,
+          'Staff Email',
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3D2A1D),
           ),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: emailController,
-          keyboardType: TextInputType.emailAddress,
-          enabled: !_isLoading,
-          onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: 'Enter Staff Email',
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-            prefixIcon: const Icon(
-              Icons.email_outlined,
-              color: Colors.grey,
-              size: 20,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: Colors.grey),
-            ),
-            enabledBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: Colors.grey),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 48,
+          child: TextField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            enabled: !_isLoading,
+            style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
+            onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
+            decoration: InputDecoration(
+              hintText: 'e.g. staff@yangchow.com',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 13),
+              filled: true,
+              fillColor: const Color(0xFFFCFAF7),
+              prefixIcon: const Icon(
+                Icons.badge_outlined,
+                color: _primaryGold,
+                size: 19,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+              border: OutlineInputBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: _primaryGold, width: 1.8),
+              ),
             ),
           ),
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         // Password Input
         Text(
-          'PASSWORD',
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: 1,
+          'Password',
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF3D2A1D),
           ),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: passwordController,
-          obscureText: !_isPasswordVisible,
-          enabled: !_isLoading,
-          onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: 'Enter Password',
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-            prefixIcon: const Icon(
-              Icons.lock_outline,
-              color: Colors.grey,
-              size: 20,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isPasswordVisible
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                color: Colors.grey,
-                size: 20,
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 48,
+          child: TextField(
+            controller: passwordController,
+            obscureText: !_isPasswordVisible,
+            enabled: !_isLoading,
+            style: GoogleFonts.poppins(fontSize: 13.5, color: Colors.black87),
+            onSubmitted: (_) => _isLoading ? null : handleStaffLogin(),
+            decoration: InputDecoration(
+              hintText: '••••••••',
+              hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 13),
+              filled: true,
+              fillColor: const Color(0xFFFCFAF7),
+              prefixIcon: const Icon(
+                Icons.lock_outline,
+                color: _primaryGold,
+                size: 19,
               ),
-              onPressed: () {
-                setState(() {
-                  _isPasswordVisible = !_isPasswordVisible;
-                });
-              },
-            ),
-            border: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: Colors.grey),
-            ),
-            enabledBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-              borderSide: BorderSide(color: Colors.grey),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey.shade600,
+                  size: 19,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+              border: OutlineInputBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+                borderSide: BorderSide(color: _primaryGold, width: 1.8),
+              ),
             ),
           ),
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         // Remember Me and Forgot Password Row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Remember Me Checkbox
             Row(
               children: [
                 SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 20,
+                  height: 20,
                   child: Checkbox(
                     value: _rememberMe,
                     onChanged: _isLoading
@@ -669,80 +1001,103 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
                               _rememberMe = value ?? false;
                             });
                           },
-                    activeColor: Colors.red.shade700,
-                    side: const BorderSide(color: Colors.grey),
+                    activeColor: _forestGreen,
+                    checkColor: _warmGold,
+                    side: BorderSide(color: Colors.grey.shade400),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Remember me',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            // Forgot Password Link
-            TextButton(
-              onPressed: _isLoading
+            GestureDetector(
+              onTap: _isLoading
                   ? null
-                  : () {
-                      Navigator.pushNamed(context, '/forgot-password');
-                    },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+                  : () => Navigator.pushNamed(context, '/forgot-password'),
               child: Text(
                 'Forgot Password?',
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: _forestGreen,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ],
         ),
-        SizedBox(height: 32),
+        const SizedBox(height: 24),
 
-        // Login Button
-        SizedBox(
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : handleStaffLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shadowColor: Colors.red.shade700.withOpacity(0.35),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
+        // Sign In Button
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              colors: [
+                _forestGreen,
+                Color(0xFFBA1717),
+                _darkForest,
+              ],
+            ),
+            border: Border.all(
+              color: _warmGold.withOpacity(0.55),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _forestGreen.withOpacity(0.4),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isLoading ? null : handleStaffLogin,
+              borderRadius: BorderRadius.circular(10),
+              child: Center(
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(_warmGold),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'SIGN IN',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                              color: const Color(0xFFFFFAEB),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: _warmGold,
+                          ),
+                        ],
+                      ),
               ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Text(
-                    'SIGN IN',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
           ),
         ),
       ],

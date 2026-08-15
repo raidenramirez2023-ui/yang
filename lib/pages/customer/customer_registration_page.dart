@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/services/email_verification_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -666,19 +667,55 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     );
   }
 
+  // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────
+  static const Color _forestGreen = Color(0xFF990000); // dark red
+  static const Color _activeEmerald = Color(0xFFAA0000); // medium red
+  static const Color _warmGold = Color(0xFFFFD166); // warm gold accent
+  static const Color _primaryGold = Color(0xFFC9922E); // amber gold
+  static const Color _darkForest = Color(0xFF770000); // darkest red
+  static const Color _deepBurgundy = Color(0xFF380202); // deep wine burgundy
+
   @override
   Widget build(BuildContext context) {
     if (_isRedirecting) {
       return Scaffold(
+        backgroundColor: _deepBurgundy,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Colors.red.shade700),
-              SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withOpacity(0.3),
+                  border: Border.all(color: _warmGold.withOpacity(0.5), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _warmGold.withOpacity(0.2),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    color: _warmGold,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               Text(
                 'Syncing with Google...',
-                style: TextStyle(color: Colors.red.shade700),
+                style: GoogleFonts.poppins(
+                  color: _warmGold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
@@ -690,70 +727,258 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     final isTablet = ResponsiveUtils.isTablet(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _deepBurgundy,
       body: isDesktop
           ? _buildDesktopLayout()
           : (isTablet ? _buildTabletLayout() : _buildMobileLayout()),
     );
   }
 
+  Widget _buildBackground() {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/YangChow.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _deepBurgundy.withOpacity(0.94),
+                    _darkForest.withOpacity(0.90),
+                    _forestGreen.withOpacity(0.86),
+                    const Color(0xFF220000).withOpacity(0.96),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 350,
+              height: 350,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _primaryGold.withOpacity(0.25),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -80,
+            left: -80,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _warmGold.withOpacity(0.18),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureBadge(IconData icon, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: _warmGold),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFFFFFAEB),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDesktopLayout() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.88),
-            ),
-          ),
-        ),
-        Row(
-          children: [
-            Expanded(
-              flex: 5,
-              child: Center(
-                child: Image.asset(
-                  'assets/images/ycplogo.png',
-                  width: 480,
-                  height: 480,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 500),
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 48,
+        _buildBackground(),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Row(
+              children: [
+                // Left Brand Showcase
+                Expanded(
+                  flex: 5,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 36),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withOpacity(0.25),
+                              border: Border.all(
+                                color: _warmGold.withOpacity(0.4),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _warmGold.withOpacity(0.25),
+                                  blurRadius: 40,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/ycplogo.png',
+                              width: 220,
+                              height: 220,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'YANG CHOW',
+                            style: GoogleFonts.cinzel(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: _warmGold,
+                              letterSpacing: 3,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.6),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'AUTHENTIC CHINESE RESTAURANT',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFFFE8B2),
+                              letterSpacing: 2.5,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _primaryGold.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 16,
+                              runSpacing: 8,
+                              children: [
+                                _buildFeatureBadge(Icons.restaurant, 'Chinese Specialties'),
+                                _buildFeatureBadge(Icons.alarm_on, 'Advance Ordering'),
+                                _buildFeatureBadge(Icons.celebration, 'Event Reservation'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    padding: const EdgeInsets.all(48),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.25),
-                          blurRadius: 40,
-                          offset: const Offset(0, 20),
-                        ),
-                      ],
-                    ),
-                    child: Form(key: _formKey, child: _buildRegistrationForm()),
                   ),
                 ),
-              ),
+
+                // Right Registration Form Card
+                Expanded(
+                  flex: 6,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        margin: const EdgeInsets.only(right: 36),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _primaryGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.35),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                            ),
+                            BoxShadow(
+                              color: _primaryGold.withOpacity(0.15),
+                              blurRadius: 20,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                height: 5,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [_primaryGold, _warmGold, _forestGreen],
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 36,
+                                  vertical: 32,
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: _buildRegistrationForm(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ],
     );
@@ -762,52 +987,91 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   Widget _buildTabletLayout() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.88),
-            ),
-          ),
-        ),
+        _buildBackground(),
         Center(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(height: 48),
-                Image.asset(
-                  'assets/images/ycplogo.png',
-                  height: 260,
-                  fit: BoxFit.contain,
-                ),
-                SizedBox(height: 36),
                 Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 48,
-                    vertical: 0,
-                  ),
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  padding: const EdgeInsets.all(44),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    shape: BoxShape.circle,
+                    color: Colors.black.withOpacity(0.25),
+                    border: Border.all(
+                      color: _warmGold.withOpacity(0.4),
+                      width: 1.5,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
-                        blurRadius: 40,
-                        offset: const Offset(0, 20),
+                        color: _warmGold.withOpacity(0.2),
+                        blurRadius: 25,
                       ),
                     ],
                   ),
-                  child: Form(key: _formKey, child: _buildRegistrationForm()),
+                  child: Image.asset(
+                    'assets/images/ycplogo.png',
+                    height: 110,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-                SizedBox(height: 48),
+                const SizedBox(height: 14),
+                Text(
+                  'YANG CHOW',
+                  style: GoogleFonts.cinzel(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: _warmGold,
+                    letterSpacing: 2.5,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _primaryGold.withOpacity(0.4),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                      BoxShadow(
+                        color: _primaryGold.withOpacity(0.15),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [_primaryGold, _warmGold, _forestGreen],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Form(
+                            key: _formKey,
+                            child: _buildRegistrationForm(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -819,55 +1083,111 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   Widget _buildMobileLayout() {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/YangChow.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              color: Colors.red.shade700.withOpacity(0.88),
-            ),
-          ),
-        ),
+        _buildBackground(),
         SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(height: 32),
-                  Image.asset(
-                    'assets/images/ycplogo.png',
-                    height: 220,
-                    fit: BoxFit.contain,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              final isSmallPhone = screenWidth < 380;
+              final logoSize = isSmallPhone ? 70.0 : 80.0;
+
+              return Center(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallPhone ? 12 : 20,
+                    vertical: isSmallPhone ? 18 : 28,
                   ),
-                  SizedBox(height: 28),
-                  Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 28,
-                      vertical: 0,
-                    ),
-                    padding: const EdgeInsets.all(36),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isSmallPhone ? 10 : 12),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
                           color: Colors.black.withOpacity(0.25),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
+                          border: Border.all(
+                            color: _warmGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _warmGold.withOpacity(0.2),
+                              blurRadius: 20,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Form(key: _formKey, child: _buildRegistrationForm()),
+                        child: Image.asset(
+                          'assets/images/ycplogo.png',
+                          height: logoSize,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'YANG CHOW',
+                        style: GoogleFonts.cinzel(
+                          fontSize: isSmallPhone ? 20 : 22,
+                          fontWeight: FontWeight.w800,
+                          color: _warmGold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: _primaryGold.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 25,
+                              offset: const Offset(0, 10),
+                            ),
+                            BoxShadow(
+                              color: _primaryGold.withOpacity(0.12),
+                              blurRadius: 15,
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                height: 4,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [_primaryGold, _warmGold, _forestGreen],
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isSmallPhone ? 16 : 22,
+                                  vertical: isSmallPhone ? 20 : 26,
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: _buildRegistrationForm(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 32),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -879,30 +1199,59 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Role Indicator
-        Row(
-          children: [
-            Expanded(
-              child: const Divider(color: Colors.grey, thickness: 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'CREATE ACCOUNT',
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.8,
-                  fontSize: 12,
-                ),
+        // Role Indicator Badge
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            decoration: BoxDecoration(
+              color: _forestGreen.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: _primaryGold.withOpacity(0.5),
+                width: 1,
               ),
             ),
-            Expanded(
-              child: const Divider(color: Colors.grey, thickness: 1),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_add_alt_1, size: 14, color: _forestGreen),
+                const SizedBox(width: 6),
+                Text(
+                  'CREATE ACCOUNT',
+                  style: GoogleFonts.poppins(
+                    color: _forestGreen,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        SizedBox(height: 36),
+        const SizedBox(height: 14),
+
+        // Welcome Header
+        Text(
+          'Join Yang Chow',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF330505),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Create an account to start ordering & reserving',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 20),
 
         // First Name Input
         _buildInputField(
@@ -911,7 +1260,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateFirstName,
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 14),
 
         // Last Name Input
         _buildInputField(
@@ -920,7 +1269,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           icon: Icons.person_outline,
           validator: _validateLastName,
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 14),
 
         // Phone Number Input
         _buildInputField(
@@ -934,7 +1283,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             LengthLimitingTextInputFormatter(11),
           ],
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 14),
 
         // Email Input with Verify button
         Row(
@@ -954,20 +1303,21 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               ),
             ),
             if (!_isEmailVerified) ...[
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               SizedBox(
-                height: 50,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: _isVerifyingEmail || _isLoading
                       ? null
                       : _sendVerificationEmail,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    backgroundColor: _forestGreen,
+                    foregroundColor: const Color(0xFFFFFAEB),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     elevation: 0,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                    side: BorderSide(color: _warmGold.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: _isVerifyingEmail
@@ -977,15 +1327,16 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              _warmGold,
                             ),
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Verify',
-                          style: TextStyle(
+                          style: GoogleFonts.poppins(
                             fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                           ),
                         ),
                 ),
@@ -995,23 +1346,23 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         ),
         if (_isEmailVerified)
           Padding(
-            padding: const EdgeInsets.only(top: 8, left: 4),
+            padding: const EdgeInsets.only(top: 6, left: 4),
             child: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.green, size: 14),
                 const SizedBox(width: 6),
                 Text(
                   'Verified Email Address',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     color: Colors.green.shade700,
                     fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-        SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // Password Input
         _buildInputField(
@@ -1025,14 +1376,14 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               _isPasswordVisible
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              color: Colors.grey,
-              size: 20,
+              color: Colors.grey.shade600,
+              size: 19,
             ),
             onPressed: () =>
                 setState(() => _isPasswordVisible = !_isPasswordVisible),
           ),
         ),
-        SizedBox(height: 16),
+        const SizedBox(height: 14),
 
         // Confirm Password Input
         _buildInputField(
@@ -1046,22 +1397,22 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               _isConfirmPasswordVisible
                   ? Icons.visibility_outlined
                   : Icons.visibility_off_outlined,
-              color: Colors.grey,
-              size: 20,
+              color: Colors.grey.shade600,
+              size: 19,
             ),
             onPressed: () => setState(
               () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
             ),
           ),
         ),
-        SizedBox(height: 24),
+        const SizedBox(height: 16),
 
         // Terms and Conditions
         Row(
           children: [
             SizedBox(
-              width: 24,
-              height: 24,
+              width: 20,
+              height: 20,
               child: Checkbox(
                 value: _agreeToTerms,
                 onChanged: _isLoading
@@ -1073,77 +1424,123 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                           setState(() => _agreeToTerms = false);
                         }
                       },
-                activeColor: Colors.red.shade700,
-                side: const BorderSide(color: Colors.grey),
+                activeColor: _forestGreen,
+                checkColor: _warmGold,
+                side: BorderSide(color: Colors.grey.shade400),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                'I agree to the Terms and Conditions',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
+              child: GestureDetector(
+                onTap: _showTermsAndConditionsModal,
+                child: Text(
+                  'I agree to the Terms and Conditions',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        SizedBox(height: 32),
+        const SizedBox(height: 22),
 
-        // Register Button
-        SizedBox(
-          height: 56,
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : handleRegistration,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-              elevation: 6,
-              shadowColor: Colors.red.shade700.withOpacity(0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        // Register Button with Red & Gold Gradient
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              colors: [
+                _forestGreen,
+                Color(0xFFBA1717),
+                _darkForest,
+              ],
+            ),
+            border: Border.all(
+              color: _warmGold.withOpacity(0.55),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _forestGreen.withOpacity(0.4),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isLoading ? null : handleRegistration,
+              borderRadius: BorderRadius.circular(10),
+              child: Center(
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(_warmGold),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'SIGN UP',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                              color: const Color(0xFFFFFAEB),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: _warmGold,
+                          ),
+                        ],
+                      ),
               ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'SIGN UP',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
           ),
         ),
-        SizedBox(height: 28),
+        const SizedBox(height: 20),
 
         // Back to Login Link
-        Center(
-          child: GestureDetector(
-            onTap: _isLoading ? null : () => Navigator.of(context).pop(),
-            child: Text(
-              'Already have an account?',
-              style: TextStyle(
-                color: Colors.red.shade700,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Already have an account? ',
+              style: GoogleFonts.poppins(
+                fontSize: 12.5,
+                color: Colors.grey.shade600,
               ),
             ),
-          ),
+            GestureDetector(
+              onTap: _isLoading ? null : () => Navigator.of(context).pop(),
+              child: Text(
+                'Log In',
+                style: GoogleFonts.poppins(
+                  color: _forestGreen,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                  decorationColor: _forestGreen,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1167,39 +1564,39 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
       validator: validator,
       keyboardType: keyboardType,
       inputFormatters: formatters,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, letterSpacing: -0.2),
+      style: GoogleFonts.poppins(fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w400),
-        prefixIcon: Icon(icon, color: Colors.grey, size: 22),
+        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 13),
+        prefixIcon: Icon(icon, color: _primaryGold, size: 19),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: enabled ? Colors.white : Colors.grey.shade50,
+        fillColor: const Color(0xFFFCFAF7),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 18,
+          horizontal: 14,
+          vertical: 14,
         ),
-        border: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-          borderSide: BorderSide(color: Colors.grey, width: 1.5),
+        border: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-          borderSide: BorderSide(color: Colors.grey, width: 1.5),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.red.shade700, width: 2),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+          borderSide: BorderSide(color: _primaryGold, width: 1.8),
         ),
-        errorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-          borderSide: BorderSide(color: Colors.red, width: 1.5),
+        errorBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+          borderSide: BorderSide(color: Colors.red.shade400, width: 1.2),
         ),
         focusedErrorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-          borderSide: BorderSide(color: Colors.red, width: 2),
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+          borderSide: BorderSide(color: Colors.red, width: 1.8),
         ),
-        errorStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        errorStyle: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500),
       ),
     );
   }

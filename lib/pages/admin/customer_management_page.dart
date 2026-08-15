@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:yang_chow/utils/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class CustomerManagementPage extends StatefulWidget {
   const CustomerManagementPage({super.key});
@@ -12,14 +13,31 @@ class CustomerManagementPage extends StatefulWidget {
 
 class _CustomerManagementPageState extends State<CustomerManagementPage> {
   final _supabase = Supabase.instance.client;
+  final _searchController = TextEditingController();
+
   List<Map<String, dynamic>> _allCustomers = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  String _sortBy = 'newest'; // newest, oldest, name_asc, name_desc
+
+  // Color palette
+  static const _darkBg = Color(0xFF0F172A);
+  static const _emerald = Color(0xFF14332E);
+  static const _gold = Color(0xFFD9A441);
+  static const _goldLight = Color(0xFFE6C374);
+  static const _slate = Color(0xFF64748B);
+  static const _slateLight = Color(0xFFE2E8F0);
 
   @override
   void initState() {
     super.initState();
     _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCustomers() async {
@@ -30,7 +48,6 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           .select('*')
           .eq('role', 'customer')
           .order('created_at', ascending: false);
-
       if (mounted) {
         setState(() {
           _allCustomers = List<Map<String, dynamic>>.from(response);
@@ -39,114 +56,292 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       }
     } catch (e) {
       debugPrint('Error loading customers: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  List<Map<String, dynamic>> get _filteredCustomers {
-    return _allCustomers.where((customer) {
-      final name = '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'.toLowerCase();
-      final email = (customer['email'] ?? '').toString().toLowerCase();
-      final phone = (customer['phone'] ?? '').toString().toLowerCase();
-      final query = _searchQuery.toLowerCase();
-      
-      return name.contains(query) || email.contains(query) || phone.contains(query);
+  List<Map<String, dynamic>> get _filtered {
+    var list = _allCustomers.where((c) {
+      final name =
+          '${c['firstname'] ?? ''} ${c['lastname'] ?? ''}'.toLowerCase();
+      final email = (c['email'] ?? '').toString().toLowerCase();
+      final phone = (c['phone'] ?? '').toString().toLowerCase();
+      final q = _searchQuery.toLowerCase();
+      return q.isEmpty ||
+          name.contains(q) ||
+          email.contains(q) ||
+          phone.contains(q);
     }).toList();
+
+    switch (_sortBy) {
+      case 'oldest':
+        list.sort((a, b) => (a['created_at'] ?? '').compareTo(b['created_at'] ?? ''));
+        break;
+      case 'name_asc':
+        list.sort((a, b) =>
+            '${a['firstname']} ${a['lastname']}'.compareTo('${b['firstname']} ${b['lastname']}'));
+        break;
+      case 'name_desc':
+        list.sort((a, b) =>
+            '${b['firstname']} ${b['lastname']}'.compareTo('${a['firstname']} ${a['lastname']}'));
+        break;
+      case 'newest':
+      default:
+        list.sort((a, b) => (b['created_at'] ?? '').compareTo(a['created_at'] ?? ''));
+    }
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredCustomers;
-    final totalCustomers = _allCustomers.length;
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final filtered = _filtered;
 
     return Scaffold(
-      backgroundColor: AppTheme.adminMainBackground,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(totalCustomers),
-            const SizedBox(height: 32),
-            _buildSearchBar(),
-            const SizedBox(height: 24),
-            _buildListHeader(),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filtered.isEmpty
-                      ? _buildEmptyState()
-                      : _buildCustomerList(filtered),
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: RefreshIndicator(
+        onRefresh: _loadCustomers,
+        color: _gold,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 24,
+                  vertical: isMobile ? 14 : 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(isMobile, filtered.length),
+                    const SizedBox(height: 16),
+                    _buildSearchAndFilter(isMobile),
+                    const SizedBox(height: 16),
+                    _buildQuickStats(isMobile),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
             ),
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: _gold),
+                ),
+              )
+            else if (filtered.isEmpty)
+              SliverFillRemaining(child: _buildEmptyState())
+            else
+              SliverPadding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 24,
+                ).copyWith(bottom: 60),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildCustomerCard(filtered[index], isMobile),
+                    childCount: filtered.length,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(int total) {
+  // -------------------------------------------------------------------------
+  // HEADER
+  // -------------------------------------------------------------------------
+  Widget _buildHeader(bool isMobile, int count) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 20,
+        vertical: isMobile ? 14 : 18,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _slateLight),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBg.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: _emerald.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.people_alt_rounded, color: _gold, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Customer Registry',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: isMobile ? 17 : 20,
+                          fontWeight: FontWeight.w800,
+                          color: _darkBg,
+                          letterSpacing: -0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _gold.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        '$count members',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF9E6D10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'View and manage registered customer accounts',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: _slate,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _loadCustomers,
+            icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // SEARCH & FILTER
+  // -------------------------------------------------------------------------
+  Widget _buildSearchAndFilter(bool isMobile) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'CUSTOMER LIST',
-              style: TextStyle(
-                color: AppTheme.adminSecondaryText,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-                fontSize: 12,
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _slateLight),
+              boxShadow: [
+                BoxShadow(
+                  color: _darkBg.withValues(alpha: 0.02),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                color: _darkBg,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search by name, email or phone...',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: const Color(0xFF94A3B8),
+                ),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: _slate, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded,
+                            size: 18, color: Color(0xFF94A3B8)),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'User Directory',
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppTheme.adminPrimaryText,
-              ),
-            ),
-          ],
+          ),
         ),
+        const SizedBox(width: 10),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _slateLight),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.people_outline, color: AppTheme.primaryColor),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: PopupMenuButton<String>(
+            onSelected: (v) => setState(() => _sortBy = v),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            tooltip: 'Sort',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
                 children: [
-                  Text(
-                    total.toString(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.darkGrey,
+                  const Icon(Icons.sort_rounded, color: _slate, size: 18),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      'Sort',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _slate,
+                      ),
                     ),
-                  ),
-                  const Text(
-                    'Total Customers',
-                    style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey),
-                  ),
+                  ],
                 ],
               ),
+            ),
+            itemBuilder: (context) => [
+              _popupItem('newest', 'Newest First', Icons.arrow_downward_rounded),
+              _popupItem('oldest', 'Oldest First', Icons.arrow_upward_rounded),
+              _popupItem('name_asc', 'Name A–Z', Icons.sort_by_alpha_rounded),
+              _popupItem('name_desc', 'Name Z–A', Icons.sort_by_alpha_rounded),
             ],
           ),
         ),
@@ -154,183 +349,464 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Search customers...',
-          hintStyle: const TextStyle(color: AppTheme.mediumGrey),
-          prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
-        onChanged: (value) => setState(() => _searchQuery = value),
-      ),
-    );
-  }
-
-  Widget _buildListHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Row(
+  PopupMenuItem<String> _popupItem(String value, String label, IconData icon) {
+    final isSelected = _sortBy == value;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
         children: [
-          Expanded(flex: 3, child: Text('NAME', style: _headerStyle)),
-          Expanded(flex: 3, child: Text('EMAIL ADDRESS', style: _headerStyle)),
-          Expanded(flex: 2, child: Text('PHONE NUMBER', style: _headerStyle)),
-          Expanded(flex: 2, child: Text('DATE REGISTERED', style: _headerStyle)),
-          SizedBox(width: 48), // Space for action button
-        ],
-      ),
-    );
-  }
-
-  static const TextStyle _headerStyle = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.w800,
-    color: AppTheme.mediumGrey,
-    letterSpacing: 1,
-  );
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_search_outlined, size: 80, color: AppTheme.lightGrey),
-          const SizedBox(height: 16),
-          const Text(
-            'No customers found matching your search.',
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 16),
+          Icon(icon,
+              size: 16,
+              color: isSelected ? _emerald : _slate),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? _emerald : _darkBg,
+            ),
           ),
+          if (isSelected) ...[
+            const Spacer(),
+            const Icon(Icons.check_rounded, size: 16, color: _emerald),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildCustomerList(List<Map<String, dynamic>> customers) {
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 40),
-      itemCount: customers.length,
-      itemBuilder: (context, index) {
-        final customer = customers[index];
-        return _buildCustomerRow(customer);
-      },
-    );
-  }
-
-  Widget _buildCustomerRow(Map<String, dynamic> customer) {
-    final String firstName = customer['firstname'] ?? 'N/A';
-    final String lastName = customer['lastname'] ?? '';
-    final String email = customer['email'] ?? 'N/A';
-    final String phone = customer['phone'] ?? 'N/A';
-
-    String formattedDate = 'N/A';
-    if (customer['created_at'] != null) {
+  // -------------------------------------------------------------------------
+  // QUICK STATS
+  // -------------------------------------------------------------------------
+  Widget _buildQuickStats(bool isMobile) {
+    final now = DateTime.now();
+    final thisMonth = _allCustomers.where((c) {
+      if (c['created_at'] == null) return false;
       try {
-        final date = DateTime.parse(customer['created_at']).toLocal();
-        formattedDate = DateFormat('MMM dd, yyyy').format(date);
-      } catch (_) {}
-    }
+        final d = DateTime.parse(c['created_at']).toLocal();
+        return d.year == now.year && d.month == now.month;
+      } catch (_) {
+        return false;
+      }
+    }).length;
 
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatTile(
+            label: 'Total Customers',
+            value: _allCustomers.length.toString(),
+            icon: Icons.people_alt_rounded,
+            color: const Color(0xFF14332E),
+            bgTint: const Color(0xFFDCFCE7),
+            iconColor: const Color(0xFF15803D),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatTile(
+            label: 'Joined This Month',
+            value: thisMonth.toString(),
+            icon: Icons.person_add_rounded,
+            color: const Color(0xFF0284C7),
+            bgTint: const Color(0xFFE0F2FE),
+            iconColor: const Color(0xFF0284C7),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatTile(
+            label: 'Search Results',
+            value: _filtered.length.toString(),
+            icon: Icons.filter_list_rounded,
+            color: const Color(0xFFD97706),
+            bgTint: const Color(0xFFFEF3C7),
+            iconColor: const Color(0xFFD97706),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required Color bgTint,
+    required Color iconColor,
+  }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _slateLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.01),
-            blurRadius: 5,
+            color: _darkBg.withValues(alpha: 0.02),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bgTint,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          const SizedBox(width: 10),
           Expanded(
-            flex: 3,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  child: Text(
-                    firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: _darkBg,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(width: 12),
                 Text(
-                  '$firstName $lastName',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.darkGrey,
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    color: _slate,
+                    fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              email,
-              style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              phone,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.darkGrey,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              formattedDate,
-              style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
-            ),
-          ),
-          IconButton(
-            onPressed: () => _showCustomerDetails(customer),
-            icon: const Icon(Icons.info_outline, color: AppTheme.mediumGrey, size: 20),
-            tooltip: 'View Details',
           ),
         ],
       ),
     );
   }
 
+  // -------------------------------------------------------------------------
+  // CUSTOMER CARD
+  // -------------------------------------------------------------------------
+  Widget _buildCustomerCard(Map<String, dynamic> customer, bool isMobile) {
+    final firstName = (customer['firstname'] ?? '').toString();
+    final lastName = (customer['lastname'] ?? '').toString();
+    final fullName = '$firstName $lastName'.trim();
+    final email = (customer['email'] ?? 'N/A').toString();
+    final phone = (customer['phone'] ?? 'N/A').toString();
+
+    String formattedDate = 'N/A';
+    DateTime? regDate;
+    if (customer['created_at'] != null) {
+      try {
+        regDate = DateTime.parse(customer['created_at']).toLocal();
+        formattedDate = DateFormat('MMM dd, yyyy').format(regDate);
+      } catch (_) {}
+    }
+
+    // Generate avatar color from name
+    final colors = [
+      const Color(0xFF14332E),
+      const Color(0xFF0284C7),
+      const Color(0xFF7C3AED),
+      const Color(0xFFD97706),
+      const Color(0xFFDC2626),
+      const Color(0xFF0891B2),
+    ];
+    final colorIndex =
+        (firstName.isNotEmpty ? firstName.codeUnitAt(0) : 65) % colors.length;
+    final avatarColor = colors[colorIndex];
+    final initials = (firstName.isNotEmpty ? firstName[0] : '?').toUpperCase() +
+        (lastName.isNotEmpty ? lastName[0] : '').toUpperCase();
+
+    // "New" badge — joined within last 7 days
+    final isNew = regDate != null &&
+        DateTime.now().difference(regDate).inDays <= 7;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _slateLight),
+        boxShadow: [
+          BoxShadow(
+            color: _darkBg.withValues(alpha: 0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            // Left accent bar
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: avatarColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 14 : 18,
+                  vertical: isMobile ? 14 : 16,
+                ),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: isMobile ? 44 : 50,
+                      height: isMobile ? 44 : 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            avatarColor,
+                            avatarColor.withValues(alpha: 0.7),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: avatarColor.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          initials,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: isMobile ? 15 : 17,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  fullName.isNotEmpty ? fullName : 'N/A',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: isMobile ? 14 : 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: _darkBg,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isNew) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF15803D)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(
+                                      color: const Color(0xFF15803D)
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'NEW',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF15803D),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.email_rounded,
+                                  size: 12, color: Color(0xFF94A3B8)),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  email,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: _slate,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (!isMobile) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone_rounded,
+                                    size: 12, color: Color(0xFF94A3B8)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  phone,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: _slate,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Right side — date & action
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_rounded,
+                                size: 12, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Text(
+                              formattedDate,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: _slate,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () => _showCustomerDetails(customer),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _emerald.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _emerald.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.person_search_rounded,
+                                    size: 14, color: _emerald),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'View',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _emerald,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // EMPTY STATE
+  // -------------------------------------------------------------------------
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _gold.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_search_rounded,
+                size: 52, color: _gold),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _searchQuery.isEmpty
+                ? 'No Customers Registered Yet'
+                : 'No Results Found',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _darkBg,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _searchQuery.isEmpty
+                ? 'Registered customers will appear here.'
+                : 'Try adjusting your search or clearing the filter.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color: _slate,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // CUSTOMER DETAILS MODAL
+  // -------------------------------------------------------------------------
   void _showCustomerDetails(Map<String, dynamic> customer) {
     String? uploadedIdUrl;
     bool isLoadingId = true;
 
-    // Fetch the uploaded ID from reservations asynchronously
     _supabase
         .from('reservations')
         .select('uploaded_id_url')
@@ -346,152 +822,421 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
       debugPrint('Error fetching uploaded ID: $e');
     });
 
+    final firstName = (customer['firstname'] ?? '').toString();
+    final lastName = (customer['lastname'] ?? '').toString();
+    final colors = [
+      const Color(0xFF14332E),
+      const Color(0xFF0284C7),
+      const Color(0xFF7C3AED),
+      const Color(0xFFD97706),
+      const Color(0xFFDC2626),
+      const Color(0xFF0891B2),
+    ];
+    final colorIndex =
+        (firstName.isNotEmpty ? firstName.codeUnitAt(0) : 65) % colors.length;
+    final avatarColor = colors[colorIndex];
+    final initials = (firstName.isNotEmpty ? firstName[0] : '?').toUpperCase() +
+        (lastName.isNotEmpty ? lastName[0] : '').toUpperCase();
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          // Poll for data if still loading
+        builder: (context, setDialogState) {
           if (isLoadingId) {
-            Future.delayed(const Duration(milliseconds: 500), () {
+            Future.delayed(const Duration(milliseconds: 700), () {
               if (context.mounted) {
-                setStateDialog(() => isLoadingId = false);
+                setDialogState(() => isLoadingId = false);
               }
             });
           }
 
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                const Icon(Icons.person, color: AppTheme.primaryColor),
-                const SizedBox(width: 12),
-                const Text('Customer Details'),
-              ],
-            ),
-            content: SingleChildScrollView(
+          return Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22)),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 440),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _detailItem('FIRST NAME', customer['firstname']),
-                  _detailItem('LAST NAME', customer['lastname']),
-                  _detailItem('PHONE NUMBER', customer['phone']),
-                  _detailItem('EMAIL ADDRESS', customer['email']),
-                  _detailItem('DATE REGISTERED', _formatDate(customer['created_at'])),
-
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // Verification ID section
-                  const Text(
-                    'VERIFICATION ID',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.mediumGrey,
-                      letterSpacing: 1,
+                  // Modal Header Banner
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_emerald, const Color(0xFF1E4A42)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(22),
+                        topRight: Radius.circular(22),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'CUSTOMER PROFILE',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: _goldLight,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded,
+                                  color: Colors.white60, size: 20),
+                              onPressed: () => Navigator.pop(context),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            color: avatarColor,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              initials,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${customer['firstname'] ?? ''} ${customer['lastname'] ?? ''}'
+                              .trim(),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _gold.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: _gold.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            'CUSTOMER ACCOUNT',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: _goldLight,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
 
-                  if (isLoadingId)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
-                        child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                      ),
-                    )
-                  else if (uploadedIdUrl != null && uploadedIdUrl!.isNotEmpty)
-                    InkWell(
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => Dialog(
-                            child: Stack(
-                              alignment: Alignment.topRight,
-                              children: [
-                                InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 4.0,
-                                  child: Image.network(
-                                    uploadedIdUrl!,
-                                    fit: BoxFit.contain,
+                  // Details Body
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _modalDetailRow(Icons.email_rounded, 'Email',
+                            customer['email']?.toString() ?? 'N/A'),
+                        _modalDetailRow(Icons.phone_rounded, 'Phone',
+                            customer['phone']?.toString() ?? 'N/A'),
+                        _modalDetailRow(Icons.calendar_today_rounded,
+                            'Registered',
+                            _formatDate(customer['created_at'])),
+                        const SizedBox(height: 14),
+                        const Divider(color: Color(0xFFE2E8F0), height: 1),
+                        const SizedBox(height: 14),
+
+                        // Verification ID
+                        Text(
+                          'GOVERNMENT-ISSUED ID',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: _slate,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (isLoadingId)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: CircularProgressIndicator(color: _gold),
+                            ),
+                          )
+                        else if (uploadedIdUrl != null &&
+                            uploadedIdUrl!.isNotEmpty)
+                          Column(
+                            children: [
+                              InkWell(
+                                onTap: () => _showIdLightbox(uploadedIdUrl!),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  height: 160,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                        color: const Color(0xFFE2E8F0)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _darkBg.withValues(alpha: 0.04),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          uploadedIdUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, e, s) =>
+                                              const Center(
+                                            child: Icon(
+                                                Icons.broken_image_rounded,
+                                                size: 40,
+                                                color: Color(0xFF94A3B8)),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.55),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                    Icons
+                                                        .zoom_in_rounded,
+                                                    size: 12,
+                                                    color: Colors.white),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Tap to enlarge',
+                                                  style:
+                                                      GoogleFonts.plusJakartaSans(
+                                                    fontSize: 10,
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.black54,
+                              ),
+                            ],
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border:
+                                  Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.no_photography_outlined,
+                                    color: Color(0xFF94A3B8), size: 28),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'No ID uploaded yet',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: const Color(0xFF94A3B8),
+                                    fontSize: 13,
                                   ),
-                                  onPressed: () => Navigator.pop(context),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 160,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            uploadedIdUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Center(
-                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _emerald,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: Text(
+                              'Close',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.no_photography_outlined, color: Colors.grey.shade400, size: 28),
-                          const SizedBox(width: 12),
-                          Text(
-                            'No ID uploaded yet',
-                            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
-
-                  if (uploadedIdUrl != null && uploadedIdUrl!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6.0),
-                      child: Center(
-                        child: Text(
-                          'Tap image to enlarge & verify',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                        ),
-                      ),
-                    ),
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CLOSE', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _modalDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 15, color: _slate),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF94A3B8),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _darkBg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIdLightbox(String url) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              constraints:
+                  const BoxConstraints(maxWidth: 700, maxHeight: 800),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 30,
+                      offset: Offset(0, 10)),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (c, child, progress) {
+                      if (progress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: _gold),
+                      );
+                    },
+                    errorBuilder: (c, e, s) => const Center(
+                      child: Icon(Icons.broken_image_rounded,
+                          size: 48, color: Colors.white60),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: CircleAvatar(
+                backgroundColor: Colors.black.withValues(alpha: 0.65),
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -500,38 +1245,9 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     if (dateStr == null) return 'N/A';
     try {
       final date = DateTime.parse(dateStr).toLocal();
-      return DateFormat('MMMM dd, yyyy - hh:mm a').format(date);
+      return DateFormat('MMMM dd, yyyy • h:mm a').format(date);
     } catch (_) {
       return 'N/A';
     }
-  }
-
-  Widget _detailItem(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.mediumGrey,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value?.toString() ?? 'N/A',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.darkGrey,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
