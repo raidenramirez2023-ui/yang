@@ -50,6 +50,7 @@ dependencies:
   printing: ^5.13.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
+  flutter_map_cancellable_tile_provider: ^3.0.2
 
 dev_dependencies:
   flutter_test:

@@ -11,6 +11,7 @@ import 'package:yang_chow/services/reservation_service.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/models/menu_item.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -3673,6 +3674,7 @@ class _LandingPageState extends State<LandingPage>
                                 ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
                                 : 'https://tile.openstreetmap.org/{z}/{y}/{x}.png',
                             userAgentPackageName: 'com.yangchow.app',
+                            tileProvider: CancellableNetworkTileProvider(),
                           ),
                           if (_routePoints.isNotEmpty)
                             PolylineLayer(
