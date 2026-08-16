@@ -42,7 +42,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── KPI data (now derived from streams) ──────────────────────────────────
 
   double _dailyRevenue = 0.0;
-
   int _totalOrders = 0;
 
   int _totalAdvanceOrders = 0;
@@ -54,6 +53,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   int _pendingReservations = 0;
 
   List<double> _weeklyRevenue = List.filled(7, 0.0);
+  List<Map<String, dynamic>> _lastOrders = [];
+  List<Map<String, dynamic>> _lastAdvanceOrders = [];
+  List<Map<String, dynamic>> _lastReservations = [];
+  List<Map<String, dynamic>> _lastInventory = [];
+  int _lastDay = DateTime.now().day;
 
   int _pendingOrders = 0;
 
@@ -142,8 +146,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ── UI State Variables ───────────────────────────────────────────────
 
-  bool? _isVenueStatusExpanded; // Start expanded by default
-
   DateTime? _focusedMonth;
 
   String _selectedPeriod = 'Weekly'; // New period selector state
@@ -160,8 +162,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     super.initState();
 
     // Initialize state variables
-
-    _isVenueStatusExpanded = true;
 
     _showNewOrderNotification = false;
 
@@ -247,6 +247,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
     List<Map<String, dynamic>> allReservations,
   ) {
+    _lastOrders = allOrders;
+    _lastAdvanceOrders = allAdvanceOrders;
+    _lastReservations = allReservations;
+
     // Check for new orders (real-time detection)
 
     final currentOrderCount = allOrders.length;
@@ -421,65 +425,40 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       'DEBUG: Today advance revenue (tracked in Sales Report): ₱${advanceRevenue}',
     );
 
-    // Admin Dashboard daily revenue: Regular orders only
-    // (Advance orders and event reservations are tracked separately in Sales Report)
+    // Admin Dashboard: Regular POS / Walk-in Orders Only
+    // (Multi-channel breakdown for Advance & Events is in Sales Report)
     _dailyRevenue = regularRevenue;
-
     _totalOrders = todayOrders.length;
-
     _totalAdvanceOrders = paidAdvanceOrders.length;
 
-    // Count total guest count (pax) from today's orders (default to 1 if null)
-
+    // Count guest count (pax) from today's regular orders
     final regularCustomers = todayOrders.fold<int>(
       0,
       (sum, o) => sum + ((o['number_of_guests'] as num?)?.toInt() ?? 1),
     );
 
-    final advanceCustomers = todayPaidAdvanceOrders.fold<int>(
-      0,
-      (sum, o) => sum + ((o['number_of_guests'] as num?)?.toInt() ?? 1),
-    );
+    _totalCustomers = regularCustomers;
 
-    // Count guests from confirmed event reservations happening today
-    final reservationCustomers = allReservations.where((r) {
-      final eventDate = r['event_date']?.toString() ?? '';
+    // Reservations (Events) - Count active unarchived confirmed and pending reservations
+    final unarchivedReservations = allReservations
+        .where((r) => r['is_archived'] != true)
+        .toList();
+
+    final confirmedReservations = unarchivedReservations.where((r) {
       final status = (r['status']?.toString() ?? '').toLowerCase();
-      return eventDate == todayStr && status == 'confirmed';
-    }).fold<int>(
-      0,
-      (sum, r) => sum + ((r['number_of_guests'] as num?)?.toInt() ?? 0),
-    );
-
-    _totalCustomers = regularCustomers + advanceCustomers + reservationCustomers;
-
-    // Reservations (Events) - Count all active confirmed and pending reservations
-
-    final confirmedReservations = allReservations.where((r) {
-      final status = (r['status']?.toString() ?? '').toLowerCase();
-
       return status == 'confirmed';
     }).toList();
 
     _reservations = confirmedReservations.length;
 
-    final pendingReservations = allReservations.where((r) {
+    final pendingReservations = unarchivedReservations.where((r) {
       final status = (r['status']?.toString() ?? '').toLowerCase();
-
-      return status == 'pending' || status == 'pending_admin_approval';
+      return status == 'pending';
     }).toList();
 
-    final pendingAdvanceVerification = allAdvanceOrders.where((o) {
-      final status = (o['status']?.toString() ?? '').toLowerCase();
+    _pendingReservations = pendingReservations.length;
 
-      return status == 'awaiting_verification';
-    }).toList();
-
-    _pendingReservations =
-        pendingReservations.length + pendingAdvanceVerification.length;
-
-    // Weekly Revenue Calculation (Regular orders only)
-
+    // Revenue Chart: Regular Orders only
     _weeklyRevenue = _processChartData(allOrders);
 
     // Kitchen Status Counts (Real-time from today's orders)
@@ -550,11 +529,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   void _processConfirmedEventsAnalytics(
     List<Map<String, dynamic>> allReservations,
   ) {
-    // Filter only confirmed reservations
-
+    // Filter only active unarchived confirmed reservations
     final confirmedReservations = allReservations.where((r) {
+      if (r['is_archived'] == true) return false;
       final status = (r['status']?.toString() ?? '').toLowerCase();
-
       return status == 'confirmed';
     }).toList();
 
@@ -850,13 +828,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   void _updateRealtimeData() {
     // This method is called every second by the timer
+    final now = DateTime.now();
+
+    // Auto-refresh daily data when day rolls over at midnight
+    if (now.day != _lastDay) {
+      _lastDay = now.day;
+      if (_lastOrders.isNotEmpty || _lastAdvanceOrders.isNotEmpty || _lastReservations.isNotEmpty) {
+        _processData(_lastOrders, _lastAdvanceOrders, _lastInventory, _lastReservations);
+      }
+    }
 
     _updateNextEventCountdown();
 
     // Recalculate current guests on site (in case events ended)
-
-    final now = DateTime.now();
-
     _currentGuestsOnSite = 0;
 
     for (var event in _ongoingEvents) {
@@ -1104,158 +1088,95 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   List<String> getChartLabels() {
     if (_selectedPeriod == 'Daily') {
-      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
-
+      // Extended business hours: 8:00 AM to 11:00 PM (8:00 to 23:00)
       return [
-        '10:00',
-
-        '11:00',
-
-        '12:00',
-
-        '13:00',
-
-        '14:00',
-
-        '15:00',
-
-        '16:00',
-
-        '17:00',
-
-        '18:00',
-
-        '19:00',
-
-        '20:00',
+        '08:00', '09:00', '10:00', '11:00', '12:00',
+        '13:00', '14:00', '15:00', '16:00', '17:00',
+        '18:00', '19:00', '20:00', '21:00', '22:00', '23:00',
       ];
     } else if (_selectedPeriod == 'Weekly') {
       return [
         'Monday',
-
         'Tuesday',
-
         'Wednesday',
-
         'Thursday',
-
         'Friday',
-
         'Saturday',
-
         'Sunday',
       ];
     } else if (_selectedPeriod == 'Monthly') {
       return [
         'Jan',
-
         'Feb',
-
         'Mar',
-
         'Apr',
-
         'May',
-
         'Jun',
-
         'Jul',
-
         'Aug',
-
         'Sep',
-
         'Oct',
-
         'Nov',
-
         'Dec',
       ];
     } else {
-      // Annual - 2016 to current year (2026)
-
-      return [
-        '2016',
-
-        '2017',
-
-        '2018',
-
-        '2019',
-
-        '2020',
-
-        '2021',
-
-        '2022',
-
-        '2023',
-
-        '2024',
-
-        '2025',
-
-        '2026',
-      ];
+      // Annual - 2016 to current year
+      final currentYear = DateTime.now().year;
+      return List.generate(
+        currentYear - 2016 + 1,
+        (index) => (2016 + index).toString(),
+      );
     }
   }
 
   List<double> _processChartData(
-    List<Map<String, dynamic>> orders,
-  ) {
+    List<Map<String, dynamic>> orders, {
+    List<Map<String, dynamic>>? advanceOrders,
+    List<Map<String, dynamic>>? reservations,
+  }) {
     final now = DateTime.now();
-
     Map<int, double> periodData = {};
 
     // Helper to process a list of orders/reservations
-
     void processList(
       List<Map<String, dynamic>> list, {
       required bool isAdvance,
       required bool isReservation,
     }) {
       for (var item in list) {
-        // Use payment approval timestamps instead of scheduled dates
+        if (isReservation && item['is_archived'] == true) continue;
+
         final dateStr = isReservation
-            ? (item['payment_date'] ?? item['updated_at'])
-            : (isAdvance ? item['updated_at'] : item['created_at']);
+            ? (item['payment_date'] ?? item['event_date'] ?? item['created_at'])
+            : (isAdvance ? (item['order_date'] ?? item['created_at']) : item['created_at']);
 
-        final date = DateTime.tryParse(dateStr ?? '');
-
+        // Convert UTC timestamp from Supabase to Local Device Time
+        final date = DateTime.tryParse(dateStr ?? '')?.toLocal();
         if (date == null) continue;
 
         if (isAdvance) {
           final isPaid =
               item['payment_status'] == 'paid' ||
               item['payment_status'] == 'fully_paid';
-
           if (!isPaid) continue;
         } else if (isReservation) {
-          final paymentStatus = item['payment_status']?.toString() ?? '';
-
+          final paymentStatus = item['payment_status']?.toString().toLowerCase() ?? '';
+          final status = item['status']?.toString().toLowerCase() ?? '';
           final isPaid =
               paymentStatus == 'paid' ||
               paymentStatus == 'fully_paid' ||
-              paymentStatus == 'deposit_paid';
-
+              paymentStatus == 'deposit_paid' ||
+              status == 'confirmed' ||
+              status == 'completed';
           if (!isPaid) continue;
         }
 
         double amount = 0.0;
-
         if (isReservation) {
-          final paymentStatus = item['payment_status']?.toString() ?? '';
-
+          final paymentStatus = item['payment_status']?.toString().toLowerCase() ?? '';
           if (paymentStatus == 'deposit_paid') {
-            // When deposit is paid, count only the deposit amount
             amount = (item['deposit_amount'] as num?)?.toDouble() ??
                 ((item['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-          } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
-            // When fully paid, count only the remaining balance (total - deposit)
-            // to avoid double-counting the deposit
-            final totalPrice = (item['total_price'] as num?)?.toDouble() ?? 0.0;
-            final depositAmount = (item['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-            amount = totalPrice - depositAmount;
           } else {
             amount = (item['total_price'] as num?)?.toDouble() ?? 0.0;
           }
@@ -1266,78 +1187,69 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         }
 
         // Apply period-specific filtering
-
         switch (_selectedPeriod) {
           case 'Daily':
             if (date.year == now.year &&
                 date.month == now.month &&
                 date.day == now.day &&
-                date.hour >= 10 &&
-                date.hour <= 20) {
-              // Map hour to 0-based index within business hours (10:00–20:00)
-              final key = date.hour - 10;
+                date.hour >= 8 &&
+                date.hour <= 23) {
+              // Map hour to 0-based index within business hours (08:00–23:00)
+              final key = date.hour - 8;
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
-
             break;
 
           case 'Weekly':
             final dailyDiff = now.difference(date).inDays;
-
             if (dailyDiff >= 0 &&
                 dailyDiff < 7 &&
                 date.year.toString() == _selectedYear) {
               final key = date.weekday - 1;
-
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
-
             break;
 
           case 'Monthly':
             if (date.year.toString() == _selectedYear) {
               final key = date.month - 1;
-
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
-
             break;
 
           case 'Annually':
             if (date.year >= 2016 && date.year <= now.year) {
               final key = date.year - 2016;
-
               periodData[key] = (periodData[key] ?? 0) + amount;
             }
-
             break;
         }
       }
     }
 
-    // Admin Dashboard chart: Regular orders only
-    // (Advance orders and event reservations are tracked separately in Sales Report)
+    // Process regular orders
     processList(orders, isAdvance: false, isReservation: false);
 
+    // Also include paid advance orders if provided
+    if (advanceOrders != null && advanceOrders.isNotEmpty) {
+      processList(advanceOrders, isAdvance: true, isReservation: false);
+    }
+
+    // Also include event reservations if provided
+    if (reservations != null && reservations.isNotEmpty) {
+      processList(reservations, isAdvance: false, isReservation: true);
+    }
+
     // Convert to list based on selected period
-
     if (_selectedPeriod == 'Daily') {
-      return List.generate(
-        11,
-
-        (i) => periodData[i] ?? 0.0,
-      ); // 11 business hours: 10:00-20:00
+      return List.generate(16, (i) => periodData[i] ?? 0.0); // 16 business hours: 08:00-23:00
     } else if (_selectedPeriod == 'Weekly') {
       return List.generate(7, (i) => periodData[i] ?? 0.0);
     } else if (_selectedPeriod == 'Monthly') {
       return List.generate(12, (i) => periodData[i] ?? 0.0);
     } else {
-      // For yearly, generate from 2016 to current year
-
       final currentYear = now.year;
-
       final yearRange = currentYear - 2016 + 1;
-
       return List.generate(yearRange, (i) => periodData[i] ?? 0.0);
     }
   }
@@ -1354,87 +1266,137 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     List<_ActivityItem> activities = [];
 
     // Latest 5 POS Orders (for main dashboard)
-
     for (var i = 0; i < min(5, recentOrders.length); i++) {
       final o = recentOrders[i];
 
       final time = DateTime.tryParse(o['created_at'] ?? '');
-
       final timeStr = time != null
           ? DateFormat('HH:mm').format(time)
           : 'Just now';
 
+      final kitchenStatus = (o['kitchen_status']?.toString() ?? '').toLowerCase();
+      final orderStatus = (o['order_status']?.toString() ?? o['status']?.toString() ?? '').toLowerCase();
+
+      String statusTitle;
+      Color statusColor;
+      IconData statusIcon;
+
+      if (kitchenStatus == 'preparing' || orderStatus == 'preparing') {
+        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} In Prep';
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.local_fire_department_rounded;
+      } else if (kitchenStatus == 'ready' || orderStatus == 'ready') {
+        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Ready';
+        statusColor = AppTheme.infoBlue;
+        statusIcon = Icons.check_circle_outline_rounded;
+      } else if (kitchenStatus == 'completed' || kitchenStatus == 'served' || orderStatus == 'completed' || orderStatus == 'paid') {
+        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Completed';
+        statusColor = AppTheme.successGreen;
+        statusIcon = Icons.check_circle_rounded;
+      } else if (orderStatus == 'cancelled') {
+        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Cancelled';
+        statusColor = const Color(0xFFEF4444);
+        statusIcon = Icons.cancel_rounded;
+      } else {
+        // Pending / New Order
+        statusTitle = 'Order #${o['transaction_id'] ?? o['id']} Placed';
+        statusColor = AppTheme.warningOrange;
+        statusIcon = Icons.receipt_long_rounded;
+      }
+
       activities.add(
         _ActivityItem(
-          icon: Icons.receipt_long,
-
-          color: AppTheme.successGreen,
-
-          title: 'Order #${o['transaction_id'] ?? o['id']} Completed',
-
+          icon: statusIcon,
+          color: statusColor,
+          title: statusTitle,
           subtitle: '${o['customer_name'] ?? 'Guest'} · ₱${o['total_amount']}',
-
           time: timeStr,
         ),
       );
     }
 
     // Latest 3 Advance Orders (for main dashboard)
-
     for (var i = 0; i < min(3, advanceOrders.length); i++) {
       final ao = advanceOrders[i];
 
       final time = DateTime.tryParse(ao['created_at'] ?? '');
-
       final timeStr = time != null
           ? DateFormat('HH:mm').format(time)
           : 'Just now';
 
-      final paymentStatus = ao['payment_status']?.toString() ?? 'unpaid';
-
+      final status = (ao['status']?.toString() ?? 'pending').toLowerCase();
+      final paymentStatus = (ao['payment_status']?.toString() ?? 'unpaid').toLowerCase();
       final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+
+      String statusTitle;
+      Color statusColor;
+      IconData statusIcon;
+
+      if (status == 'completed') {
+        statusTitle = 'Advance Order #${ao['id']} Completed';
+        statusColor = AppTheme.successGreen;
+        statusIcon = Icons.check_circle_rounded;
+      } else if (status == 'preparing') {
+        statusTitle = 'Advance Order #${ao['id']} In Prep';
+        statusColor = const Color(0xFFF59E0B);
+        statusIcon = Icons.local_fire_department_rounded;
+      } else if (status == 'ready') {
+        statusTitle = 'Advance Order #${ao['id']} Ready';
+        statusColor = AppTheme.infoBlue;
+        statusIcon = Icons.check_circle_outline_rounded;
+      } else if (isPaid) {
+        statusTitle = 'Advance Order #${ao['id']} Paid';
+        statusColor = AppTheme.successGreen;
+        statusIcon = Icons.calendar_today_rounded;
+      } else {
+        statusTitle = 'New Advance Order #${ao['id']}';
+        statusColor = AppTheme.warningOrange;
+        statusIcon = Icons.pending_actions_rounded;
+      }
 
       activities.add(
         _ActivityItem(
-          icon: isPaid ? Icons.calendar_today : Icons.pending_actions,
-
-          color: isPaid ? AppTheme.successGreen : AppTheme.warningOrange,
-
-          title: isPaid ? 'Advance Order Paid' : 'New Advance Order',
-
+          icon: statusIcon,
+          color: statusColor,
+          title: statusTitle,
           subtitle: '${ao['customer_name'] ?? 'Guest'} · ₱${ao['total_price']} · ${ao['order_date'] ?? 'TBD'}',
-
           time: timeStr,
         ),
       );
     }
 
     // Latest 3 Reservations (for main dashboard)
-
     for (var i = 0; i < min(3, reservations.length); i++) {
       final r = reservations[i];
 
-      final status = r['status']?.toString() ?? 'pending';
-
+      final status = (r['status']?.toString() ?? 'pending').toLowerCase();
       final isConfirmed = status == 'confirmed';
+      final isCancelled = status == 'cancelled' || status == 'rejected';
 
       activities.add(
         _ActivityItem(
-          icon: isConfirmed ? Icons.check_circle : Icons.event_available,
-
-          color: isConfirmed ? AppTheme.successGreen : AppTheme.infoBlue,
-
-          title: isConfirmed ? 'Reservation Confirmed' : 'New Reservation',
-
+          icon: isConfirmed
+              ? Icons.check_circle_rounded
+              : isCancelled
+                  ? Icons.cancel_rounded
+                  : Icons.event_available_rounded,
+          color: isConfirmed
+              ? AppTheme.successGreen
+              : isCancelled
+                  ? const Color(0xFFEF4444)
+                  : AppTheme.infoBlue,
+          title: isConfirmed
+              ? 'Reservation Confirmed'
+              : isCancelled
+                  ? 'Reservation Cancelled'
+                  : 'New Reservation',
           subtitle: '${r['customer_name']} · ${r['event_type']}',
-
           time: 'Just now',
         ),
       );
     }
 
     // Latest 2 Low Stock Alerts (for main dashboard)
-
     final lowStockItems = inventory
         .where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) < 10)
         .take(2)
@@ -1443,14 +1405,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     for (var item in lowStockItems) {
       activities.add(
         _ActivityItem(
-          icon: Icons.inventory_2,
-
+          icon: Icons.inventory_2_rounded,
           color: AppTheme.warningOrange,
-
           title: 'Low Stock Alert',
-
           subtitle: '${item['name']} · ${item['quantity']} left',
-
           time: 'Now',
         ),
       );
@@ -1503,168 +1461,70 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
                     return FadeTransition(
                       opacity: _fadeIn,
-
                       child: Stack(
                         children: [
                           SingleChildScrollView(
                             padding: ResponsiveUtils.isMobile(context)
-                                ? const EdgeInsets.all(AppTheme.md)
-                                : const EdgeInsets.all(AppTheme.lg),
-
+                                ? const EdgeInsets.all(14)
+                                : const EdgeInsets.all(20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-
                               children: [
+                                // ── Premium Header ─────────────────────────
                                 _buildGreeting(context),
+                                const SizedBox(height: 20),
 
-                                const SizedBox(height: AppTheme.xl),
-
-                                // ── KPI Cards ──────────────────────────────
-                                _buildSectionTitle(
-                                  context,
-                                  'Today\'s Overview',
-                                ),
-
-                                const SizedBox(height: AppTheme.md),
-
+                                // ── KPI Cards ─────────────────────────────
+                                _buildSectionTitle(context, 'Today\'s Performance',
+                                    icon: Icons.leaderboard_rounded,
+                                    badge: DateFormat('d MMM').format(DateTime.now())),
+                                const SizedBox(height: 12),
                                 _buildKpiGrid(isDesktop || isTablet),
+                                const SizedBox(height: 24),
 
-                                const SizedBox(height: AppTheme.xl),
+                                // ── Main Analytics & Monitoring Sections ──────────────────
+                                _buildSectionTitle(context, 'Revenue Analytics',
+                                    icon: Icons.show_chart_rounded),
+                                const SizedBox(height: 12),
+                                _buildRevenueChart(context),
+                                const SizedBox(height: 20),
 
-                                // ── Charts Layout with Centered Venue Status ──────────────────
-                                ResponsiveUtils.isMobile(context)
-                                    ? Column(
-                                        children: [
-                                          _buildRevenueChart(context),
+                                _buildSectionTitle(context, 'Live Events Monitor',
+                                    icon: Icons.event_available_rounded),
+                                const SizedBox(height: 12),
+                                _buildLiveEventsMonitor(context),
+                                const SizedBox(height: 20),
 
-                                          const SizedBox(height: AppTheme.lg),
+                                _buildSectionTitle(context, 'Venue Status',
+                                    icon: Icons.storefront_rounded),
+                                const SizedBox(height: 12),
+                                _buildVenueStatus(context),
+                                const SizedBox(height: 20),
 
-                                          _buildLiveEventsMonitor(context),
+                                _buildSectionTitle(context, 'Event Analytics',
+                                    icon: Icons.pie_chart_rounded),
+                                const SizedBox(height: 12),
+                                _buildConfirmedEventsAnalytics(context, isDesktop || isTablet),
+                                const SizedBox(height: 20),
 
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildVenueStatus(context),
-
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildConfirmedEventsAnalytics(context, false),
-                                        ],
-                                      )
-                                    : (isDesktop || isTablet)
-                                    ? Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-
-                                        children: [
-                                          Expanded(
-                                            flex: 3,
-
-                                            child: Column(
-                                              children: [
-                                                _buildRevenueChart(context),
-
-                                                const SizedBox(
-                                                  height: AppTheme.lg,
-                                                ),
-
-                                                _buildLiveEventsMonitor(context),
-
-                                                const SizedBox(
-                                                  height: AppTheme.lg,
-                                                ),
-
-                                                _buildVenueStatus(context),
-
-                                                const SizedBox(
-                                                  height: AppTheme.lg,
-                                                ),
-
-                                                _buildConfirmedEventsAnalytics(context, true),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Column(
-                                        children: [
-                                          _buildRevenueChart(context),
-
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildLiveEventsMonitor(context),
-
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildVenueStatus(context),
-
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildConfirmedEventsAnalytics(context, false),
-                                        ],
-                                      ),
-
-                                const SizedBox(height: AppTheme.xl),
-
-                                const SizedBox(height: AppTheme.xl),
-
-                                // ── Monthly Event Schedule ──────────────────────────────────
-                                _buildSectionTitle(
-                                  context,
-                                  'Monthly Event Schedule',
-                                ),
-
-                                const SizedBox(height: AppTheme.md),
-
+                                _buildSectionTitle(context, 'Monthly Event Schedule',
+                                    icon: Icons.calendar_month_rounded),
+                                const SizedBox(height: 12),
                                 _buildMonthlyOverview(context),
+                                const SizedBox(height: 20),
 
-                                const SizedBox(height: AppTheme.xl),
+                                _buildSectionTitle(context, 'Operations Monitor',
+                                    icon: Icons.assignment_rounded),
+                                const SizedBox(height: 12),
+                                _buildOperationsMonitor(context),
+                                const SizedBox(height: 20),
 
-                                ResponsiveUtils.isMobile(context)
-                                    ? Column(
-                                        children: [
-                                          _buildOperationsMonitor(context),
+                                _buildSectionTitle(context, 'Recent Activity',
+                                    icon: Icons.history_rounded),
+                                const SizedBox(height: 12),
+                                _buildRecentActivity(context),
 
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildRecentActivity(context),
-                                        ],
-                                      )
-                                    : (isDesktop || isTablet)
-                                    ? Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-
-                                        children: [
-                                          Expanded(
-                                            flex: 3,
-
-                                            child: Column(
-                                              children: [
-                                                _buildOperationsMonitor(
-                                                  context,
-                                                ),
-
-                                                const SizedBox(
-                                                  height: AppTheme.lg,
-                                                ),
-
-                                                _buildRecentActivity(context),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Column(
-                                        children: [
-                                          _buildOperationsMonitor(context),
-
-                                          const SizedBox(height: AppTheme.lg),
-
-                                          _buildRecentActivity(context),
-                                        ],
-                                      ),
-
-                                const SizedBox(height: AppTheme.xxl),
+                                const SizedBox(height: 40),
                               ],
                             ),
                           ),
@@ -1716,111 +1576,150 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Widget _buildGreeting(BuildContext context) {
     final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    final greetingIcon = hour < 12 ? '🌤️' : hour < 17 ? '☀️' : '🌙';
+    final now = DateTime.now();
+    final timeStr = DateFormat('HH:mm:ss').format(now);
 
-    final greeting = hour < 12
-        ? 'Good Morning'
-        : hour < 17
-        ? 'Good Afternoon'
-        : 'Good Evening';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Column(
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF14332E), Color(0xFF1B4942), Color(0xFF0F2923)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14332E).withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
-                Text(
-                  '$greeting, Administrator!',
-
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppTheme.adminPrimaryText,
-
-                    fontWeight: FontWeight.bold,
-
-                    letterSpacing: -0.8,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
                 Row(
                   children: [
-                    Text(
-                      _formatDate(),
-
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.adminSecondaryText,
-
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-
+                    Text(greetingIcon, style: const TextStyle(fontSize: 16)),
                     const SizedBox(width: 8),
-
-                    Container(
-                      width: 4,
-
-                      height: 4,
-
-                      decoration: BoxDecoration(
-                        color: AppTheme.adminSecondaryText.withValues(alpha: 0.4),
-
-                        shape: BoxShape.circle,
+                    Text(
+                      '$greeting, Administrator',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        letterSpacing: -0.5,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  _formatDate(),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successGreen.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6, height: 6,
+                            decoration: const BoxDecoration(color: AppTheme.successGreen, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text('● LIVE', style: TextStyle(color: AppTheme.successGreen, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(timeStr, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.w600, fontFamily: 'monospace')),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
-      ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warmGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
+                ),
+                child: const Icon(Icons.restaurant_rounded, color: AppTheme.warmGold, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Yang Chow',
+                style: TextStyle(color: AppTheme.warmGold.withValues(alpha: 0.8), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+              ),
+              Text(
+                'Admin Portal',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 9, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   // ── Section Title ─────────────────────────────────────────────────────────
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  Widget _buildSectionTitle(BuildContext context, String title, {IconData? icon, String? badge}) {
     return Row(
       children: [
         Container(
-          width: 4,
-
-          height: 18,
-
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
-
-              begin: Alignment.topCenter,
-
-              end: Alignment.bottomCenter,
-            ),
+            color: AppTheme.adminSidebarBackground.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(9),
           ),
+          child: Icon(icon ?? Icons.dashboard_rounded, size: 15, color: AppTheme.adminSidebarBackground),
         ),
-
-        const SizedBox(width: AppTheme.sm + 2),
-
+        const SizedBox(width: 10),
         Text(
           title,
-
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
             color: AppTheme.adminPrimaryText,
-
-            letterSpacing: -0.2,
+            fontSize: 15,
+            letterSpacing: -0.3,
           ),
+        ),
+        if (badge != null) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.adminSidebarBackground.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(badge, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground)),
+          ),
+        ],
+        const Spacer(),
+        Text(
+          DateFormat('MMM yyyy').format(DateTime.now()),
+          style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
         ),
       ],
     );
@@ -1830,141 +1729,307 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   // ── KPI Grid ──────────────────────────────────────────────────────────────
 
+  // ── Executive KPI Cards (Sales Report Style) ──────────────────────────────
   Widget _buildKpiGrid(bool isWide) {
+    final pendingCount = _pendingOrders + _preparingOrders;
+    final stockAlert = _outOfStock + _lowStock;
+
     final cards = [
-      _KpiData(
-        label: 'DAILY REVENUE',
-
-        value: _formatNumber(_dailyRevenue),
-
-        icon: Icons.payments_rounded,
-
-        color: AppTheme.adminPrimaryAccent,
-
-        sub: '',
-
-        subPositive: null,
-
-        isHighlight: true,
-      ),
-
-      _KpiData(
-        label: 'REGULAR ORDERS',
-
+      // 1. Featured Gross Revenue Card (Regular Walk-in Revenue)
+      _buildFeaturedRevenueCard(_dailyRevenue),
+      // 2. Walk-in Orders Volume
+      _buildStandardKpiCard(
+        title: 'Walk-in Orders',
         value: '$_totalOrders',
-
-        icon: Icons.shopping_cart_outlined,
-
-        color: AppTheme.adminProgressBar1,
-
-        sub: '',
-
-        subPositive: null,
-
-        showProgress: true,
+        unit: 'Orders',
+        subtitle: pendingCount > 0 ? '$pendingCount pending' : 'All completed',
+        icon: Icons.shopping_bag_outlined,
+        accentColor: AppTheme.infoBlue,
+        trend: pendingCount == 0 ? 'COMPLETED' : 'IN PROGRESS',
+        isWarning: pendingCount > 0,
       ),
-
-      _KpiData(
-        label: 'ADVANCE ORDERS',
-
+      // 3. Advance Bookings
+      _buildStandardKpiCard(
+        title: 'Advance Orders',
         value: '$_totalAdvanceOrders',
-
+        unit: 'Bookings',
+        subtitle: _totalAdvanceOrders > 0 ? 'Paid & active' : 'No active orders',
         icon: Icons.event_note_outlined,
-
-        color: AppTheme.adminProgressBar2,
-
-        sub: '',
-
-        subPositive: _totalAdvanceOrders > 0,
+        accentColor: const Color(0xFF6366F1),
+        trend: _totalAdvanceOrders > 0 ? 'ACTIVE' : 'READY',
       ),
-
-      _KpiData(
-        label: 'GUESTS TODAY',
-
+      // 4. Guests Served
+      _buildStandardKpiCard(
+        title: 'Guests Today',
         value: '$_totalCustomers',
-
-        icon: Icons.people_outline,
-
-        color: AppTheme.successGreen,
-
-        sub: '',
-
-        subPositive: null,
+        unit: 'Pax Served',
+        subtitle: 'Dine-in & Walk-in',
+        icon: Icons.people_outline_rounded,
+        accentColor: const Color(0xFF8B5CF6),
+        trend: _totalCustomers > 0 ? '+ACTIVE' : 'STANDBY',
       ),
-
-      _KpiData(
-        label: 'CONFIRMED EVENTS',
-
+      // 5. Confirmed Events / Stock Health
+      _buildStandardKpiCard(
+        title: 'Confirmed Events',
         value: '$_reservations',
-
-        icon: Icons.confirmation_number_outlined,
-
-        color: AppTheme.successGreen,
-
-        sub: '',
-
-        subPositive: _pendingReservations > 0,
-
-        extra: 'Total Confirmed',
+        unit: 'Bookings',
+        subtitle: _pendingReservations > 0
+            ? '$_pendingReservations pending approval'
+            : (stockAlert > 0 ? '$stockAlert stock alert' : 'Optimal operations'),
+        icon: Icons.celebration_outlined,
+        accentColor: _pendingReservations > 0 ? AppTheme.warningOrange : AppTheme.successGreen,
+        trend: _pendingReservations > 0 ? 'PENDING' : 'GOOD',
+        isWarning: _pendingReservations > 0 || stockAlert > 0,
       ),
     ];
 
-    // Mobile: single column, Tablet: 2x2 grid, Desktop: 4 columns
-
-    if (ResponsiveUtils.isMobile(context)) {
-      return Column(
-        children: cards
-            .map(
-              (d) => Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.md),
-
-                child: _KpiCard(data: d),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1150) {
+          return Row(
+            children: cards.map((c) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: c,
               ),
-            )
-            .toList(),
-      );
-    }
+            )).toList(),
+          );
+        }
 
-    if (isWide) {
-      return Row(
-        children: cards
-            .map(
-              (d) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: AppTheme.md),
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: cards.map((c) => Container(
+              width: 230,
+              margin: const EdgeInsets.only(right: 12),
+              child: c,
+            )).toList(),
+          ),
+        );
+      },
+    );
+  }
 
-                  child: _KpiCard(data: d),
+  Widget _buildFeaturedRevenueCard(double totalRevenue) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF14332E), Color(0xFF1B4942), Color(0xFF163E37)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14332E).withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warmGold.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, color: AppTheme.warmGold, size: 10),
+                      SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'DAILY REVENUE',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.warmGold, letterSpacing: 0.4),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )
-            .toList(),
-      );
-    }
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.payments_rounded, color: AppTheme.warmGold, size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _formatNumber(totalRevenue),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Regular Walk-in',
+                  style: TextStyle(fontSize: 9.5, color: Color(0xFFC7D6D3), fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '$_totalOrders orders today',
+                  style: const TextStyle(fontSize: 9.5, color: AppTheme.warmGold, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(child: _KpiCard(data: cards[0])),
-
-            const SizedBox(width: AppTheme.md),
-
-            Expanded(child: _KpiCard(data: cards[1])),
-          ],
-        ),
-
-        const SizedBox(height: AppTheme.md),
-
-        Row(
-          children: [
-            Expanded(child: _KpiCard(data: cards[2])),
-
-            const SizedBox(width: AppTheme.md),
-
-            Expanded(child: _KpiCard(data: cards[3])),
-          ],
-        ),
-      ],
+  Widget _buildStandardKpiCard({
+    required String title,
+    required String value,
+    required String unit,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required String trend,
+    bool isWarning = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.adminSecondaryText,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accentColor, size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.adminPrimaryText,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+              ),
+              if (unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  unit,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.adminSecondaryText,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isWarning
+                      ? AppTheme.errorRed.withValues(alpha: 0.1)
+                      : AppTheme.successGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  trend,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: isWarning ? AppTheme.errorRed : AppTheme.successGreen,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1982,24 +2047,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         ? 0.0
         : _weeklyRevenue.reduce(max);
 
-    final maxY = (maxRevenue == 0 ? 1000.0 : maxRevenue * 1.2)
+    final maxY = (maxRevenue == 0 ? 1000.0 : maxRevenue * 1.25)
         .clamp(1000.0, 10000000.0)
         .toDouble();
 
     final weeklyFull = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     final weeklyShort = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    final dailyFull = ['10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM','6:00 PM','7:00 PM','8:00 PM'];
-    final dailyShort = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+    final dailyFull = [
+      '8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM',
+      '1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM',
+      '6:00 PM','7:00 PM','8:00 PM','9:00 PM','10:00 PM','11:00 PM'
+    ];
+    final dailyShort = [
+      '8AM','9AM','10AM','11AM','12PM',
+      '1PM','2PM','3PM','4PM','5PM',
+      '6PM','7PM','8PM','9PM','10PM','11PM'
+    ];
 
     String bottomLabel(int i) {
       if (_selectedPeriod == 'Weekly') return i < weeklyShort.length ? weeklyShort[i] : 'D${i+1}';
-      if (_selectedPeriod == 'Daily') return i < dailyShort.length ? dailyShort[i] : '${i+10}:00';
+      if (_selectedPeriod == 'Daily') return i < dailyShort.length ? dailyShort[i] : '${i+8}:00';
       return i < dayLabels.length ? dayLabels[i] : 'M${i+1}';
     }
 
     String tooltipLabel(int i) {
       if (_selectedPeriod == 'Weekly') return i < weeklyFull.length ? weeklyFull[i] : 'Day ${i+1}';
-      if (_selectedPeriod == 'Daily') return i < dailyFull.length ? dailyFull[i] : '${i+1}:00';
+      if (_selectedPeriod == 'Daily') return i < dailyFull.length ? dailyFull[i] : '${i+8}:00';
       return i < dayLabels.length ? dayLabels[i] : 'Month ${i+1}';
     }
 
@@ -2063,137 +2136,148 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               _periodSelector(),
             ],
           ),
-          const SizedBox(height: AppTheme.lg),
+          const SizedBox(height: 16),
+
+          // ── Summary Stats Row ──────────────────────────────────────────────
+          _buildChartSummaryRow(chartData),
+
+          const SizedBox(height: 16),
+
+          // ── Divider ───────────────────────────────────────────────────────
+          Container(height: 1, color: AppTheme.cardBorder),
+          const SizedBox(height: 16),
+
+          // ── Main Chart ────────────────────────────────────────────────────
           SizedBox(
-            height: 240,
-            child: SfCartesianChart(
-              plotAreaBorderWidth: 0,
-              margin: EdgeInsets.zero,
-              tooltipBehavior: TooltipBehavior(
-                enable: true,
-                activationMode: ActivationMode.singleTap,
-                shouldAlwaysShow: false,
-                builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                  final _RevenueData item = data;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.adminPrimaryText,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tooltipLabel(pointIndex),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatNumber(item.value),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              primaryXAxis: CategoryAxis(
-                majorGridLines: const MajorGridLines(width: 0),
-                labelStyle: const TextStyle(
-                  color: AppTheme.mediumGrey,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+            height: 270,
+            child: chartData.every((d) => d.value == 0)
+                ? _buildChartEmptyState()
+                : _buildSfChart(chartData, maxY, tooltipLabel),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Legend ────────────────────────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
               ),
-              primaryYAxis: NumericAxis(
-                axisLine: const AxisLine(width: 0),
-                labelStyle: const TextStyle(
-                  color: AppTheme.mediumGrey,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-                numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
-                majorGridLines: MajorGridLines(
-                  color: AppTheme.adminCardBackground.withValues(alpha: 0.8),
-                  width: 1,
-                ),
-                maximum: maxY,
+              const SizedBox(width: 6),
+              const Text(
+                'Total Revenue',
+                style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
               ),
-              series: <CartesianSeries<_RevenueData, String>>[
-                SplineAreaSeries<_RevenueData, String>(
-                  dataSource: chartData,
-                  xValueMapper: (_RevenueData data, _) => data.label,
-                  yValueMapper: (_RevenueData data, _) => data.value,
-                  name: 'Revenue',
-                  enableTooltip: true,
-                  animationDuration: 0,
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.3),
-                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.1),
-                      AppTheme.adminRevenueGraphLine.withValues(alpha: 0.0),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+              const SizedBox(width: 16),
+              Container(
+                width: 9, height: 9,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD9A441),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Text(
+                'Peak Point',
+                style: TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 16),
+              const Text(
+                '• Regular Walk-in / POS Orders',
+                style: TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartSummaryRow(List<_RevenueData> chartData) {
+    final total = chartData.fold<double>(0, (s, d) => s + d.value);
+    final peak = chartData.isEmpty ? null : chartData.reduce((a, b) => a.value >= b.value ? a : b);
+    final fmt = NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH');
+    final fmtFull = NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2);
+    final periodLabel = _selectedPeriod == 'Daily' ? 'Hour'
+        : _selectedPeriod == 'Weekly' ? 'Day'
+        : _selectedPeriod == 'Monthly' ? 'Month' : 'Year';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildChartStat(
+            icon: Icons.paid_rounded,
+            color: const Color(0xFF14332E),
+            label: 'Total Revenue',
+            value: fmtFull.format(total),
+          ),
+          Container(width: 1, height: 28, color: AppTheme.cardBorder, margin: const EdgeInsets.symmetric(horizontal: 12)),
+          _buildChartStat(
+            icon: Icons.trending_up_rounded,
+            color: const Color(0xFFD9A441),
+            label: 'Peak $periodLabel',
+            value: (peak != null && peak.value > 0)
+                ? '${peak.label}  •  ${fmt.format(peak.value)}'
+                : '—',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartStat({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: AppTheme.mediumGrey,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
                   ),
-                  borderColor: AppTheme.adminRevenueGraphLine,
-                  borderWidth: 3.5,
-                  markerSettings: const MarkerSettings(
-                    isVisible: true,
-                    shape: DataMarkerType.circle,
-                    width: 6,
-                    height: 6,
-                    color: Colors.white,
-                    borderColor: AppTheme.adminRevenueGraphLine,
-                    borderWidth: 2,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.darkGrey,
+                    fontWeight: FontWeight.w800,
                   ),
-                  dataLabelSettings: DataLabelSettings(
-                    isVisible: true,
-                    labelAlignment: ChartDataLabelAlignment.top,
-                    builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-                      final _RevenueData item = data;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 2,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH').format(item.value),
-                          style: const TextStyle(
-                            color: AppTheme.darkGrey,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -2203,366 +2287,703 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
+  Widget _buildChartEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bar_chart_rounded, color: AppTheme.mediumGrey, size: 28),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No Revenue Data',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _selectedPeriod == 'Daily'
+                ? 'No transactions recorded today'
+                : _selectedPeriod == 'Weekly'
+                    ? 'No transactions in the past 7 days'
+                    : 'No data for the selected period',
+            style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSfChart(List<_RevenueData> chartData, double maxY, String Function(int) tooltipLabel) {
+    double peakVal = 0;
+    for (final d in chartData) {
+      if (d.value > peakVal) peakVal = d.value;
+    }
+
+    return SfCartesianChart(
+      plotAreaBorderWidth: 0,
+      plotAreaBackgroundColor: Colors.transparent,
+      margin: const EdgeInsets.only(left: 0, right: 8, top: 8, bottom: 0),
+      tooltipBehavior: TooltipBehavior(
+        enable: true,
+        activationMode: ActivationMode.singleTap,
+        shouldAlwaysShow: false,
+        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+          final _RevenueData item = data;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6, height: 6,
+                      decoration: const BoxDecoration(color: Color(0xFFD9A441), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      tooltipLabel(pointIndex),
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  NumberFormat.simpleCurrency(name: '₱', locale: 'en_PH', decimalDigits: 2).format(item.value),
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                ),
+                if (item.value == 0)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Text('No transactions', style: TextStyle(color: Color(0xFF64748B), fontSize: 9)),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+      crosshairBehavior: CrosshairBehavior(
+        enable: true,
+        activationMode: ActivationMode.singleTap,
+        lineType: CrosshairLineType.vertical,
+        lineColor: AppTheme.mediumGrey.withValues(alpha: 0.3),
+        lineWidth: 1,
+        lineDashArray: const [4, 4],
+      ),
+      primaryXAxis: CategoryAxis(
+        majorGridLines: const MajorGridLines(width: 0),
+        axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
+        labelStyle: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.w600),
+        labelRotation: _selectedPeriod == 'Daily' ? -35 : 0,
+        majorTickLines: const MajorTickLines(size: 0),
+      ),
+      primaryYAxis: NumericAxis(
+        axisLine: const AxisLine(width: 0),
+        majorTickLines: const MajorTickLines(size: 0),
+        labelStyle: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.w600),
+        numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+        majorGridLines: MajorGridLines(
+          width: 1,
+          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+          dashArray: const [4, 4],
+        ),
+        maximum: maxY,
+        minimum: 0,
+        desiredIntervals: 5,
+      ),
+      series: <CartesianSeries<_RevenueData, String>>[
+        // Gradient filled area
+        SplineAreaSeries<_RevenueData, String>(
+          dataSource: chartData,
+          xValueMapper: (_RevenueData d, _) => d.label,
+          yValueMapper: (_RevenueData d, _) => d.value,
+          name: 'Revenue Area',
+          enableTooltip: false,
+          animationDuration: 900,
+          splineType: SplineType.cardinal,
+          cardinalSplineTension: 0.6,
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF14332E).withValues(alpha: 0.20),
+              const Color(0xFF14332E).withValues(alpha: 0.08),
+              const Color(0xFF14332E).withValues(alpha: 0.0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderWidth: 0,
+          markerSettings: const MarkerSettings(isVisible: false),
+          dataLabelSettings: const DataLabelSettings(isVisible: false),
+        ),
+        // Main smooth line
+        SplineSeries<_RevenueData, String>(
+          dataSource: chartData,
+          xValueMapper: (_RevenueData d, _) => d.label,
+          yValueMapper: (_RevenueData d, _) => d.value,
+          name: 'Revenue',
+          enableTooltip: true,
+          animationDuration: 1000,
+          splineType: SplineType.cardinal,
+          cardinalSplineTension: 0.6,
+          color: const Color(0xFF14332E),
+          width: 2.5,
+          markerSettings: const MarkerSettings(
+            isVisible: true,
+            shape: DataMarkerType.circle,
+            width: 5,
+            height: 5,
+            color: Colors.white,
+            borderColor: Color(0xFF14332E),
+            borderWidth: 2,
+          ),
+          dataLabelSettings: DataLabelSettings(
+            isVisible: peakVal > 0,
+            labelAlignment: ChartDataLabelAlignment.top,
+            builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+              final _RevenueData item = data;
+              if (item.value != peakVal || peakVal == 0) return const SizedBox.shrink();
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD9A441),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFD9A441).withValues(alpha: 0.35),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.arrow_upward_rounded, size: 9, color: Colors.white),
+                    const SizedBox(width: 2),
+                    Text(
+                      NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH').format(item.value),
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Venue Status ──────────────────────────────────────────────────────────
 
   Widget _buildVenueStatus(BuildContext context) {
-    // Determine status based on current time and today's events
-
     final venueStatus = _getVenueStatus();
-
     final isReserved = venueStatus['isReserved'] as bool;
-
     final statusText = venueStatus['statusText'] as String;
-
     final subtitleText = venueStatus['subtitleText'] as String;
-
     final statusColor = venueStatus['statusColor'] as Color;
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
-
+      padding: const EdgeInsets.all(AppTheme.lg),
       decoration: _cardDecoration(),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          // Collapsible Header
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isVenueStatusExpanded = !(_isVenueStatusExpanded ?? true);
-              });
-            },
-
-            child: Container(
-              padding: const EdgeInsets.all(AppTheme.md),
-
-              decoration: BoxDecoration(
-                color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
-
-                borderRadius: BorderRadius.circular(8),
-              ),
-
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Venue Status',
-
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-
-                          color: AppTheme.darkGrey,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // Compact Status Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-
-                          vertical: 6,
-                        ),
-
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-
-                          borderRadius: BorderRadius.circular(20),
-
-                          border: Border.all(color: statusColor, width: 1),
-                        ),
-
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-
-                          children: [
-                            Container(
-                              width: 8,
-
-                              height: 8,
-
-                              decoration: BoxDecoration(
-                                color: statusColor,
-
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-
-                            const SizedBox(width: 6),
-
-                            Text(
-                              statusText,
-
-                              style: TextStyle(
-                                fontSize: 12,
-
-                                fontWeight: FontWeight.bold,
-
-                                color: statusColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Expand/Collapse Icon
                   Container(
                     padding: const EdgeInsets.all(8),
-
                     decoration: BoxDecoration(
-                      color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.1),
-
-                      borderRadius: BorderRadius.circular(6),
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-
                     child: Icon(
-                      (_isVenueStatusExpanded ?? true)
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-
-                      color: AppTheme.adminPrimaryAccent,
-
+                      isReserved ? Icons.event_busy_rounded : Icons.storefront_rounded,
+                      color: statusColor,
                       size: 20,
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Live Venue Operations',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.darkGrey,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Real-time dining hall & private reservation monitor',
+                        style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ),
-          ),
-
-          // Expanded Content
-          if (_isVenueStatusExpanded ?? true) ...[
-            const SizedBox(height: AppTheme.md),
-
-            // Next Event Countdown (Moved here)
-            if (_nextEvent.isNotEmpty) ...[
+              // Live Status Badge
               Container(
-                padding: const EdgeInsets.all(AppTheme.lg),
-
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
-
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-
-                  border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                  ),
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
-
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-
-                      decoration: BoxDecoration(
-                        color: AppTheme.adminPrimaryAccent,
-
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-
-                      child: const Icon(
-                        Icons.timer,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-
-                    const SizedBox(width: AppTheme.lg),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-                          Text(
-                            'NEXT EVENT STARTS IN',
-
-                            style: TextStyle(
-                              fontSize: 12,
-
-                              fontWeight: FontWeight.bold,
-
-                              color: AppTheme.adminPrimaryAccent,
-
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            _nextEventCountdown,
-
-                            style: const TextStyle(
-                              fontSize: 24,
-
-                              fontWeight: FontWeight.bold,
-
-                              color: AppTheme.darkGrey,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            '${_nextEvent['event_type']} · ${_nextEvent['customer_name']}',
-
-                            style: TextStyle(
-                              fontSize: 12,
-
-                              color: AppTheme.mediumGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-
-                        vertical: 6,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: _getEventStatusColor(
-                          _nextEvent,
-                        ).withValues(alpha: 0.1),
-
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-
-                      child: Text(
-                        _getEventStatusText(_nextEvent),
-
-                        style: TextStyle(
-                          fontSize: 10,
-
-                          fontWeight: FontWeight.bold,
-
-                          color: _getEventStatusColor(_nextEvent),
-                        ),
+                    _PulsingDot(color: statusColor, size: 7),
+                    const SizedBox(width: 6),
+                    Text(
+                      statusText == 'OPEN' ? 'OPEN FOR DINING' : statusText,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        color: statusColor,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: AppTheme.lg),
             ],
+          ),
 
-            // 1. Current Status Circle Chart (Restored)
+          const SizedBox(height: 18),
+
+          // Next Event Countdown (If scheduled today)
+          if (_nextEvent.isNotEmpty) ...[
             Container(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.lg),
-
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppTheme.adminMainBackground.withValues(alpha: 0.3),
-
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF1E293B),
+                    Color(0xFF0F172A),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-
-              child: Column(
+              child: Row(
                 children: [
-                  SizedBox(
-                    height: 180,
-
-                    child: Stack(
-                      alignment: Alignment.center,
-
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warmGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(Icons.timer_outlined, color: AppTheme.warmGold, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SfCircularChart(
-                          margin: EdgeInsets.zero,
-                          series: <CircularSeries<_PieData, String>>[
-                            DoughnutSeries<_PieData, String>(
-                              dataSource: [
-                                _PieData('Reserved', isReserved ? 100 : 0, isReserved ? statusColor : AppTheme.adminMainBackground),
-                                _PieData('Available', isReserved ? 0 : 100, isReserved ? AppTheme.adminMainBackground : statusColor.withValues(alpha: 0.1)),
-                              ],
-                              xValueMapper: (_PieData data, _) => data.x,
-                              yValueMapper: (_PieData data, _) => data.y,
-                              pointColorMapper: (_PieData data, _) => data.color,
-                              innerRadius: '80%',
-                              radius: '100%',
-                              startAngle: 270,
-                              endAngle: 630,
+                        Row(
+                          children: [
+                            const Text(
+                              'NEXT SCHEDULED EVENT',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.warmGold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: _getEventStatusColor(_nextEvent).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _getEventStatusText(_nextEvent),
+                                style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: _getEventStatusColor(_nextEvent)),
+                              ),
                             ),
                           ],
                         ),
-
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-
-                          children: [
-                            Text(
-                              statusText,
-
-                              style: TextStyle(
-                                fontSize: 22,
-
-                                fontWeight: FontWeight.bold,
-
-                                color: statusColor,
-
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-
-                            const SizedBox(height: 2),
-
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-
-                              child: Text(
-                                subtitleText,
-
-                                textAlign: TextAlign.center,
-
-                                style: const TextStyle(
-                                  fontSize: 9,
-
-                                  color: AppTheme.mediumGrey,
-
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_nextEvent['event_type']} • ${_nextEvent['customer_name']}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: AppTheme.lg),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.xl,
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
-
-                    child: _statusLegendRow(
-                      statusColor,
-
-                      isReserved ? 'Venue Occupied' : 'Venue Available',
-
-                      isReserved ? 'Currently in use' : 'Ready for bookings',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'STARTS IN',
+                          style: TextStyle(fontSize: 8.5, color: Colors.white54, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          _nextEventCountdown,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: AppTheme.lg),
+            const SizedBox(height: 16),
           ],
+
+          // Main Interactive Cockpit: Realistic Glowing Ring Gauge + Operational Grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 750;
+
+              final gaugeWidget = Container(
+                width: isWide ? 260 : double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      statusColor.withValues(alpha: 0.05),
+                      statusColor.withValues(alpha: 0.01),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Realistic Glowing Circle Gauge
+                    SizedBox(
+                      height: 180,
+                      width: 180,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Ambient glow background
+                          Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: statusColor.withValues(alpha: 0.18),
+                                  blurRadius: 36,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Dual-layer Ring Gauge
+                          SfCircularChart(
+                            margin: EdgeInsets.zero,
+                            series: <CircularSeries<_PieData, String>>[
+                              DoughnutSeries<_PieData, String>(
+                                dataSource: [
+                                  _PieData('Active', 100, statusColor),
+                                ],
+                                xValueMapper: (_PieData data, _) => data.x,
+                                yValueMapper: (_PieData data, _) => data.y,
+                                pointColorMapper: (_PieData data, _) => data.color,
+                                innerRadius: '78%',
+                                radius: '98%',
+                                cornerStyle: CornerStyle.bothCurve,
+                                startAngle: 270,
+                                endAngle: 630,
+                              ),
+                            ],
+                          ),
+                          // Inner Core Status
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '● LIVE',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: statusColor,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                statusText,
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: statusColor,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitleText,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.darkGrey.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Operating Slot Tag
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.cardBorder),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 12, color: AppTheme.mediumGrey),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '10:00 AM – 8:00 PM • Active',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              final metricsGrid = Column(
+                children: [
+                  _buildVenueMetricTile(
+                    icon: Icons.table_restaurant_rounded,
+                    accentColor: AppTheme.successGreen,
+                    title: 'DINING HALL AVAILABILITY',
+                    status: isReserved ? 'Temporarily Reserved' : '100% Available for Walk-ins',
+                    detail: isReserved
+                        ? 'Private function ongoing • Walk-in dining paused'
+                        : 'Normal dining operations • No private event lockouts',
+                    chipText: isReserved ? 'OCCUPIED' : 'OPTIMAL',
+                  ),
+                  const SizedBox(height: 10),
+                  _buildVenueMetricTile(
+                    icon: Icons.access_time_filled_rounded,
+                    accentColor: AppTheme.infoBlue,
+                    title: 'BUSINESS OPERATING SHIFT',
+                    status: 'Standard Shift: 10:00 AM – 8:00 PM',
+                    detail: 'Kitchen and bar stations active • Cashier & POS online',
+                    chipText: 'ONLINE',
+                  ),
+                  const SizedBox(height: 10),
+                  _buildVenueMetricTile(
+                    icon: Icons.celebration_rounded,
+                    accentColor: const Color(0xFFF59E0B),
+                    title: "TODAY'S EVENT SCHEDULE",
+                    status: _nextEvent.isNotEmpty
+                        ? '${_nextEvent['event_type']} (${_nextEvent['customer_name']})'
+                        : 'No Private Events Today',
+                    detail: _nextEvent.isNotEmpty
+                        ? 'Booked slot: ${DateFormat('hh:mm a').format(_nextEvent['event_start'] ?? DateTime.now())} - ${DateFormat('hh:mm a').format(_nextEvent['event_end'] ?? DateTime.now())}'
+                        : 'Entire dining area open for regular customers all day',
+                    chipText: _nextEvent.isNotEmpty ? 'SCHEDULED' : 'CLEAR',
+                  ),
+                ],
+              );
+
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    gaugeWidget,
+                    const SizedBox(width: 16),
+                    Expanded(child: metricsGrid),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  gaugeWidget,
+                  const SizedBox(height: 14),
+                  metricsGrid,
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVenueMetricTile({
+    required IconData icon,
+    required Color accentColor,
+    required String title,
+    required String status,
+    required String detail,
+    required String chipText,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: accentColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.adminSecondaryText,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        chipText,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: accentColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  status,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: AppTheme.mediumGrey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -2698,537 +3119,541 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Widget _buildMonthlyOverview(BuildContext context) {
     _focusedMonth ??= DateTime.now();
-
     final focusedMonth = _focusedMonth!;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        // Monthly Header / Dropdown Toggle
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  'Monthly Schedule',
-
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-
-                    fontSize: 14,
-
-                    color: AppTheme.darkGrey,
-
-                    letterSpacing: -0.2,
-                  ),
-                ),
-
-                Text(
-                  'All events in ${DateFormat('MMMM yyyy').format(focusedMonth)}',
-
-                  style: const TextStyle(
-                    fontSize: 10,
-
-                    color: AppTheme.mediumGrey,
-                  ),
-                ),
-              ],
-            ),
-
-            _buildMonthDropdown(focusedMonth),
-          ],
-        ),
-
-        const SizedBox(height: AppTheme.lg),
-
-        // Month-Wide Event List
-        _buildEventScheduleList(context),
-      ],
-    );
-  }
-
-  // ── Event Schedule List Widget ─────────────────────────────────────
-
-  Widget _buildEventScheduleList(BuildContext context) {
-    _focusedMonth ??= DateTime.now();
-
-    final focusedMonth = _focusedMonth!;
-
     final now = DateTime.now();
-
-    final todayStr = DateFormat('yyyy-MM-dd').format(now);
-
     final targetMonthStr = DateFormat('yyyy-MM').format(focusedMonth);
 
-    // Aggregating all events for the selected month
-
+    // Collect all events for selected month
     List<Map<String, dynamic>> monthEvents = [];
-
     _eventsByDate.forEach((dateKey, events) {
       if (dateKey.startsWith(targetMonthStr)) {
         for (var e in events) {
-          monthEvents.add({
-            ...e,
-
-            'date_key': dateKey, // Store the date for sorting
-          });
+          monthEvents.add({...e, 'date_key': dateKey});
         }
       }
     });
-
-    // Sorting logic (Keep existing sorting)
-
     monthEvents.sort((a, b) {
-      int dateCompare = a['date_key'].compareTo(b['date_key']);
-
-      if (dateCompare != 0) return dateCompare;
-
-      DateTime? startA = a['event_start'] as DateTime?;
-
-      DateTime? startB = b['event_start'] as DateTime?;
-
-      if (startA != null && startB != null) {
-        return startA.compareTo(startB);
-      }
-
-      String timeA = a['start_time']?.toString() ?? '';
-
-      String timeB = b['start_time']?.toString() ?? '';
-
-      return timeA.compareTo(timeB);
+      int d = a['date_key'].compareTo(b['date_key']);
+      if (d != 0) return d;
+      final sa = a['event_start'] as DateTime?;
+      final sb = b['event_start'] as DateTime?;
+      if (sa != null && sb != null) return sa.compareTo(sb);
+      return (a['start_time'] ?? '').compareTo(b['start_time'] ?? '');
     });
 
-    // Pagination Logic
+    final confirmedCount = monthEvents.where((e) =>
+      (e['status']?.toString().toLowerCase() ?? '') == 'confirmed').length;
+    final pendingCount = monthEvents.where((e) =>
+      (e['status']?.toString().toLowerCase() ?? '') == 'pending').length;
 
-    final totalItems = monthEvents.length;
-
-    final totalPages = (totalItems / _itemsPerPage).ceil();
-
-    if (_schedulePage >= totalPages && totalPages > 0) {
-      _schedulePage = totalPages - 1;
+    // Calendar heat-strip: days with events this month
+    final daysInMonth = DateUtils.getDaysInMonth(focusedMonth.year, focusedMonth.month);
+    final eventDays = <int>{};
+    for (final e in monthEvents) {
+      try {
+        final d = DateTime.parse(e['date_key']);
+        eventDays.add(d.day);
+      } catch (_) {}
     }
 
+    // Pagination
+    final totalItems = monthEvents.length;
+    final totalPages = totalItems == 0 ? 1 : (totalItems / _itemsPerPage).ceil();
+    if (_schedulePage >= totalPages && totalPages > 0) _schedulePage = totalPages - 1;
     final startIndex = _schedulePage * _itemsPerPage;
-
     final endIndex = min(startIndex + _itemsPerPage, totalItems);
-
-    final displayedEvents = totalItems > 0
-        ? monthEvents.sublist(startIndex, endIndex)
-        : [];
+    final displayedEvents = totalItems > 0 ? monthEvents.sublist(startIndex, endIndex) : [];
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(12),
-
-        border: Border.all(color: AppTheme.lightGrey),
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-
-            blurRadius: 10,
-
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-
+      padding: const EdgeInsets.all(AppTheme.lg),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppTheme.lightGrey)),
-            ),
-
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.event_note,
-
-                  color: AppTheme.adminPrimaryAccent,
-
-                  size: 20,
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: Text(
-                    'Event Queue - ${DateFormat('MMMM yyyy').format(focusedMonth)}',
-
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-
-                      color: AppTheme.darkGrey,
-
-                      fontSize: 14,
+          // ── Header ────────────────────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    child: const Icon(Icons.calendar_month_rounded,
+                        color: AppTheme.adminPrimaryAccent, size: 20),
                   ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Monthly Event Schedule',
+                          style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800,
+                            color: AppTheme.darkGrey, letterSpacing: -0.3,
+                          )),
+                      Text(DateFormat('MMMM yyyy').format(focusedMonth),
+                          style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
+                    ],
+                  ),
+                ],
+              ),
+              _buildMonthDropdown(focusedMonth),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Summary Stat Chips ─────────────────────────────────────────
+          Row(
+            children: [
+              _scheduleChip(Icons.event_note_rounded, '${monthEvents.length}',
+                  'Total', AppTheme.adminPrimaryAccent),
+              const SizedBox(width: 8),
+              _scheduleChip(Icons.check_circle_rounded, '$confirmedCount',
+                  'Confirmed', AppTheme.successGreen),
+              const SizedBox(width: 8),
+              _scheduleChip(Icons.pending_rounded, '$pendingCount',
+                  'Pending', AppTheme.warningOrange),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Calendar Heat-Strip ─────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      DateFormat('MMMM yyyy').format(focusedMonth).toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 9.5, fontWeight: FontWeight.w800,
+                        color: AppTheme.adminSecondaryText, letterSpacing: 0.8,
+                      ),
+                    ),
+                    Text(
+                      '${eventDays.length} days with events',
+                      style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: List.generate(daysInMonth, (i) {
+                      final day = i + 1;
+                      final date = DateTime(focusedMonth.year, focusedMonth.month, day);
+                      final isToday = now.year == date.year &&
+                          now.month == date.month && now.day == date.day;
+                      final hasEvent = eventDays.contains(day);
+                      final isPast = date.isBefore(DateTime(now.year, now.month, now.day));
 
-                Badge(
-                  label: Text('${monthEvents.length}'),
-
-                  backgroundColor: AppTheme.primaryColor,
+                      return Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        width: 28,
+                        child: Column(
+                          children: [
+                            Text(
+                              DateFormat('E').format(date)[0],
+                              style: TextStyle(
+                                fontSize: 8.5, fontWeight: FontWeight.bold,
+                                color: isToday ? AppTheme.adminPrimaryAccent : AppTheme.mediumGrey,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Container(
+                              width: 28, height: 28,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: isToday
+                                    ? AppTheme.adminPrimaryAccent
+                                    : hasEvent
+                                        ? AppTheme.successGreen.withValues(alpha: 0.15)
+                                        : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: hasEvent && !isToday
+                                    ? Border.all(color: AppTheme.successGreen.withValues(alpha: 0.4))
+                                    : null,
+                              ),
+                              child: Text(
+                                '$day',
+                                style: TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.w700,
+                                  color: isToday
+                                      ? Colors.white
+                                      : hasEvent
+                                          ? AppTheme.successGreen
+                                          : isPast
+                                              ? AppTheme.mediumGrey.withValues(alpha: 0.5)
+                                              : AppTheme.darkGrey,
+                                ),
+                              ),
+                            ),
+                            if (hasEvent)
+                              Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                width: 4, height: 4,
+                                decoration: BoxDecoration(
+                                  color: isToday ? Colors.white : AppTheme.successGreen,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
                 ),
               ],
             ),
           ),
 
-          if (monthEvents.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppTheme.xl),
+          const SizedBox(height: 14),
 
+          // ── Event List ─────────────────────────────────────────────────
+          if (monthEvents.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppTheme.adminMainBackground.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.event_available,
-
-                      color: AppTheme.mediumGrey.withValues(alpha: 0.5),
-
-                      size: 40,
-                    ),
-
-                    const SizedBox(height: AppTheme.md),
-
-                    Text(
-                      'No events scheduled for this month.',
-
-                      style: TextStyle(
-                        color: AppTheme.mediumGrey,
-
-                        fontSize: 13,
-                      ),
-                    ),
+                    Icon(Icons.event_available_rounded,
+                        color: AppTheme.mediumGrey.withValues(alpha: 0.4), size: 44),
+                    const SizedBox(height: 12),
+                    const Text('No events scheduled this month',
+                        style: TextStyle(fontWeight: FontWeight.w700,
+                            fontSize: 14, color: AppTheme.mediumGrey)),
+                    const SizedBox(height: 4),
+                    const Text('Check another month or add reservations',
+                        style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
                   ],
                 ),
               ),
             )
-          else ...[
-            ListView.separated(
-              shrinkWrap: true,
+          else
+            Column(
+              children: [
+                ...displayedEvents.asMap().entries.map((entry) {
+                  final event = entry.value;
+                  final dateKey = event['date_key'] as String;
+                  final status = (event['status']?.toString().toLowerCase() ?? '');
+                  final isConfirmed = status == 'confirmed';
+                  final isPending = status == 'pending';
+                  final isToday = dateKey == DateFormat('yyyy-MM-dd').format(now);
+                  final isTodayOrFuture = dateKey.compareTo(DateFormat('yyyy-MM-dd').format(
+                      DateTime(now.year, now.month, now.day))) >= 0;
 
-              physics: const NeverScrollableScrollPhysics(),
+                  // Parse date
+                  DateTime? eventDate;
+                  try { eventDate = DateTime.parse(dateKey); } catch (_) {}
 
-              itemCount: displayedEvents.length,
+                  // Parse time
+                  String timeStr = '';
+                  final eventStart = event['event_start'] as DateTime?;
+                  final eventEnd = event['event_end'] as DateTime?;
+                  if (eventStart != null && eventEnd != null) {
+                    timeStr = '${DateFormat('h:mm a').format(eventStart)} – ${DateFormat('h:mm a').format(eventEnd)}';
+                  } else if (event['start_time'] != null) {
+                    timeStr = event['start_time'].toString();
+                  }
 
-              separatorBuilder: (context, index) =>
-                  const Divider(height: 1, color: AppTheme.lightGrey),
+                  final guestCount = event['number_of_guests'] ?? event['pax'] ?? event['guest_count'];
+                  final eventType = event['event_type'] ?? 'Event';
+                  final customerName = event['customer_name'] ?? 'Guest';
+                  final packageName = event['package_name'];
 
-              itemBuilder: (context, index) {
-                final event = displayedEvents[index];
+                  Color statusColor = isPending ? AppTheme.warningOrange : AppTheme.successGreen;
+                  Color accentColor = isConfirmed ? AppTheme.successGreen : AppTheme.warningOrange;
 
-                final dateKey = event['date_key'] as String;
-
-                final isConfirmed =
-                    (event['status']?.toString().toLowerCase() ?? '') ==
-                    'confirmed';
-
-                final isToday = dateKey == todayStr;
-
-                // Parse date for display
-
-                String displayDate = '';
-
-                try {
-                  displayDate = DateFormat(
-                    'MMM d',
-                  ).format(DateTime.parse(dateKey));
-                } catch (e) {
-                  displayDate = dateKey;
-                }
-
-                return Container(
-                  padding: const EdgeInsets.all(12),
-
-                  decoration: BoxDecoration(
-                    color: isToday
-                        ? AppTheme.primaryColor.withValues(alpha: 0.02)
-                        : null,
-                  ),
-
-                  child: Row(
-                    children: [
-                      // Date Badge
-                      Container(
-                        width: 45,
-
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-
-                        decoration: BoxDecoration(
-                          color: isToday
-                              ? AppTheme.primaryColor
-                              : AppTheme.adminMainBackground,
-
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-
-                        child: Column(
-                          children: [
-                            Text(
-                              displayDate.split(' ')[0],
-
-                              style: TextStyle(
-                                fontSize: 9,
-
-                                fontWeight: FontWeight.bold,
-
-                                color: isToday
-                                    ? Colors.white
-                                    : AppTheme.mediumGrey,
-                              ),
-                            ),
-
-                            Text(
-                              displayDate.split(' ')[1],
-
-                              style: TextStyle(
-                                fontSize: 13,
-
-                                fontWeight: FontWeight.bold,
-
-                                color: isToday
-                                    ? Colors.white
-                                    : AppTheme.darkGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // Event Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-                            Text(
-                              event['event_type'] ?? 'Event',
-
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-
-                                fontSize: 13,
-
-                                color: AppTheme.darkGrey,
-                              ),
-                            ),
-
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.person,
-
-                                  size: 10,
-
-                                  color: AppTheme.mediumGrey,
-                                ),
-
-                                const SizedBox(width: 4),
-
-                                Text(
-                                  event['customer_name'] ?? 'Guest',
-
-                                  style: TextStyle(
-                                    fontSize: 11,
-
-                                    color: AppTheme.mediumGrey,
-                                  ),
-                                ),
-
-                                const SizedBox(width: 8),
-
-                                Icon(
-                                  Icons.access_time,
-
-                                  size: 10,
-
-                                  color: AppTheme.mediumGrey,
-                                ),
-
-                                const SizedBox(width: 4),
-
-                                Text(
-                                  event['start_time'] ?? 'Time',
-
-                                  style: TextStyle(
-                                    fontSize: 11,
-
-                                    color: AppTheme.mediumGrey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Status Icon
-                      Icon(
-                        isConfirmed ? Icons.check_circle : Icons.pending,
-
-                        size: 16,
-
-                        color: isConfirmed
-                            ? AppTheme.successGreen
-                            : Colors.orange,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            // Pagination Controls
-            if (totalPages > 1)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppTheme.lightGrey)),
-
-                  color: AppTheme.adminCardBackground,
-
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-
-                    bottomRight: Radius.circular(12),
-                  ),
-                ),
-
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                  children: [
-                    Text(
-                      'Page ${_schedulePage + 1} of $totalPages',
-
-                      style: const TextStyle(
-                        fontSize: 11,
-
-                        color: AppTheme.mediumGrey,
-
-                        fontWeight: FontWeight.bold,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isToday
+                          ? AppTheme.adminPrimaryAccent.withValues(alpha: 0.04)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isToday
+                            ? AppTheme.adminPrimaryAccent.withValues(alpha: 0.25)
+                            : AppTheme.cardBorder,
                       ),
                     ),
-
-                    Row(
+                    child: Row(
                       children: [
-                        IconButton(
-                          onPressed: _schedulePage > 0
-                              ? () => setState(() => _schedulePage--)
-                              : null,
+                        // Date Block
+                        Container(
+                          width: 46,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isToday
+                                ? AppTheme.adminPrimaryAccent
+                                : isTodayOrFuture
+                                    ? accentColor.withValues(alpha: 0.1)
+                                    : AppTheme.adminMainBackground,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                eventDate != null ? DateFormat('MMM').format(eventDate) : '',
+                                style: TextStyle(
+                                  fontSize: 9, fontWeight: FontWeight.w800,
+                                  color: isToday ? Colors.white70 : AppTheme.mediumGrey,
+                                ),
+                              ),
+                              Text(
+                                eventDate != null ? '${eventDate.day}' : '',
+                                style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w900, height: 1.1,
+                                  color: isToday ? Colors.white : accentColor,
+                                ),
+                              ),
+                              Text(
+                                eventDate != null ? DateFormat('EEE').format(eventDate) : '',
+                                style: TextStyle(
+                                  fontSize: 8.5, fontWeight: FontWeight.bold,
+                                  color: isToday ? Colors.white60 : AppTheme.mediumGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
-                          icon: const Icon(Icons.chevron_left),
+                        const SizedBox(width: 12),
 
-                          iconSize: 20,
-
-                          padding: EdgeInsets.zero,
-
-                          constraints: const BoxConstraints(),
-
-                          color: AppTheme.adminPrimaryAccent,
+                        // Event Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(eventType,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13.5, color: AppTheme.darkGrey,
+                                        ),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                  if (isToday)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.adminPrimaryAccent,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text('TODAY',
+                                          style: TextStyle(fontSize: 8.5,
+                                              fontWeight: FontWeight.w900, color: Colors.white)),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_outline_rounded,
+                                      size: 11, color: AppTheme.mediumGrey),
+                                  const SizedBox(width: 3),
+                                  Text(customerName,
+                                      style: const TextStyle(
+                                          fontSize: 11, color: AppTheme.mediumGrey)),
+                                  if (guestCount != null) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.people_outline_rounded,
+                                        size: 11, color: AppTheme.mediumGrey),
+                                    const SizedBox(width: 3),
+                                    Text('$guestCount pax',
+                                        style: const TextStyle(
+                                            fontSize: 11, color: AppTheme.mediumGrey)),
+                                  ],
+                                ],
+                              ),
+                              if (timeStr.isNotEmpty || packageName != null) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    if (timeStr.isNotEmpty) ...[
+                                      const Icon(Icons.schedule_rounded,
+                                          size: 10, color: AppTheme.mediumGrey),
+                                      const SizedBox(width: 3),
+                                      Text(timeStr,
+                                          style: const TextStyle(
+                                              fontSize: 10.5, color: AppTheme.mediumGrey)),
+                                    ],
+                                    if (packageName != null) ...[
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text('· $packageName',
+                                            style: const TextStyle(
+                                                fontSize: 10.5, color: AppTheme.mediumGrey),
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
 
                         const SizedBox(width: 8),
 
-                        IconButton(
-                          onPressed: _schedulePage < totalPages - 1
-                              ? () => setState(() => _schedulePage++)
-                              : null,
-
-                          icon: const Icon(Icons.chevron_right),
-
-                          iconSize: 20,
-
-                          padding: EdgeInsets.zero,
-
-                          constraints: const BoxConstraints(),
-
-                          color: AppTheme.adminPrimaryAccent,
+                        // Status Badge
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isConfirmed ? Icons.check_rounded : Icons.hourglass_top_rounded,
+                                    size: 10, color: statusColor,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    isConfirmed ? 'Confirmed' : 'Pending',
+                                    style: TextStyle(
+                                      fontSize: 10, fontWeight: FontWeight.w800,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-          ],
+                  );
+                }),
+
+                // Pagination
+                if (totalPages > 1) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.cardBorder),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Showing ${startIndex + 1}–$endIndex of $totalItems events',
+                          style: const TextStyle(
+                            fontSize: 11, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            _paginationBtn(
+                              icon: Icons.chevron_left,
+                              enabled: _schedulePage > 0,
+                              onTap: () => setState(() => _schedulePage--),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.adminPrimaryAccent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${_schedulePage + 1} / $totalPages',
+                                style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            _paginationBtn(
+                              icon: Icons.chevron_right,
+                              enabled: _schedulePage < totalPages - 1,
+                              onTap: () => setState(() => _schedulePage++),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
         ],
       ),
     );
   }
 
-  Widget _statusLegendRow(Color color, String title, String subtitle) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
+  Widget _scheduleChip(IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(value,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: color)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey)),
+        ],
+      ),
+    );
+  }
 
-          height: 36,
-
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-
-            shape: BoxShape.circle,
-          ),
-
-          child: Icon(
-            title.contains('Occupied')
-                ? Icons.event_busy
-                : Icons.event_available,
-
-            color: color,
-
-            size: 18,
+  Widget _paginationBtn({required IconData icon, required bool enabled, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: enabled ? AppTheme.adminPrimaryAccent.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: enabled ? AppTheme.adminPrimaryAccent.withValues(alpha: 0.3) : AppTheme.cardBorder,
           ),
         ),
-
-        const SizedBox(width: 12),
-
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          mainAxisSize: MainAxisSize.min,
-
-          children: [
-            Text(
-              title,
-
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-
-                fontSize: 13,
-
-                color: AppTheme.darkGrey,
-              ),
-            ),
-
-            Text(
-              subtitle,
-
-              style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
-            ),
-          ],
+        child: Icon(icon,
+          size: 16,
+          color: enabled ? AppTheme.adminPrimaryAccent : AppTheme.mediumGrey.withValues(alpha: 0.4),
         ),
-      ],
+      ),
     );
   }
 
@@ -3309,142 +3734,281 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   }
 
   Widget _buildOperationsMonitor(BuildContext context) {
+    final now = DateTime.now();
+    final timeLabel = DateFormat('h:mm a').format(now);
+    final totalActive = _pendingOrders + _preparingOrders + _readyOrders;
+
     return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
-
+      padding: const EdgeInsets.all(AppTheme.lg),
       decoration: _cardDecoration(),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
+          // ── Header ─────────────────────────────────────────────────────
           Row(
-            mainAxisSize: MainAxisSize.min,
-
-            crossAxisAlignment: CrossAxisAlignment.center,
-
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Operations Monitor',
-
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-
-                  color: AppTheme.darkGrey,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.monitor_heart_rounded,
+                        color: Color(0xFFEF4444), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Operations Monitor',
+                          style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800,
+                            color: AppTheme.darkGrey, letterSpacing: -0.3,
+                          )),
+                      Text('Kitchen & inventory status • $timeLabel',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
+                    ],
+                  ),
+                ],
               ),
-
-              const SizedBox(width: 12),
-
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(4),
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                 ),
-
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-
                   children: [
-                    Container(
-                      width: 6,
-
-                      height: 6,
-
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-
-                    const SizedBox(width: 4),
-
-                    const Text(
-                      'REAL-TIME',
-
-                      style: TextStyle(
-                        color: Colors.red,
-
-                        fontSize: 10,
-
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    _PulsingDot(color: const Color(0xFFEF4444), size: 5),
+                    const SizedBox(width: 5),
+                    const Text('REAL-TIME',
+                        style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w900,
+                          color: Color(0xFFEF4444), letterSpacing: 0.5,
+                        )),
                   ],
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          Row(
-            children: [
-              Expanded(
-                child: _buildGridCard(
-                  'Pending',
-
-                  _pendingOrders.toString(),
-
-                  type: 0,
-                ),
+          // ── Order Pipeline ──────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.adminPrimaryAccent.withValues(alpha: 0.05),
+                  AppTheme.adminPrimaryAccent.withValues(alpha: 0.02),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _buildGridCard(
-                  'In Prep',
-
-                  _preparingOrders.toString(),
-
-                  type: 1,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.15)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('ORDER PIPELINE',
+                        style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.w900,
+                          color: AppTheme.adminPrimaryAccent, letterSpacing: 0.8,
+                        )),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.adminPrimaryAccent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '$totalActive Active',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _buildGridCard(
-                  'Ready',
-
-                  _readyOrders.toString(),
-
-                  type: 0,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _buildPipelineStage(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Pending',
+                      count: _pendingOrders,
+                      color: AppTheme.warningOrange,
+                      isFirst: true,
+                    )),
+                    _pipelineArrow(),
+                    Expanded(child: _buildPipelineStage(
+                      icon: Icons.local_fire_department_rounded,
+                      label: 'Preparing',
+                      count: _preparingOrders,
+                      color: const Color(0xFFF59E0B),
+                      isFirst: false,
+                    )),
+                    _pipelineArrow(),
+                    Expanded(child: _buildPipelineStage(
+                      icon: Icons.check_circle_rounded,
+                      label: 'Ready',
+                      count: _readyOrders,
+                      color: AppTheme.successGreen,
+                      isFirst: false,
+                    )),
+                  ],
                 ),
-              ),
-            ],
+                if (totalActive > 0) ...[
+                  const SizedBox(height: 10),
+                  // Progress bar showing pipeline distribution
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      children: [
+                        if (_pendingOrders > 0)
+                          Expanded(
+                            flex: _pendingOrders,
+                            child: Container(height: 5,
+                                color: AppTheme.warningOrange.withValues(alpha: 0.7)),
+                          ),
+                        if (_preparingOrders > 0)
+                          Expanded(
+                            flex: _preparingOrders,
+                            child: Container(height: 5,
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
+                          ),
+                        if (_readyOrders > 0)
+                          Expanded(
+                            flex: _readyOrders,
+                            child: Container(height: 5,
+                                color: AppTheme.successGreen.withValues(alpha: 0.8)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
 
           const SizedBox(height: 12),
 
+          // ── Inventory Status ────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.adminMainBackground.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('INVENTORY HEALTH',
+                    style: TextStyle(
+                      fontSize: 10, fontWeight: FontWeight.w900,
+                      color: AppTheme.adminSecondaryText, letterSpacing: 0.8,
+                    )),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInventoryStatusTile(
+                        icon: Icons.remove_shopping_cart_rounded,
+                        label: 'Out of Stock',
+                        count: _outOfStock,
+                        color: const Color(0xFFEF4444),
+                        isAlert: _outOfStock > 0,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildInventoryStatusTile(
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Low Stock',
+                        count: _lowStock,
+                        color: AppTheme.warningOrange,
+                        isAlert: _lowStock > 0,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildInventoryStatusTile(
+                        icon: Icons.inventory_2_rounded,
+                        label: 'Sufficient',
+                        count: 0,
+                        color: AppTheme.successGreen,
+                        isAlert: false,
+                        showAsOk: true,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_outOfStock > 0 || _lowStock > 0) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 13, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            _outOfStock > 0
+                                ? '$_outOfStock item${_outOfStock > 1 ? 's' : ''} out of stock — restock needed immediately'
+                                : '$_lowStock item${_lowStock > 1 ? 's' : ''} running low — consider restocking soon',
+                            style: const TextStyle(
+                              fontSize: 10.5, color: Color(0xFFEF4444), fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Quick Stats Row ─────────────────────────────────────────────
           Row(
             children: [
-              Expanded(
-                child: _buildGridCard(
-                  'Out of Stock',
-
-                  _outOfStock.toString(),
-
-                  type: 2,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: _buildGridCard(
-                  'Low Stock',
-
-                  _lowStock.toString(),
-
-                  type: 0,
-                ),
-              ),
+              Expanded(child: _buildOpsQuickStat(
+                icon: Icons.event_available_rounded,
+                label: 'Confirmed Events',
+                value: '$_reservations',
+                color: AppTheme.successGreen,
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _buildOpsQuickStat(
+                icon: Icons.pending_actions_rounded,
+                label: 'Pending Approval',
+                value: '$_pendingReservations',
+                color: AppTheme.warningOrange,
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _buildOpsQuickStat(
+                icon: Icons.people_alt_rounded,
+                label: 'Guests Today',
+                value: '$_totalCustomers',
+                color: AppTheme.infoBlue,
+              )),
             ],
           ),
         ],
@@ -3452,87 +4016,118 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildGridCard(String label, String value, {required int type}) {
-    // type: 0 = Normal, 1 = In Prep, 2 = Out of Stock, 3 = More
-
-    Color bgColor = AppTheme.adminCardBackground; // Soft light grey
-
-    Color labelColor = AppTheme.adminSecondaryText; // Slate 500
-
-    Color valueColor = AppTheme.adminPrimaryText;
-
-    if (type == 2) {
-      bgColor = AppTheme.adminConfirmedEventsBg.withValues(alpha: 0.3);
-
-      labelColor = AppTheme.adminConfirmedEventsBorder;
-
-      valueColor = AppTheme.adminConfirmedEventsBorder;
-    }
-
+  Widget _buildPipelineStage({
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color color,
+    required bool isFirst,
+  }) {
     return Container(
-      height: 90,
-
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: bgColor,
-
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: count > 0 ? 0.3 : 0.1)),
       ),
-
-      clipBehavior: Clip.antiAlias,
-
-      child: Stack(
+      child: Column(
         children: [
-          if (type == 1)
-            Positioned(
-              left: 0,
-
-              top: 0,
-
-              bottom: 0,
-
-              child: Container(
-                width: 4,
-
-                color: AppTheme.adminConfirmedEventsBorder,
-              ), // Dark teal accent line
+          Icon(icon, size: 20, color: count > 0 ? color : AppTheme.mediumGrey),
+          const SizedBox(height: 4),
+          Text(
+            count.toString().padLeft(2, '0'),
+            style: TextStyle(
+              fontSize: 22, fontWeight: FontWeight.w900,
+              color: count > 0 ? color : AppTheme.mediumGrey,
+              height: 1.0,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey,
+                  fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
 
-          Padding(
-            padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
+  Widget _pipelineArrow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Icon(Icons.chevron_right_rounded,
+          color: AppTheme.mediumGrey.withValues(alpha: 0.5), size: 20),
+    );
+  }
 
+  Widget _buildInventoryStatusTile({
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color color,
+    required bool isAlert,
+    bool showAsOk = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isAlert ? 0.08 : 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: isAlert ? 0.25 : 0.12),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(
+            showAsOk ? '—' : count.toString().padLeft(2, '0'),
+            style: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w900,
+              color: isAlert ? color : AppTheme.mediumGrey, height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(fontSize: 9, color: AppTheme.mediumGrey,
+                  fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOpsQuickStat({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-
-              mainAxisAlignment: MainAxisAlignment.center,
-
               children: [
-                Text(
-                  label,
-
-                  style: TextStyle(
-                    fontSize: 13,
-
-                    fontWeight: FontWeight.w500,
-
-                    color: labelColor,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                Text(
-                  value.padLeft(2, '0'), // formats 8 -> 08
-
-                  style: TextStyle(
-                    fontSize: 26,
-
-                    fontWeight: FontWeight.w800,
-
-                    color: valueColor,
-
-                    height: 1.0,
-                  ),
-                ),
+                Text(value,
+                    style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w900,
+                      color: color, height: 1.1,
+                    )),
+                Text(label,
+                    style: const TextStyle(fontSize: 9.5, color: AppTheme.mediumGrey,
+                        fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -3544,72 +4139,197 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ── Recent Activity ───────────────────────────────────────────────────────
 
   Widget _buildRecentActivity(BuildContext context) {
+
     return Container(
-      padding: const EdgeInsets.all(AppTheme.xl),
-
+      padding: const EdgeInsets.all(AppTheme.lg),
       decoration: _cardDecoration(),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
+          // ── Header ───────────────────────────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
             children: [
-              Text(
-                'Recent Activity',
-
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-
-                  color: AppTheme.darkGrey,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.timeline_rounded,
+                        color: AppTheme.infoBlue, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Recent Activity',
+                          style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800,
+                            color: AppTheme.darkGrey, letterSpacing: -0.3,
+                          )),
+                      Text('${_recentActivity.length} events logged today',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
+                    ],
+                  ),
+                ],
               ),
-
               GestureDetector(
-                onTap: () {
-                  // Show all activity in a dialog
-                  _showAllActivityDialog(context);
-                },
-                child: Text(
-                  'View All Activity',
-
-                  style: TextStyle(
-                    color: AppTheme.adminPrimaryAccent,
-
-                    fontSize: 12,
-
-                    fontWeight: FontWeight.bold,
+                onTap: () => _showAllActivityDialog(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.adminPrimaryAccent.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_in_new_rounded,
+                          size: 12, color: AppTheme.adminPrimaryAccent),
+                      const SizedBox(width: 4),
+                      const Text('View All',
+                          style: TextStyle(
+                            color: AppTheme.adminPrimaryAccent,
+                            fontSize: 11.5, fontWeight: FontWeight.w800,
+                          )),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: AppTheme.xl),
+          const SizedBox(height: 16),
 
           if (_recentActivity.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-
-                child: Text('No recent activity'),
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppTheme.adminMainBackground.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.inbox_rounded,
+                        color: AppTheme.mediumGrey.withValues(alpha: 0.4), size: 40),
+                    const SizedBox(height: 10),
+                    const Text('No recent activity',
+                        style: TextStyle(fontWeight: FontWeight.w700,
+                            fontSize: 13, color: AppTheme.mediumGrey)),
+                    const SizedBox(height: 3),
+                    const Text('Activity will appear here as orders, bookings, and alerts come in',
+                        style: TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey),
+                        textAlign: TextAlign.center),
+                  ],
+                ),
               ),
             )
           else
-            ListView.separated(
-              shrinkWrap: true,
-
-              physics: const NeverScrollableScrollPhysics(),
-
-              itemCount: min(_recentActivity.length, 10),
-
-              separatorBuilder: (_, _) => const SizedBox(height: 16),
-
-              itemBuilder: (context, index) =>
-                  _ActivityTile(item: _recentActivity[index]),
+            Column(
+              children: List.generate(
+                min(_recentActivity.length, 8),
+                (index) {
+                  final item = _recentActivity[index];
+                  final isLast = index == min(_recentActivity.length, 8) - 1;
+                  return _buildActivityTimelineItem(item, isLast);
+                },
+              ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityTimelineItem(_ActivityItem item, bool isLast) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline Line + Dot
+          SizedBox(
+            width: 36,
+            child: Column(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: item.color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: item.color.withValues(alpha: 0.3), width: 1.5),
+                  ),
+                  child: Icon(item.icon, size: 15, color: item.color),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1.5,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      color: AppTheme.cardBorder,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          // Content
+          Expanded(
+            child: Container(
+              margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: item.color.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12.5, color: AppTheme.darkGrey,
+                            )),
+                        const SizedBox(height: 2),
+                        Text(item.subtitle,
+                            style: const TextStyle(
+                              fontSize: 11, color: AppTheme.mediumGrey, height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.adminMainBackground,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.cardBorder),
+                    ),
+                    child: Text(item.time,
+                        style: const TextStyle(
+                          fontSize: 9.5, color: AppTheme.mediumGrey,
+                          fontWeight: FontWeight.w700,
+                        )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -3619,44 +4339,90 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
         child: Container(
-          constraints: const BoxConstraints(maxHeight: 600, maxWidth: 500),
+          constraints: const BoxConstraints(maxHeight: 640, maxWidth: 520),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
+              // Dialog Header
+              Container(
                 padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.adminPrimaryAccent.withValues(alpha: 0.08),
+                      AppTheme.adminPrimaryAccent.withValues(alpha: 0.02),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
+                ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'All Recent Activity',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.adminPrimaryAccent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.timeline_rounded,
+                          color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Full Activity Feed',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                                  color: AppTheme.darkGrey)),
+                          Text('All logged system events and transactions',
+                              style: TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
+                        ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close_rounded,
+                          color: AppTheme.mediumGrey),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               ),
-              const Divider(),
-              Expanded(
+              // Activity List
+              Flexible(
                 child: _recentActivity.isEmpty
                     ? const Center(
                         child: Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Text('No recent activity'),
+                          padding: EdgeInsets.all(32),
+                          child: Text('No recent activity recorded',
+                              style: TextStyle(color: AppTheme.mediumGrey)),
                         ),
                       )
-                    : ListView.separated(
+                    : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _recentActivity.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) =>
-                            _ActivityTile(item: _recentActivity[index]),
+                        itemBuilder: (context, index) {
+                          final item = _recentActivity[index];
+                          final isLast = index == _recentActivity.length - 1;
+                          return _buildActivityTimelineItem(item, isLast);
+                        },
                       ),
               ),
             ],
@@ -4640,15 +5406,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
       color: AppTheme.white,
-
-      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+      border: Border.all(color: AppTheme.cardBorder, width: 1),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-
-          blurRadius: 12,
-
+          color: Colors.black.withValues(alpha: 0.02),
+          blurRadius: 10,
           offset: const Offset(0, 4),
         ),
       ],
@@ -5019,7 +5782,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             .toList(),
         onChanged: (v) {
           _dashboardPeriodFocusNode.unfocus();
-          if (mounted) setState(() => _selectedPeriod = v!);
+          if (mounted && v != null) {
+            setState(() {
+              _selectedPeriod = v;
+              _weeklyRevenue = _processChartData(_lastOrders);
+            });
+          }
         },
       ),
     );
@@ -5047,600 +5815,20 @@ class _PieData {
 
 // ── Data models ───────────────────────────────────────────────────────────────
 
-class _KpiData {
-  final String label;
-
-  final String value;
-
-  final IconData icon;
-
-  final Color color;
-
-  final String sub;
-
-  final bool? subPositive; // null = neutral
-
-  final bool isHighlight;
-
-  final bool showProgress;
-
-  final String? extra;
-
-  const _KpiData({
-    required this.label,
-
-    required this.value,
-
-    required this.icon,
-
-    required this.color,
-
-    required this.sub,
-
-    required this.subPositive,
-
-    this.isHighlight = false,
-
-    this.showProgress = false,
-
-    this.extra,
-  });
-}
-
 class _ActivityItem {
   final IconData icon;
-
   final Color color;
-
   final String title;
-
   final String subtitle;
-
   final String time;
 
   const _ActivityItem({
     required this.icon,
-
     required this.color,
-
     required this.title,
-
     required this.subtitle,
-
     required this.time,
   });
-}
-
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
-
-class _KpiCard extends StatefulWidget {
-  final _KpiData data;
-
-  const _KpiCard({required this.data});
-
-  @override
-  State<_KpiCard> createState() => _KpiCardState();
-}
-
-class _KpiCardState extends State<_KpiCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.data.isHighlight) return _buildHighlightCard();
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-
-      onExit: (_) => setState(() => _isHovered = false),
-
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-
-        curve: Curves.easeOutCubic,
-
-        padding: const EdgeInsets.all(20),
-
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: _isHovered ? 0.08 : 0.02),
-
-              blurRadius: _isHovered ? 20 : 10,
-
-              offset: Offset(0, _isHovered ? 8 : 4),
-            ),
-
-            if (_isHovered)
-              BoxShadow(
-                color: widget.data.color.withValues(alpha: 0.1),
-
-                blurRadius: 30,
-
-                offset: const Offset(0, 0),
-              ),
-          ],
-
-          border: Border.all(
-            color: widget.data.color.withValues(alpha: _isHovered ? 0.3 : 0.0),
-
-            width: 1,
-          ),
-        ),
-
-        margin: EdgeInsets.only(
-          top: _isHovered ? 2.0 : 0.0,
-
-          bottom: _isHovered ? 0.0 : 2.0,
-        ),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-
-                  padding: const EdgeInsets.all(10),
-
-                  decoration: BoxDecoration(
-                    color: widget.data.color.withValues(
-                      alpha: _isHovered ? 0.2 : 0.1,
-                    ),
-
-                    borderRadius: BorderRadius.circular(10),
-
-                    boxShadow: _isHovered
-                        ? [
-                            BoxShadow(
-                              color: widget.data.color.withValues(alpha: 0.2),
-
-                              blurRadius: 8,
-
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-
-                  child: Icon(
-                    widget.data.icon,
-
-                    color: widget.data.color,
-
-                    size: 20,
-                  ),
-                ),
-
-                if (widget.data.subPositive != null ||
-                    !widget.data.showProgress)
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 200),
-
-                    style: TextStyle(
-                      color: widget.data.sub == 'High'
-                          ? AppTheme.errorRed
-                          : (widget.data.subPositive == true
-                                ? AppTheme.successGreen
-                                : AppTheme.mediumGrey),
-
-                      fontSize: _isHovered ? 13 : 12,
-
-                      fontWeight: _isHovered
-                          ? FontWeight.w800
-                          : FontWeight.bold,
-                    ),
-
-                    child: Text(widget.data.sub),
-                  ),
-              ],
-            ),
-
-            const SizedBox(height: AppTheme.lg),
-
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-
-              style: const TextStyle(
-                color: AppTheme.mediumGrey,
-
-                fontSize: 11,
-
-                fontWeight: FontWeight.bold,
-
-                letterSpacing: 0.5,
-              ),
-
-              child: Text(
-                widget.data.label,
-
-                overflow: TextOverflow.ellipsis,
-
-                maxLines: 1,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-
-              style: TextStyle(
-                fontSize: _isHovered ? 22 : 20,
-
-                fontWeight: FontWeight.w900,
-
-                color: AppTheme.darkGrey,
-
-                letterSpacing: _isHovered ? -1.2 : -1,
-              ),
-
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-
-                alignment: Alignment.centerLeft,
-
-                child: Text(widget.data.value),
-              ),
-            ),
-
-            const SizedBox(height: AppTheme.md),
-
-            if (widget.data.showProgress)
-              _buildProgressBar()
-            else if (widget.data.extra != null)
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-
-                style: TextStyle(
-                  color: AppTheme.mediumGrey,
-
-                  fontSize: _isHovered ? 11 : 10,
-
-                  fontWeight: FontWeight.w500,
-                ),
-
-                child: Text(widget.data.extra!),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHighlightCard() {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-
-      onExit: (_) => setState(() => _isHovered = false),
-
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-
-        curve: Curves.easeOutCubic,
-
-        padding: const EdgeInsets.all(20),
-
-        decoration: BoxDecoration(
-          color: AppTheme.adminFeaturedMetricCard,
-
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.adminFeaturedMetricCard.withValues(
-                alpha: _isHovered ? 0.5 : 0.3,
-              ),
-
-              blurRadius: _isHovered ? 25 : 15,
-
-              offset: Offset(0, _isHovered ? 10 : 6),
-            ),
-
-            if (_isHovered)
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.2),
-
-                blurRadius: 40,
-
-                offset: const Offset(0, 0),
-              ),
-          ],
-
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-
-            end: Alignment.bottomRight,
-
-            colors: _isHovered
-                ? [
-                    AppTheme.adminFeaturedMetricCard,
-
-                    AppTheme.adminFeaturedMetricCard,
-
-                    Colors.white.withValues(alpha: 0.1),
-                  ]
-                : [AppTheme.adminFeaturedMetricCard, AppTheme.adminFeaturedMetricCard],
-          ),
-        ),
-
-        margin: EdgeInsets.only(
-          top: _isHovered ? 3.0 : 0.0,
-
-          bottom: _isHovered ? 0.0 : 3.0,
-        ),
-
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-
-                  style: TextStyle(
-                    color: Colors.white.withValues(
-                      alpha: _isHovered ? 0.9 : 0.7,
-                    ),
-
-                    fontSize: _isHovered ? 12 : 11,
-
-                    fontWeight: FontWeight.bold,
-
-                    letterSpacing: 0.5,
-                  ),
-
-                  child: Text(
-                    widget.data.label,
-
-                    overflow: TextOverflow.ellipsis,
-
-                    maxLines: 1,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-
-                  style: TextStyle(
-                    fontSize: _isHovered ? 22 : 20,
-
-                    fontWeight: FontWeight.w900,
-
-                    color: Colors.white,
-
-                    letterSpacing: _isHovered ? -1.2 : -1,
-                  ),
-
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-
-                    alignment: Alignment.centerLeft,
-
-                    child: Text(widget.data.value),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-
-                      padding: const EdgeInsets.all(4),
-
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(
-                          alpha: _isHovered ? 0.2 : 0.1,
-                        ),
-
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-
-                      child: Icon(
-                        Icons.trending_up,
-
-                        color: Colors.white.withValues(
-                          alpha: _isHovered ? 0.9 : 0.7,
-                        ),
-
-                        size: _isHovered ? 16 : 14,
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-
-                      style: TextStyle(
-                        color: Colors.white.withValues(
-                          alpha: _isHovered ? 0.9 : 0.7,
-                        ),
-
-                        fontSize: _isHovered ? 13 : 12,
-
-                        fontWeight: FontWeight.w500,
-                      ),
-
-                      child: Text(widget.data.sub),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-
-              right: _isHovered ? -5 : 0,
-
-              top: _isHovered ? -5 : 0,
-
-              child: Icon(
-                Icons.restaurant,
-
-                color: Colors.white.withValues(alpha: _isHovered ? 0.3 : 0.2),
-
-                size: _isHovered ? 52 : 48,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-
-          height: _isHovered ? 6 : 4,
-
-          width: double.infinity,
-
-          decoration: BoxDecoration(
-            color: AppTheme.lightGrey,
-
-            borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
-
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: widget.data.color.withValues(alpha: 0.2),
-
-                      blurRadius: 4,
-
-                      offset: const Offset(0, 1),
-                    ),
-                  ]
-                : null,
-          ),
-
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-
-            widthFactor: _isHovered ? 0.75 : 0.65,
-
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-
-              decoration: BoxDecoration(
-                color: widget.data.color,
-
-                borderRadius: BorderRadius.circular(_isHovered ? 3 : 2),
-
-                boxShadow: _isHovered
-                    ? [
-                        BoxShadow(
-                          color: widget.data.color.withValues(alpha: 0.4),
-
-                          blurRadius: 6,
-
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActivityTile extends StatelessWidget {
-  final _ActivityItem item;
-
-  const _ActivityTile({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: 6),
-
-          width: 8,
-
-          height: 8,
-
-          decoration: BoxDecoration(color: item.color, shape: BoxShape.circle),
-        ),
-
-        const SizedBox(width: 16),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                children: [
-                  Text(
-                    item.title,
-
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-
-                      fontSize: 14,
-
-                      color: AppTheme.darkGrey,
-                    ),
-                  ),
-
-                  Text(
-                    item.time,
-
-                    style: const TextStyle(
-                      fontSize: 11,
-
-                      color: AppTheme.mediumGrey,
-
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 2),
-
-              Text(
-                item.subtitle,
-
-                style: const TextStyle(
-                  fontSize: 13,
-
-                  color: AppTheme.mediumGrey,
-
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _PulsingDot extends StatelessWidget {

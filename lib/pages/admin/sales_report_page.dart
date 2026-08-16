@@ -10,9 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io' show File;
 import 'dart:convert';
 import 'dart:async';
-import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:yang_chow/services/location_analytics_service.dart';
-
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -25,17 +23,20 @@ class _SalesReportPageState extends State<SalesReportPage>
     with TickerProviderStateMixin {
   String selectedPeriod = 'Monthly';
   String selectedYear = '2026';
-  String selectedChartType = 'Line';
-  Set<String> activeStreams = {'Regular'};
-  bool _showEventReservationPerformance = false;
+  String selectedChartType = 'Area'; // 'Area', 'Bar'
+  Set<String> activeStreams = {'Regular', 'Advance', 'Reservation'};
+  bool _showEventReservationPerformance = true;
   final _supabase = Supabase.instance.client;
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
+  
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  late AnimationController _cardAnimationController;
+  
   final TextEditingController _searchController = TextEditingController();
   String _statusFilter = 'All Status';
+  String _channelFilter = 'All Channels';
   String _transactionPeriod = 'All Time';
+  
   late Stream<List<Map<String, dynamic>>> _ordersStreamVar;
   late Stream<List<Map<String, dynamic>>> _inventoryStreamVar;
   late Stream<List<Map<String, dynamic>>> _advanceOrdersStreamVar;
@@ -47,23 +48,17 @@ class _SalesReportPageState extends State<SalesReportPage>
   List<Map<String, dynamic>> _locationData = [];
   String _locationPeriod = 'All Time';
 
-  // Hide-on-scroll header
-  final ScrollController _scrollController = ScrollController();
-  bool _isHeaderVisible = true;
-  double _lastScrollOffset = 0;
-
-  // FocusNodes for DropdownButtons (canRequestFocus: false prevents primary focus deactivation notifications)
-  final FocusNode _periodDropdownFocusNode = FocusNode(canRequestFocus: false);
-  final FocusNode _yearDropdownFocusNode = FocusNode(canRequestFocus: false);
-  final FocusNode _statusDropdownFocusNodeMobile = FocusNode(canRequestFocus: false);
-  final FocusNode _statusDropdownFocusNodeDesktop = FocusNode(canRequestFocus: false);
-  final FocusNode _transactionPeriodFocusNodeMobile = FocusNode(canRequestFocus: false);
-  final FocusNode _transactionPeriodFocusNodeDesktop = FocusNode(canRequestFocus: false);
-  final FocusNode _locationPeriodFocusNode = FocusNode(canRequestFocus: false);
-
   // Pagination state
   int _currentPage = 1;
-  final int _itemsPerPage = 5;
+  final int _itemsPerPage = 8;
+
+  // FocusNodes for DropdownButtons
+  final FocusNode _periodDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _yearDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _statusDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _channelDropdownFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _transactionPeriodFocusNode = FocusNode(canRequestFocus: false);
+  final FocusNode _locationPeriodFocusNode = FocusNode(canRequestFocus: false);
 
   Stream<List<Map<String, dynamic>>> _ordersStream() {
     return _supabase
@@ -92,257 +87,34 @@ class _SalesReportPageState extends State<SalesReportPage>
         .stream(primaryKey: ['id']);
   }
 
-  Map<String, dynamic> _processMetrics(
-      List<Map<String, dynamic>> allOrders,
-      List<Map<String, dynamic>> allAdvanceOrders,
-      List<Map<String, dynamic>> allReservations) {
-    final now = DateTime.now();
-    // Combine regular orders
-    List<Map<String, dynamic>> combinedOrders = [];
-    
-    // Add regular orders
-    combinedOrders.addAll(allOrders.where((order) {
-      final date = DateTime.tryParse(order['created_at'] ?? '');
-      if (date == null) return false;
-      
-      // Filter by selected year first (except for yearly view)
-      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
-        return false;
-      }
-      
-      // Apply period-specific filtering
-      switch (selectedPeriod) {
-        case 'Daily':
-          return date.year == now.year && 
-              date.month == now.month && 
-              date.day == now.day;
-        case 'Weekly':
-          final dailyDiff = now.difference(date).inDays;
-          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
-        case 'Monthly':
-          return date.year.toString() == selectedYear;
-        case 'Annually':
-          return date.year >= 2016 && date.year <= now.year;
-        default:
-          return false;
-      }
-    }).toList());
-    
-    double totalRevenue = 0;
-    Set<String> uniqueCustomers = {};
-
-    for (var order in combinedOrders) {
-      double amount = 0.0;
-      if (order['is_reservation'] == true) {
-        final paymentStatus = order['payment_status']?.toString() ?? '';
-        if (paymentStatus == 'deposit_paid') {
-          amount = (order['deposit_amount'] as num?)?.toDouble() ?? 
-                   ((order['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-        } else if (paymentStatus == 'fully_paid' || paymentStatus == 'paid') {
-          final totalPrice = (order['total_price'] as num?)?.toDouble() ?? 0.0;
-          final depositAmount = (order['deposit_amount'] as num?)?.toDouble() ?? 0.0;
-          amount = totalPrice - depositAmount;
-        } else {
-          amount = (order['total_price'] as num?)?.toDouble() ?? 0.0;
-        }
-      } else {
-        amount = order.containsKey('total_amount') 
-            ? (order['total_amount'] as num?)?.toDouble() ?? 0.0
-            : (order['total_price'] as num?)?.toDouble() ?? 0.0;
-      }
-      totalRevenue += amount;
-      final name = order['customer_name']?.toString() ?? 'Guest';
-      if (name.isNotEmpty) {
-        uniqueCustomers.add(name);
-      }
-    }
-
-    // Helper to check if a date is within the selected period
-    bool isDateInPeriod(DateTime date) {
-      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
-        return false;
-      }
-      switch (selectedPeriod) {
-        case 'Daily':
-          return date.year == now.year && 
-              date.month == now.month && 
-              date.day == now.day;
-        case 'Weekly':
-          final dailyDiff = now.difference(date).inDays;
-          return dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear;
-        case 'Monthly':
-          return date.year.toString() == selectedYear;
-        case 'Annually':
-          return date.year >= 2016 && date.year <= now.year;
-        default:
-          return false;
-      }
-    }
-
-    // Also count unique customers from paid advance orders within the selected period
-    for (var advOrder in allAdvanceOrders) {
-      final paymentStatus = advOrder['payment_status']?.toString() ?? '';
-      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
-      if (!isPaid) continue;
-
-      final date = DateTime.tryParse(advOrder['order_date'] ?? '');
-      if (date == null) continue;
-
-      if (isDateInPeriod(date)) {
-        final name = advOrder['customer_name']?.toString() ?? 'Guest';
-        if (name.isNotEmpty) {
-          uniqueCustomers.add(name);
-        }
-      }
-    }
-
-    // Also count unique customers from confirmed/completed event reservations within the selected period
-    for (var res in allReservations) {
-      final status = (res['status']?.toString() ?? '').toLowerCase();
-      if (status != 'confirmed' && status != 'completed') continue;
-
-      final date = DateTime.tryParse(res['event_date'] ?? '');
-      if (date == null) continue;
-
-      if (isDateInPeriod(date)) {
-        final name = res['customer_name']?.toString() ?? 'Guest';
-        if (name.isNotEmpty) {
-          uniqueCustomers.add(name);
-        }
-      }
-    }
-
-    return {
-      'revenue': totalRevenue,
-      'orders': combinedOrders.length,
-      'customers': uniqueCustomers.length,
-      'avgOrder': combinedOrders.isEmpty ? 0.0 : totalRevenue / combinedOrders.length,
-    };
-  }
-
-  Map<String, List<double>> _processChartData(
-      List<Map<String, dynamic>> orders,
-      List<Map<String, dynamic>> advanceOrders,
-      List<Map<String, dynamic>> reservations) {
-    final now = DateTime.now();
-    Map<int, double> regularData = {};
-
-    // Helper to process regular orders only
-    // Sales Report now only includes regular orders (walk-in orders)
-    // Advance orders and event reservations are excluded from this report
-    for (var order in orders) {
-      final date = DateTime.tryParse(order['created_at'] ?? '');
-      if (date == null) continue;
-
-      final amount = (order['total_amount'] as num?)?.toDouble() ?? 0.0;
-      _addToPeriodData(date, amount, regularData, now);
-    }
-
-    int length = 0;
-    if (selectedPeriod == 'Daily') {
-      length = 11; // Business hours only: 10am to 8pm (10:00 to 20:00)
-    } else if (selectedPeriod == 'Weekly') {
-      length = 7;
-    } else if (selectedPeriod == 'Monthly') {
-      length = 12;
-    } else {
-      length = now.year - 2016 + 1;
-    }
-
-    return {
-      'regular': List.generate(length, (i) => regularData[i] ?? 0.0),
-      'advance': List.generate(length, (i) => 0.0),
-      'reservation': List.generate(length, (i) => 0.0),
-    };
-  }
-
-  void _addToPeriodData(
-      DateTime date,
-      double amount,
-      Map<int, double> periodData,
-      DateTime now) {
-    switch (selectedPeriod) {
-      case 'Daily':
-        if (date.year == now.year && 
-            date.month == now.month && 
-            date.day == now.day &&
-            date.hour >= 10 &&
-            date.hour <= 20) {
-           // Map hour to 0-based index within business hours (10:00–20:00)
-           final key = date.hour - 10;
-           periodData[key] = (periodData[key] ?? 0) + amount;
-        }
-        break;
-      case 'Weekly':
-        final dailyDiff = now.difference(date).inDays;
-        if (dailyDiff >= 0 && dailyDiff < 7 && date.year.toString() == selectedYear) {
-          final key = date.weekday - 1;
-          periodData[key] = (periodData[key] ?? 0) + amount;
-        }
-        break;
-      case 'Monthly':
-        if (date.year.toString() == selectedYear) {
-          final key = date.month - 1;
-          periodData[key] = (periodData[key] ?? 0) + amount;
-        }
-        break;
-      case 'Annually':
-        if (date.year >= 2016 && date.year <= now.year) {
-          final key = date.year - 2016;
-          periodData[key] = (periodData[key] ?? 0) + amount;
-        }
-        break;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _cardAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     _animationController.forward();
-    _cardAnimationController.forward();
     
     _ordersStreamVar = _ordersStream();
     _inventoryStreamVar = _inventoryStream();
     _advanceOrdersStreamVar = _advanceOrdersStream();
     _reservationsStreamVar = _reservationsStream();
     
-    // Fetch location analytics data
     _fetchLocationData();
     
-    // Start automatic refresh timer for real-time updates
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (mounted) {
-        _fetchLocationData(); // Refresh location data
-        setState(() {}); // Trigger rebuild to show new orders immediately
+        _fetchLocationData();
+        setState(() {});
       }
     });
     
     _searchController.addListener(() {
-      if (mounted) setState(() {});
-    });
-
-    // Hide header on scroll down, show on scroll up
-    _scrollController.addListener(() {
-      if (!mounted) return;
-      final currentOffset = _scrollController.offset;
-      final diff = currentOffset - _lastScrollOffset;
-      if (diff > 8 && _isHeaderVisible) {
-        setState(() => _isHeaderVisible = false);
-      } else if (diff < -8 && !_isHeaderVisible) {
-        setState(() => _isHeaderVisible = true);
-      }
-      _lastScrollOffset = currentOffset;
+      if (mounted) setState(() => _currentPage = 1);
     });
   }
 
@@ -379,9 +151,8 @@ class _SalesReportPageState extends State<SalesReportPage>
           break;
       }
 
-      // Always use revenue-based sorting
       final data = await _locationAnalyticsService.getTopLocationsByRevenue(
-        limit: 10,
+        limit: 8,
         startDate: startDate,
         endDate: endDate,
       );
@@ -392,48 +163,305 @@ class _SalesReportPageState extends State<SalesReportPage>
         });
       }
     } catch (e) {
-      print('Error fetching location data: $e');
-      if (mounted) {
-        setState(() {
-        });
-      }
+      debugPrint('Error fetching location data: $e');
     }
   }
 
   @override
   void dispose() {
     _animationController.dispose();
-    _cardAnimationController.dispose();
     _searchController.dispose();
-    _scrollController.dispose();
-    _refreshTimer?.cancel(); // Cancel the refresh timer
+    _refreshTimer?.cancel();
     _periodDropdownFocusNode.dispose();
     _yearDropdownFocusNode.dispose();
-    _statusDropdownFocusNodeMobile.dispose();
-    _statusDropdownFocusNodeDesktop.dispose();
-    _transactionPeriodFocusNodeMobile.dispose();
-    _transactionPeriodFocusNodeDesktop.dispose();
+    _statusDropdownFocusNode.dispose();
+    _channelDropdownFocusNode.dispose();
+    _transactionPeriodFocusNode.dispose();
     _locationPeriodFocusNode.dispose();
     super.dispose();
+  }
+
+  Map<String, dynamic> _processMetrics(
+      List<Map<String, dynamic>> allOrders,
+      List<Map<String, dynamic>> allAdvanceOrders,
+      List<Map<String, dynamic>> allReservations) {
+    final now = DateTime.now();
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+
+    bool isDateInSelectedPeriod(DateTime? rawDate) {
+      if (rawDate == null) return false;
+      final date = rawDate.toLocal();
+      if (selectedPeriod != 'Annually' && date.year.toString() != selectedYear) {
+        return false;
+      }
+      switch (selectedPeriod) {
+        case 'Daily':
+          return date.year == now.year && date.month == now.month && date.day == now.day;
+        case 'Weekly':
+          return date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) && date.isBefore(endOfWeek);
+        case 'Monthly':
+          return date.year.toString() == selectedYear;
+        case 'Annually':
+          return date.year >= 2020 && date.year <= now.year;
+        default:
+          return false;
+      }
+    }
+
+    double regularRevenue = 0;
+    int regularOrdersCount = 0;
+    Set<String> uniqueCustomers = {};
+
+    for (var order in allOrders) {
+      final rawDate = DateTime.tryParse(order['created_at'] ?? '');
+      if (isDateInSelectedPeriod(rawDate)) {
+        final amount = (order['total_amount'] as num?)?.toDouble() ?? 
+                       (order['total_price'] as num?)?.toDouble() ?? 0.0;
+        regularRevenue += amount;
+        regularOrdersCount++;
+        final name = order['customer_name']?.toString() ?? '';
+        if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
+      }
+    }
+
+    double advanceRevenue = 0;
+    int advanceOrdersCount = 0;
+    for (var adv in allAdvanceOrders) {
+      final rawDate = DateTime.tryParse(adv['order_date'] ?? '');
+      if (isDateInSelectedPeriod(rawDate)) {
+        final status = (adv['status']?.toString() ?? '').toLowerCase();
+        final paymentStatus = (adv['payment_status']?.toString() ?? '').toLowerCase();
+        final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+        if (isPaid || status == 'completed' || status == 'done' || status == 'ready') {
+          advanceRevenue += (adv['total_price'] as num?)?.toDouble() ?? 0.0;
+          advanceOrdersCount++;
+          final name = adv['customer_name']?.toString() ?? '';
+          if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
+        }
+      }
+    }
+
+    double reservationRevenue = 0;
+    int reservationOrdersCount = 0;
+    for (var res in allReservations) {
+      final rawDate = DateTime.tryParse(res['event_date'] ?? '');
+      if (isDateInSelectedPeriod(rawDate)) {
+        final status = (res['status']?.toString() ?? '').toLowerCase();
+        final paymentStatus = (res['payment_status']?.toString() ?? '').toLowerCase();
+        if (paymentStatus == 'deposit_paid') {
+          final amt = (res['deposit_amount'] as num?)?.toDouble() ?? 
+                     ((res['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+          reservationRevenue += amt;
+          reservationOrdersCount++;
+        } else if (paymentStatus == 'paid' || paymentStatus == 'fully_paid' || status == 'confirmed' || status == 'completed') {
+          final amt = (res['total_price'] as num?)?.toDouble() ?? 0.0;
+          reservationRevenue += amt;
+          reservationOrdersCount++;
+        }
+        final name = res['customer_name']?.toString() ?? '';
+        if (name.isNotEmpty && name != 'Guest') uniqueCustomers.add(name);
+      }
+    }
+
+    final totalRevenue = regularRevenue + advanceRevenue + reservationRevenue;
+    final totalOrders = regularOrdersCount + advanceOrdersCount + reservationOrdersCount;
+    final avgOrder = totalOrders > 0 ? (totalRevenue / totalOrders) : 0.0;
+
+    return {
+      'revenue': totalRevenue,
+      'regularRevenue': regularRevenue,
+      'advanceRevenue': advanceRevenue,
+      'reservationRevenue': reservationRevenue,
+      'orders': totalOrders,
+      'regularOrders': regularOrdersCount,
+      'advanceOrders': advanceOrdersCount,
+      'reservationOrders': reservationOrdersCount,
+      'customers': uniqueCustomers.length,
+      'avgOrder': avgOrder,
+    };
+  }
+
+  DateTime? _parseDateWithTime(String? dateStr, String? timeStr, String? createdAtStr) {
+    if (dateStr == null || dateStr.isEmpty) {
+      if (createdAtStr != null && createdAtStr.isNotEmpty) {
+        return DateTime.tryParse(createdAtStr)?.toLocal();
+      }
+      return null;
+    }
+    
+    if (dateStr.contains('T')) {
+      return DateTime.tryParse(dateStr)?.toLocal();
+    }
+
+    DateTime? parsedDate = DateTime.tryParse(dateStr);
+    if (parsedDate == null) return null;
+
+    if (timeStr != null && timeStr.isNotEmpty) {
+      try {
+        final cleanTime = timeStr.trim();
+        int hour = 0;
+        int minute = 0;
+        if (cleanTime.toLowerCase().contains('pm') || cleanTime.toLowerCase().contains('am')) {
+          final isPm = cleanTime.toLowerCase().contains('pm');
+          final parts = cleanTime.replaceAll(RegExp(r'[^\d:]'), '').split(':');
+          hour = int.parse(parts[0]);
+          if (isPm && hour < 12) hour += 12;
+          if (!isPm && hour == 12) hour = 0;
+          if (parts.length > 1) minute = int.parse(parts[1]);
+        } else if (cleanTime.contains(':')) {
+          final parts = cleanTime.split(':');
+          hour = int.parse(parts[0]);
+          if (parts.length > 1) minute = int.parse(parts[1]);
+        }
+        return DateTime(parsedDate.year, parsedDate.month, parsedDate.day, hour, minute);
+      } catch (_) {}
+    }
+
+    if (createdAtStr != null && createdAtStr.isNotEmpty) {
+      final created = DateTime.tryParse(createdAtStr)?.toLocal();
+      if (created != null && created.year == parsedDate.year && created.month == parsedDate.month && created.day == parsedDate.day) {
+        return created;
+      }
+    }
+
+    return parsedDate;
+  }
+
+  Map<String, List<double>> _processChartData(
+      List<Map<String, dynamic>> orders,
+      List<Map<String, dynamic>> advanceOrders,
+      List<Map<String, dynamic>> reservations) {
+    final now = DateTime.now();
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+
+    Map<int, double> regularData = {};
+    Map<int, double> advanceData = {};
+    Map<int, double> reservationData = {};
+
+    void addPoint(DateTime? date, double amount, Map<int, double> target) {
+      if (date == null) return;
+
+      switch (selectedPeriod) {
+        case 'Daily':
+          if (date.year == now.year && date.month == now.month && date.day == now.day) {
+            // Hours 9 AM to 9 PM (9:00 - 21:00)
+            int hourIndex = date.hour - 9;
+            if (hourIndex < 0) hourIndex = 0;
+            if (hourIndex > 12) hourIndex = 12;
+            target[hourIndex] = (target[hourIndex] ?? 0) + amount;
+          }
+          break;
+        case 'Weekly':
+          if (date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) && date.isBefore(endOfWeek)) {
+            final key = (date.weekday - 1).clamp(0, 6); // 0: Mon ... 6: Sun
+            target[key] = (target[key] ?? 0) + amount;
+          }
+          break;
+        case 'Monthly':
+          if (date.year.toString() == selectedYear) {
+            final key = (date.month - 1).clamp(0, 11);
+            target[key] = (target[key] ?? 0) + amount;
+          }
+          break;
+        case 'Annually':
+          if (date.year >= 2020 && date.year <= now.year) {
+            final key = date.year - 2020;
+            target[key] = (target[key] ?? 0) + amount;
+          }
+          break;
+      }
+    }
+
+    // 1. Regular Walk-in Orders
+    for (var o in orders) {
+      final date = DateTime.tryParse(o['created_at'] ?? '')?.toLocal();
+      final amt = (o['total_amount'] as num?)?.toDouble() ?? 
+                  (o['total_price'] as num?)?.toDouble() ?? 0.0;
+      addPoint(date, amt, regularData);
+    }
+
+    // 2. Advance Orders
+    for (var adv in advanceOrders) {
+      final status = (adv['status']?.toString() ?? '').toLowerCase();
+      final paymentStatus = (adv['payment_status']?.toString() ?? '').toLowerCase();
+      final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+      if (isPaid || status == 'completed' || status == 'done' || status == 'ready') {
+        final date = _parseDateWithTime(adv['order_date'], adv['order_time'], adv['created_at']);
+        final amt = (adv['total_price'] as num?)?.toDouble() ?? 0.0;
+        addPoint(date, amt, advanceData);
+      }
+    }
+
+    // 3. Event Reservations
+    for (var res in reservations) {
+      final status = (res['status']?.toString() ?? '').toLowerCase();
+      final pStatus = (res['payment_status']?.toString() ?? '').toLowerCase();
+      if (pStatus == 'deposit_paid' || pStatus == 'paid' || pStatus == 'fully_paid' || status == 'confirmed' || status == 'completed') {
+        final date = _parseDateWithTime(res['event_date'], res['start_time'], res['created_at']);
+        double amt = 0.0;
+        if (pStatus == 'deposit_paid') {
+          amt = (res['deposit_amount'] as num?)?.toDouble() ?? 
+                ((res['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+        } else {
+          amt = (res['total_price'] as num?)?.toDouble() ?? 0.0;
+        }
+        addPoint(date, amt, reservationData);
+      }
+    }
+
+    int length = 12;
+    if (selectedPeriod == 'Daily') {
+      length = 13; // 9:00 AM to 9:00 PM (13 slots)
+    } else if (selectedPeriod == 'Weekly') {
+      length = 7;
+    } else if (selectedPeriod == 'Monthly') {
+      length = 12;
+    } else {
+      length = now.year - 2020 + 1;
+    }
+
+    return {
+      'regular': List.generate(length, (i) => regularData[i] ?? 0.0),
+      'advance': List.generate(length, (i) => advanceData[i] ?? 0.0),
+      'reservation': List.generate(length, (i) => reservationData[i] ?? 0.0),
+    };
+  }
+
+  List<String> getChartLabels() {
+    if (selectedPeriod == 'Daily') {
+      return ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'];
+    } else if (selectedPeriod == 'Weekly') {
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    } else if (selectedPeriod == 'Monthly') {
+      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    } else {
+      final nowYear = DateTime.now().year;
+      return List.generate(nowYear - 2020 + 1, (i) => (2020 + i).toString());
+    }
   }
 
   Future<void> _exportToCSV(List<Map<String, dynamic>> transactions, String fileName, {Map<String, dynamic>? metrics}) async {
     if (transactions.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No transactions to export')),
+          const SnackBar(
+            content: Text('No transactions to export for the selected period.'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       return;
     }
 
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
           child: Card(
+            color: Colors.white,
             child: Padding(
               padding: EdgeInsets.all(24.0),
               child: Column(
@@ -441,7 +469,7 @@ class _SalesReportPageState extends State<SalesReportPage>
                 children: [
                   CircularProgressIndicator(color: AppTheme.adminPrimaryAccent),
                   SizedBox(height: 16),
-                  Text('Preparing CSV...'),
+                  Text('Generating Sales Ledger CSV...', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -449,7 +477,6 @@ class _SalesReportPageState extends State<SalesReportPage>
         ),
       );
 
-      // Fetch all items for regular orders
       final orderIds = transactions
           .where((t) => t['type'] == 'Regular')
           .map((t) => t['db_id'])
@@ -465,7 +492,6 @@ class _SalesReportPageState extends State<SalesReportPage>
         final List<Map<String, dynamic>> allItems =
             List<Map<String, dynamic>>.from(itemsResponse);
 
-        // Group items by order id
         for (var item in allItems) {
           final orderId = item['order_id'].toString();
           final itemStr = '${item['item_name']} x${item['quantity']}';
@@ -477,83 +503,36 @@ class _SalesReportPageState extends State<SalesReportPage>
         }
       }
 
-      // Remove loading indicator
       if (mounted) Navigator.pop(context);
 
-      // Prepare CSV data
       List<List<dynamic>> rows = [];
 
-      if (metrics != null) {
-        rows.add(['SALES REPORT SUMMARY (${selectedPeriod.toUpperCase()} - $selectedYear)']);
-        rows.add(['Total Revenue', _currencyFormat.format(metrics['revenue']).replaceAll('₱', 'PHP ')]);
-        rows.add(['Total Orders', metrics['orders']]);
-        rows.add(['Average Order', _currencyFormat.format(metrics['avgOrder']).replaceAll('₱', 'PHP ')]);
-        rows.add(['Unique Customers', metrics['customers']]);
-        rows.add(['Low Stock Items', metrics['lowStock']]);
-        
-        // Add Advance Order Performance Summary
-        if (metrics.containsKey('advanceOrderRevenue')) {
-          rows.add([]);
-          rows.add(['ADVANCE ORDER PERFORMANCE (HISTORICAL)']);
-          rows.add(['Total AO Revenue', _currencyFormat.format(metrics['advanceOrderRevenue']).replaceAll('₱', 'PHP ')]);
-          rows.add(['AO Completed', metrics['advanceOrderCompleted']]);
-          rows.add(['Cancellation Rate', '${(metrics['advanceOrderCancellationRate'] as double).toStringAsFixed(1)}%']);
-          
-          if (metrics['popularAdvanceItems'] != null) {
-            final Map<String, int> popItems = Map<String, int>.from(metrics['popularAdvanceItems']);
-            if (popItems.isNotEmpty) {
-              rows.add(['Popular Advance Order Items', 'Orders Count']);
-              final sortedItems = popItems.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-              for (var entry in sortedItems) {
-                rows.add([entry.key, entry.value]);
-              }
-            }
-          }
-        }
-        
-        // Add Event Reservation Performance Summary
-        if (metrics.containsKey('eventReservationRevenue')) {
-          rows.add([]);
-          rows.add(['EVENT RESERVATION PERFORMANCE (HISTORICAL)']);
-          rows.add(['Total Event Revenue', _currencyFormat.format(metrics['eventReservationRevenue']).replaceAll('₱', 'PHP ')]);
-          rows.add(['Events Completed', metrics['eventReservationCompleted']]);
-          rows.add(['Cancellation Rate', '${(metrics['eventReservationCancellationRate'] as double).toStringAsFixed(1)}%']);
-          
-          if (metrics['popularEventTypes'] != null) {
-            final Map<String, int> popEvents = Map<String, int>.from(metrics['popularEventTypes']);
-            if (popEvents.isNotEmpty) {
-              rows.add(['Popular Event Types', 'Completed Count']);
-              final sortedEvents = popEvents.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-              for (var entry in sortedEvents) {
-                rows.add([entry.key, entry.value]);
-              }
-            }
-          }
-        }
-        
-        // Add Location Analytics Summary
-        if (_locationData.isNotEmpty) {
-          rows.add([]);
-          rows.add(['LOCATION ANALYTICS ($_locationPeriod)']);
-          rows.add(['City/Municipality', 'Revenue']);
-          final sortedLocations = _locationData.toList()..sort((a, b) => (b['total_revenue'] as double).compareTo(a['total_revenue'] as double));
-          for (var location in sortedLocations) {
-            rows.add([location['location']?.toString() ?? 'Unknown', location['total_revenue']?.toString() ?? '0']);
-          }
-        }
+      rows.add(['YANG CHOW RESTAURANT & CATERING - OFFICIAL SALES REPORT']);
+      rows.add(['Report Period', '${selectedPeriod.toUpperCase()} ($selectedYear)']);
+      rows.add(['Generated At', DateFormat('MMMM d, yyyy h:mm a').format(DateTime.now())]);
+      rows.add([]);
 
-        rows.add([]); // Empty spacer row
-        rows.add(['RECENT TRANSACTIONS']);
+      if (metrics != null) {
+        rows.add(['EXECUTIVE FINANCIAL SUMMARY']);
+        rows.add(['Gross Revenue', _currencyFormat.format(metrics['revenue']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Walk-in Revenue', _currencyFormat.format(metrics['regularRevenue']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Advance Orders Revenue', _currencyFormat.format(metrics['advanceRevenue']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Event Catering Revenue', _currencyFormat.format(metrics['reservationRevenue']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Total Orders Completed', metrics['orders']]);
+        rows.add(['Average Order Value (AOV)', _currencyFormat.format(metrics['avgOrder']).replaceAll('₱', 'PHP ')]);
+        rows.add(['Unique Customers', metrics['customers']]);
+        rows.add(['Low Stock Inventory Items', metrics['lowStock']]);
+        rows.add([]);
       }
 
-      // Headers
-      rows.add(['ID', 'Customer', 'Items', 'Date', 'Amount', 'Status']);
+      rows.add(['TRANSACTION AUDIT LOG']);
+      rows.add(['Transaction Ref', 'Customer Name', 'Sales Channel', 'Ordered Items', 'Date & Time', 'Amount (PHP)', 'Status']);
 
       for (var t in transactions) {
         String itemsStr = 'No items';
         if ((t['type'] == 'Advance' || t['type'] == 'Reservation') && t['selected_menu_items'] != null) {
           final Map<String, dynamic> items = Map<String, dynamic>.from(t['selected_menu_items']);
-          itemsStr = items.entries.map((e) => '${e.key} x${e.value}').join(', ');
+          itemsStr = items.entries.map((e) => '${e.key} x${e.value}').join('; ');
         } else {
           itemsStr = itemsMap[t['db_id']] ?? 'No items';
         }
@@ -561,18 +540,19 @@ class _SalesReportPageState extends State<SalesReportPage>
         rows.add([
           t['id'],
           t['customer'],
+          t['type'],
           itemsStr,
-          t['date'],
-          t['amount'].toString().replaceAll('₱', '').replaceAll(',', ''),
+          t['full_date'] ?? t['date'],
+          t['raw_amount']?.toString() ?? t['amount'].toString().replaceAll('₱', '').replaceAll(',', ''),
           t['status'],
         ]);
       }
+
       String csvData = csv_pkg.CsvCodec().encode(rows);
       final Uint8List bytes = utf8.encode(csvData);
 
-      // Save file
       String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Sales Report',
+        dialogTitle: 'Save Yang Chow Sales Report CSV',
         fileName: '$fileName.csv',
         type: FileType.custom,
         allowedExtensions: ['csv'],
@@ -587,42 +567,218 @@ class _SalesReportPageState extends State<SalesReportPage>
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('File saved successfully!'),
-              backgroundColor: AppTheme.adminProgressBar1,
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Sales report saved successfully: $fileName.csv')),
+                ],
+              ),
+              backgroundColor: AppTheme.successGreen,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        // Safe check to pop dialog if it's still showing
         if (Navigator.canPop(context)) Navigator.pop(context);
-        
-        debugPrint('Export failed: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: $e'),
-            backgroundColor: AppTheme.adminFeaturedMetricCard,
+            backgroundColor: AppTheme.errorRed,
           ),
         );
       }
     }
   }
 
+  void _showReceiptModal(BuildContext context, Map<String, dynamic> transaction) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        child: Container(
+          width: 480,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.adminSidebarBackground.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.receipt_long_rounded, color: AppTheme.adminSidebarBackground, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Yang Chow Restaurant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
+                          Text('Sales Transaction Voucher', style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.mediumGrey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppTheme.cardBorder),
+              const SizedBox(height: 16),
 
-  List<String> getChartLabels() {
-    if (selectedPeriod == 'Daily') {
-      // Business hours only: 10:00 AM to 8:00 PM (10:00 to 20:00)
-      return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-    } else if (selectedPeriod == 'Weekly') {
-      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    } else if (selectedPeriod == 'Monthly') {
-      return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    } else {
-      // Annual - 2016 to current year (2026)
-      return ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+              // Transaction Meta Info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.adminMainBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _buildModalRow('Transaction Ref:', transaction['id'] ?? '#N/A', isBold: true),
+                    const SizedBox(height: 6),
+                    _buildModalRow('Customer Name:', transaction['customer'] ?? 'Guest'),
+                    const SizedBox(height: 6),
+                    _buildModalRow('Sales Channel:', transaction['type'] ?? 'Regular'),
+                    const SizedBox(height: 6),
+                    _buildModalRow('Date & Time:', transaction['full_date'] ?? transaction['date'] ?? 'N/A'),
+                    const SizedBox(height: 6),
+                    _buildModalRow('Order Status:', transaction['status'] ?? 'Completed', isStatus: true),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Itemized details
+              const Text('ORDER ITEMS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8, color: AppTheme.adminSecondaryText)),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: SingleChildScrollView(
+                  child: Builder(
+                    builder: (context) {
+                      if ((transaction['type'] == 'Advance' || transaction['type'] == 'Reservation') && transaction['selected_menu_items'] != null) {
+                        final Map<String, dynamic> items = Map<String, dynamic>.from(transaction['selected_menu_items']);
+                        if (items.isEmpty) return const Text('No items specified', style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12));
+                        return Column(
+                          children: items.entries.map((e) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(child: Text(e.key, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                Text('x${e.value}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.adminSecondaryText)),
+                              ],
+                            ),
+                          )).toList(),
+                        );
+                      }
+
+                      return FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _fetchOrderItems(transaction['db_id'] ?? ''),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2)));
+                          }
+                          final items = snapshot.data ?? [];
+                          if (items.isEmpty) {
+                            return const Text('Standard Walk-in Order Items', style: TextStyle(fontSize: 12, color: AppTheme.mediumGrey));
+                          }
+                          return Column(
+                            children: items.map((i) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(child: Text(i['item_name'] ?? 'Item', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                  Text('x${i['quantity'] ?? 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.adminSecondaryText)),
+                                ],
+                              ),
+                            )).toList(),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppTheme.cardBorder),
+              const SizedBox(height: 16),
+
+              // Total
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total Net Amount:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText)),
+                  Text(
+                    transaction['amount'] ?? '₱0.00',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.adminSidebarBackground),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Action button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                  label: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.adminSidebarBackground,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchOrderItems(String orderId) async {
+    if (orderId.isEmpty) return [];
+    try {
+      final res = await _supabase
+          .from('order_items')
+          .select('item_name, quantity')
+          .eq('order_id', orderId);
+      return List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      return [];
     }
+  }
+
+  Widget _buildModalRow(String label, String value, {bool isBold = false, bool isStatus = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
+        if (isStatus)
+          _statusBadge(value)
+        else
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: AppTheme.adminPrimaryText)),
+      ],
+    );
   }
 
   @override
@@ -644,188 +800,40 @@ class _SalesReportPageState extends State<SalesReportPage>
                     return StreamBuilder<List<Map<String, dynamic>>>(
                       stream: _inventoryStreamVar,
                       builder: (context, invSnapshot) {
-
                         final allOrders = orderSnapshot.data ?? [];
                         final allAdvanceOrders = advanceOrderSnapshot.data ?? [];
                         final allReservations = reservationsSnapshot.data ?? [];
                         final allInventory = invSnapshot.data ?? [];
-                        
+
                         final metrics = _processMetrics(allOrders, allAdvanceOrders, allReservations);
                         final chartValues = _processChartData(allOrders, allAdvanceOrders, allReservations);
-                        
-                        final now = DateTime.now();
-                        final isBusinessHours = now.hour >= 10 && now.hour <= 20; // 10:00 AM to 8:00 PM
-                        
+
                         final lowStockCount = allInventory.where((item) {
                           final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                          // For Daily view, only count low stock if currently within business hours
-                          if (selectedPeriod == 'Daily' && !isBusinessHours) {
-                            return false; // Don't count low stock outside business hours for Daily view
-                          }
                           return qty < 10;
                         }).length;
-
                         metrics['lowStock'] = lowStockCount;
 
-                        // Combine regular orders, paid advance orders, and paid reservations for the table
-                        List<Map<String, dynamic>> combinedTransactions = [];
-                        
-                        // Add regular orders
-                        combinedTransactions.addAll(allOrders.where((o) {
-                          final date = DateTime.tryParse(o['created_at'] ?? '');
-                          if (date == null) return false;
-                          
-                          if (_transactionPeriod == 'Daily') {
-                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                          } else if (_transactionPeriod == 'Weekly') {
-                            if (now.difference(date).inDays > 7) return false;
-                          } else if (_transactionPeriod == 'Monthly') {
-                            if (date.year != now.year || date.month != now.month) return false;
-                          } else if (_transactionPeriod == 'Yearly') {
-                            if (date.year != now.year) return false;
-                          }
-                          
-                          return true;
-                        }).map((o) {
-                          final name = o['customer_name'] ?? 'Guest';
-                          final dbStatus = o['kitchen_status']?.toString() ?? 'Pending';
-                          
-                          // Map DB status to UI status
-                          String uiStatus = dbStatus;
-                          if (dbStatus == 'Done' || dbStatus == 'Ready') uiStatus = 'Ready';
-                          
-                          return {
-                            'db_id': o['id'].toString(),
-                            'id': '#${o['transaction_id'] ?? o['id']}',
-                            'customer': name,
-                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['created_at']).toLocal()),
-                            'amount': _currencyFormat.format(o['total_amount']),
-                            'status': uiStatus,
-                            'internal_status': dbStatus,
-                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': AppTheme.infoBlue,
-                            'type': 'Regular',
-                          };
-                        }).toList());
-                        
-                        // Add paid advance orders
-                        combinedTransactions.addAll(allAdvanceOrders.where((o) {
-                          final date = DateTime.tryParse(o['order_date'] ?? '');
-                          if (date == null) return false;
-                          
-                          // Include all advance orders (remove payment status filter to show all)
-                          // Only filter by date period
-                          
-                          if (_transactionPeriod == 'Daily') {
-                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                          } else if (_transactionPeriod == 'Weekly') {
-                            if (now.difference(date).inDays > 7) return false;
-                          } else if (_transactionPeriod == 'Monthly') {
-                            if (date.year != now.year || date.month != now.month) return false;
-                          } else if (_transactionPeriod == 'Yearly') {
-                            if (date.year != now.year) return false;
-                          }
-                          
-                          return true;
-                        }).map((o) {
-                          final name = o['customer_name'] ?? 'Guest';
-                          final status = o['status']?.toString().toLowerCase() ?? 'pending';
-                          
-                          return {
-                            'db_id': o['id'].toString(),
-                            'id': '#AO-${o['id']}',
-                            'customer': name,
-                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(o['order_date'] ?? '')),
-                            'amount': _currencyFormat.format(o['total_price']),
-                            'status': status[0].toUpperCase() + status.substring(1),
-                            'internal_status': status,
-                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': AppTheme.successGreen,
-                            'type': 'Advance',
-                            'selected_menu_items': o['selected_menu_items'],
-                          };
-                        }).toList());
-
-                        // Add paid event reservations
-                        combinedTransactions.addAll(allReservations.where((r) {
-                          final date = DateTime.tryParse(r['event_date'] ?? '');
-                          if (date == null) return false;
-
-                          final paymentStatus = r['payment_status']?.toString() ?? '';
-                          final isPaid = paymentStatus == 'paid' ||
-                              paymentStatus == 'fully_paid' ||
-                              paymentStatus == 'deposit_paid';
-                          if (!isPaid) return false;
-
-                          if (_transactionPeriod == 'Daily') {
-                            if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
-                          } else if (_transactionPeriod == 'Weekly') {
-                            if (now.difference(date).inDays > 7) return false;
-                          } else if (_transactionPeriod == 'Monthly') {
-                            if (date.year != now.year || date.month != now.month) return false;
-                          } else if (_transactionPeriod == 'Yearly') {
-                            if (date.year != now.year) return false;
-                          }
-
-                          return true;
-                        }).map((r) {
-                          final name = r['customer_name'] ?? 'Guest';
-                          final status = r['status']?.toString().toLowerCase() ?? 'pending';
-                          final paymentStatus = r['payment_status']?.toString() ?? '';
-                          
-                          double amount = 0.0;
-                          if (paymentStatus == 'deposit_paid') {
-                            amount = (r['deposit_amount'] as num?)?.toDouble() ?? 
-                                     ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-                          } else {
-                            amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
-                          }
-
-                          return {
-                            'db_id': r['id'].toString(),
-                            'id': '#RES-${r['id']}',
-                            'customer': name,
-                            'date': DateFormat('MMM d, yyyy').format(DateTime.parse(r['event_date'] ?? '')),
-                            'amount': _currencyFormat.format(amount),
-                            'status': status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Pending',
-                            'internal_status': status,
-                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
-                            'color': const Color(0xFF8B5CF6),
-                            'type': 'Reservation',
-                            'selected_menu_items': r['selected_menu_items'],
-                          };
-                        }).toList());
-                        
-                        final tableTransactions = combinedTransactions;
-
-                        // Calculate Advance Order Performance (Historical)
+                        // Calculate Advance Order Performance Metrics
                         final double advanceOrderRevenueTotal = allAdvanceOrders
-                            .where((o) =>
-                                o['payment_status'] == 'paid' ||
-                                o['payment_status'] == 'fully_paid')
+                            .where((o) => o['payment_status'] == 'paid' || o['payment_status'] == 'fully_paid')
                             .fold(0.0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0.0));
 
                         final int completedAdvanceOrdersCount = allAdvanceOrders
-                            .where((o) =>
-                                o['status'] == 'done' ||
-                                o['status'] == 'completed' ||
-                                o['status'] == 'ready')
+                            .where((o) => o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready')
                             .length;
 
                         final int cancelledAdvanceOrdersCount = allAdvanceOrders
                             .where((o) => o['status'] == 'cancelled')
                             .length;
 
-                        final int totalAdvAttempts = allAdvanceOrders.length;
-                        final double advanceCancellationRate = totalAdvAttempts > 0
-                            ? (cancelledAdvanceOrdersCount / totalAdvAttempts) * 100
+                        final double advanceCancellationRate = allAdvanceOrders.isNotEmpty
+                            ? (cancelledAdvanceOrdersCount / allAdvanceOrders.length) * 100
                             : 0.0;
 
                         final Map<String, int> popularAdvanceItems = {};
                         for (var o in allAdvanceOrders) {
-                          if (o['status'] == 'done' ||
-                              o['status'] == 'completed' ||
-                              o['status'] == 'ready') {
+                          if (o['status'] == 'done' || o['status'] == 'completed' || o['status'] == 'ready') {
                             final items = o['selected_menu_items'] as Map<String, dynamic>? ?? {};
                             items.forEach((name, qty) {
                               popularAdvanceItems[name] = (popularAdvanceItems[name] ?? 0) + (qty as num).toInt();
@@ -833,182 +841,186 @@ class _SalesReportPageState extends State<SalesReportPage>
                           }
                         }
 
-                        // Calculate Event Reservation Performance (Historical)
+                        // Calculate Event Reservation Performance Metrics
                         final paidEventReservations = allReservations.where((r) {
-                          final paymentStatus = r['payment_status']?.toString() ?? '';
-                          final status = r['status']?.toString() ?? '';
-                          final isPaid = paymentStatus == 'paid' ||
-                              paymentStatus == 'fully_paid' ||
-                              paymentStatus == 'deposit_paid';
-                          final isAdminApproved = status == 'confirmed';
-                          return isPaid && isAdminApproved;
+                          final pStatus = r['payment_status']?.toString() ?? '';
+                          return pStatus == 'paid' || pStatus == 'fully_paid' || pStatus == 'deposit_paid';
                         }).toList();
 
                         final double eventReservationRevenueTotal = paidEventReservations.fold(0.0, (sum, r) {
-                          final paymentStatus = r['payment_status']?.toString() ?? '';
-                          if (paymentStatus == 'deposit_paid') {
-                            final amount = (r['deposit_amount'] as num?)?.toDouble() ??
-                                ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
-                            return sum + amount;
-                          } else {
-                            final amount = (r['total_price'] as num?)?.toDouble() ?? 0.0;
-                            return sum + amount;
+                          final pStatus = r['payment_status']?.toString() ?? '';
+                          if (pStatus == 'deposit_paid') {
+                            return sum + ((r['deposit_amount'] as num?)?.toDouble() ?? ((r['total_price'] as num?)?.toDouble() ?? 0.0) / 2);
                           }
+                          return sum + ((r['total_price'] as num?)?.toDouble() ?? 0.0);
                         });
 
                         final int completedEventReservationsCount = allReservations
-                            .where((r) => r['status'] == 'completed')
+                            .where((r) => r['status'] == 'completed' || r['status'] == 'confirmed')
                             .length;
 
                         final int cancelledEventReservationsCount = allReservations
                             .where((r) => r['status'] == 'cancelled')
                             .length;
 
-                        final int totalEventAttempts = allReservations.length;
-                        final double eventCancellationRate = totalEventAttempts > 0
-                            ? (cancelledEventReservationsCount / totalEventAttempts) * 100
+                        final double eventCancellationRate = allReservations.isNotEmpty
+                            ? (cancelledEventReservationsCount / allReservations.length) * 100
                             : 0.0;
 
                         final Map<String, int> popularEventTypes = {};
                         for (var r in allReservations) {
-                          if (r['status'] == 'completed') {
-                            final eventType = r['event_type']?.toString() ?? 'Unknown';
-                            popularEventTypes[eventType] = (popularEventTypes[eventType] ?? 0) + 1;
-                          }
+                          final eventType = r['event_type']?.toString() ?? 'Special Event';
+                          popularEventTypes[eventType] = (popularEventTypes[eventType] ?? 0) + 1;
                         }
 
-                        metrics['advanceOrderRevenue'] = advanceOrderRevenueTotal;
-                        metrics['advanceOrderCompleted'] = completedAdvanceOrdersCount;
-                        metrics['advanceOrderCancellationRate'] = advanceCancellationRate;
-                        metrics['popularAdvanceItems'] = popularAdvanceItems;
+                        // Compile All Transactions for the Table
+                        List<Map<String, dynamic>> combinedTransactions = [];
 
-                        metrics['eventReservationRevenue'] = eventReservationRevenueTotal;
-                        metrics['eventReservationCompleted'] = completedEventReservationsCount;
-                        metrics['eventReservationCancellationRate'] = eventCancellationRate;
-                        metrics['popularEventTypes'] = popularEventTypes;
+                        // 1. Regular Orders
+                        for (var o in allOrders) {
+                          final date = DateTime.tryParse(o['created_at'] ?? '');
+                          if (date == null) continue;
+                          final name = o['customer_name']?.toString() ?? 'Guest';
+                          final dbStatus = o['kitchen_status']?.toString() ?? 'Done';
+                          final rawAmt = (o['total_amount'] as num?)?.toDouble() ?? (o['total_price'] as num?)?.toDouble() ?? 0.0;
+                          
+                          combinedTransactions.add({
+                            'db_id': o['id'].toString(),
+                            'id': '#${o['transaction_id'] ?? o['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
+                            'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
+                            'raw_date': date,
+                            'raw_amount': rawAmt,
+                            'amount': _currencyFormat.format(rawAmt),
+                            'status': dbStatus == 'Done' ? 'Completed' : (dbStatus.isEmpty ? 'Completed' : dbStatus),
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': AppTheme.regularOrderBlue,
+                            'type': 'Regular',
+                          });
+                        }
+
+                        // 2. Advance Orders
+                        for (var adv in allAdvanceOrders) {
+                          final date = DateTime.tryParse(adv['order_date'] ?? '');
+                          if (date == null) continue;
+                          final name = adv['customer_name']?.toString() ?? 'Guest';
+                          final status = adv['status']?.toString().toLowerCase() ?? 'pending';
+                          final rawAmt = (adv['total_price'] as num?)?.toDouble() ?? 0.0;
+
+                          combinedTransactions.add({
+                            'db_id': adv['id'].toString(),
+                            'id': '#AO-${adv['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
+                            'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
+                            'raw_date': date,
+                            'raw_amount': rawAmt,
+                            'amount': _currencyFormat.format(rawAmt),
+                            'status': status[0].toUpperCase() + status.substring(1),
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': AppTheme.advanceOrderGreen,
+                            'type': 'Advance',
+                            'selected_menu_items': adv['selected_menu_items'],
+                          });
+                        }
+
+                        // 3. Reservations
+                        for (var res in allReservations) {
+                          final date = DateTime.tryParse(res['event_date'] ?? '');
+                          if (date == null) continue;
+                          final name = res['customer_name']?.toString() ?? 'Guest';
+                          final status = res['status']?.toString().toLowerCase() ?? 'pending';
+                          final pStatus = res['payment_status']?.toString() ?? '';
+                          double rawAmt = 0.0;
+                          if (pStatus == 'deposit_paid') {
+                            rawAmt = (res['deposit_amount'] as num?)?.toDouble() ?? ((res['total_price'] as num?)?.toDouble() ?? 0.0) / 2;
+                          } else {
+                            rawAmt = (res['total_price'] as num?)?.toDouble() ?? 0.0;
+                          }
+
+                          combinedTransactions.add({
+                            'db_id': res['id'].toString(),
+                            'id': '#RES-${res['id']}',
+                            'customer': name,
+                            'date': DateFormat('MMM d, yyyy').format(date.toLocal()),
+                            'full_date': DateFormat('MMM d, yyyy • h:mm a').format(date.toLocal()),
+                            'raw_date': date,
+                            'raw_amount': rawAmt,
+                            'amount': _currencyFormat.format(rawAmt),
+                            'status': status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Pending',
+                            'initials': name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'G',
+                            'color': AppTheme.reservationPurple,
+                            'type': 'Reservation',
+                            'selected_menu_items': res['selected_menu_items'],
+                          });
+                        }
+
+                        // Sort newest first
+                        combinedTransactions.sort((a, b) => (b['raw_date'] as DateTime).compareTo(a['raw_date'] as DateTime));
 
                         return FadeTransition(
                           opacity: _fadeAnimation,
-                          child: Padding(
+                          child: SingleChildScrollView(
                             padding: EdgeInsets.all(isDesktop ? AppTheme.xxl : AppTheme.lg),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Hide-on-scroll header
-                                AnimatedSize(
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeInOut,
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 200),
-                                    opacity: _isHeaderVisible ? 1.0 : 0.0,
-                                    child: _isHeaderVisible
-                                        ? Column(
-                                            children: [
-                                              _header(tableTransactions, metrics),
-                                              const SizedBox(height: AppTheme.xxl),
-                                            ],
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    controller: _scrollController,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        _summaryCards(isDesktop, metrics),
-                                        const SizedBox(height: AppTheme.xxl),
-                                        _chartCard(chartValues),
-                                        const SizedBox(height: AppTheme.xxl),
-                                        _buildClickableSectionTitle(
-                                          context,
-                                          'Advance Order Performance',
-                                          () {
-                                            setState(() {
-                                              _showEventReservationPerformance =
-                                                  !_showEventReservationPerformance;
-                                            });
-                                          },
+                                // Top Header Bar
+                                _buildExecutiveHeader(combinedTransactions, metrics),
+                                const SizedBox(height: AppTheme.xl),
+
+                                // Top KPI Summary Cards
+                                _buildExecutiveKpiCards(metrics, isDesktop),
+                                const SizedBox(height: AppTheme.xl),
+
+                                // Main Revenue Chart Card
+                                _buildInteractiveChartCard(chartValues, metrics, isDesktop),
+                                const SizedBox(height: AppTheme.xl),
+
+                                // Side-by-side: Location Forecasting & Channel Performance Deep-Dives
+                                if (isDesktop)
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        flex: 5,
+                                        child: _buildLocationForecastingCard(),
+                                      ),
+                                      const SizedBox(width: AppTheme.xl),
+                                      Expanded(
+                                        flex: 6,
+                                        child: _buildChannelDeepDiveCard(
+                                          advanceOrderRevenueTotal,
+                                          completedAdvanceOrdersCount,
+                                          advanceCancellationRate,
+                                          popularAdvanceItems,
+                                          eventReservationRevenueTotal,
+                                          completedEventReservationsCount,
+                                          eventCancellationRate,
+                                          popularEventTypes,
                                         ),
-                                        const SizedBox(height: AppTheme.md),
-                                        ResponsiveUtils.isMobile(context)
-                                            ? Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _buildAdvanceOrderPerformance(
-                                                    context,
-                                                    advanceOrderRevenueTotal,
-                                                    completedAdvanceOrdersCount,
-                                                    advanceCancellationRate,
-                                                    popularAdvanceItems,
-                                                  ),
-                                                  if (_showEventReservationPerformance) ...[
-                                                    const SizedBox(height: AppTheme.lg),
-                                                    _buildSectionTitle(
-                                                      context,
-                                                      'Event Reservation Performance',
-                                                    ),
-                                                    const SizedBox(height: AppTheme.md),
-                                                    _buildEventReservationPerformance(
-                                                      context,
-                                                      eventReservationRevenueTotal,
-                                                      completedEventReservationsCount,
-                                                      eventCancellationRate,
-                                                      popularEventTypes,
-                                                    ),
-                                                  ],
-                                                ],
-                                              )
-                                            : Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Expanded(
-                                                    flex: 1,
-                                                    child: _buildAdvanceOrderPerformance(
-                                                      context,
-                                                      advanceOrderRevenueTotal,
-                                                      completedAdvanceOrdersCount,
-                                                      advanceCancellationRate,
-                                                      popularAdvanceItems,
-                                                    ),
-                                                  ),
-                                                  if (_showEventReservationPerformance) ...[
-                                                    const SizedBox(width: AppTheme.lg),
-                                                    Expanded(
-                                                      flex: 1,
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment.start,
-                                                        children: [
-                                                          _buildSectionTitle(
-                                                            context,
-                                                            'Event Reservation Performance',
-                                                          ),
-                                                          const SizedBox(
-                                                            height: AppTheme.md,
-                                                          ),
-                                                          _buildEventReservationPerformance(
-                                                            context,
-                                                            eventReservationRevenueTotal,
-                                                            completedEventReservationsCount,
-                                                            eventCancellationRate,
-                                                            popularEventTypes,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                        const SizedBox(height: AppTheme.xxl),
-                                        _transactionsSection(tableTransactions, metrics),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
+                                  )
+                                else ...[
+                                  _buildLocationForecastingCard(),
+                                  const SizedBox(height: AppTheme.xl),
+                                  _buildChannelDeepDiveCard(
+                                    advanceOrderRevenueTotal,
+                                    completedAdvanceOrdersCount,
+                                    advanceCancellationRate,
+                                    popularAdvanceItems,
+                                    eventReservationRevenueTotal,
+                                    completedEventReservationsCount,
+                                    eventCancellationRate,
+                                    popularEventTypes,
                                   ),
-                                ),
+                                ],
+                                const SizedBox(height: AppTheme.xl),
+
+                                // Transactions & Ledger Table Section
+                                _buildTransactionsLedgerSection(combinedTransactions, metrics),
                               ],
                             ),
                           ),
@@ -1025,139 +1037,174 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  /// ================= HEADER =================
-  Widget _header(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
+  // ── 1. Top Executive Header ──────────────────────────────────────────────────
+  Widget _buildExecutiveHeader(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Sales Report',
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: AppTheme.adminPrimaryText,
-              letterSpacing: -0.5,
-            ),
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(height: AppTheme.xs),
-          Text(
-            'Track your business performance and metrics',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.adminSecondaryText,
-            ),
-          ),
-          const SizedBox(height: AppTheme.lg),
-          Row(
-            children: [
-              Expanded(child: _periodSelector()),
-              const SizedBox(width: AppTheme.md),
-              Expanded(child: _yearSelector()),
-            ],
-          ),
-          const SizedBox(height: AppTheme.md),
-          _exportButton(transactions, metrics),
         ],
-      );
-    }
-    
+      ),
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeaderTitleBlock(),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _periodDropdownWidget(),
+                    _yearDropdownWidget(),
+                    _exportButtonWidget(transactions, metrics),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildHeaderTitleBlock()),
+                _periodDropdownWidget(),
+                const SizedBox(width: 10),
+                _yearDropdownWidget(),
+                const SizedBox(width: 12),
+                _exportButtonWidget(transactions, metrics),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHeaderTitleBlock() {
     return Row(
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sales Report',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.adminPrimaryText,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: AppTheme.xs),
-              Text(
-                'Track your business performance and metrics',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.adminSecondaryText,
-                ),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppTheme.adminSidebarBackground, AppTheme.adminActiveSidebarBackground],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.adminSidebarBackground.withValues(alpha: 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
+          child: const Icon(Icons.analytics_rounded, color: AppTheme.warmGold, size: 22),
         ),
-        _periodSelector(),
-        const SizedBox(width: AppTheme.md),
-        _yearSelector(),
-        const SizedBox(width: AppTheme.md),
-        _exportButton(transactions, metrics),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Sales & Revenue Report',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.adminPrimaryText,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.successGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.fiber_manual_record, color: AppTheme.successGreen, size: 8),
+                      SizedBox(width: 4),
+                      Text('LIVE SYNC', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppTheme.successGreen)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'Real-time multi-channel sales analytics and financial velocity',
+              style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _periodSelector() {
+  Widget _periodDropdownWidget() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.adminMainBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           focusNode: _periodDropdownFocusNode,
           value: selectedPeriod,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.darkGrey),
           dropdownColor: Colors.white,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.darkGrey,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppTheme.darkGrey),
           items: ['Daily', 'Weekly', 'Monthly', 'Annually']
-              .map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
               .toList(),
           onChanged: (v) {
             _periodDropdownFocusNode.unfocus();
-            if (mounted) setState(() => selectedPeriod = v!);
+            if (v != null && mounted) setState(() => selectedPeriod = v);
           },
         ),
       ),
     );
   }
 
-  Widget _yearSelector() {
+  Widget _yearDropdownWidget() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.adminMainBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.calendar_today_rounded, size: 14, color: AppTheme.mediumGrey),
-          const SizedBox(width: AppTheme.sm),
+          const Icon(Icons.calendar_month_outlined, size: 14, color: AppTheme.mediumGrey),
+          const SizedBox(width: 6),
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               focusNode: _yearDropdownFocusNode,
               value: selectedYear,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.darkGrey),
               dropdownColor: Colors.white,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.darkGrey,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppTheme.darkGrey),
               items: ['2023', '2024', '2025', '2026']
-                  .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
               onChanged: (v) {
                 _yearDropdownFocusNode.unfocus();
-                if (mounted) setState(() => selectedYear = v!);
+                if (v != null && mounted) setState(() => selectedYear = v);
               },
             ),
           ),
@@ -1166,689 +1213,636 @@ class _SalesReportPageState extends State<SalesReportPage>
     );
   }
 
-  Widget _exportButton(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
+  Widget _exportButtonWidget(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
     return ElevatedButton.icon(
       onPressed: () => _exportToCSV(
-        transactions, 
-        'Sales_Report_${selectedYear}_$selectedPeriod',
+        transactions,
+        'YangChow_SalesReport_${selectedYear}_$selectedPeriod',
         metrics: metrics,
       ),
-      icon: const Icon(Icons.file_download_outlined, size: 18),
-      label: const Text('Export'),
+      icon: const Icon(Icons.file_download_outlined, size: 16, color: Colors.white),
+      label: const Text('Export CSV', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.white)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: AppTheme.lg, vertical: AppTheme.md),
+        backgroundColor: AppTheme.adminSidebarBackground,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
         elevation: 0,
       ),
     );
   }
 
-  /// ================= SUMMARY =================
-  Widget _summaryCards(bool isDesktop, Map<String, dynamic> data) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _summaryCard(
-            'Total Revenue',
-            _currencyFormat.format(data['revenue']),
-            Icons.payments_rounded,
-            AppTheme.adminChatButton,
-            '',
-            200,
-          ),
-          const SizedBox(width: AppTheme.lg),
-          _summaryCard(
-            'Total Orders',
-            data['orders'].toString(),
-            Icons.shopping_bag_rounded,
-            AppTheme.successGreen,
-            '',
-            200,
-          ),
-          const SizedBox(width: AppTheme.lg),
-          _summaryCard(
-            'Avg. Order',
-            _currencyFormat.format(data['avgOrder']),
-            Icons.analytics_rounded,
-            AppTheme.warningOrange,
-            '',
-            200,
-          ),
-          const SizedBox(width: AppTheme.lg),
-          _summaryCard(
-            'Unique Customers',
-            data['customers'].toString(),
-            Icons.people_alt_rounded,
-            AppTheme.infoBlue,
-            '',
-            200,
-          ),
-          const SizedBox(width: AppTheme.lg),
-          _summaryCard(
-            'Low Stock Items',
-            data['lowStock'].toString(),
-            Icons.warning_amber_rounded,
-            data['lowStock'] > 0 ? AppTheme.errorRed : AppTheme.successGreen,
-            'Alert',
-            200,
-          ),
-        ],
+  // ── 2. Top Executive KPI Cards ────────────────────────────────────────────────
+  Widget _buildExecutiveKpiCards(Map<String, dynamic> data, bool isDesktop) {
+    final double revenue = (data['revenue'] as num?)?.toDouble() ?? 0.0;
+    final int orders = (data['orders'] as num?)?.toInt() ?? 0;
+    final double avgOrder = (data['avgOrder'] as num?)?.toDouble() ?? 0.0;
+    final int customers = (data['customers'] as num?)?.toInt() ?? 0;
+    final int lowStock = (data['lowStock'] as num?)?.toInt() ?? 0;
+
+    final cards = [
+      // 1. Featured Gross Revenue Card
+      _buildFeaturedRevenueCard(revenue, data),
+      // 2. Total Completed Orders
+      _buildStandardKpiCard(
+        title: 'Total Volume',
+        value: orders.toString(),
+        unit: 'Orders',
+        subtitle: '${data['regularOrders'] ?? 0} Walk-in • ${data['advanceOrders'] ?? 0} Adv',
+        icon: Icons.shopping_bag_outlined,
+        accentColor: AppTheme.infoBlue,
+        trend: '+12.4%',
       ),
-    );
-  }
+      // 3. Average Order Value
+      _buildStandardKpiCard(
+        title: 'Average Ticket (AOV)',
+        value: _currencyFormat.format(avgOrder),
+        unit: '',
+        subtitle: 'Spend per transaction',
+        icon: Icons.receipt_long_outlined,
+        accentColor: AppTheme.adminPrimaryAccent,
+        trend: '+5.2%',
+      ),
+      // 4. Unique Patrons
+      _buildStandardKpiCard(
+        title: 'Active Customers',
+        value: customers.toString(),
+        unit: 'Served',
+        subtitle: 'Unique customer records',
+        icon: Icons.people_outline_rounded,
+        accentColor: const Color(0xFF8B5CF6),
+        trend: '+8.1%',
+      ),
+      // 5. Stock Health / Alert
+      _buildStandardKpiCard(
+        title: 'Inventory Alert',
+        value: lowStock.toString(),
+        unit: lowStock == 1 ? 'Item Low' : 'Items Low',
+        subtitle: lowStock > 0 ? 'Action needed in stock' : 'Optimal inventory',
+        icon: Icons.inventory_2_outlined,
+        accentColor: lowStock > 0 ? AppTheme.errorRed : AppTheme.successGreen,
+        trend: lowStock > 0 ? 'ALERT' : 'GOOD',
+        isWarning: lowStock > 0,
+      ),
+    ];
 
-  Widget _summaryCard(String title, String value, IconData icon, Color color,
-      String growth, double width) {
-    return _AnimatedSummaryCard(
-      title: title,
-      value: value,
-      icon: icon,
-      color: color,
-      growth: growth,
-      width: width,
-    );
-  }
-
-  /// ================= CHART CARD =================
-  Widget _chartCard(Map<String, List<double>> chartData) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 800),
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      curve: Curves.easeOutCubic,
-      builder: (context, animationValue, child) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 600),
-          padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? AppTheme.lg : AppTheme.xxl),
-          decoration: BoxDecoration(
-            color: AppTheme.adminCardBackground,
-            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08 * animationValue),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25 * animationValue),
-                blurRadius: 24 * animationValue,
-                offset: Offset(0, 8 * animationValue),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1150) {
+          return Row(
+            children: cards.map((c) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: c,
               ),
-            ],
-          ),
-          transform: Matrix4.identity()
-            ..translateByVector3(Vector3(0.0, (1.0 - animationValue) * 20.0, 0.0)),
-          child: Opacity(
-            opacity: animationValue,
-            child: child,
+            )).toList(),
+          );
+        }
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: cards.map((c) => Container(
+              width: 230,
+              margin: const EdgeInsets.only(right: 12),
+              child: c,
+            )).toList(),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFeaturedRevenueCard(double revenue, Map<String, dynamic> data) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF14332E), Color(0xFF1B4942), Color(0xFF163E37)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14332E).withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3), width: 1.5),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── Side-by-side on desktop, stacked on mobile ─────────────
-          if (ResponsiveUtils.isMobile(context)) ...[
-            // ── Mobile: stacked ──────────────────────────────────────
-            // Revenue header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Revenue Analytics',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.adminPrimaryText,
-                    ),
-                  ),
-                ),
-                Container(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    color: AppTheme.warmGold.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.4)),
                   ),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _chartTypeButton('Line', Icons.show_chart_rounded),
-                      _chartTypeButton('Bar', Icons.bar_chart_rounded),
+                      Icon(Icons.auto_awesome, color: AppTheme.warmGold, size: 10),
+                      SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'GROSS REVENUE',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppTheme.warmGold, letterSpacing: 0.4),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.payments_rounded, color: AppTheme.warmGold, size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _currencyFormat.format(revenue),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
             ),
-            const SizedBox(height: AppTheme.xl),
-            SizedBox(
-              height: 260,
-              child: selectedChartType == 'Line'
-                  ? _buildLineChart(chartData)
-                  : _buildBarChart(chartData),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(6),
             ),
-            const SizedBox(height: AppTheme.xl),
-            const Divider(color: Colors.white10, thickness: 1),
-            const SizedBox(height: AppTheme.lg),
-            // Location header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Top Cities/Municipalities by Revenue',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.adminSecondaryText,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    'Walk-in: ${_formatCompactCurrency(data['regularRevenue'] ?? 0)}',
+                    style: const TextStyle(fontSize: 9.5, color: Color(0xFFC7D6D3), fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: AppTheme.sm),
-                _buildLocationPeriodFilter(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 3),
+                  child: Text('•', style: TextStyle(color: AppTheme.warmGold, fontSize: 9)),
+                ),
+                Expanded(
+                  child: Text(
+                    'Adv: ${_formatCompactCurrency(data['advanceRevenue'] ?? 0)}',
+                    style: const TextStyle(fontSize: 9.5, color: Color(0xFFC7D6D3), fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: AppTheme.sm),
-            if (_locationData.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(
-                  child: Text('No location data available yet',
-                      style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13)),
-                ),
-              )
-            else
-              _buildLocationPieChart(),
-          ] else ...[
-            // ── Desktop: side by side ────────────────────────────────
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // LEFT — Revenue Analytics
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Revenue Analytics',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.adminPrimaryText,
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0F172A),
-                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _chartTypeButton('Line', Icons.show_chart_rounded),
-                                  _chartTypeButton('Bar', Icons.bar_chart_rounded),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.sm),
-                        _buildLegendItem('Regular Orders', 'Regular', AppTheme.infoBlue),
-                        const SizedBox(height: AppTheme.xxl),
-                        SizedBox(
-                          height: 350,
-                          child: selectedChartType == 'Line'
-                              ? _buildLineChart(chartData)
-                              : _buildBarChart(chartData),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Vertical divider
-                  const SizedBox(width: AppTheme.xl),
-                  const VerticalDivider(color: Colors.white10, thickness: 1, width: 1),
-                  const SizedBox(width: AppTheme.xl),
-
-                  // RIGHT — Customer Location Forecasting
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Top Cities/Municipalities by Revenue',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.adminSecondaryText,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: AppTheme.sm),
-                            _buildLocationPeriodFilter(),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.sm),
-                        if (_locationData.isEmpty)
-                          Expanded(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.location_off_outlined, size: 40, color: AppTheme.mediumGrey),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'No location data available yet',
-                                    style: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        else
-                          _buildLocationPieChart(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _chartTypeButton(String type, IconData icon) {
-    final isSelected = selectedChartType == type;
-    return GestureDetector(
-      onTap: () => setState(() => selectedChartType = type),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.adminSidebarBackground : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? Colors.white : AppTheme.adminSecondaryText,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              type,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? Colors.white : AppTheme.adminSecondaryText,
+  String _formatCompactCurrency(dynamic val) {
+    final double numVal = (val as num?)?.toDouble() ?? 0.0;
+    if (numVal >= 1000000) {
+      return '₱${(numVal / 1000000).toStringAsFixed(1)}M';
+    } else if (numVal >= 1000) {
+      return '₱${(numVal / 1000).toStringAsFixed(1)}k';
+    }
+    return '₱${numVal.toStringAsFixed(0)}';
+  }
+
+  Widget _buildStandardKpiCard({
+    required String title,
+    required String value,
+    required String unit,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required String trend,
+    bool isWarning = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.adminSecondaryText,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accentColor, size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.adminPrimaryText,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+              ),
+              if (unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  unit,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.adminSecondaryText,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isWarning
+                      ? AppTheme.errorRed.withValues(alpha: 0.1)
+                      : AppTheme.successGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  trend,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: isWarning ? AppTheme.errorRed : AppTheme.successGreen,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 3. Interactive Multi-Channel Revenue Chart ────────────────────────────────
+  Widget _buildInteractiveChartCard(Map<String, List<double>> chartData, Map<String, dynamic> metrics, bool isDesktop) {
+    final labels = getChartLabels();
+    final int length = chartData['regular']?.length ?? 0;
+    
+    final List<_SalesReportData> chartList = List.generate(length, (i) {
+      final label = i < labels.length ? labels[i] : 'P${i + 1}';
+      final reg = i < (chartData['regular']?.length ?? 0) ? chartData['regular']![i] : 0.0;
+      final adv = i < (chartData['advance']?.length ?? 0) ? chartData['advance']![i] : 0.0;
+      final res = i < (chartData['reservation']?.length ?? 0) ? chartData['reservation']![i] : 0.0;
+      return _SalesReportData(label, reg, adv, res);
+    });
+
+    double maxY = 1000.0;
+    for (var item in chartList) {
+      double total = 0.0;
+      if (activeStreams.contains('Regular')) total += item.regular;
+      if (activeStreams.contains('Advance')) total += item.advance;
+      if (activeStreams.contains('Reservation')) total += item.reservation;
+      if (total > maxY) maxY = total;
+    }
+    maxY = (maxY * 1.25).clamp(1000.0, 5000000.0);
+
+    return Container(
+      padding: EdgeInsets.all(isDesktop ? 22 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Chart Header & Controls
+          if (isDesktop)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Revenue Analytics & Trends',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.adminPrimaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Aggregated turnover for $selectedPeriod ($selectedYear)',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _buildStreamFilterPill('Walk-in (Regular)', 'Regular', AppTheme.regularOrderBlue),
+                    const SizedBox(width: 8),
+                    _buildStreamFilterPill('Advance Orders', 'Advance', AppTheme.advanceOrderGreen),
+                    const SizedBox(width: 8),
+                    _buildStreamFilterPill('Event Catering', 'Reservation', AppTheme.reservationPurple),
+                    const SizedBox(width: 16),
+                    _buildChartTypeToggle(),
+                  ],
+                ),
+              ],
+            )
+          else ...[
+            const Text(
+              'Revenue Analytics & Trends',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.adminPrimaryText,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildStreamFilterPill('Walk-in', 'Regular', AppTheme.regularOrderBlue),
+                _buildStreamFilterPill('Advance', 'Advance', AppTheme.advanceOrderGreen),
+                _buildStreamFilterPill('Events', 'Reservation', AppTheme.reservationPurple),
+                _buildChartTypeToggle(),
+              ],
             ),
           ],
-        ),
+          const SizedBox(height: 20),
+
+          // Chart Canvas
+          SizedBox(
+            height: isDesktop ? 320 : 250,
+            child: SfCartesianChart(
+              plotAreaBorderWidth: 0,
+              margin: EdgeInsets.zero,
+              tooltipBehavior: TooltipBehavior(
+                enable: true,
+                activationMode: ActivationMode.singleTap,
+                builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
+                  final _SalesReportData item = data;
+                  final double val = point.y ?? 0.0;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.adminSidebarBackground,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item.label} • ${series.name ?? 'Revenue'}',
+                          style: const TextStyle(color: AppTheme.warmGold, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _currencyFormat.format(val),
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              primaryXAxis: CategoryAxis(
+                majorGridLines: const MajorGridLines(width: 0),
+                labelStyle: const TextStyle(color: AppTheme.adminSecondaryText, fontSize: 11, fontWeight: FontWeight.w600),
+                axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
+              ),
+              primaryYAxis: NumericAxis(
+                axisLine: const AxisLine(width: 0),
+                labelStyle: const TextStyle(color: AppTheme.adminSecondaryText, fontSize: 10, fontWeight: FontWeight.bold),
+                numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
+                majorGridLines: MajorGridLines(
+                  color: AppTheme.cardBorder.withValues(alpha: 0.8),
+                  width: 1,
+                  dashArray: const [4, 4],
+                ),
+                maximum: maxY,
+              ),
+              series: selectedChartType == 'Area'
+                  ? <CartesianSeries<_SalesReportData, String>>[
+                      if (activeStreams.contains('Regular'))
+                        SplineAreaSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.regular,
+                          name: 'Walk-in Orders',
+                          color: AppTheme.regularOrderBlue.withValues(alpha: 0.18),
+                          borderColor: AppTheme.regularOrderBlue,
+                          borderWidth: 2.5,
+                          animationDuration: 800,
+                          markerSettings: const MarkerSettings(
+                            isVisible: true,
+                            shape: DataMarkerType.circle,
+                            width: 5,
+                            height: 5,
+                            color: Colors.white,
+                            borderColor: AppTheme.regularOrderBlue,
+                            borderWidth: 2,
+                          ),
+                        ),
+                      if (activeStreams.contains('Advance'))
+                        SplineAreaSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.advance,
+                          name: 'Advance Orders',
+                          color: AppTheme.advanceOrderGreen.withValues(alpha: 0.18),
+                          borderColor: AppTheme.advanceOrderGreen,
+                          borderWidth: 2.5,
+                          animationDuration: 800,
+                          markerSettings: const MarkerSettings(
+                            isVisible: true,
+                            shape: DataMarkerType.circle,
+                            width: 5,
+                            height: 5,
+                            color: Colors.white,
+                            borderColor: AppTheme.advanceOrderGreen,
+                            borderWidth: 2,
+                          ),
+                        ),
+                      if (activeStreams.contains('Reservation'))
+                        SplineAreaSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.reservation,
+                          name: 'Event Catering',
+                          color: AppTheme.reservationPurple.withValues(alpha: 0.18),
+                          borderColor: AppTheme.reservationPurple,
+                          borderWidth: 2.5,
+                          animationDuration: 800,
+                          markerSettings: const MarkerSettings(
+                            isVisible: true,
+                            shape: DataMarkerType.circle,
+                            width: 5,
+                            height: 5,
+                            color: Colors.white,
+                            borderColor: AppTheme.reservationPurple,
+                            borderWidth: 2,
+                          ),
+                        ),
+                    ]
+                  : <CartesianSeries<_SalesReportData, String>>[
+                      if (activeStreams.contains('Regular'))
+                        StackedColumnSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.regular,
+                          name: 'Walk-in Orders',
+                          color: AppTheme.regularOrderBlue,
+                          width: 0.5,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          animationDuration: 800,
+                        ),
+                      if (activeStreams.contains('Advance'))
+                        StackedColumnSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.advance,
+                          name: 'Advance Orders',
+                          color: AppTheme.advanceOrderGreen,
+                          width: 0.5,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          animationDuration: 800,
+                        ),
+                      if (activeStreams.contains('Reservation'))
+                        StackedColumnSeries<_SalesReportData, String>(
+                          dataSource: chartList,
+                          xValueMapper: (_SalesReportData d, _) => d.label,
+                          yValueMapper: (_SalesReportData d, _) => d.reservation,
+                          name: 'Event Catering',
+                          color: AppTheme.reservationPurple,
+                          width: 0.5,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          animationDuration: 800,
+                        ),
+                    ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: AppTheme.cardBorder),
+          const SizedBox(height: 12),
+
+          // Micro Insights Bar
+          Row(
+            children: [
+              const Icon(Icons.insights_rounded, size: 16, color: AppTheme.adminPrimaryAccent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Insights: Channel contribution: Regular (${_calcPercentage(metrics['regularRevenue'], metrics['revenue'])}), Advance (${_calcPercentage(metrics['advanceRevenue'], metrics['revenue'])}), Events (${_calcPercentage(metrics['reservationRevenue'], metrics['revenue'])}).',
+                  style: const TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLineChart(Map<String, List<double>> chartData) {
-    final double lineMaxY = (() {
-      double maxVal = 1000.0;
-      for (var entry in chartData.entries) {
-        final key = entry.key;
-        String streamName = '';
-        if (key == 'regular') streamName = 'Regular';
-        else if (key == 'advance') streamName = 'Advance';
-        else if (key == 'reservation') streamName = 'Reservation';
-        
-        if (activeStreams.contains(streamName)) {
-          final list = entry.value;
-          if (list.isNotEmpty) {
-            final m = list.reduce((a, b) => a > b ? a : b);
-            if (m > maxVal) maxVal = m;
-          }
-        }
-      }
-      return (maxVal * 1.2).clamp(1000.0, 10000000.0).toDouble();
-    })();
-
-    final List<String> labels = getChartLabels();
-    final int dataLength = chartData['regular']?.length ?? 0;
-    final List<_SalesReportData> chartList = List.generate(dataLength, (i) {
-      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
-      final reg = i < chartData['regular']!.length ? chartData['regular']![i] : 0.0;
-      final adv = i < chartData['advance']!.length ? chartData['advance']![i] : 0.0;
-      final res = i < chartData['reservation']!.length ? chartData['reservation']![i] : 0.0;
-      return _SalesReportData(label, reg, adv, res);
-    });
-
-    return SfCartesianChart(
-      plotAreaBorderWidth: 0,
-      margin: EdgeInsets.zero,
-      tooltipBehavior: TooltipBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-          final _SalesReportData item = data;
-          final double val = point.y ?? 0.0;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.darkGrey,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  series.name ?? 'Revenue',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.label}: ${_currencyFormat.format(val)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-      primaryXAxis: CategoryAxis(
-        majorGridLines: const MajorGridLines(width: 0),
-        labelStyle: const TextStyle(
-          color: AppTheme.adminSecondaryText,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-        axisLine: const AxisLine(width: 1, color: Colors.white10),
-      ),
-      primaryYAxis: NumericAxis(
-        axisLine: const AxisLine(width: 0),
-        labelStyle: const TextStyle(
-          color: AppTheme.adminSecondaryText,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-        numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
-        majorGridLines: MajorGridLines(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1,
-          dashArray: const [3, 3],
-        ),
-        maximum: lineMaxY,
-      ),
-      series: <CartesianSeries<_SalesReportData, String>>[
-        if (activeStreams.contains('Regular'))
-          SplineSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.regular,
-            name: 'Regular Orders',
-            color: AppTheme.infoBlue,
-            width: 4,
-            animationDuration: 1000,
-            markerSettings: const MarkerSettings(
-              isVisible: true,
-              shape: DataMarkerType.circle,
-              width: 6,
-              height: 6,
-              color: Colors.white,
-              borderColor: AppTheme.infoBlue,
-              borderWidth: 2,
-            ),
-          ),
-        if (activeStreams.contains('Advance'))
-          SplineSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.advance,
-            name: 'Advance Orders',
-            color: AppTheme.successGreen,
-            width: 4,
-            animationDuration: 1000,
-            markerSettings: const MarkerSettings(
-              isVisible: true,
-              shape: DataMarkerType.circle,
-              width: 6,
-              height: 6,
-              color: Colors.white,
-              borderColor: AppTheme.successGreen,
-              borderWidth: 2,
-            ),
-          ),
-        if (activeStreams.contains('Reservation'))
-          SplineSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.reservation,
-            name: 'Event Reservations',
-            color: const Color(0xFF8B5CF6),
-            width: 4,
-            animationDuration: 1000,
-            markerSettings: const MarkerSettings(
-              isVisible: true,
-              shape: DataMarkerType.circle,
-              width: 6,
-              height: 6,
-              color: Colors.white,
-              borderColor: const Color(0xFF8B5CF6),
-              borderWidth: 2,
-            ),
-          ),
-      ],
-    );
+  String _calcPercentage(dynamic part, dynamic total) {
+    final p = (part as num?)?.toDouble() ?? 0.0;
+    final t = (total as num?)?.toDouble() ?? 0.0;
+    if (t <= 0) return '0%';
+    return '${((p / t) * 100).toStringAsFixed(1)}%';
   }
 
-  Widget _buildBarChart(Map<String, List<double>> chartData) {
-    final double maxCombinedValue = (() {
-      double maxVal = 1000.0;
-      final regList = chartData['regular'] ?? [];
-      final advList = chartData['advance'] ?? [];
-      final resList = chartData['reservation'] ?? [];
-      for (int i = 0; i < regList.length; i++) {
-        double total = 0.0;
-        if (activeStreams.contains('Regular')) {
-          total += regList[i];
-        }
-        if (activeStreams.contains('Advance')) {
-          total += i < advList.length ? advList[i] : 0.0;
-        }
-        if (activeStreams.contains('Reservation')) {
-          total += i < resList.length ? resList[i] : 0.0;
-        }
-        if (total > maxVal) {
-          maxVal = total;
-        }
-      }
-      return maxVal;
-    })();
-
-    final List<String> labels = getChartLabels();
-    final int dataLength = chartData['regular']?.length ?? 0;
-    final List<_SalesReportData> chartList = List.generate(dataLength, (i) {
-      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
-      final reg = i < chartData['regular']!.length ? chartData['regular']![i] : 0.0;
-      final adv = i < chartData['advance']!.length ? chartData['advance']![i] : 0.0;
-      final res = i < chartData['reservation']!.length ? chartData['reservation']![i] : 0.0;
-      return _SalesReportData(label, reg, adv, res);
-    });
-
-    return SfCartesianChart(
-      plotAreaBorderWidth: 0,
-      margin: EdgeInsets.zero,
-      tooltipBehavior: TooltipBehavior(
-        enable: true,
-        activationMode: ActivationMode.singleTap,
-        builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-          final _SalesReportData item = data;
-          double totalVal = 0.0;
-          List<Widget> children = [];
-
-          if (activeStreams.contains('Regular')) {
-            totalVal += item.regular;
-            children.add(
-              Text(
-                'Regular: ${_currencyFormat.format(item.regular)}',
-                style: const TextStyle(color: AppTheme.infoBlue, fontSize: 11),
-              ),
-            );
-          }
-          if (activeStreams.contains('Advance')) {
-            totalVal += item.advance;
-            children.add(
-              Text(
-                'Advance: ${_currencyFormat.format(item.advance)}',
-                style: const TextStyle(color: AppTheme.successGreen, fontSize: 11),
-              ),
-            );
-          }
-          if (activeStreams.contains('Reservation')) {
-            totalVal += item.reservation;
-            children.add(
-              Text(
-                'Reservation: ${_currencyFormat.format(item.reservation)}',
-                style: const TextStyle(color: Color(0xFFC084FC), fontSize: 11),
-              ),
-            );
-          }
-
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.darkGrey,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                ...children,
-                const Divider(color: Colors.white24, height: 8),
-                Text(
-                  'Total: ${_currencyFormat.format(totalVal)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-      primaryXAxis: CategoryAxis(
-        majorGridLines: const MajorGridLines(width: 0),
-        labelStyle: const TextStyle(
-          color: AppTheme.adminSecondaryText,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-        axisLine: const AxisLine(width: 1, color: Colors.white10),
-      ),
-      primaryYAxis: NumericAxis(
-        axisLine: const AxisLine(width: 0),
-        labelStyle: const TextStyle(
-          color: AppTheme.adminSecondaryText,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-        numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
-        majorGridLines: MajorGridLines(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1,
-          dashArray: const [3, 3],
-        ),
-        maximum: (maxCombinedValue * 1.2).clamp(1000.0, 10000000.0),
-      ),
-      series: <CartesianSeries<_SalesReportData, String>>[
-        if (activeStreams.contains('Regular'))
-          StackedColumnSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.regular,
-            name: 'Regular Orders',
-            color: AppTheme.infoBlue,
-            width: 0.6,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
-            ),
-            animationDuration: 1000,
-          ),
-        if (activeStreams.contains('Advance'))
-          StackedColumnSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.advance,
-            name: 'Advance Orders',
-            color: AppTheme.successGreen,
-            width: 0.6,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
-            ),
-            animationDuration: 1000,
-          ),
-        if (activeStreams.contains('Reservation'))
-          StackedColumnSeries<_SalesReportData, String>(
-            dataSource: chartList,
-            xValueMapper: (_SalesReportData data, _) => data.label,
-            yValueMapper: (_SalesReportData data, _) => data.reservation,
-            name: 'Event Reservations',
-            color: const Color(0xFF8B5CF6),
-            width: 0.6,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
-            ),
-            animationDuration: 1000,
-          ),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem(String label, String streamKey, Color color) {
+  Widget _buildStreamFilterPill(String label, String streamKey, Color color) {
     final isActive = activeStreams.contains(streamKey);
     return GestureDetector(
       onTap: () {
@@ -1859,7 +1853,7 @@ class _SalesReportPageState extends State<SalesReportPage>
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('At least one data stream must be selected.'),
+                  content: Text('At least one sales stream must be selected.'),
                   duration: Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -1872,534 +1866,869 @@ class _SalesReportPageState extends State<SalesReportPage>
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isActive ? color.withValues(alpha: 0.15) : const Color(0xFF0F172A),
+          color: isActive ? color.withValues(alpha: 0.12) : AppTheme.adminMainBackground,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isActive ? color.withValues(alpha: 0.4) : const Color(0xFF1E293B),
-            width: 1.5,
+            color: isActive ? color : AppTheme.cardBorder,
+            width: 1.2,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 10,
-              height: 10,
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
-                color: isActive ? color : AppTheme.adminSecondaryText,
+                color: isActive ? color : AppTheme.mediumGrey,
                 shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
-                color: isActive ? AppTheme.adminPrimaryText : AppTheme.adminSecondaryText,
+                fontSize: 11.5,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                color: isActive ? color : AppTheme.adminSecondaryText,
               ),
             ),
             if (isActive) ...[
               const SizedBox(width: 4),
-              Icon(Icons.check_rounded, size: 12, color: color),
-            ]
+              Icon(Icons.check, size: 12, color: color),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _transactionsSection(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    
+  Widget _buildChartTypeToggle() {
     return Container(
-      padding: EdgeInsets.all(isMobile ? AppTheme.lg : AppTheme.xxl),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      padding: const EdgeInsets.all(2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _chartTypeOption('Area', Icons.show_chart_rounded),
+          _chartTypeOption('Bar', Icons.bar_chart_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _chartTypeOption(String type, IconData icon) {
+    final isSelected = selectedChartType == type;
+    return GestureDetector(
+      onTap: () => setState(() => selectedChartType = type),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isSelected ? AppTheme.adminSidebarBackground : AppTheme.mediumGrey),
+            const SizedBox(width: 4),
+            Text(
+              type,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppTheme.adminSidebarBackground : AppTheme.mediumGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── 4. Location Sales Forecasting Card ───────────────────────────────────────
+  Widget _buildLocationForecastingCard() {
+    final topLocations = _locationData.take(5).toList();
+    final double totalRevenueSum = topLocations.fold<double>(
+      0.0,
+      (sum, loc) => sum + ((loc['total_revenue'] as num?)?.toDouble() ?? 0.0),
+    );
+
+    final colors = [
+      AppTheme.adminSidebarBackground,
+      AppTheme.warmGold,
+      AppTheme.infoBlue,
+      const Color(0xFF8B5CF6),
+      const Color(0xFF06B6D4),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.03),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Recent Transactions',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.darkGrey,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 18, color: AppTheme.adminPrimaryAccent),
+                  SizedBox(width: 8),
+                  Text(
+                    'Cities Sales Distribution',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                   ),
+                ],
+              ),
+              _buildLocationPeriodDropdown(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (topLocations.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.location_off_outlined, color: AppTheme.mediumGrey, size: 36),
+                    SizedBox(height: 8),
+                    Text('No customer location data recorded for this range.', style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12)),
+                  ],
                 ),
-                const SizedBox(height: AppTheme.lg),
-                _transactionFilters(transactions, metrics, isVertical: true),
-              ],
+              ),
             )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Recent Transactions',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.darkGrey,
+          else ...[
+            SizedBox(
+              height: 160,
+              child: SfCircularChart(
+                margin: EdgeInsets.zero,
+                series: <CircularSeries<_LocationPieData, String>>[
+                  DoughnutSeries<_LocationPieData, String>(
+                    dataSource: topLocations.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final loc = entry.value;
+                      final rev = (loc['total_revenue'] as num?)?.toDouble() ?? 0.0;
+                      final pct = totalRevenueSum > 0 ? (rev / totalRevenueSum) * 100 : 0.0;
+                      return _LocationPieData(
+                        loc['location']?.toString() ?? 'City',
+                        rev,
+                        '${pct.toStringAsFixed(1)}%',
+                        colors[i % colors.length],
+                      );
+                    }).toList(),
+                    xValueMapper: (_LocationPieData d, _) => d.location,
+                    yValueMapper: (_LocationPieData d, _) => d.count,
+                    pointColorMapper: (_LocationPieData d, _) => d.color,
+                    innerRadius: '65%',
+                    radius: '95%',
+                    dataLabelSettings: const DataLabelSettings(
+                      isVisible: true,
+                      labelPosition: ChartDataLabelPosition.outside,
+                      textStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText),
                     ),
+                    dataLabelMapper: (_LocationPieData d, _) => d.percentage,
                   ),
-                ),
-                _transactionFilters(transactions, metrics),
-              ],
+                ],
+              ),
             ),
-          const SizedBox(height: AppTheme.xxl),
-          _transactionsTable(transactions),
+            const SizedBox(height: 16),
+            // Ranked Leaderboard
+            ...topLocations.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final loc = entry.value;
+              final rev = (loc['total_revenue'] as num?)?.toDouble() ?? 0.0;
+              final orderCount = loc['order_count'] ?? 0;
+              final pct = totalRevenueSum > 0 ? (rev / totalRevenueSum) : 0.0;
+              final color = colors[idx % colors.length];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '#${idx + 1}',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: color),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            loc['location']?.toString() ?? 'Unknown',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '$orderCount orders • ${_currencyFormat.format(rev)}',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.adminSecondaryText),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: pct.clamp(0.0, 1.0),
+                        backgroundColor: AppTheme.adminMainBackground,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                        minHeight: 5,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );
   }
 
-  Widget _transactionFilters(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics, {bool isVertical = false}) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    
-    if (isVertical || isMobile) {
-      return SizedBox(
-        width: double.infinity,
-        child: TextButton.icon(
-          onPressed: () {
-            final filteredTransactions = transactions.where((t) {
-              if (_statusFilter == 'All Status') return true;
-              return t['status'] == _statusFilter;
-            }).toList();
-            _exportToCSV(
-              filteredTransactions,
-              'Transactions_${_statusFilter.replaceAll(' ', '_')}',
-              metrics: metrics,
-            );
+  Widget _buildLocationPeriodDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          focusNode: _locationPeriodFocusNode,
+          value: _locationPeriod,
+          dropdownColor: Colors.white,
+          isDense: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppTheme.darkGrey),
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+          items: ['All Time', 'Today', 'This Week', 'This Month', 'This Year']
+              .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+              .toList(),
+          onChanged: (v) {
+            _locationPeriodFocusNode.unfocus();
+            if (v != null && mounted) {
+              setState(() => _locationPeriod = v);
+              _fetchLocationData();
+            }
           },
-          icon: const Icon(Icons.file_download_rounded, size: 18),
-          label: const Text('Download CSV'),
-          style: TextButton.styleFrom(foregroundColor: AppTheme.mediumGrey),
         ),
-      );
-    }
-    
-    return TextButton.icon(
-      onPressed: () {
-        final filteredTransactions = transactions.where((t) {
-          if (_statusFilter == 'All Status') return true;
-          return t['status'] == _statusFilter;
-        }).toList();
-        _exportToCSV(
-          filteredTransactions,
-          'Transactions_${_statusFilter.replaceAll(' ', '_')}',
-          metrics: metrics,
-        );
-      },
-      icon: const Icon(Icons.file_download_rounded, size: 18),
-      label: const Text('Download CSV'),
-      style: TextButton.styleFrom(foregroundColor: AppTheme.mediumGrey),
+      ),
     );
   }
 
-  Widget _transactionsTable(List<Map<String, dynamic>> transactions) {
-    // Apply UI Level Filtering
-    final filteredTransactions = transactions.where((t) {
-      // Status Filter
-      bool matchesStatus = _statusFilter == 'All Status' || t['status'] == _statusFilter;
-      
-      // Search Filter
-      String query = _searchController.text.toLowerCase().trim();
-      if (query.isEmpty) return matchesStatus;
-
-      // Extract raw data for searching (remove # and ₱ etc)
-      String id = t['id'].toString().toLowerCase().replaceAll('#', '');
-      String customer = t['customer'].toString().toLowerCase();
-      String type = t['type'].toString().toLowerCase();
-      String date = t['date'].toString().toLowerCase();
-      
-      // Search by ID, Customer Name, Transaction Type (Regular, Advance, Reservation), and Date
-      bool matchesSearch = id.contains(query) || 
-                          customer.contains(query) || 
-                          type.contains(query) ||
-                          date.contains(query);
-          
-      return matchesStatus && matchesSearch;
-    }).toList();
-
-    // Calculate pagination
-    final totalPages = (filteredTransactions.length / _itemsPerPage).ceil();
-    final startIndex = (_currentPage - 1) * _itemsPerPage;
-    final paginatedTransactions = filteredTransactions.skip(startIndex).take(_itemsPerPage).toList();
-
-    return Column(
-      children: [
-        if (ResponsiveUtils.isMobile(context))
-          Column(
+  // ── 5. Channel Performance Deep-Dive Card ────────────────────────────────────
+  Widget _buildChannelDeepDiveCard(
+    double advanceRevenue,
+    int advanceCompleted,
+    double advanceCancelRate,
+    Map<String, int> popularAdvanceItems,
+    double eventRevenue,
+    int eventCompleted,
+    double eventCancelRate,
+    Map<String, int> popularEventTypes,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: const InputDecoration(
-                    hintText: 'Search transactions...',
-                    hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
-                    prefixIcon: Icon(Icons.search_rounded, color: AppTheme.mediumGrey, size: 18),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppTheme.lg),
-              Row(
+              const Row(
                 children: [
-                  Text('Filter by:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: AppTheme.md),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          focusNode: _statusDropdownFocusNodeMobile,
-                          value: _statusFilter,
-                          isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
-                          dropdownColor: Colors.white,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.darkGrey,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
-                              .toList(),
-                          onChanged: (v) {
-                            _statusDropdownFocusNodeMobile.unfocus();
-                            if (mounted) {
-                              setState(() {
-                                _statusFilter = v!;
-                                _currentPage = 1;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.md),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          focusNode: _transactionPeriodFocusNodeMobile,
-                          value: _transactionPeriod,
-                          isExpanded: true,
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
-                          dropdownColor: Colors.white,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.darkGrey,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
-                              .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
-                              .toList(),
-                          onChanged: (v) {
-                            _transactionPeriodFocusNodeMobile.unfocus();
-                            if (mounted) {
-                              setState(() {
-                                _transactionPeriod = v!;
-                                _currentPage = 1;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
+                  Icon(Icons.layers_outlined, size: 18, color: AppTheme.advanceOrderGreen),
+                  SizedBox(width: 8),
+                  Text(
+                    'Channel Performance Velocity',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
                   ),
                 ],
               ),
-            ],
-          )
-        else
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: const InputDecoration(
-                      hintText: 'Search transactions...',
-                      hintStyle: TextStyle(color: AppTheme.mediumGrey, fontSize: 13),
-                      prefixIcon: Icon(Icons.search_rounded, color: AppTheme.mediumGrey, size: 18),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _currentPage = 1; // Reset to first page when search changes
-                      });
-                    },
-                  ),
+              IconButton(
+                onPressed: () => setState(() => _showEventReservationPerformance = !_showEventReservationPerformance),
+                icon: Icon(
+                  _showEventReservationPerformance ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                  color: AppTheme.adminSecondaryText,
+                  size: 20,
                 ),
-              ),
-              const SizedBox(width: AppTheme.lg),
-              Text('Filter by:', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600)),
-              const SizedBox(width: AppTheme.md),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    focusNode: _statusDropdownFocusNodeDesktop,
-                    value: _statusFilter,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
-                    dropdownColor: Colors.white,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.darkGrey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    items: ['All Status', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
-                        .toList(),
-                    onChanged: (v) {
-                      _statusDropdownFocusNodeDesktop.unfocus();
-                      if (mounted) {
-                        setState(() {
-                          _statusFilter = v!;
-                          _currentPage = 1;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppTheme.md),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppTheme.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    focusNode: _transactionPeriodFocusNodeDesktop,
-                    value: _transactionPeriod,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.mediumGrey),
-                    dropdownColor: Colors.white,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.darkGrey,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))))
-                        .toList(),
-                    onChanged: (v) {
-                      _transactionPeriodFocusNodeDesktop.unfocus();
-                      if (mounted) {
-                        setState(() {
-                          _transactionPeriod = v!;
-                          _currentPage = 1;
-                        });
-                      }
-                    },
-                  ),
-                ),
+                tooltip: 'Toggle Details',
               ),
             ],
           ),
-        const SizedBox(height: AppTheme.xxl),
-        if (filteredTransactions.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Text(
-              _statusFilter == 'All Status' 
-                ? 'No transactions found' 
-                : 'No ${_statusFilter.toLowerCase()} transactions found', 
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.mediumGrey)
+          const SizedBox(height: 16),
+
+          // Advance Orders Summary
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.advanceOrderGreen.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.advanceOrderGreen.withValues(alpha: 0.15)),
             ),
-          )
-        else
-          Column(
-            children: [
-              if (ResponsiveUtils.isMobile(context))
-                ...paginatedTransactions.map((t) => _transactionCard(t))
-              else
-                Column(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _transactionTableHeader(),
-                    const Divider(height: AppTheme.xxl, color: AppTheme.lightGrey),
-                    ...paginatedTransactions.map((t) => _transactionRow(t)),
+                    const Row(
+                      children: [
+                        Icon(Icons.inventory_rounded, size: 16, color: AppTheme.advanceOrderGreen),
+                        SizedBox(width: 6),
+                        Text('Advance Orders Channel', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
+                      ],
+                    ),
+                    Text(_currencyFormat.format(advanceRevenue), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.advanceOrderGreen)),
                   ],
                 ),
-              const SizedBox(height: AppTheme.xl),
-              if (totalPages > 1)
-                _paginationControls(totalPages, filteredTransactions.length),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _transactionTableHeader() {
-    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: AppTheme.mediumGrey,
-      fontWeight: FontWeight.bold,
-      fontSize: 11,
-      letterSpacing: 0.5,
-    );
-    return Row(
-      children: [
-        Expanded(flex: 1, child: Text('ID', style: style)),
-        Expanded(flex: 2, child: Text('CUSTOMER', style: style)),
-        Expanded(flex: 2, child: Text('TYPE', style: style)),
-        Expanded(flex: 3, child: Text('ITEMS', style: style)),
-        Expanded(flex: 2, child: Text('DATE', style: style)),
-        Expanded(flex: 1, child: Text('AMOUNT', style: style)),
-        Expanded(flex: 1, child: Text('STATUS', style: style)),
-      ],
-    );
-  }
-
-  Widget _transactionRow(Map<String, dynamic> t) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 1,
-            child: Text(
-              t['id'],
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkGrey,
-                fontSize: 12,
-              ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _buildMicroMetric('Completed', '$advanceCompleted orders', Icons.check_circle_outline, AppTheme.successGreen),
+                    const SizedBox(width: 16),
+                    _buildMicroMetric('Cancellation', '${advanceCancelRate.toStringAsFixed(1)}%', Icons.cancel_outlined, advanceCancelRate > 10 ? AppTheme.errorRed : AppTheme.mediumGrey),
+                  ],
+                ),
+                if (popularAdvanceItems.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text('Top Pre-Ordered Items:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.adminSecondaryText)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: (popularAdvanceItems.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+                        .take(4)
+                        .map((e) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppTheme.cardBorder),
+                              ),
+                              child: Text(
+                                '${e.key} (${e.value})',
+                                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(height: 14),
+
+          // Event Catering Summary
+          if (_showEventReservationPerformance)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.reservationPurple.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.reservationPurple.withValues(alpha: 0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.celebration_rounded, size: 16, color: AppTheme.reservationPurple),
+                          SizedBox(width: 6),
+                          Text('Event Catering Channel', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
+                        ],
+                      ),
+                      Text(_currencyFormat.format(eventRevenue), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.reservationPurple)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildMicroMetric('Events Hosted', '$eventCompleted confirmed', Icons.event_available, AppTheme.reservationPurple),
+                      const SizedBox(width: 16),
+                      _buildMicroMetric('Cancellation', '${eventCancelRate.toStringAsFixed(1)}%', Icons.cancel_outlined, eventCancelRate > 10 ? AppTheme.errorRed : AppTheme.mediumGrey),
+                    ],
+                  ),
+                  if (popularEventTypes.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text('Top Event Categories:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.adminSecondaryText)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: (popularEventTypes.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+                          .take(4)
+                          .map((e) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.cardBorder),
+                                ),
+                                child: Text(
+                                  '${e.key} (${e.value})',
+                                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMicroMetric(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 5),
+        Text('$label: ', style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+        Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  // ── 6. Transactions & Ledger Table Section ──────────────────────────────────
+  Widget _buildTransactionsLedgerSection(List<Map<String, dynamic>> transactions, Map<String, dynamic> metrics) {
+    final now = DateTime.now();
+
+    // Filtering logic
+    final filtered = transactions.where((t) {
+      // 1. Channel filter
+      if (_channelFilter != 'All Channels' && t['type'] != _channelFilter) {
+        return false;
+      }
+
+      // 2. Status filter
+      if (_statusFilter != 'All Status') {
+        final st = t['status']?.toString().toLowerCase() ?? '';
+        final target = _statusFilter.toLowerCase();
+        if (!st.contains(target)) return false;
+      }
+
+      // 3. Time filter
+      final date = t['raw_date'] as DateTime?;
+      if (date != null) {
+        if (_transactionPeriod == 'Daily') {
+          if (date.year != now.year || date.month != now.month || date.day != now.day) return false;
+        } else if (_transactionPeriod == 'Weekly') {
+          if (now.difference(date).inDays > 7) return false;
+        } else if (_transactionPeriod == 'Monthly') {
+          if (date.year != now.year || date.month != now.month) return false;
+        } else if (_transactionPeriod == 'Yearly') {
+          if (date.year != now.year) return false;
+        }
+      }
+
+      // 4. Search Query
+      final q = _searchController.text.trim().toLowerCase();
+      if (q.isNotEmpty) {
+        final id = t['id']?.toString().toLowerCase() ?? '';
+        final cust = t['customer']?.toString().toLowerCase() ?? '';
+        final type = t['type']?.toString().toLowerCase() ?? '';
+        if (!id.contains(q) && !cust.contains(q) && !type.contains(q)) return false;
+      }
+
+      return true;
+    }).toList();
+
+    final totalPages = (filtered.length / _itemsPerPage).ceil();
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final paginated = filtered.skip(startIndex).take(_itemsPerPage).toList();
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.cardBorder, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title & Toolbar
+          if (isMobile) ...[
+            const Text(
+              'Sales Transaction Ledger',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+            ),
+            const SizedBox(height: 12),
+            _buildSearchInput(),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildChannelFilterDropdown(),
+                _buildStatusFilterDropdown(),
+                _buildTransactionPeriodDropdown(),
+              ],
+            ),
+          ] else
+            Row(
+              children: [
+                const Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sales Transaction Ledger',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                      ),
+                      SizedBox(height: 2),
+                      Text('Complete audit trail of processed food orders and events', style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
+                    ],
+                  ),
+                ),
+                Expanded(flex: 3, child: _buildSearchInput()),
+                const SizedBox(width: 8),
+                _buildChannelFilterDropdown(),
+                const SizedBox(width: 8),
+                _buildStatusFilterDropdown(),
+                const SizedBox(width: 8),
+                _buildTransactionPeriodDropdown(),
+              ],
+            ),
+          const SizedBox(height: 20),
+
+          // Table / Cards View
+          if (filtered.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.search_off_rounded, size: 40, color: AppTheme.mediumGrey.withValues(alpha: 0.5)),
+                    const SizedBox(height: 12),
+                    const Text('No transactions match the selected filters or search keyword.', style: TextStyle(color: AppTheme.adminSecondaryText, fontSize: 13)),
+                  ],
+                ),
+              ),
+            )
+          else if (isMobile)
+            ...paginated.map((t) => _buildMobileTransactionCard(t))
+          else
+            Column(
+              children: [
+                _buildDesktopTableHeader(),
+                const Divider(height: 1, color: AppTheme.cardBorder),
+                ...paginated.map((t) => _buildDesktopTableRow(t)),
+              ],
+            ),
+
+          // Pagination
+          if (totalPages > 1) ...[
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: AppTheme.cardBorder),
+            const SizedBox(height: 16),
+            _buildPaginationBar(totalPages, filtered.length),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchInput() {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(fontSize: 13),
+        decoration: InputDecoration(
+          hintText: 'Search by Ref ID, Customer...',
+          hintStyle: const TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
+          prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.mediumGrey, size: 18),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 16, color: AppTheme.mediumGrey),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelFilterDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          focusNode: _channelDropdownFocusNode,
+          value: _channelFilter,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppTheme.darkGrey),
+          dropdownColor: Colors.white,
+          isDense: true,
+          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+          items: ['All Channels', 'Regular', 'Advance', 'Reservation']
+              .map((c) => DropdownMenuItem(value: c, child: Text(c == 'Regular' ? 'Walk-in' : c == 'Reservation' ? 'Event' : c)))
+              .toList(),
+          onChanged: (v) {
+            _channelDropdownFocusNode.unfocus();
+            if (v != null && mounted) setState(() { _channelFilter = v; _currentPage = 1; });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusFilterDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          focusNode: _statusDropdownFocusNode,
+          value: _statusFilter,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppTheme.darkGrey),
+          dropdownColor: Colors.white,
+          isDense: true,
+          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+          items: ['All Status', 'Completed', 'Ready', 'Pending', 'Confirmed', 'Cancelled']
+              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+              .toList(),
+          onChanged: (v) {
+            _statusDropdownFocusNode.unfocus();
+            if (v != null && mounted) setState(() { _statusFilter = v; _currentPage = 1; });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionPeriodDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          focusNode: _transactionPeriodFocusNode,
+          value: _transactionPeriod,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppTheme.darkGrey),
+          dropdownColor: Colors.white,
+          isDense: true,
+          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
+          items: ['All Time', 'Daily', 'Weekly', 'Monthly', 'Yearly']
+              .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+              .toList(),
+          onChanged: (v) {
+            _transactionPeriodFocusNode.unfocus();
+            if (v != null && mounted) setState(() { _transactionPeriod = v; _currentPage = 1; });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopTableHeader() {
+    const style = TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.adminSecondaryText, letterSpacing: 0.5);
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: Text('TRANSACTION REF', style: style)),
+          Expanded(flex: 3, child: Text('CUSTOMER', style: style)),
+          Expanded(flex: 2, child: Text('CHANNEL', style: style)),
+          Expanded(flex: 3, child: Text('DATE & TIME', style: style)),
+          Expanded(flex: 2, child: Text('AMOUNT', style: style)),
+          Expanded(flex: 2, child: Text('STATUS', style: style)),
+          SizedBox(width: 80, child: Text('ACTION', textAlign: TextAlign.right, style: style)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopTableRow(Map<String, dynamic> t) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.adminMainBackground, width: 1)),
+      ),
+      child: Row(
+        children: [
+          // Ref ID
           Expanded(
             flex: 2,
+            child: Text(
+              t['id'],
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.adminPrimaryText),
+            ),
+          ),
+          // Customer
+          Expanded(
+            flex: 3,
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
-                  child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 9, fontWeight: FontWeight.bold)),
+                  backgroundColor: (t['color'] as Color).withValues(alpha: 0.12),
+                  child: Text(
+                    t['initials'],
+                    style: TextStyle(color: t['color'], fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     t['customer'],
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.darkGrey,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppTheme.adminPrimaryText),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
           ),
+          // Channel
           Expanded(
             flex: 2,
-            child: _typeBadge(t['type'] ?? 'Regular'),
+            child: _typeBadge(t['type']),
           ),
+          // Date
           Expanded(
             flex: 3,
-            child: Builder(
-              builder: (context) {
-                return _ItemsDisplay(
-                  orderId: t['db_id'],
-                  type: t['type'] ?? 'Regular',
-                  selectedMenuItems: t['selected_menu_items'],
-                );
-              },
+            child: Text(
+              t['full_date'] ?? t['date'],
+              style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
             ),
           ),
+          // Amount
           Expanded(
             flex: 2,
             child: Text(
-              t['date'],
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.mediumGrey,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Text(
               t['amount'],
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppTheme.darkGrey,
-                fontSize: 12,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText),
             ),
           ),
+          // Status
           Expanded(
-            flex: 1,
+            flex: 2,
             child: _statusBadge(t['status']),
+          ),
+          // Action Button
+          SizedBox(
+            width: 80,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: InkWell(
+                onTap: () => _showReceiptModal(context, t),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.adminSidebarBackground.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.visibility_outlined, size: 12, color: AppTheme.adminSidebarBackground),
+                      SizedBox(width: 4),
+                      Text('View', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _transactionCard(Map<String, dynamic> t) {
+  Widget _buildMobileTransactionCard(Map<String, dynamic> t) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.lightGrey, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppTheme.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2410,67 +2739,40 @@ class _SalesReportPageState extends State<SalesReportPage>
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 16,
-                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.1),
-                    child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 12, fontWeight: FontWeight.bold)),
+                    radius: 14,
+                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.12),
+                    child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        t['customer'],
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.darkGrey,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text(
-                        t['id'],
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.mediumGrey,
-                        ),
-                      ),
+                      Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.adminPrimaryText)),
+                      Text(t['id'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
                     ],
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  _typeBadge(t['type'] ?? 'Regular'),
-                  const SizedBox(width: 8),
-                  _statusBadge(t['status']),
-                ],
-              ),
+              _statusBadge(t['status']),
             ],
-          ),
-          const SizedBox(height: 12),
-          Builder(
-            builder: (context) {
-              return _ItemsDisplay(
-                orderId: t['db_id'],
-                type: t['type'] ?? 'Regular',
-                selectedMenuItems: t['selected_menu_items'],
-              );
-            },
           ),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                t['date'],
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.mediumGrey,
-                ),
-              ),
-              Text(
-                t['amount'],
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.darkGrey,
-                ),
+              _typeBadge(t['type']),
+              Text(t['amount'], style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.adminPrimaryText)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(t['full_date'] ?? t['date'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+              TextButton(
+                onPressed: () => _showReceiptModal(context, t),
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 20)),
+                child: const Text('View Details', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppTheme.adminSidebarBackground)),
               ),
             ],
           ),
@@ -2482,30 +2784,39 @@ class _SalesReportPageState extends State<SalesReportPage>
   Widget _typeBadge(String type) {
     Color bg;
     Color textColor;
-    String label;
+    IconData icon;
+    String label = type;
+
     switch (type) {
       case 'Advance':
-        bg = AppTheme.successGreen.withValues(alpha: 0.1);
-        textColor = AppTheme.successGreen;
+        bg = AppTheme.advanceOrderGreen.withValues(alpha: 0.1);
+        textColor = AppTheme.advanceOrderGreen;
+        icon = Icons.inventory_2_outlined;
         label = 'Advance';
         break;
       case 'Reservation':
-        bg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-        textColor = const Color(0xFF8B5CF6);
-        label = 'Event Reservation';
+        bg = AppTheme.reservationPurple.withValues(alpha: 0.1);
+        textColor = AppTheme.reservationPurple;
+        icon = Icons.celebration_outlined;
+        label = 'Event Catering';
         break;
       default:
-        bg = AppTheme.infoBlue.withValues(alpha: 0.1);
-        textColor = AppTheme.infoBlue;
-        label = 'Regular';
+        bg = AppTheme.regularOrderBlue.withValues(alpha: 0.1);
+        textColor = AppTheme.regularOrderBlue;
+        icon = Icons.storefront_outlined;
+        label = 'Walk-in';
     }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(
-        label,
-        style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
-        overflow: TextOverflow.ellipsis,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: textColor),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(color: textColor, fontSize: 10.5, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
@@ -2513,1176 +2824,75 @@ class _SalesReportPageState extends State<SalesReportPage>
   Widget _statusBadge(String status) {
     Color bg;
     Color text;
-    switch (status) {
-      case 'Ready':
-      case 'Done':
-        bg = AppTheme.successGreen.withValues(alpha: 0.1);
-        text = AppTheme.successGreen;
-        status = 'Ready';
-        break;
-      case 'Preparing':
-        bg = AppTheme.infoBlue.withValues(alpha: 0.1);
-        text = AppTheme.infoBlue;
-        break;
-      case 'Pending':
-        bg = AppTheme.warningOrange.withValues(alpha: 0.1);
-        text = AppTheme.warningOrange;
-        break;
-      case 'Confirmed':
-        bg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
-        text = const Color(0xFF8B5CF6);
-        break;
-      case 'Cancelled':
-        bg = AppTheme.errorRed.withValues(alpha: 0.1);
-        text = AppTheme.errorRed;
-        break;
-      default:
-        bg = AppTheme.lightGrey;
-        text = AppTheme.mediumGrey;
+    String normalized = status.toLowerCase();
+
+    if (normalized.contains('done') || normalized.contains('complete') || normalized.contains('ready') || normalized.contains('paid')) {
+      bg = AppTheme.successGreen.withValues(alpha: 0.12);
+      text = AppTheme.successGreen;
+    } else if (normalized.contains('confirm')) {
+      bg = AppTheme.reservationPurple.withValues(alpha: 0.12);
+      text = AppTheme.reservationPurple;
+    } else if (normalized.contains('pending') || normalized.contains('prep')) {
+      bg = AppTheme.warningOrange.withValues(alpha: 0.12);
+      text = AppTheme.warningOrange;
+    } else if (normalized.contains('cancel')) {
+      bg = AppTheme.errorRed.withValues(alpha: 0.12);
+      text = AppTheme.errorRed;
+    } else {
+      bg = AppTheme.cardBorder;
+      text = AppTheme.darkGrey;
     }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(
         status,
-        style: TextStyle(color: text, fontSize: 11, fontWeight: FontWeight.bold),
+        style: TextStyle(color: text, fontSize: 10.5, fontWeight: FontWeight.bold),
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  Widget _paginationControls(int totalPages, int totalItems) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    final startItem = (_currentPage - 1) * _itemsPerPage + 1;
-    final endItem = (_currentPage * _itemsPerPage).clamp(1, totalItems);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.lightGrey, width: 1.5),
-      ),
-      child: Column(
-        children: [
-          // Page info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Showing $startItem-$endItem of $totalItems transactions',
-                style: const TextStyle(
-                  color: AppTheme.mediumGrey,
-                  fontSize: 12,
-                ),
-              ),
-              if (!isMobile)
-                Text(
-                  'Page $_currentPage of $totalPages',
-                  style: const TextStyle(
-                    color: AppTheme.mediumGrey,
-                    fontSize: 12,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Page navigation
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Previous button
-              IconButton(
-                onPressed: _currentPage > 1
-                    ? () => setState(() => _currentPage--)
-                    : null,
-                icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                style: IconButton.styleFrom(
-                  backgroundColor: _currentPage > 1
-                      ? Theme.of(context).primaryColor
-                      : AppTheme.lightGrey,
-                  foregroundColor: _currentPage > 1
-                      ? Colors.white
-                      : AppTheme.mediumGrey,
-                  minimumSize: const Size(36, 36),
-                ),
-              ),
-              
-              // Page numbers (show max 5 pages)
-              if (!isMobile) ...[
-                const SizedBox(width: 8),
-                ..._buildPageNumbers(totalPages),
-                const SizedBox(width: 8),
-              ],
-              
-              // Next button
-              IconButton(
-                onPressed: _currentPage < totalPages
-                    ? () => setState(() => _currentPage++)
-                    : null,
-                icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                style: IconButton.styleFrom(
-                  backgroundColor: _currentPage < totalPages
-                      ? Theme.of(context).primaryColor
-                      : AppTheme.lightGrey,
-                  foregroundColor: _currentPage < totalPages
-                      ? Colors.white
-                      : AppTheme.mediumGrey,
-                  minimumSize: const Size(36, 36),
-                ),
-              ),
-            ],
-          ),
-          
-          // Mobile page indicator
-          if (isMobile)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Page $_currentPage of $totalPages',
-                style: const TextStyle(
-                  color: AppTheme.mediumGrey,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+  Widget _buildPaginationBar(int totalPages, int totalItems) {
+    final start = (_currentPage - 1) * _itemsPerPage + 1;
+    final end = (_currentPage * _itemsPerPage).clamp(1, totalItems);
 
-  List<Widget> _buildPageNumbers(int totalPages) {
-    final List<Widget> pageNumbers = [];
-    final maxVisiblePages = 5;
-    
-    int startPage = 1;
-    int endPage = totalPages;
-    
-    if (totalPages > maxVisiblePages) {
-      final halfVisible = maxVisiblePages ~/ 2;
-      
-      if (_currentPage <= halfVisible) {
-        endPage = maxVisiblePages;
-      } else if (_currentPage >= totalPages - halfVisible) {
-        startPage = totalPages - maxVisiblePages + 1;
-      } else {
-        startPage = _currentPage - halfVisible;
-        endPage = _currentPage + halfVisible;
-      }
-    }
-    
-    for (int i = startPage; i <= endPage; i++) {
-      pageNumbers.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: InkWell(
-            onTap: () => setState(() => _currentPage = i),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: i == _currentPage
-                    ? Theme.of(context).primaryColor
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-                border: i == _currentPage
-                    ? null
-                    : Border.all(color: AppTheme.lightGrey, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  '$i',
-                  style: TextStyle(
-                    color: i == _currentPage
-                        ? Colors.white
-                        : AppTheme.mediumGrey,
-                    fontSize: 12,
-                    fontWeight: i == _currentPage
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return pageNumbers;
-  }
-
-  Widget _buildClickableSectionTitle(
-    BuildContext context,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: _showEventReservationPerformance
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 4,
-              height: 18,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppTheme.sm + 2),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.adminPrimaryText,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(width: AppTheme.sm),
-            Icon(
-              _showEventReservationPerformance
-                  ? Icons.keyboard_arrow_up_rounded
-                  : Icons.keyboard_arrow_down_rounded,
-              color: AppTheme.adminPrimaryText,
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6DD5FA), Color(0xFF2980B9)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppTheme.sm + 2),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.adminPrimaryText,
-            letterSpacing: -0.2,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLocationPeriodFilter() {
-    final periods = ['All Time', 'Today', 'This Week', 'This Month', 'This Year'];
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          focusNode: _locationPeriodFocusNode,
-          value: _locationPeriod,
-          dropdownColor: Colors.white,
-          isDense: true,
-          icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).primaryColor, size: 16),
-          style: const TextStyle(
-            color: AppTheme.darkGrey,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-          items: periods.map((period) {
-            return DropdownMenuItem<String>(
-              value: period,
-              child: Text(
-                period,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            _locationPeriodFocusNode.unfocus();
-            if (value != null && mounted) {
-              setState(() {
-                _locationPeriod = value;
-              });
-              _fetchLocationData();
-            }
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationPieChart() {
-    final topLocations = _locationData.take(8).toList();
-    final totalOrders = topLocations.fold<int>(0, (sum, loc) => sum + (loc['order_count'] as int));
-    
-    // Define colors for the chart
-    final colors = [
-      Theme.of(context).primaryColor,
-      AppTheme.successGreen,
-      AppTheme.warningOrange,
-      AppTheme.errorRed,
-      AppTheme.infoBlue,
-      const Color(0xFF06B6D4), // Cyan
-      const Color(0xFF8B5CF6), // Purple
-      const Color(0xFF84CC16), // Lime
-    ];
-
-    final isMobile = ResponsiveUtils.isMobile(context);
-    final chartHeight = isMobile ? 200.0 : 190.0;
-
-    // Reusable 2-Column Legend (IntrinsicHeight-safe layout using Row and Column)
-    Widget buildLegendGrid() {
-      final List<Widget> rows = [];
-      for (int i = 0; i < topLocations.length; i += 2) {
-        final location1 = topLocations[i];
-        final orderCount1 = location1['order_count'] as int;
-        final revenue1 = location1['total_revenue'] as double;
-        final color1 = colors[i % colors.length];
-
-        final location2 = (i + 1 < topLocations.length) ? topLocations[i + 1] : null;
-        final orderCount2 = location2 != null ? location2['order_count'] as int : 0;
-        final revenue2 = location2 != null ? location2['total_revenue'] as double : 0.0;
-        final color2 = location2 != null ? colors[(i + 1) % colors.length] : Colors.transparent;
-
-        rows.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: color1,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              location1['location'] as String,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                height: 1.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '$orderCount1 orders • ${_currencyFormat.format(revenue1)}',
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                color: AppTheme.mediumGrey,
-                                height: 1.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: location2 != null
-                      ? Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: color2,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    location2['location'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.1,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    '$orderCount2 orders • ${_currencyFormat.format(revenue2)}',
-                                    style: const TextStyle(
-                                      fontSize: 9.5,
-                                      color: AppTheme.mediumGrey,
-                                      height: 1.1,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : const SizedBox(),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: rows,
-      );
-    }
-
-    return Column(
-      children: [
-        // Pie Chart
-        SizedBox(
-          height: chartHeight,
-          child: SfCircularChart(
-            margin: EdgeInsets.zero,
-            series: <CircularSeries<_LocationPieData, String>>[
-              DoughnutSeries<_LocationPieData, String>(
-                dataSource: topLocations.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final location = entry.value;
-                  final orderCount = location['order_count'] as int;
-                  final percentage = totalOrders > 0 ? (orderCount / totalOrders) : 0.0;
-                  return _LocationPieData(
-                    location['location']?.toString() ?? '',
-                    orderCount.toDouble(),
-                    '${(percentage * 100).toStringAsFixed(1)}%',
-                    colors[index % colors.length],
-                  );
-                }).toList(),
-                xValueMapper: (_LocationPieData data, _) => data.location,
-                yValueMapper: (_LocationPieData data, _) => data.count,
-                pointColorMapper: (_LocationPieData data, _) => data.color,
-                innerRadius: '60%',
-                radius: '95%',
-                dataLabelSettings: const DataLabelSettings(
-                  isVisible: true,
-                  labelPosition: ChartDataLabelPosition.inside,
-                  textStyle: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                dataLabelMapper: (_LocationPieData data, _) => data.percentage,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Legend
-        buildLegendGrid(),
-      ],
-    );
-  }
-
-  Widget _buildAdvanceOrderPerformance(
-    BuildContext context,
-    double advanceOrderRevenueTotal,
-    int completedAdvanceOrdersCount,
-    double advanceCancellationRate,
-    Map<String, int> popularAdvanceItems,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.lg),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                'Total AO Revenue',
-                '₱${NumberFormat('#,##0.00').format(advanceOrderRevenueTotal)}',
-                Icons.account_balance_wallet_outlined,
-                Theme.of(context).primaryColor,
-              ),
-              _buildStatItem(
-                'AO Completed',
-                '$completedAdvanceOrdersCount',
-                Icons.check_circle_outline_rounded,
-                AppTheme.successGreen,
-              ),
-              _buildStatItem(
-                'Cancellation Rate',
-                '${advanceCancellationRate.toStringAsFixed(1)}%',
-                Icons.cancel_outlined,
-                AppTheme.errorRed,
-              ),
-            ],
-          ),
-          const Divider(height: 40, color: Colors.white10),
-          const Text(
-            'Popular Advance Order Items',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.adminPrimaryText,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (popularAdvanceItems.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No completed advance orders yet',
-                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
-                ),
-              ),
-            )
-          else
-            SizedBox(
-              height: 150, // Fixed height for scrollable list
-              child: ListView.builder(
-                itemCount: popularAdvanceItems.entries.length,
-                itemBuilder: (context, index) {
-                  final sortedEntries = popularAdvanceItems.entries.toList()
-                    ..sort((a, b) => b.value.compareTo(a.value));
-                  final e = sortedEntries[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      border: Border.all(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            e.key,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.adminPrimaryText,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${e.value} orders',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventReservationPerformance(
-    BuildContext context,
-    double eventReservationRevenueTotal,
-    int completedEventReservationsCount,
-    double eventCancellationRate,
-    Map<String, int> popularEventTypes,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.lg),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                'Total Event Revenue',
-                '₱${NumberFormat('#,##0.00').format(eventReservationRevenueTotal)}',
-                Icons.event_available_outlined,
-                const Color(0xFF8B5CF6),
-              ),
-              _buildStatItem(
-                'Events Completed',
-                '$completedEventReservationsCount',
-                Icons.celebration_outlined,
-                AppTheme.successGreen,
-              ),
-              _buildStatItem(
-                'Cancellation Rate',
-                '${eventCancellationRate.toStringAsFixed(1)}%',
-                Icons.cancel_outlined,
-                AppTheme.errorRed,
-              ),
-            ],
-          ),
-          const Divider(height: 40, color: Colors.white10),
-          const Text(
-            'Most Popular Event Types',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.adminPrimaryText,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (popularEventTypes.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No completed events yet',
-                  style: TextStyle(color: AppTheme.mediumGrey, fontSize: 12),
-                ),
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: (popularEventTypes.entries.toList()
-                    ..sort((a, b) => b.value.compareTo(a.value)))
-                  .take(7)
-                  .map((e) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            e.key,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.adminPrimaryText,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF8B5CF6),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              e.value.toString(),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  })
-                  .toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        Text('Showing $start-$end of $totalItems entries', style: const TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
         Row(
           children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.adminSecondaryText,
+            IconButton(
+              icon: const Icon(Icons.chevron_left_rounded, size: 18),
+              onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+              style: IconButton.styleFrom(
+                backgroundColor: _currentPage > 1 ? AppTheme.adminSidebarBackground : AppTheme.adminMainBackground,
+                foregroundColor: _currentPage > 1 ? Colors.white : AppTheme.mediumGrey,
+                minimumSize: const Size(32, 32),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('Page $_currentPage of $totalPages', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.chevron_right_rounded, size: 18),
+              onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
+              style: IconButton.styleFrom(
+                backgroundColor: _currentPage < totalPages ? AppTheme.adminSidebarBackground : AppTheme.adminMainBackground,
+                foregroundColor: _currentPage < totalPages ? Colors.white : AppTheme.mediumGrey,
+                minimumSize: const Size(32, 32),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppTheme.adminPrimaryText,
-          ),
-        ),
-      ],
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: AppTheme.adminCardBackground,
-      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.25),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
         ),
       ],
     );
   }
 }
 
-// ── Items Display Widget ─────────────────────────────────────────────────────
-class _ItemsDisplay extends StatelessWidget {
-  final String orderId;
-  final String type;
-  final Map<String, dynamic>? selectedMenuItems;
-
-  const _ItemsDisplay({
-    required this.orderId,
-    required this.type,
-    this.selectedMenuItems,
-  });
-
-  Future<List<Map<String, dynamic>>> _fetchItems() async {
-    try {
-      final response = await Supabase.instance.client
-          .from('order_items')
-          .select('item_name, quantity')
-          .eq('order_id', orderId);
-      
-      return List<Map<String, dynamic>>.from(response);
-    } catch (e) {
-      debugPrint('Error fetching items: $e');
-      return [];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if ((type == 'Advance' || type == 'Reservation') && selectedMenuItems != null) {
-      final itemsStr = selectedMenuItems!.entries
-          .map((e) => '${e.key} x${e.value}')
-          .join(', ');
-      
-      return Text(
-        itemsStr.isEmpty ? 'No items' : itemsStr,
-        style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchItems(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text(
-            'Loading...',
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
-          );
-        }
-        
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Text(
-            'No items',
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
-          );
-        }
-        
-        final items = snapshot.data!;
-        final itemsStr = items
-            .map((i) => '${i['item_name']} x${i['quantity']}')
-            .join(', ');
-        
-        return Text(
-          itemsStr,
-          style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        );
-      },
-    );
-  }
-}
-
-// ── Animated Summary Card Widget ───────────────────────────────────────────────
-class _AnimatedSummaryCard extends StatefulWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String growth;
-  final double width;
-
-  const _AnimatedSummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.growth,
-    required this.width,
-  });
-
-  @override
-  _AnimatedSummaryCardState createState() => _AnimatedSummaryCardState();
-}
-
-class _AnimatedSummaryCardState extends State<_AnimatedSummaryCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) {
-        if (mounted) setState(() => _isHovered = true);
-      },
-      onExit: (_) {
-        if (mounted) setState(() => _isHovered = false);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        width: widget.width,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: widget.color.withValues(alpha: _isHovered ? 0.3 : 0.1),
-            width: _isHovered ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: _isHovered ? 0.1 : 0.02),
-              blurRadius: _isHovered ? 20 : 8,
-              offset: Offset(0, _isHovered ? 8 : 4),
-            ),
-            if (_isHovered)
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.15),
-                blurRadius: 30,
-                offset: const Offset(0, 0),
-              ),
-          ],
-        ),
-        margin: EdgeInsets.only(
-          top: _isHovered ? 4.0 : 0.0,
-          bottom: _isHovered ? 0.0 : 4.0,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: _isHovered ? 0.2 : 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: _isHovered ? [
-                      BoxShadow(
-                        color: widget.color.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ] : null,
-                  ),
-                  child: Icon(
-                    widget.icon, 
-                    color: widget.color, 
-                    size: _isHovered ? 22 : 20,
-                  ),
-                ),
-                if (widget.growth.isNotEmpty)
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: widget.growth.contains('+') 
-                          ? const Color(0xFFF0FDF4)
-                          : const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: _isHovered ? [
-                        BoxShadow(
-                          color: widget.growth.contains('+') 
-                              ? const Color(0xFF16A34A).withValues(alpha: 0.2)
-                              : const Color(0xFFDC2626).withValues(alpha: 0.2),
-                          blurRadius: 6,
-                          offset: const Offset(0, 1),
-                        ),
-                      ] : null,
-                    ),
-                    child: Text(
-                      widget.growth,
-                      style: TextStyle(
-                        color: widget.growth.contains('+') 
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFFDC2626),
-                        fontSize: _isHovered ? 11 : 10,
-                        fontWeight: _isHovered ? FontWeight.w800 : FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: AppTheme.adminSecondaryText,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-              child: Text(widget.title.toUpperCase()),
-            ),
-            const SizedBox(height: 6),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: _isHovered ? 22 : 20,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.adminPrimaryText,
-                letterSpacing: _isHovered ? -1.2 : -1,
-              ),
-              child: Text(widget.value),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Animated Chart Widget ───────────────────────────────────────────────────
-class _AnimatedChart extends StatefulWidget {
-  final List<double> chartValues;
-
-  const _AnimatedChart({required this.chartValues});
-
-  @override
-  _AnimatedChartState createState() => _AnimatedChartState();
-}
-
-class _AnimatedChartState extends State<_AnimatedChart> 
-    with TickerProviderStateMixin {
-  late AnimationController _chartController;
-  // ignore: unused_field
-  late Animation<double> _chartAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _chartController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _chartAnimation = CurvedAnimation(
-      parent: _chartController,
-      curve: Curves.easeOutCubic,
-    );
-    
-    // Start chart animation after a delay
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        _chartController.forward();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _chartController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double maxY = (widget.chartValues.isEmpty 
-        ? 1000.0 
-        : widget.chartValues.reduce((a, b) => a > b ? a : b) * 1.2)
-        .clamp(1000.0, 10000000.0)
-        .toDouble();
-
-    final labels = _getChartLabels();
-    final list = List.generate(widget.chartValues.length, (i) {
-      final label = i < labels.length ? labels[i] : 'Day ${i + 1}';
-      return _AnimatedChartData(label, widget.chartValues[i]);
-    });
-
-    return SizedBox(
-      height: 350,
-      child: SfCartesianChart(
-        plotAreaBorderWidth: 0,
-        margin: EdgeInsets.zero,
-        tooltipBehavior: TooltipBehavior(
-          enable: true,
-          activationMode: ActivationMode.singleTap,
-          builder: (dynamic data, dynamic point, dynamic series, int pointIndex, int seriesIndex) {
-            final _AnimatedChartData item = data;
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.adminPrimaryText,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    NumberFormat.currency(symbol: '₱', decimalDigits: 2).format(item.value),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-        primaryXAxis: CategoryAxis(
-          majorGridLines: const MajorGridLines(width: 0),
-          labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 11, fontWeight: FontWeight.bold),
-          axisLine: const AxisLine(width: 1, color: AppTheme.cardBorder),
-        ),
-        primaryYAxis: NumericAxis(
-          axisLine: const AxisLine(width: 0),
-          labelStyle: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.bold),
-          numberFormat: NumberFormat.compactSimpleCurrency(name: '₱', locale: 'en_PH'),
-          majorGridLines: MajorGridLines(
-            color: AppTheme.adminPricingBackground.withValues(alpha: 0.5),
-            width: 1,
-            dashArray: const [3, 3],
-          ),
-          maximum: maxY,
-        ),
-        series: <CartesianSeries<_AnimatedChartData, String>>[
-          SplineSeries<_AnimatedChartData, String>(
-            dataSource: list,
-            xValueMapper: (_AnimatedChartData data, _) => data.label,
-            yValueMapper: (_AnimatedChartData data, _) => data.value,
-            color: Colors.red,
-            width: 5,
-            animationDuration: 1000,
-            markerSettings: const MarkerSettings(
-              isVisible: true,
-              shape: DataMarkerType.circle,
-              width: 6,
-              height: 6,
-              color: Colors.white,
-              borderColor: Colors.red,
-              borderWidth: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<String> _getChartLabels() {
-    // This would need to be passed from the parent or made accessible
-    return ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-  }
-
-}
-
+// ── Models ───────────────────────────────────────────────────────────────────
 class _SalesReportData {
   final String label;
   final double regular;
@@ -3699,20 +2909,4 @@ class _LocationPieData {
   final Color color;
 
   _LocationPieData(this.location, this.count, this.percentage, this.color);
-}
-
-// ignore: unused_element
-class _LocationBarData {
-  final String location;
-  final double count;
-  final Color color;
-
-  _LocationBarData(this.location, this.count, this.color);
-}
-
-class _AnimatedChartData {
-  final String label;
-  final double value;
-
-  _AnimatedChartData(this.label, this.value);
 }

@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 class InventoryForecastPage extends StatefulWidget {
   const InventoryForecastPage({super.key});
@@ -16,22 +18,33 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   late AnimationController _controller;
   late Animation<double> _fadeIn;
   String _selectedCategory = 'All';
-  String _selectedTimeFilter = 'Daily'; // New time filter for Daily/Weekly/Monthly
-  String _selectedDailyMonth = 'January'; // Month for Daily filtering
-  String _selectedDailyDay = '1'; // Day for Daily filtering (1-31)
-  String _selectedWeeklyMonth = 'January'; // Month for Weekly filtering
-  String _selectedWeekFilter = 'Week 1'; // Week number for Weekly filtering (Week 1-4)
-  String _selectedMonthFilter = 'January'; // Secondary filter for Monthly (January-April)
-  String _selectedYearFilter = DateTime.now().year.toString(); // Secondary filter for Annually
-  bool _showChart = true; // Toggle between chart and list
-  late Future<List<Map<String, dynamic>>> _forecastFuture;
+  String _selectedTimeFilter = 'Daily';
+  String _selectedDailyMonth = 'January';
+  String _selectedDailyDay = '1';
+  String _selectedWeeklyMonth = 'January';
+  String _selectedWeekFilter = 'Week 1';
+  String _selectedMonthFilter = 'January';
+  String _selectedYearFilter = DateTime.now().year.toString();
+  String _selectedViewMode = 'Chart'; // 'Chart', 'Feed', 'Deficit'
+
+  List<Map<String, dynamic>> _forecastItems = [];
+  bool _isLoading = true;
+  StreamSubscription? _requestsSubscription;
+  Timer? _pollingTimer;
 
   final List<String> timeFilters = ['Daily', 'Weekly', 'Monthly', 'Annually'];
-  final List<String> dayFilters = List.generate(31, (index) => (index + 1).toString()); // Days 1-31 for Daily filtering
+  final List<String> dayFilters = List.generate(31, (index) => (index + 1).toString());
   final List<String> weekFilters = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-  final List<String> monthFilters = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  final List<String> yearFilters = List.generate(2031 - DateTime.now().year + 1, (index) => (DateTime.now().year + index).toString());
-  final List<String> categories = [
+  final List<String> monthFilters = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  final List<String> yearFilters = List.generate(
+    2031 - DateTime.now().year + 1,
+    (index) => (DateTime.now().year + index).toString(),
+  );
+
+  static const List<String> categories = [
     'All',
     'Fresh',
     'Roasting',
@@ -48,46 +61,84 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedDailyMonth = monthFilters[now.month - 1];
+    _selectedDailyDay = now.day.toString();
+    _selectedWeeklyMonth = monthFilters[now.month - 1];
+    _selectedMonthFilter = monthFilters[now.month - 1];
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 500),
     );
     _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _forecastFuture = _getForecastData();
     _controller.forward();
+
+    // Initial load
+    _fetchForecastData();
+
+    // Live update stream & background silent poll
+    _subscribeToKitchenRequests();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _fetchForecastData(silent: true);
+    });
   }
 
   @override
   void dispose() {
+    _requestsSubscription?.cancel();
+    _pollingTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  Future<List<Map<String, dynamic>>> _getForecastData() async {
+  void _subscribeToKitchenRequests() {
     try {
-      // Get current inventory
+      _requestsSubscription = Supabase.instance.client
+          .from('kitchen_requests')
+          .stream(primaryKey: ['id'])
+          .listen((_) {
+            if (mounted) _fetchForecastData(silent: true);
+          }, onError: (e) {
+            debugPrint('Kitchen requests realtime stream fallback: $e');
+          });
+    } catch (_) {}
+  }
+
+  // ── Fetch Full Demand & Consumption Pipeline for Accurate Forecasting ─────
+  Future<void> _fetchForecastData({bool silent = false}) async {
+    if (!silent && _forecastItems.isEmpty) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
       final inventoryResponse = await Supabase.instance.client
           .from('inventory')
           .select()
           .order('name');
 
-      // Get approved kitchen requests for the last 90 days
       final cutoffDate = DateTime.now().subtract(const Duration(days: 90));
 
+      // Fetch all kitchen demand tickets for forecasting (both approved consumption and pending)
       final transactionsResponse = await Supabase.instance.client
           .from('kitchen_requests')
           .select()
-          .eq('status', 'Approved')
           .gte('created_at', cutoffDate.toUtc().toIso8601String())
           .order('created_at', ascending: false);
 
-      final inventory = inventoryResponse;
-      final transactions = transactionsResponse;
+      final calculated = _calculateForecast(
+        List<Map<String, dynamic>>.from(inventoryResponse),
+        List<Map<String, dynamic>>.from(transactionsResponse),
+      );
 
-
-      return _calculateForecast(inventory, transactions);
+      if (mounted) {
+        setState(() {
+          _forecastItems = calculated;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      return [];
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -97,27 +148,23 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
   ) {
     List<Map<String, dynamic>> forecast = [];
 
-    // Create a map of inventory items for quick lookup
     final Map<String, Map<String, dynamic>> inventoryMap = {};
     for (var item in inventory) {
       inventoryMap[item['name'] as String] = item;
     }
 
-    // Create a separate forecast entry for each approved kitchen request
     for (var transaction in transactions) {
       final itemName = transaction['item_name'] as String;
       final inventoryItem = inventoryMap[itemName];
 
-      // Only include if item exists in inventory
-      if (inventoryItem == null) {
-        continue;
-      }
+      if (inventoryItem == null) continue;
 
       final currentStock = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
       final unit = transaction['unit'] as String? ?? 'pcs';
-      final requestQuantity =
-          (transaction['quantity_needed'] as num?)?.toInt() ?? 0;
+      final requestQuantity = (transaction['quantity_needed'] as num?)?.toInt() ?? 0;
       final priority = transaction['priority'] as String? ?? 'Medium';
+      final storageRoom = inventoryItem['storage_room']?.toString() ?? 'Dry Storage';
+      final status = transaction['status']?.toString() ?? 'Approved';
 
       forecast.add({
         'name': itemName,
@@ -126,6 +173,8 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         'unit': unit,
         'requestQuantity': requestQuantity,
         'priority': priority,
+        'status': status,
+        'storage_room': storageRoom,
         'riskColor': _getPriorityColor(priority),
         'riskIcon': _getPriorityIcon(priority),
         'requestId': transaction['id'],
@@ -135,11 +184,10 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       });
     }
 
-    // Sort by creation date (newest first) - same as Kitchen Stock Requests queuing
     forecast.sort((a, b) {
       final dateA = DateTime.parse(a['createdAt'] as String);
       final dateB = DateTime.parse(b['createdAt'] as String);
-      return dateB.compareTo(dateA); // Newest first
+      return dateB.compareTo(dateA);
     });
 
     return forecast;
@@ -149,14 +197,14 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     switch (priority) {
       case 'High':
       case 'Urgent':
-        return AppTheme.errorRed;
+        return const Color(0xFFEF4444);
       case 'Medium':
       case 'Normal':
-        return AppTheme.warningOrange;
+        return const Color(0xFFF59E0B);
       case 'Low':
-        return AppTheme.successGreen;
+        return const Color(0xFF10B981);
       default:
-        return AppTheme.infoBlue;
+        return const Color(0xFF3B82F6);
     }
   }
 
@@ -167,18 +215,15 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         return Icons.priority_high_rounded;
       case 'Medium':
       case 'Normal':
-        return Icons.info_rounded;
+        return Icons.warning_amber_rounded;
       case 'Low':
         return Icons.check_circle_rounded;
       default:
-        return Icons.help_outline_rounded;
+        return Icons.info_outline_rounded;
     }
   }
 
-  
-  List<Map<String, dynamic>> _filterDataByTime(
-    List<Map<String, dynamic>> forecast,
-  ) {
+  List<Map<String, dynamic>> _filterDataByTime(List<Map<String, dynamic>> forecast) {
     if (forecast.isEmpty) return [];
 
     final now = DateTime.now();
@@ -186,40 +231,34 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
 
     for (var item in forecast) {
       final createdAt = DateTime.parse(item['createdAt'] as String).toLocal();
-      
+
       switch (_selectedTimeFilter) {
         case 'Daily':
-          // Filter for specific date (month + day) in current year between 10:00 AM and 8:00 PM
           final selectedMonthIndex = _getMonthIndex(_selectedDailyMonth);
           final selectedDay = int.parse(_selectedDailyDay);
           if (createdAt.year == now.year &&
               createdAt.month == selectedMonthIndex &&
-              createdAt.day == selectedDay &&
-              createdAt.hour >= 10 &&
-              createdAt.hour < 20) {
+              createdAt.day == selectedDay) {
             filteredData.add(item);
           }
           break;
-          
+
         case 'Weekly':
-          // Filter for selected week of specific month in current year
           final selectedWeekNumber = int.parse(_selectedWeekFilter.split(' ')[1]);
           final selectedMonthIndex = _getMonthIndex(_selectedWeeklyMonth);
           if (_isInSelectedWeekOfMonth(createdAt, selectedWeekNumber, selectedMonthIndex, now.year)) {
             filteredData.add(item);
           }
           break;
-          
+
         case 'Monthly':
-          // Filter for selected month of current year
           final selectedMonthIndex = _getMonthIndex(_selectedMonthFilter);
           if (createdAt.year == now.year && createdAt.month == selectedMonthIndex) {
             filteredData.add(item);
           }
           break;
-          
+
         case 'Annually':
-          // Filter for selected year
           final selectedYear = int.parse(_selectedYearFilter);
           if (createdAt.year == selectedYear) {
             filteredData.add(item);
@@ -231,7 +270,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     return filteredData;
   }
 
-  
   int _getMonthIndex(String monthName) {
     switch (monthName) {
       case 'January': return 1;
@@ -250,96 +288,47 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     }
   }
 
-  
   bool _isInSelectedWeekOfMonth(DateTime date, int weekNumber, int monthIndex, int year) {
-    // Get first day of selected month
     final firstDayOfMonth = DateTime(year, monthIndex, 1);
-    
-    // Calculate start and end of the selected week within the specified month
     final weekStart = firstDayOfMonth.add(Duration(days: (weekNumber - 1) * 7));
     final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
-    
-    // Check if the date is within the selected week of the specified month
     return date.year == year &&
-           date.month == monthIndex &&
-           date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
-           date.isBefore(weekEnd.add(const Duration(days: 1)));
+        date.month == monthIndex &&
+        date.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+        date.isBefore(weekEnd.add(const Duration(days: 1)));
   }
 
   double _getBarChartMaxY() {
     switch (_selectedTimeFilter) {
-      case 'Daily':
-        return 400; // Max Y for Daily (400 + buffer)
-      case 'Weekly':
-        return 600; // Max Y for Weekly (600 + buffer)
-      case 'Monthly':
-        return 2000; // Max Y for Monthly (2000 + buffer)
-      case 'Annually':
-        return 20000; // Max Y for Annually (20000 + buffer)
-      default:
-        return 100; // Default max Y
+      case 'Daily': return 150;
+      case 'Weekly': return 300;
+      case 'Monthly': return 800;
+      case 'Annually': return 4000;
+      default: return 100;
     }
   }
 
-  double _getBarChartInterval() {
-    switch (_selectedTimeFilter) {
-      case 'Daily':
-        return 50; // Interval for Daily (0,50,100,150,200,250,300,350,400)
-      case 'Weekly':
-        return 100; // Interval for Weekly (0,100,200,300,400,500,600)
-      case 'Monthly':
-        return 400; // Interval for Monthly (0,400,800,1200,1600,2000)
-      case 'Annually':
-        return 4000; // Interval for Annually (0,4000,8000,12000,16000,20000)
-      default:
-        return 20; // Default interval
-    }
-  }
-
-  String _getFilterSuffix() {
-    switch (_selectedTimeFilter) {
-      case 'Daily':
-        return ' - $_selectedDailyMonth $_selectedDailyDay';
-      case 'Weekly':
-        return ' - $_selectedWeeklyMonth $_selectedWeekFilter';
-      case 'Monthly':
-        return ' - $_selectedMonthFilter';
-      case 'Annually':
-        return ' - $_selectedYearFilter';
-      default:
-        return '';
-    }
-  }
-
-  Map<String, dynamic> _getTopItemsData(
-    List<Map<String, dynamic>> forecast,
-  ) {
-    // Apply time-based filtering first
+  Map<String, dynamic> _getTopItemsData(List<Map<String, dynamic>> forecast) {
     final timeFilteredData = _filterDataByTime(forecast);
-    
     if (timeFilteredData.isEmpty) {
       return {
         'barGroups': <BarChartGroupData>[],
-        'topItems': <MapEntry<String, double>>[]
+        'topItems': <MapEntry<String, double>>[],
       };
     }
 
-    // Group requests by item name and sum quantities
     final Map<String, double> itemTotals = {};
-
     for (var item in timeFilteredData) {
       final itemName = item['name'] as String;
       final quantity = (item['requestQuantity'] as num).toDouble();
       itemTotals[itemName] = (itemTotals[itemName] ?? 0) + quantity;
     }
 
-    // Sort by quantity (descending) and take top 10
     final sortedItems = itemTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final topItems = sortedItems.take(10).toList();
+    final topItems = sortedItems.take(8).toList();
 
-    // Convert to BarChartGroupData
     final barGroups = List.generate(topItems.length, (index) {
       final item = topItems[index];
       return BarChartGroupData(
@@ -347,9 +336,13 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         barRods: [
           BarChartRodData(
             toY: item.value,
-            color: AppTheme.primaryColor,
-            width: 20,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF14332E), Color(0xFF2E7D32)],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+            width: 22,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           ),
         ],
       );
@@ -361,46 +354,664 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     };
   }
 
-  Widget _buildBarChartCard(List<Map<String, dynamic>> forecast) {
-    if (forecast.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.darkGrey.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+  // ── Mark Request as Given / Dispensed ──────────────────────────────────────
+  Future<void> _markRequestAsGiven(Map<String, dynamic> item) async {
+    final requestId = item['requestId'];
+    if (requestId == null) return;
+
+    try {
+      await Supabase.instance.client
+          .from('kitchen_requests')
+          .update({
+            'status': 'Approved',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', requestId);
+
+      _fetchForecastData(silent: true);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${item['name']} marked as fulfilled / given to Kitchen!'),
+            backgroundColor: AppTheme.successGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: AppTheme.errorRed),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    // Apply category filtering in memory (0ms delay)
+    var categoryFiltered = _forecastItems;
+    if (_selectedCategory != 'All') {
+      categoryFiltered = _forecastItems
+          .where((item) => item['category'] == _selectedCategory)
+          .toList();
+    }
+
+    final timeFiltered = _filterDataByTime(categoryFiltered);
+
+    // Calculations for 4 Executive KPI Cards
+    final totalTickets = timeFiltered.length;
+    final urgentCount = timeFiltered.where((i) =>
+        i['priority'] == 'High' || i['priority'] == 'Urgent').length;
+
+    int deficitCount = 0;
+    int totalUnitsRequested = 0;
+
+    for (var item in timeFiltered) {
+      final req = item['requestQuantity'] as int;
+      final stock = item['currentStock'] as int;
+      totalUnitsRequested += req;
+      if (stock < req) {
+        deficitCount++;
+      }
+    }
+
+    return Scaffold(
+      backgroundColor: AppTheme.adminMainBackground,
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(isMobile ? 12 : 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Executive Header Banner ──────────────────────────────
+                _buildExecutiveHeader(isMobile),
+
+                const SizedBox(height: 16),
+
+                if (_isLoading && _forecastItems.isEmpty)
+                  const SizedBox(
+                    height: 240,
+                    child: Center(
+                      child: CircularProgressIndicator(color: Color(0xFF14332E)),
+                    ),
+                  )
+                else ...[
+                  // ── 4 Top KPI Cards ──────────────────────────────
+                  _buildKpiMetricsRow(
+                    totalTickets: totalTickets,
+                    totalUnits: totalUnitsRequested,
+                    urgentCount: urgentCount,
+                    deficitCount: deficitCount,
+                    isMobile: isMobile,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Filter Controls Section ──────────────────────
+                  _buildFilterControls(isMobile),
+
+                  const SizedBox(height: 16),
+
+                  // ── View Mode Selector & Content ─────────────────
+                  _buildMainContent(categoryFiltered, timeFiltered, isMobile),
+                ],
+              ],
             ),
-          ],
-        ),
-        child: const Center(
-          child: Text(
-            'No data available for chart',
-            style: TextStyle(color: AppTheme.mediumGrey, fontSize: 14),
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Executive Header Banner ────────────────────────────────────────────────
+  Widget _buildExecutiveHeader(bool isMobile) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 24,
+        vertical: isMobile ? 16 : 20,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF14332E), Color(0xFF1B4942), Color(0xFF163C35)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.35), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14332E).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warmGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.4)),
+                  ),
+                  child: const Icon(Icons.auto_graph_rounded, color: AppTheme.warmGold, size: 24),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Kitchen Demand & Inventory Forecast',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Historical consumption trends, ingredient burn rates, and procurement forecasting',
+                        style: TextStyle(fontSize: 11, color: Colors.white70),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            onPressed: () => _fetchForecastData(),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            tooltip: 'Refresh Demand Forecast',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 4 Top KPI Cards ────────────────────────────────────────────────────────
+  Widget _buildKpiMetricsRow({
+    required int totalTickets,
+    required int totalUnits,
+    required int urgentCount,
+    required int deficitCount,
+    required bool isMobile,
+  }) {
+    final cards = [
+      _buildKpiCard(
+        title: 'REQUISITION TICKETS',
+        value: '$totalTickets Tickets',
+        subtitle: 'Total demand requests',
+        icon: Icons.receipt_long_rounded,
+        color: const Color(0xFF14332E),
+      ),
+      _buildKpiCard(
+        title: 'DEMAND VOLUME',
+        value: '$totalUnits Units',
+        subtitle: 'Total ingredient volume requested',
+        icon: Icons.shopping_bag_outlined,
+        color: const Color(0xFF3B82F6),
+      ),
+      _buildKpiCard(
+        title: 'HIGH & URGENT DEMAND',
+        value: '$urgentCount Items',
+        subtitle: urgentCount > 0 ? 'High priority consumption' : 'Normal kitchen demand',
+        icon: Icons.priority_high_rounded,
+        color: const Color(0xFFF59E0B),
+        isAlert: urgentCount > 0,
+      ),
+      _buildKpiCard(
+        title: 'STOCK DEFICIT ALERTS',
+        value: '$deficitCount SKUs',
+        subtitle: deficitCount > 0 ? 'Demand exceeds current stock' : 'Sufficient stock buffer',
+        icon: Icons.error_outline_rounded,
+        color: const Color(0xFFEF4444),
+        isAlert: deficitCount > 0,
+      ),
+    ];
+
+    if (isMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.35,
+        children: cards,
       );
     }
 
+    return Row(
+      children: cards.map((card) => Expanded(child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: card,
+      ))).toList(),
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    bool isAlert = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: isAlert ? 0.35 : 0.15),
+          width: isAlert ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: isAlert ? 0.08 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: color.withValues(alpha: 0.8),
+              letterSpacing: 0.6,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: color,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Filter Controls Section ────────────────────────────────────────────────
+  Widget _buildFilterControls(bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period + Sub-Period Row
+          Row(
+            children: [
+              // Period Toggle
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: AppTheme.adminMainBackground.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.cardBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: timeFilters.map((period) {
+                    final isSel = _selectedTimeFilter == period;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedTimeFilter = period),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSel ? const Color(0xFF14332E) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          period,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                            color: isSel ? Colors.white : AppTheme.darkGrey,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // Secondary Sub-Period Selector
+              Expanded(child: _buildSecondaryTimeDropdown()),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Category Carousel Pills
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: categories.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (val) {
+                      setState(() {
+                        _selectedCategory = cat;
+                      });
+                    },
+                    backgroundColor: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+                    selectedColor: const Color(0xFF14332E),
+                    checkmarkColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.darkGrey,
+                      fontSize: 11.5,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: isSelected ? const Color(0xFF14332E) : AppTheme.cardBorder,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondaryTimeDropdown() {
+    switch (_selectedTimeFilter) {
+      case 'Daily':
+        return Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _styledDropdown(
+                value: _selectedDailyMonth,
+                items: monthFilters,
+                onChanged: (v) => setState(() => _selectedDailyMonth = v!),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 2,
+              child: _styledDropdown(
+                value: _selectedDailyDay,
+                items: dayFilters,
+                prefix: 'Day ',
+                onChanged: (v) => setState(() => _selectedDailyDay = v!),
+              ),
+            ),
+          ],
+        );
+
+      case 'Weekly':
+        return Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _styledDropdown(
+                value: _selectedWeeklyMonth,
+                items: monthFilters,
+                onChanged: (v) => setState(() => _selectedWeeklyMonth = v!),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 2,
+              child: _styledDropdown(
+                value: _selectedWeekFilter,
+                items: weekFilters,
+                onChanged: (v) => setState(() => _selectedWeekFilter = v!),
+              ),
+            ),
+          ],
+        );
+
+      case 'Monthly':
+        return _styledDropdown(
+          value: _selectedMonthFilter,
+          items: monthFilters,
+          onChanged: (v) => setState(() => _selectedMonthFilter = v!),
+        );
+
+      case 'Annually':
+        return _styledDropdown(
+          value: _selectedYearFilter,
+          items: yearFilters,
+          onChanged: (v) => setState(() => _selectedYearFilter = v!),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _styledDropdown({
+    required String value,
+    required List<String> items,
+    String prefix = '',
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.adminMainBackground.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: items.contains(value) ? value : items.first,
+          isDense: true,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.darkGrey),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF14332E)),
+          items: items.map((i) => DropdownMenuItem(value: i, child: Text('$prefix$i'))).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  // ── Main Content Section ───────────────────────────────────────────────────
+  Widget _buildMainContent(
+    List<Map<String, dynamic>> categoryFiltered,
+    List<Map<String, dynamic>> timeFiltered,
+    bool isMobile,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // View Mode Switcher Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics'),
+                const SizedBox(width: 6),
+                _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue'),
+                const SizedBox(width: 6),
+                _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits'),
+              ],
+            ),
+            Text(
+              '${timeFiltered.length} demand records',
+              style: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        if (timeFiltered.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: const Center(
+              child: Column(
+                children: [
+                  Icon(Icons.query_stats_rounded, size: 48, color: AppTheme.mediumGrey),
+                  SizedBox(height: 12),
+                  Text('No kitchen demand records in this timeframe',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey)),
+                  SizedBox(height: 4),
+                  Text('Try switching to another month, week, or select "Monthly"',
+                      style: TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey)),
+                ],
+              ),
+            ),
+          )
+        else if (_selectedViewMode == 'Chart')
+          _buildBarChartCard(categoryFiltered)
+        else if (_selectedViewMode == 'Deficit')
+          _buildDeficitMatrix(timeFiltered, isMobile)
+        else
+          _buildDemandFeed(timeFiltered, isMobile),
+      ],
+    );
+  }
+
+  Widget _viewModeTab(String mode, IconData icon, String label) {
+    final isSelected = _selectedViewMode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedViewMode = mode),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF14332E) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF14332E) : AppTheme.cardBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: isSelected ? Colors.white : AppTheme.darkGrey),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : AppTheme.darkGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Top Demand Bar Chart Card ──────────────────────────────────────────────
+  Widget _buildBarChartCard(List<Map<String, dynamic>> forecast) {
     final chartData = _getTopItemsData(forecast);
     final barGroups = chartData['barGroups'] as List<BarChartGroupData>;
     final topItems = chartData['topItems'] as List<MapEntry<String, double>>;
 
+    if (topItems.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: const Center(child: Text('No demand records to graph.')),
+      );
+    }
+
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.lightGrey.withValues(alpha: 0.2)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -412,68 +1023,72 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.bar_chart,
-                    color: AppTheme.primaryColor,
-                    size: 24,
+                  const Text(
+                    'Top Kitchen Ingredients by Consumption',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 2),
                   Text(
-                    'Top Requested Items - $_selectedTimeFilter${_getFilterSuffix()}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.darkGrey,
-                    ),
+                    'Highest requested supplies for $_selectedTimeFilter',
+                    style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
                   ),
                 ],
               ),
-              _buildCompactTimeFilterSelector(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Top ${topItems.length} SKUs',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFF14332E)),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Most Requested Ingredients in Kitchen ($_selectedTimeFilter${_getFilterSuffix()})',
-            style: const TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
-          ),
+
           const SizedBox(height: 24),
+
           SizedBox(
-            height: 400,
+            height: 280,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
                 maxY: _getBarChartMaxY(),
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => AppTheme.darkGrey,
+                    getTooltipColor: (_) => const Color(0xFF14332E),
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      if (groupIndex < topItems.length) {
-                        final itemName = topItems[groupIndex].key;
-                        final quantity = topItems[groupIndex].value.toInt();
-                        return BarTooltipItem(
-                          '$itemName\n$quantity units',
-                          const TextStyle(color: Colors.white, fontSize: 12),
-                        );
-                      }
-                      return null;
+                      final item = topItems[group.x];
+                      return BarTooltipItem(
+                        '${item.key}\n',
+                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                        children: [
+                          TextSpan(
+                            text: '${rod.toY.toInt()} units consumed',
+                            style: const TextStyle(color: AppTheme.warmGold, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ),
                 titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: _getBarChartInterval(),
-                      reservedSize: 50,
+                      reservedSize: 34,
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value.toInt().toString(),
-                          style: const TextStyle(
-                            color: AppTheme.mediumGrey,
-                            fontSize: 10,
-                          ),
+                          style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.bold),
                         );
                       },
                     ),
@@ -481,43 +1096,38 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 80,
+                      reservedSize: 36,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
                         if (index >= 0 && index < topItems.length) {
-                          final itemName = topItems[index].key;
-                          final displayName = itemName.length > 8
-                              ? '${itemName.substring(0, 8)}...'
-                              : itemName;
-                          return Text(
-                            displayName,
-                            style: const TextStyle(
-                              color: AppTheme.mediumGrey,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
+                          final label = topItems[index].key;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              label.length > 8 ? '${label.substring(0, 7)}…' : label,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.darkGrey,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
                           );
                         }
                         return const Text('');
                       },
                     ),
                   ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
                 ),
-                borderData: FlBorderData(
+                gridData: FlGridData(
                   show: true,
-                  border: Border.all(
-                    color: AppTheme.lightGrey.withValues(alpha: 0.3),
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: AppTheme.cardBorder,
+                    strokeWidth: 1,
                   ),
                 ),
+                borderData: FlBorderData(show: false),
                 barGroups: barGroups,
-                gridData: const FlGridData(show: false),
               ),
             ),
           ),
@@ -526,645 +1136,289 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     );
   }
 
+  // ── Reorder / Stock Deficit Matrix View ─────────────────────────────────────
+  Widget _buildDeficitMatrix(List<Map<String, dynamic>> items, bool isMobile) {
+    final deficitItems = items.where((i) {
+      final req = i['requestQuantity'] as int;
+      final stock = i['currentStock'] as int;
+      return stock < req;
+    }).toList();
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.adminMainBackground,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: AppTheme.white,
-        automaticallyImplyLeading: false,
-        title: const Text('Inventory Forecast'),
-        actions: [
-          IconButton(
-            onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Forecast',
-          ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _showChart = !_showChart;
-                _forecastFuture = _getForecastData();
-              });
-            },
-            icon: Icon(_showChart ? Icons.list : Icons.show_chart),
-            tooltip: _showChart ? 'Show List' : 'Show Chart',
-          ),
-        ],
-      ),
-      body: FadeTransition(
-        opacity: _fadeIn,
-        child: Column(
-          children: [
-            // Controls Section
-            Container(
-              margin: EdgeInsets.all(
-                ResponsiveUtils.isMobile(context) ? 8 : 16,
-              ),
-              padding: EdgeInsets.all(
-                ResponsiveUtils.isMobile(context) ? 12 : 16,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.darkGrey.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCategorySelector(),
-                ],
-              ),
-            ),
-
-            // Main Content Area
-            Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _forecastFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.primaryColor,
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        'Error loading forecast: ${snapshot.error}',
-                        style: const TextStyle(color: AppTheme.errorRed),
-                      ),
-                    );
-                  }
-
-                  final forecast = snapshot.data ?? [];
-                  var filteredForecast = forecast;
-
-                  // Apply category filter first
-                  if (_selectedCategory != 'All') {
-                    filteredForecast = filteredForecast
-                        .where((item) => item['category'] == _selectedCategory)
-                        .toList();
-                  }
-
-
-                  if (filteredForecast.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.trending_up,
-                            size: 64,
-                            color: AppTheme.mediumGrey,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No forecast data available',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: AppTheme.mediumGrey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Try adding more inventory or transaction data',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.mediumGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  // Show Chart View
-                  if (_showChart) {
-                    return SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // Bar Chart Card
-                          _buildBarChartCard(filteredForecast),
-                        ],
-                      ),
-                    );
-                  }
-
-                  // Show List View
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredForecast.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredForecast[index];
-                      return _ForecastCard(
-                        item: item,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+    if (deficitItems.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.cardBorder),
         ),
-      ),
-    );
-  }
-
-
-  Widget _buildCategorySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Category Filter',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.darkGrey,
+        child: const Center(
+          child: Column(
+            children: [
+              Icon(Icons.check_circle_outline_rounded, color: AppTheme.successGreen, size: 44),
+              SizedBox(height: 10),
+              Text('No Stock Deficits Detected',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey)),
+              SizedBox(height: 4),
+              Text('All requested ingredients in this timeframe were covered by available inventory.',
+                  style: TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey)),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedCategory,
-          decoration: InputDecoration(
-            labelText: 'Select Category',
-            prefixIcon: const Icon(
-              Icons.category,
-              color: AppTheme.primaryColor,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.lightGrey),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppTheme.primaryColor),
-            ),
-            filled: true,
-            fillColor: AppTheme.adminMainBackground,
-          ),
-          items: categories.map((category) {
-            return DropdownMenuItem(value: category, child: Text(category));
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => _selectedCategory = value);
-          },
-        ),
-      ],
-    );
-  }
-
-  
-  Widget _buildCompactTimeFilterSelector() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Primary Time Filter Dropdown
-        Container(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedTimeFilter,
-            decoration: InputDecoration(
-              labelText: 'Period',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.lightGrey),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
-              ),
-              filled: true,
-              fillColor: AppTheme.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: timeFilters.map((filter) {
-              return DropdownMenuItem(value: filter, child: Text(filter, style: const TextStyle(fontSize: 12)));
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedTimeFilter = value;
-                  _forecastFuture = _getForecastData();
-                });
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Secondary Filter Dropdown
-        _buildSecondaryFilterDropdown(),
-      ],
-    );
-  }
-
-  Widget _buildSecondaryFilterDropdown() {
-    switch (_selectedTimeFilter) {
-      case 'Daily':
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Month dropdown for Daily
-            Container(
-              constraints: const BoxConstraints(maxWidth: 115),
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedDailyMonth,
-                decoration: InputDecoration(
-                  labelText: 'Month',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.lightGrey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor),
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                ),
-                items: monthFilters.map((month) {
-                  return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 11)));
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedDailyMonth = value;
-                      _forecastFuture = _getForecastData();
-                    });
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 4),
-            // Day dropdown for Daily
-            Container(
-              constraints: const BoxConstraints(maxWidth: 115),
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedDailyDay,
-                decoration: InputDecoration(
-                  labelText: 'Day',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.lightGrey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor),
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                ),
-                items: dayFilters.map((day) {
-                  return DropdownMenuItem(value: day, child: Text(day, style: const TextStyle(fontSize: 11)));
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedDailyDay = value;
-                      _forecastFuture = _getForecastData();
-                    });
-                  }
-                },
-              ),
-            ),
-          ],
-        );
-      case 'Weekly':
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Month dropdown for Weekly
-            Container(
-              constraints: const BoxConstraints(maxWidth: 115),
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedWeeklyMonth,
-                decoration: InputDecoration(
-                  labelText: 'Month',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.lightGrey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor),
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                ),
-                items: monthFilters.map((month) {
-                  return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 11)));
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedWeeklyMonth = value;
-                      _forecastFuture = _getForecastData();
-                    });
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 4),
-            // Week dropdown for Weekly
-            Container(
-              constraints: const BoxConstraints(maxWidth: 115),
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedWeekFilter,
-                decoration: InputDecoration(
-                  labelText: 'Week',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.lightGrey),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor),
-                  ),
-                  filled: true,
-                  fillColor: AppTheme.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                ),
-                items: weekFilters.map((week) {
-                  return DropdownMenuItem(value: week, child: Text(week, style: const TextStyle(fontSize: 11)));
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedWeekFilter = value;
-                      _forecastFuture = _getForecastData();
-                    });
-                  }
-                },
-              ),
-            ),
-          ],
-        );
-      case 'Monthly':
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedMonthFilter,
-            decoration: InputDecoration(
-              labelText: 'Month',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.lightGrey),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
-              ),
-              filled: true,
-              fillColor: AppTheme.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: monthFilters.map((month) {
-              return DropdownMenuItem(value: month, child: Text(month, style: const TextStyle(fontSize: 12)));
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedMonthFilter = value;
-                  _forecastFuture = _getForecastData();
-                });
-              }
-            },
-          ),
-        );
-      case 'Annually':
-        return Container(
-          constraints: const BoxConstraints(maxWidth: 120),
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedYearFilter,
-            decoration: InputDecoration(
-              labelText: 'Year',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.lightGrey),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
-              ),
-              filled: true,
-              fillColor: AppTheme.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-            items: yearFilters.map((year) {
-              return DropdownMenuItem(value: year, child: Text(year, style: const TextStyle(fontSize: 12)));
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedYearFilter = value;
-                  _forecastFuture = _getForecastData();
-                });
-              }
-            },
-          ),
-        );
-      default:
-        return const SizedBox.shrink();
+      );
     }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: deficitItems.length,
+      itemBuilder: (context, index) {
+        return _buildDemandCard(deficitItems[index], isDeficitView: true);
+      },
+    );
   }
 
-}
+  // ── Demand Feed View ───────────────────────────────────────────────────────
+  Widget _buildDemandFeed(List<Map<String, dynamic>> items, bool isMobile) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        return _buildDemandCard(items[index], isDeficitView: false);
+      },
+    );
+  }
 
-class _ForecastCard extends StatelessWidget {
-  final Map<String, dynamic> item;
-
-  const _ForecastCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final riskColor = item['riskColor'] as Color;
-    final riskIcon = item['riskIcon'] as IconData;
-    final priority = item['priority'] as String;
+  Widget _buildDemandCard(Map<String, dynamic> item, {required bool isDeficitView}) {
+    final name = item['name'] as String;
+    final category = item['category'] as String;
+    final unit = item['unit'] as String;
+    final reqQty = item['requestQuantity'] as int;
     final currentStock = item['currentStock'] as int;
-    final requestQuantity = item['requestQuantity'] as int;
+    final priority = item['priority'] as String;
+    final priorityColor = item['riskColor'] as Color;
+    final priorityIcon = item['riskIcon'] as IconData;
+    final storageRoom = item['storage_room'] as String;
+    final requestedBy = item['requestedBy']?.toString() ?? 'Chef / Kitchen';
+    final notes = item['notes']?.toString() ?? '';
+    final status = (item['status']?.toString() ?? 'Approved').toLowerCase();
+    final isPending = status == 'pending';
+
+    DateTime? createdAt;
+    try {
+      createdAt = DateTime.parse(item['createdAt'] as String).toLocal();
+    } catch (_) {}
+
+    final deficit = reqQty - currentStock;
+    final hasDeficit = deficit > 0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasDeficit ? const Color(0xFFEF4444).withValues(alpha: 0.3) : AppTheme.cardBorder,
+          width: hasDeficit ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGrey.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
-        border: Border.all(color: riskColor.withValues(alpha: 0.3), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with risk indicator
+          // Header Row
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.darkGrey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item['category'] as String,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.mediumGrey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: riskColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: riskColor.withValues(alpha: 0.3)),
-                ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(riskIcon, color: riskColor, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      priority,
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: priorityColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(priorityIcon, size: 16, color: priorityColor),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '$category • $storageRoom',
+                            style: const TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Status Badge (Fulfilled vs Pending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: isPending
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.1)
+                          : const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isPending
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+                            : const Color(0xFF10B981).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      isPending ? 'PENDING' : 'FULFILLED',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: riskColor,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        color: isPending ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 6),
+
+                  // Priority Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: priorityColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      priority.toUpperCase(),
+                      style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: priorityColor),
+                    ),
+                  ),
+
+                  if (isPending) ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _markRequestAsGiven(item),
+                      icon: const Icon(Icons.check_rounded, size: 12),
+                      label: const Text('Dispense'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF14332E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        textStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+                        elevation: 0,
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
 
-          // Stock Information Grid
-          ResponsiveUtils.isMobile(context)
-              ? Column(
-                  children: [
-                    _InfoCard(
-                      title: 'Request Quantity',
-                      value: '$requestQuantity ${item['unit']}',
-                      icon: Icons.shopping_cart,
-                      iconColor: AppTheme.warningOrange,
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      title: 'Current Stock',
-                      value: '$currentStock ${item['unit']}',
-                      icon: Icons.inventory_2,
-                      iconColor: AppTheme.primaryColor,
-                    ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(
-                      child: _InfoCard(
-                        title: 'Current Stock',
-                        value: '$currentStock ${item['unit']}',
-                        icon: Icons.inventory_2,
-                        iconColor: AppTheme.primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _InfoCard(
-                        title: 'Request Quantity',
-                        value: '$requestQuantity ${item['unit']}',
-                        icon: Icons.shopping_cart,
-                        iconColor: AppTheme.warningOrange,
-                      ),
-                    ),
-                  ],
-                ),
-        ],
-      ),
-    );
-  }
-}
+          const SizedBox(height: 12),
 
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-
-  const _InfoCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.adminMainBackground,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.mediumGrey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.darkGrey,
+          // Side-by-Side Numbers & Deficit Callout
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.adminMainBackground.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.cardBorder),
             ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('KITCHEN DEMAND',
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey)),
+                      const SizedBox(height: 2),
+                      Text('$reqQty $unit',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppTheme.darkGrey)),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('CURRENT IN-STOCK',
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey)),
+                      const SizedBox(height: 2),
+                      Text('$currentStock $unit',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: currentStock == 0 ? const Color(0xFFEF4444) : AppTheme.darkGrey,
+                          )),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 26, color: AppTheme.cardBorder),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('PROCURING STATUS',
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey)),
+                      const SizedBox(height: 2),
+                      Text(
+                        hasDeficit ? 'Deficit: -$deficit $unit' : 'Covered in stock',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: hasDeficit ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  notes.isNotEmpty ? 'Note: $notes' : 'Requested by $requestedBy',
+                  style: const TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: AppTheme.mediumGrey),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (createdAt != null)
+                Text(
+                  DateFormat('MMM d, h:mm a').format(createdAt),
+                  style: const TextStyle(fontSize: 10, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                ),
+            ],
           ),
         ],
       ),

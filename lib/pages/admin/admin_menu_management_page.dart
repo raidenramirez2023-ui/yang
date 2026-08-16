@@ -97,6 +97,14 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     final filteredItems = _getFilteredItems();
     final isDesktop = ResponsiveUtils.isDesktop(context);
     final isTablet = ResponsiveUtils.isTablet(context);
+    
+    // KPI computations
+    final allItemsList = _menu.values.expand((list) => list).toList();
+    final totalItems = allItemsList.length;
+    final totalCategories = _categories.length;
+    final avgPrice = totalItems > 0 
+        ? allItemsList.fold<double>(0.0, (sum, i) => sum + i.price) / totalItems 
+        : 0.0;
 
     int crossAxisCount = 1;
     if (isDesktop) {
@@ -106,123 +114,268 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.adminMainBackground,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Action Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'MENU MANAGEMENT',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.mediumGrey,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage POS Menu Items',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.darkGrey,
-                          ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => RecipeSeeder.seedRecipesToDatabase(context),
-                      icon: const Icon(Icons.upload_file, color: AppTheme.primaryColor),
-                      tooltip: 'Upload Hardcoded Recipes to Database',
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _showAddEditDialog(null),
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text('Add Menu Item'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+            // ── Enterprise Header ─────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF14332E).withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
+                      ],
+                    ),
+                    child: const Icon(Icons.restaurant_menu_rounded, color: Color(0xFFD9A441), size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Menu & Recipe Management',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDCFCE7),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF86EFAC)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cloud_done_rounded, size: 12, color: Color(0xFF15803D)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'POS Synced',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Configure food catalog, pricing tiers, ingredient recipes, and kitchen availability',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => RecipeSeeder.seedRecipesToDatabase(context),
+                    icon: const Icon(Icons.upload_file_rounded, color: Color(0xFFC9922E)),
+                    tooltip: 'Upload Hardcoded Recipes to Database',
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddEditDialog(null),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Add Menu Item', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      foregroundColor: const Color(0xFFD9A441),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Color(0xFFD9A441), width: 1),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
 
-            // Search and Category Filter
+            // ── KPI Quick Strip ───────────────────────────────────────────────
             Row(
               children: [
                 Expanded(
-                  flex: 3,
+                  child: _buildMenuKpiCard(
+                    title: 'Total Menu Items',
+                    value: '$totalItems',
+                    subtitle: 'Configured in catalog',
+                    icon: Icons.inventory_2_rounded,
+                    color: const Color(0xFF0284C7),
+                    bg: const Color(0xFFE0F2FE),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMenuKpiCard(
+                    title: 'Active Categories',
+                    value: '$totalCategories',
+                    subtitle: 'Menu sections',
+                    icon: Icons.category_rounded,
+                    color: const Color(0xFF7E22CE),
+                    bg: const Color(0xFFF3E8FF),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMenuKpiCard(
+                    title: 'Average Price',
+                    value: '₱${avgPrice.toStringAsFixed(2)}',
+                    subtitle: 'Per serving',
+                    icon: Icons.monetization_on_rounded,
+                    color: const Color(0xFF15803D),
+                    bg: const Color(0xFFDCFCE7),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMenuKpiCard(
+                    title: 'Search Match',
+                    value: '${filteredItems.length}',
+                    subtitle: _searchQuery.isEmpty ? 'Showing all' : 'Filtered results',
+                    icon: Icons.filter_alt_rounded,
+                    color: const Color(0xFFD97706),
+                    bg: const Color(0xFFFEF3C7),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ── Search & Filter Controls ─────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
                   child: Container(
-                    decoration: AppTheme.cardDecoration(),
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: TextField(
                       controller: _searchController,
                       onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
-                        hintText: 'Search menu items by name or description...',
-                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search menu items by name, ingredients, or description...',
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF64748B)),
+                                onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); },
+                              )
+                            : null,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: AppTheme.cardDecoration(),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedCategoryFilter,
-                        isExpanded: true,
-                        icon: const Icon(Icons.filter_list),
-                        items: ['All', ..._categories].map((String cat) {
-                          return DropdownMenuItem<String>(
-                            value: cat,
-                            child: Text(cat, style: const TextStyle(fontWeight: FontWeight.w500)),
-                          );
-                        }).toList(),
-                        onChanged: (String? newVal) {
-                          if (newVal != null) {
-                            setState(() => _selectedCategoryFilter = newVal);
-                          }
-                        },
+                const SizedBox(width: 10),
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${filteredItems.length} items',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _loadMenuData,
+                        icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                        tooltip: 'Reload Catalog',
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
 
-            // Content Area
+            // ── Category Pills Bar ───────────────────────────────────────────
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildCategoryPill('All', allItemsList.length, Icons.grid_view_rounded),
+                  ..._categories.map((cat) => _buildCategoryPill(
+                    cat, 
+                    _menu[cat]?.length ?? 0,
+                    _getCategoryIcon(cat),
+                  )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Main Content Grid ────────────────────────────────────────────
             Expanded(
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFC9922E)),
                       ),
                     )
                   : filteredItems.isEmpty
@@ -230,16 +383,26 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.restaurant_menu, size: 64, color: AppTheme.mediumGrey),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No menu items found',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      color: AppTheme.mediumGrey,
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.no_meals_rounded, size: 48, color: Color(0xFF94A3B8)),
                               ),
-                              const SizedBox(height: 8),
-                              ElevatedButton(
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No matching dishes found',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Check your search spelling or reset the category filter',
+                                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() {
@@ -247,7 +410,12 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                                     _selectedCategoryFilter = 'All';
                                   });
                                 },
-                                child: const Text('Reset Filters'),
+                                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                                label: const Text('Reset All Filters'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF14332E),
+                                  foregroundColor: Colors.white,
+                                ),
                               )
                             ],
                           ),
@@ -255,9 +423,9 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                       : GridView.builder(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 0.85,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            childAspectRatio: 0.80,
                           ),
                           itemCount: filteredItems.length,
                           itemBuilder: (context, index) {
@@ -272,127 +440,408 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     );
   }
 
-  Widget _buildMenuItemCard(MenuItem item) {
+  Widget _buildMenuKpiCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Color bg,
+  }) {
     return Container(
-      decoration: AppTheme.cardDecoration(),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Header
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Image.network(
-                    MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.restaurant, size: 40, color: AppTheme.mediumGrey),
-                      );
-                    },
-                  ),
-                ),
-                // Category Tag
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: item.color.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      item.category,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                // Price Tag
-                Positioned(
-                  bottom: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '₱${item.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          // Info Section
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.darkGrey,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, size: 18, color: AppTheme.infoBlue),
-                          onPressed: () => _showAddEditDialog(item),
-                          constraints: const BoxConstraints(),
-                          padding: EdgeInsets.zero,
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.delete, size: 18, color: AppTheme.errorRed),
-                          onPressed: () => _showDeleteConfirmation(item),
-                          constraints: const BoxConstraints(),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    )
-                  ],
-                ),
-                const SizedBox(height: 6),
                 Text(
-                  item.description ?? 'No description provided.',
+                  value,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.mediumGrey,
-                    height: 1.3,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String cat) {
+    final lower = cat.toLowerCase();
+    if (lower.contains('rice')) return Icons.rice_bowl_rounded;
+    if (lower.contains('noodle') || lower.contains('soup')) return Icons.ramen_dining_rounded;
+    if (lower.contains('dimsum') || lower.contains('appetizer')) return Icons.tapas_rounded;
+    if (lower.contains('drink') || lower.contains('beverage')) return Icons.local_drink_rounded;
+    if (lower.contains('dessert') || lower.contains('sweet')) return Icons.icecream_rounded;
+    if (lower.contains('pork') || lower.contains('beef') || lower.contains('chicken') || lower.contains('main')) return Icons.outdoor_grill_rounded;
+    return Icons.restaurant_rounded;
+  }
+
+  Widget _buildCategoryPill(String label, int? count, IconData icon) {
+    final isSelected = _selectedCategoryFilter == label;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => setState(() { _selectedCategoryFilter = label; }),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF14332E) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: isSelected ? [
+              BoxShadow(
+                color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ] : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFD9A441).withValues(alpha: 0.3)
+                        : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? const Color(0xFFD9A441) : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItemCard(MenuItem item) {
+    return _HoverMenuCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Image Header ─────────────────────────────────────────────
+            Expanded(
+              flex: 5,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.network(
+                      MenuService.resolveImageUrl(item.customImagePath ?? item.fallbackImagePath),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: const Color(0xFFF1F5F9),
+                          child: const Center(
+                            child: Icon(Icons.restaurant_rounded, size: 40, color: Color(0xFF94A3B8)),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Bottom gradient overlay for readability
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.65),
+                          ],
+                          stops: const [0.0, 0.45, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Category Tag (top-left)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14332E).withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.6)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_getCategoryIcon(item.category), size: 10, color: const Color(0xFFD9A441)),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.category.toUpperCase(),
+                            style: const TextStyle(
+                              color: Color(0xFFD9A441),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Action buttons (top-right)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Row(
+                      children: [
+                        _buildCardActionBtn(
+                          icon: Icons.edit_rounded,
+                          color: const Color(0xFF0284C7),
+                          onTap: () => _showAddEditDialog(item),
+                          tooltip: 'Edit Recipe & Details',
+                        ),
+                        const SizedBox(width: 4),
+                        _buildCardActionBtn(
+                          icon: Icons.delete_outline_rounded,
+                          color: const Color(0xFFDC2626),
+                          onTap: () => _showDeleteConfirmation(item),
+                          tooltip: 'Delete Item',
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Price badge (bottom-right)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFD9A441), Color(0xFFC9922E)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '₱${item.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // ── Info Section ─────────────────────────────────────────────
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.description ?? 'Standard restaurant serving with house special seasoning.',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                            height: 1.35,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    // Realistic Footer Pills (Kitchen Status + Recipe Linked)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF86EFAC)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, size: 5, color: Color(0xFF15803D)),
+                              SizedBox(width: 4),
+                              Text(
+                                'In Kitchen',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF15803D),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.restaurant_rounded, size: 9, color: Color(0xFF64748B)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Recipe Active',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardActionBtn({required IconData icon, required Color color, required VoidCallback onTap, required String tooltip}) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Icon(icon, size: 14, color: color),
+        ),
       ),
     );
   }
@@ -1258,3 +1707,30 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
     );
   }
 }
+
+class _HoverMenuCard extends StatefulWidget {
+  final Widget child;
+  const _HoverMenuCard({required this.child});
+
+  @override
+  State<_HoverMenuCard> createState() => _HoverMenuCardState();
+}
+
+class _HoverMenuCardState extends State<_HoverMenuCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.translationValues(0.0, _isHovered ? -4.0 : 0.0, 0.0),
+        child: widget.child,
+      ),
+    );
+  }
+}
+

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
-import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/ocr_service.dart';
+
+final _moneyFmt = NumberFormat('#,##0.00', 'en_PH');
 
 class PaymentApprovalPage extends StatefulWidget {
   const PaymentApprovalPage({super.key});
@@ -260,105 +262,313 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Stats calculations
+    final totalPending = _pendingPayments.length;
+    final totalPendingAmount = _pendingPayments.fold<double>(
+      0.0,
+      (sum, p) => sum + ((p['deposit_amount'] as num?)?.toDouble() ?? (p['total_price'] as num?)?.toDouble() ?? 0.0),
+    );
+    final advanceCount = _pendingPayments.where((p) => p['_table'] == 'advance_orders').length;
+    final reservationCount = _pendingPayments.where((p) => p['_table'] == 'reservations').length;
+
     return Scaffold(
       backgroundColor: AppTheme.adminMainBackground,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Payment Approvals',
-          style: TextStyle(
-            color: AppTheme.darkGrey,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: AppTheme.darkGrey),
-        actions: [
-          IconButton(
-            onPressed: _loadPendingPayments,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            color: AppTheme.primaryColor,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 1000),
-                builder: (context, value, child) {
-                  return Opacity(
-                    opacity: value,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Premium Header ───────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.verified_user_rounded, color: Color(0xFFD9A441), size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                                blurRadius: 20,
-                                spreadRadius: 5 * value,
-                              )
-                            ]
-                          ),
-                          child: const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
-                            strokeWidth: 3,
+                        const Text(
+                          'Payment Approvals',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.4,
                           ),
                         ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'FETCHING PAYMENTS...',
+                        Text(
+                          'Review and verify customer deposit and full payments',
                           style: TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
                             fontSize: 12,
+                            color: AppTheme.mediumGrey,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                  );
-                }
-              ),
-            )
-          : _pendingPayments.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadPendingPayments,
-                  color: AppTheme.primaryColor,
-                  child: ListView.builder(
-                    padding: ResponsiveUtils.getResponsivePadding(context),
-                    itemCount: _pendingPayments.length,
-                    itemBuilder: (context, index) {
-                      final payment = _pendingPayments[index];
-                      // Staggered entrance animation effect
-                      return TweenAnimationBuilder<double>(
-                        key: ValueKey(payment['id']),
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: Duration(milliseconds: 400 + (index * 100).clamp(0, 600)),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, value, child) {
-                          return Transform.translate(
-                            offset: Offset(0, 30 * (1 - value)),
-                            child: Opacity(
-                              opacity: value,
-                              child: child,
+                  ),
+                  if (totalPending > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.hourglass_top_rounded, size: 14, color: Color(0xFFD97706)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$totalPending Pending',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFD97706),
                             ),
-                          );
-                        },
-                        child: _buildPaymentCard(payment, context),
-                      );
-                    },
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  Container(
+                    height: 40,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: IconButton(
+                      onPressed: _loadPendingPayments,
+                      icon: const Icon(Icons.refresh_rounded, size: 18, color: AppTheme.mediumGrey),
+                      tooltip: 'Refresh',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Quick Stats Bar ──────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: _buildApprovalStatCard(
+                    'Awaiting Review',
+                    totalPending.toString(),
+                    Icons.pending_actions_rounded,
+                    const Color(0xFFFEF3C7),
+                    const Color(0xFFD97706),
                   ),
                 ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildApprovalStatCard(
+                    'Amount to Verify',
+                    '₱${_moneyFmt.format(totalPendingAmount)}',
+                    Icons.account_balance_wallet_rounded,
+                    const Color(0xFFDCFCE7),
+                    const Color(0xFF15803D),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildApprovalStatCard(
+                    'Reservations',
+                    reservationCount.toString(),
+                    Icons.event_seat_rounded,
+                    const Color(0xFFE0F2FE),
+                    const Color(0xFF0284C7),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildApprovalStatCard(
+                    'Advance Orders',
+                    advanceCount.toString(),
+                    Icons.fastfood_rounded,
+                    const Color(0xFFF3E8FF),
+                    const Color(0xFF7E22CE),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Main Content ─────────────────────────────────────────────────
+            Expanded(
+              child: _isLoading
+                  ? Center(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 1000),
+                        builder: (context, value, child) {
+                          return Opacity(
+                            opacity: value,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                                        blurRadius: 20,
+                                        spreadRadius: 5 * value,
+                                      )
+                                    ]
+                                  ),
+                                  child: const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  'FETCHING PAYMENTS...',
+                                  style: TextStyle(
+                                    color: AppTheme.primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      ),
+                    )
+                  : _pendingPayments.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          onRefresh: _loadPendingPayments,
+                          color: AppTheme.primaryColor,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: _pendingPayments.length,
+                            itemBuilder: (context, index) {
+                              final payment = _pendingPayments[index];
+                              return TweenAnimationBuilder<double>(
+                                key: ValueKey(payment['id']),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: Duration(milliseconds: 350 + (index * 80).clamp(0, 500)),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, value, child) {
+                                  return Transform.translate(
+                                    offset: Offset(0, 20 * (1 - value)),
+                                    child: Opacity(
+                                      opacity: value,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _buildPaymentCard(payment, context),
+                              );
+                            },
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApprovalStatCard(String label, String value, IconData icon, Color bg, Color iconColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.mediumGrey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -425,6 +635,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   Widget _buildPaymentCard(Map<String, dynamic> payment, BuildContext context) {
     final String table = payment['_table'] ?? 'reservations';
     final bool isAdvanceOrder = table == 'advance_orders';
+    final double amountToVerify = (payment['deposit_amount'] as num?)?.toDouble() ?? (payment['total_price'] as num?)?.toDouble() ?? 0.0;
+    final double totalAmount = (payment['total_price'] as num?)?.toDouble() ?? amountToVerify;
+    final String paymentRef = payment['payment_reference'] ?? 'REF-NOT-SET';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -432,75 +645,87 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Compact header with status
+                // ── Transaction Header Bar ────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.shade200),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF007DFE), Color(0xFF0056B3)],
                             ),
-                            child: const Icon(Icons.access_time_filled, color: Colors.orange, size: 18),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF007DFE).withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Payment Received',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.darkGrey,
-                                  ),
-                                ),
-                                Text(
-                                  'Ref: ${payment['payment_reference'] ?? 'N/A'}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 13),
+                              SizedBox(width: 5),
+                              Text(
+                                'GCash / PayMongo',
+                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: Text(
+                            isAdvanceOrder ? 'ADVANCE ORDER' : 'BANQUET RESERVATION',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF475569)),
+                          ),
+                        ),
+                      ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
+                        color: const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.circle, size: 6, color: Colors.orange),
+                          Icon(Icons.hourglass_bottom_rounded, size: 12, color: Color(0xFFD97706)),
                           SizedBox(width: 4),
                           Text(
-                            'Awaiting Review',
+                            'Awaiting Verification',
                             style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                              color: Color(0xFFD97706),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
                             ),
                           ),
                         ],
@@ -508,50 +733,159 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                
-                // Compact grid layout for all details
+                const SizedBox(height: 14),
+
+                // ── Financial Highlight & Reference Banner ────────────────────
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      // Amount to approve
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'PAYMENT AMOUNT TO VERIFY',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF64748B),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  '₱${_moneyFmt.format(amountToVerify)}',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF15803D),
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    isAdvanceOrder ? 'FULL PAYMENT' : (payment['payment_status'] == 'fully_paid' ? 'FULL (100%)' : 'DEPOSIT (50%)'),
+                                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'Total Order Price: ₱${_moneyFmt.format(totalAmount)}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Reference code pill
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'GATEWAY REF NUMBER',
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      paymentRef,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'monospace',
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // ── Customer & Booking Information Grid ───────────────────────
                 _buildCompactDetailGrid(payment, isAdvanceOrder),
-                
-                const SizedBox(height: 12),
-                
-                // Receipt actions (if available)
-                if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty)
+                const SizedBox(height: 14),
+
+                // ── Receipt & OCR Actions ────────────────────────────────────
+                if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
                   _buildReceiptActions(payment),
-                
-                const SizedBox(height: 12),
-                
-                // OCR Panel (if analyzed)
-                if (_ocrResults.containsKey(payment['id']))
+                  const SizedBox(height: 12),
+                ],
+
+                // ── OCR Assistant Analysis Panel ─────────────────────────────
+                if (_ocrResults.containsKey(payment['id'])) ...[
                   _buildOCRPanel(payment, _ocrResults[payment['id']]!),
-                
-                // Action buttons
+                  const SizedBox(height: 14),
+                ],
+
+                // ── Action Buttons ───────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    _buildActionButton(
+                    OutlinedButton.icon(
                       onPressed: () => _showRejectDialog(payment),
-                      icon: Icons.cancel_outlined,
-                      label: 'Reject',
-                      isPrimary: false,
+                      icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFDC2626)),
+                      label: const Text('Reject Payment', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w700, fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFFCA5A5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     _buildApproveButton(payment, table),
                   ],
                 ),
-                
-                // Guidance note for disabled button
+
+                // Guidance note
                 if (!_canApprovePayment(payment))
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(Icons.info_outline, size: 12, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
+                        const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 5),
                         Text(
-                          'Run Auto-Verify first to enable approval.',
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                          'Run "Auto-Verify" to inspect digital receipt before approval.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                         ),
                       ],
                     ),
@@ -568,93 +902,66 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         children: [
-          // Order/Reservation info row
           Row(
             children: [
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Customer Name',
+                  payment['customer_name'] ?? 'N/A',
+                  Icons.person_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCompactDetailItem(
+                  'Email Address',
+                  payment['customer_email'] ?? 'N/A',
+                  Icons.email_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: _buildCompactDetailItem(
                   isAdvanceOrder ? 'Order Type' : 'Event Type',
                   isAdvanceOrder ? (payment['order_type'] ?? 'N/A') : (payment['event_type'] ?? 'N/A'),
-                  Icons.fastfood_rounded,
-                  isHighlight: isAdvanceOrder,
+                  isAdvanceOrder ? Icons.fastfood_rounded : Icons.celebration_rounded,
+                  isHighlight: true,
                 ),
               ),
-              const SizedBox(width: 8),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
               Expanded(
                 child: _buildCompactDetailItem(
-                  'Date',
+                  'Scheduled Date',
                   (isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A',
-                  Icons.calendar_today,
+                  Icons.calendar_today_rounded,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildCompactDetailItem(
-                  'Time',
-                  isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours']}h)',
-                  Icons.access_time,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Customer and payment info row
-          Row(
-            children: [
-              Expanded(
-                child: _buildCompactDetailItem(
-                  'Customer',
-                  payment['customer_name'] ?? 'N/A',
-                  Icons.person,
+                  'Scheduled Time',
+                  isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours'] ?? 4}h)',
+                  Icons.schedule_rounded,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _buildCompactDetailItem(
-                  'Email',
-                  payment['customer_email'] ?? 'N/A',
-                  Icons.email,
+                  'Guest PAX',
+                  '${payment['number_of_guests'] ?? 1} Guests',
+                  Icons.groups_rounded,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildCompactDetailItem(
-                  'Total',
-                  'PHP ${(payment['total_price'] ?? 0).toStringAsFixed(2)}',
-                  Icons.monetization_on,
-                  isHighlight: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Payment amount and guests row
-          Row(
-            children: [
-              Expanded(
-                child: _buildCompactDetailItem(
-                  isAdvanceOrder ? 'FULL PAID' : (payment['payment_status'] == 'fully_paid' ? 'Full Paid' : 'Deposit'),
-                  'PHP ${(payment['deposit_amount'] ?? 0).toStringAsFixed(2)}',
-                  Icons.account_balance_wallet,
-                  isHighlight: true,
-                ),
-              ),
-              if (!isAdvanceOrder || (payment['number_of_guests'] != null && payment['number_of_guests'] > 0)) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildCompactDetailItem(
-                    'Guests',
-                    '${payment['number_of_guests']} people',
-                    Icons.people,
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -666,15 +973,15 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isHighlight ? AppTheme.primaryColor.withValues(alpha: 0.08) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
+        color: isHighlight ? const Color(0xFF14332E).withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isHighlight ? AppTheme.primaryColor.withValues(alpha: 0.2) : Colors.grey.shade200,
+          color: isHighlight ? const Color(0xFF14332E).withValues(alpha: 0.15) : const Color(0xFFE2E8F0),
         ),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: isHighlight ? AppTheme.primaryColor : Colors.grey.shade500),
+          Icon(icon, size: 14, color: isHighlight ? const Color(0xFFC9922E) : const Color(0xFF64748B)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -682,10 +989,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               children: [
                 Text(
                   label.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade500,
+                  style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -693,8 +1000,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   value,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-                    color: isHighlight ? AppTheme.primaryColor : AppTheme.darkGrey,
+                    fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w600,
+                    color: const Color(0xFF0F172A),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -867,14 +1174,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildOCRRow('Amount Detected', detectedAmount != null ? 'PHP ${detectedAmount.toStringAsFixed(2)}' : 'Not Found', amountMatches ? Icons.check_circle : (detectedAmount == null ? Icons.help_outline : Icons.warning_amber), amountMatches ? Colors.green : Colors.red),
+          _buildOCRRow('Amount Detected', detectedAmount != null ? '₱${_moneyFmt.format(detectedAmount)}' : 'Not Found', amountMatches ? Icons.check_circle : (detectedAmount == null ? Icons.help_outline : Icons.warning_amber), amountMatches ? Colors.green : Colors.red),
           _buildOCRRow('Reference ID', detectedRefs.isNotEmpty ? detectedRefs.first.toString() : 'Not Found', refMatches ? Icons.check_circle : Icons.help_outline, refMatches ? Colors.green : Colors.orange),
           _buildOCRRow('Payment ID', detectedPaymentId ?? 'Not Found', paymentIdFound ? Icons.check_circle : Icons.help_outline, paymentIdFound ? Colors.green : Colors.red),
           _buildOCRRow('QRPh Payment Received!', hasQrphReceived ? 'Confirmed' : 'Not Found', hasQrphReceived ? Icons.check_circle : Icons.help_outline, hasQrphReceived ? Colors.green : Colors.red),
           if (!amountMatches && detectedAmount != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('⚠️ Warning: Amount mismatch (Expected PHP ${expectedAmount.toStringAsFixed(2)})', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+              child: Text('⚠️ Warning: Amount mismatch (Expected ₱${_moneyFmt.format(expectedAmount)})', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
             ),
           if (!allVerified)
             Padding(

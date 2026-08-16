@@ -22,12 +22,16 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   String _selectedFilter = 'all'; // all, pending, confirmed, completed, cancelled
   int _currentPage = 0;
   final int _rowsPerPage = 10;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   
   // Services
   final ReservationService _reservationService = ReservationService();
   
   // Controllers
   final ScrollController _horizontalScrollController = ScrollController();
+
+
 
   // Realtime subscription
   RealtimeChannel? _realtimeChannel;
@@ -150,6 +154,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _realtimeChannel?.unsubscribe();
     _horizontalScrollController.dispose();
     super.dispose();
@@ -435,12 +440,23 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   List<Map<String, dynamic>> get _filteredReservations {
+    List<Map<String, dynamic>> base;
     if (_selectedFilter == 'archived') {
-      return reservations.where((r) => r['is_archived'] == true).toList();
+      base = reservations.where((r) => r['is_archived'] == true).toList();
+    } else {
+      final unarchived = reservations.where((r) => r['is_archived'] != true);
+      base = _selectedFilter == 'all'
+          ? unarchived.toList()
+          : unarchived.where((r) => r['status'] == _selectedFilter).toList();
     }
-    final unarchived = reservations.where((r) => r['is_archived'] != true);
-    if (_selectedFilter == 'all') return unarchived.toList();
-    return unarchived.where((r) => r['status'] == _selectedFilter).toList();
+    if (_searchQuery.isEmpty) return base;
+    final q = _searchQuery.toLowerCase();
+    return base.where((r) {
+      final name  = (r['customer_name']  ?? '').toString().toLowerCase();
+      final email = (r['customer_email'] ?? '').toString().toLowerCase();
+      final event = (r['event_type']     ?? '').toString().toLowerCase();
+      return name.contains(q) || email.contains(q) || event.contains(q);
+    }).toList();
   }
 
   // ── Design tokens ──────────────────────────────────────────────────────────
@@ -468,61 +484,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
-  Widget _buildTopBar() {
-    return Row(
-      children: [
-        Expanded(child: _buildFilterSegmentControl()),
-        if (!widget.isFullscreen) ...[
-          const SizedBox(width: 10),
-          Tooltip(
-            message: 'Fullscreen',
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => Scaffold(
-                      backgroundColor: const Color(0xFFF8FAFC),
-                      appBar: AppBar(
-                        title: Text(
-                          'Event Reservations',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w800,
-                            color: _darkBg,
-                            fontSize: 18,
-                          ),
-                        ),
-                        backgroundColor: Colors.white,
-                        elevation: 0,
-                        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
-                        bottom: PreferredSize(
-                          preferredSize: const Size.fromHeight(1),
-                          child: Container(height: 1, color: _slateLight),
-                        ),
-                      ),
-                      body: const SafeArea(
-                        child: AdminReservationsPage(isFullscreen: true),
-                      ),
-                    ),
-                  ),
-                ).then((_) => _loadReservations());
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _slateLight),
-                ),
-                child: const Icon(Icons.fullscreen_rounded, color: _slate, size: 20),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
+
 
   Widget _buildDesktopLayout() {
     return Padding(
@@ -533,9 +495,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           _buildPageHeader(),
           const SizedBox(height: 14),
           _buildStatsBar(),
-          const SizedBox(height: 14),
-          _buildTopBar(),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          _buildSearchBar(),
+          const SizedBox(height: 10),
           Expanded(child: _buildReservationsTable()),
         ],
       ),
@@ -548,11 +510,58 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         _buildPageHeader(),
         const SizedBox(height: 10),
         _buildStatsBar(),
-        const SizedBox(height: 10),
-        _buildTopBar(),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
+        _buildSearchBar(),
+        const SizedBox(height: 8),
         Expanded(child: _buildReservationsList()),
       ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return SizedBox(
+      height: 38,
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => setState(() {
+          _searchQuery = v.trim();
+          _currentPage = 0;
+        }),
+        style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF0F172A)),
+        decoration: InputDecoration(
+          hintText: 'Search by name, email, or event type…',
+          hintStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            color: const Color(0xFF94A3B8),
+          ),
+          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? GestureDetector(
+                  onTap: () => setState(() {
+                    _searchQuery = '';
+                    _searchController.clear();
+                    _currentPage = 0;
+                  }),
+                  child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+          ),
+        ),
+      ),
     );
   }
 
@@ -633,185 +642,160 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final confirmed = unarchived.where((r) => r['status'] == 'confirmed').length;
     final completed = unarchived.where((r) => r['status'] == 'completed').length;
     final cancelled = unarchived.where((r) => r['status'] == 'cancelled').length;
+    final archived  = reservations.where((r) => r['is_archived'] == true).length;
 
     return Row(
       children: [
-        Expanded(child: _statTile('Total', unarchived.length, Icons.calendar_month_rounded,
-            const Color(0xFFDCFCE7), const Color(0xFF15803D))),
+        Expanded(
+          child: _statTile(
+            'Total',
+            unarchived.length,
+            Icons.calendar_month_rounded,
+            const Color(0xFFDCFCE7),
+            const Color(0xFF15803D),
+            'all',
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _statTile('Pending', pending, Icons.hourglass_top_rounded,
-            const Color(0xFFFEF3C7), const Color(0xFFD97706))),
+        Expanded(
+          child: _statTile(
+            'Pending',
+            pending,
+            Icons.hourglass_top_rounded,
+            const Color(0xFFFEF3C7),
+            const Color(0xFFD97706),
+            'pending',
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _statTile('Confirmed', confirmed, Icons.check_circle_rounded,
-            const Color(0xFFDCFCE7), const Color(0xFF15803D))),
+        Expanded(
+          child: _statTile(
+            'Confirmed',
+            confirmed,
+            Icons.check_circle_rounded,
+            const Color(0xFFDCFCE7),
+            const Color(0xFF15803D),
+            'confirmed',
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _statTile('Completed', completed, Icons.done_all_rounded,
-            const Color(0xFFE0F2FE), const Color(0xFF0284C7))),
+        Expanded(
+          child: _statTile(
+            'Completed',
+            completed,
+            Icons.done_all_rounded,
+            const Color(0xFFE0F2FE),
+            const Color(0xFF0284C7),
+            'completed',
+          ),
+        ),
         const SizedBox(width: 8),
-        Expanded(child: _statTile('Cancelled', cancelled, Icons.cancel_rounded,
-            const Color(0xFFFEE2E2), const Color(0xFFDC2626))),
+        Expanded(
+          child: _statTile(
+            'Cancelled',
+            cancelled,
+            Icons.cancel_rounded,
+            const Color(0xFFFEE2E2),
+            const Color(0xFFDC2626),
+            'cancelled',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _statTile(
+            'Archived',
+            archived,
+            Icons.inventory_2_rounded,
+            const Color(0xFFF1F5F9),
+            const Color(0xFF475569),
+            'archived',
+          ),
+        ),
       ],
     );
   }
 
-  Widget _statTile(String label, int value, IconData icon, Color bg, Color iconColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _slateLight),
-        boxShadow: [
-          BoxShadow(
-            color: _darkBg.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7)),
-            child: Icon(icon, color: iconColor, size: 14),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value.toString(),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    color: _darkBg,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 9,
-                    color: _slate,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _statTile(String label, int value, IconData icon, Color bg, Color iconColor, String filterKey) {
+    final bool isSelected = _selectedFilter == filterKey;
 
-  Widget _buildFilterSegmentControl() {
-    final unarchived = reservations.where((r) => r['is_archived'] != true);
-    final counts = {
-      'all':       unarchived.length,
-      'pending':   unarchived.where((r) => r['status'] == 'pending').length,
-      'confirmed': unarchived.where((r) => r['status'] == 'confirmed').length,
-      'completed': unarchived.where((r) => r['status'] == 'completed').length,
-      'cancelled': unarchived.where((r) => r['status'] == 'cancelled').length,
-      'archived':  reservations.where((r) => r['is_archived'] == true).length,
-    };
-    final filters = [
-      {'value': 'all',       'label': 'All'},
-      {'value': 'pending',   'label': 'Pending'},
-      {'value': 'confirmed', 'label': 'Confirmed'},
-      {'value': 'completed', 'label': 'Completed'},
-      {'value': 'cancelled', 'label': 'Cancelled'},
-      {'value': 'archived',  'label': 'Archived'},
-    ];
-
-    final pills = filters.map((f) => _buildSegmentButton(
-      f['value'] as String,
-      f['label'] as String,
-      count: counts[f['value']] ?? 0,
-    )).toList();
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: pills),
-    );
-  }
-
-  Widget _buildSegmentButton(String value, String label, {int count = 0}) {
-    final isSelected = _selectedFilter == value;
-
-    Color accent;
-    switch (value) {
-      case 'pending':   accent = const Color(0xFFD97706); break;
-      case 'confirmed': accent = const Color(0xFF15803D); break;
-      case 'completed': accent = const Color(0xFF0284C7); break;
-      case 'cancelled': accent = const Color(0xFFDC2626); break;
-      case 'archived':  accent = const Color(0xFF64748B); break;
-      default:          accent = _emerald;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => setState(() { _selectedFilter = value; _currentPage = 0; }),
+        onTap: () => setState(() {
+          _selectedFilter = filterKey;
+          _currentPage = 0;
+        }),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: isSelected ? accent : Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? accent : _slateLight,
+              color: isSelected ? iconColor : const Color(0xFFE2E8F0),
+              width: isSelected ? 2.0 : 1.0,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: accent.withValues(alpha: 0.25),
-                      blurRadius: 8,
+                      color: iconColor.withValues(alpha: 0.18),
+                      blurRadius: 10,
                       offset: const Offset(0, 3),
-                    )
+                    ),
                   ]
-                : null,
+                : [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: isSelected ? iconColor : bg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: isSelected ? Colors.white : iconColor, size: 15),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      value.toString(),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isSelected ? iconColor : _darkBg,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 9.5,
+                        color: isSelected ? iconColor : _slate,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              if (count > 0) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.25)
-                        : accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    count.toString(),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected ? Colors.white : accent,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ),
       ),
     );
   }
+
   Widget _buildReservationsTable() {
     if (_isLoading) return _buildLoadingState();
     final filtered = _filteredReservations;
@@ -856,7 +840,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Expanded(flex: 2, child: _tableHeader('EVENT')),
                 Expanded(flex: 2, child: _tableHeader('SCHEDULE')),
                 Expanded(flex: 2, child: _tableHeader('PRICING')),
-                Expanded(flex: 1, child: _tableHeader('STATUS')),
+                SizedBox(width: 110, child: _tableHeader('STATUS')),
                 SizedBox(width: 170, child: _tableHeader('ACTIONS')),
               ],
             ),
@@ -895,15 +879,20 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
   Widget _buildTableRow(Map<String, dynamic> r) {
     final status = (r['status'] ?? 'pending').toString().toLowerCase();
-    final totalPrice = r['total_price'];
-    final depositAmount = r['deposit_amount'];
-    final paymentStatus = (r['payment_status'] ?? 'unpaid').toString();
+    final totalPrice = (r['total_price'] as num?)?.toDouble() ?? 0.0;
+    final depositAmount = (r['deposit_amount'] as num?)?.toDouble() ?? 0.0;
+    final remaining = (totalPrice - depositAmount).clamp(0.0, double.infinity);
+    final eventType = (r['event_type'] ?? 'Banquet Event').toString();
+    final guestCount = r['number_of_guests'] ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+      ),
       child: Row(
         children: [
-          // Customer
+          // Customer Details
           Expanded(
             flex: 3,
             child: Row(
@@ -915,21 +904,31 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        r['customer_name'] ?? 'N/A',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: _darkBg,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              r['customer_name'] ?? 'N/A',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (r['id_proof_url'] != null && r['id_proof_url'].toString().isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF0284C7)),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        r['customer_email'] ?? '',
+                        r['customer_email'] ?? r['customer_phone'] ?? 'No contact info',
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: _slate,
                           fontWeight: FontWeight.w500,
                         ),
@@ -942,30 +941,46 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               ],
             ),
           ),
-          // Event
+          // Event Type & Pax
           Expanded(
             flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  r['event_type'] ?? 'N/A',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _darkBg,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_getEventIcon(eventType), size: 14, color: const Color(0xFFC9922E)),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        eventType,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _darkBg,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${r['number_of_guests'] ?? 0} guests',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    color: _slate,
-                    fontWeight: FontWeight.w500,
+                const SizedBox(height: 3),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$guestCount Expected Guests',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: _slate,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -981,67 +996,74 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                 Text(
                   _formatReadableDate(r['event_date']?.toString() ?? ''),
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                     color: _darkBg,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  _formatReadableTime(r['start_time']?.toString() ?? ''),
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    color: _slate,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatReadableTime(r['start_time']?.toString() ?? ''),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: _slate,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          // Pricing
+          // Financials
           Expanded(
             flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (totalPrice != null && totalPrice > 0)
+                if (totalPrice > 0) ...[
                   Text(
-                    '₱${totalPrice.toStringAsFixed(0)}',
+                    '₱${totalPrice.toStringAsFixed(2)}',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
                       color: _emerald,
                     ),
-                  )
-                else
-                  Text(
-                    'Unpriced',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      color: const Color(0xFF94A3B8),
-                      fontStyle: FontStyle.italic,
-                      fontWeight: FontWeight.w500,
-                    ),
                   ),
-                const SizedBox(height: 2),
-                if (depositAmount != null && depositAmount > 0)
+                  const SizedBox(height: 2),
                   Text(
-                    'Dep: ₱${depositAmount.toStringAsFixed(0)} • ${_getPaymentStatusText(paymentStatus)}',
+                    depositAmount > 0
+                        ? 'Paid: ₱${depositAmount.toStringAsFixed(0)} (Rem: ₱${remaining.toStringAsFixed(0)})'
+                        : 'No Deposit Paid Yet',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: _slate,
+                      fontSize: 11,
+                      color: depositAmount > 0 ? const Color(0xFF15803D) : const Color(0xFFDC2626),
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ] else
+                  Text(
+                    'Quotation Pending',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: const Color(0xFF94A3B8),
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
               ],
             ),
           ),
           // Status
-          Expanded(
-            flex: 1,
+          SizedBox(
+            width: 110,
             child: Align(
               alignment: Alignment.centerLeft,
               child: _buildCompactStatusChip(status),
@@ -1055,6 +1077,15 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         ],
       ),
     );
+  }
+
+  IconData _getEventIcon(String type) {
+    final lower = type.toLowerCase();
+    if (lower.contains('wed')) return Icons.favorite_rounded;
+    if (lower.contains('birth')) return Icons.cake_rounded;
+    if (lower.contains('corp') || lower.contains('business')) return Icons.business_center_rounded;
+    if (lower.contains('debut')) return Icons.star_rounded;
+    return Icons.celebration_rounded;
   }
 
   Widget _miniAvatar(String name) {
@@ -1742,28 +1773,32 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       case 'cancelled': color = const Color(0xFFDC2626); icon = Icons.cancel_rounded;         break;
       default:          color = _slate;                  icon = Icons.help_outline_rounded;
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 4),
-          Text(
-            status.toUpperCase(),
-            style: GoogleFonts.plusJakartaSans(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 9,
-              letterSpacing: 0.4,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 4),
+            Text(
+              status.toUpperCase(),
+              style: GoogleFonts.plusJakartaSans(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 9,
+                letterSpacing: 0.4,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -26,11 +26,11 @@ class PettyCashFund {
       currentBalance: (json['current_balance'] as num?)?.toDouble() ?? 0.0,
       initialBalance: (json['initial_balance'] as num?)?.toDouble() ?? 0.0,
       lastReplenishedAt: json['last_replenished_at'] != null
-          ? DateTime.parse(json['last_replenished_at'] as String)
+          ? DateTime.parse(json['last_replenished_at'] as String).toLocal()
           : null,
       lowBalanceThreshold: (json['low_balance_threshold'] as num?)?.toDouble() ?? 2000.0,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
     );
   }
 
@@ -140,7 +140,7 @@ class PettyCashExpense {
 
     return PettyCashExpense(
       id: json['id'] as String?,
-      expenseDate: DateTime.parse(json['expense_date'] as String),
+      expenseDate: DateTime.parse(json['expense_date'] as String).toLocal(),
       description: json['description'] as String,
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
       category: json['category'] as String,
@@ -156,11 +156,11 @@ class PettyCashExpense {
       status: json['status'] as String? ?? 'pending',
       approvedBy: json['approved_by'] as String?,
       approvedAt: json['approved_at'] != null
-          ? DateTime.parse(json['approved_at'] as String)
+          ? DateTime.parse(json['approved_at'] as String).toLocal()
           : null,
       notes: json['notes'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
     );
   }
 

@@ -657,7 +657,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-    const InventoryPage(),
+    const InventoryPage(isViewOnly: true),
 
 
 
