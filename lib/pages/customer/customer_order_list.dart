@@ -15,6 +15,7 @@ import 'package:yang_chow/models/menu_item.dart';
 import 'package:yang_chow/services/menu_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
+import 'package:yang_chow/utils/app_constants.dart';
 
 // ─── Cart Icon (with badge) ──────────────────────────────────────────────────
 
@@ -288,7 +289,19 @@ void showMenuItemSheet({
 
 class CustomerOrderListPage extends StatefulWidget {
   final Map<String, int> selectedMenuItems;
-  final void Function(Map<String, int>) onProceed;
+  /// Called once the customer finishes the Order Type Sheet.
+  /// [items]            – the checked cart subset
+  /// [reservationType]  – 'Event Place' | 'Advance Order'
+  /// [advanceOrderType] – 'Dine In' | 'Pick Up'  (only relevant for Advance Order)
+  /// [date]             – formatted 'MMMM d, yyyy'
+  /// [time]             – formatted 'h:mm AM/PM'
+  final void Function(
+    Map<String, int> items,
+    String reservationType,
+    String advanceOrderType,
+    String date,
+    String time,
+  ) onProceed;
   final VoidCallback? onCartUpdated;
 
   const CustomerOrderListPage({
@@ -682,15 +695,24 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                         );
                         return;
                       }
-                      Navigator.pop(context);
-                      
+
                       final Map<String, int> selectedSubset = {};
                       for (var key in _checkedItems) {
                         if (widget.selectedMenuItems.containsKey(key)) {
                           selectedSubset[key] = widget.selectedMenuItems[key]!;
                         }
                       }
-                      widget.onProceed(selectedSubset);
+
+                      // Open Order Type Sheet instead of proceeding directly
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => _OrderTypeSheet(
+                          cartItems: selectedSubset,
+                          onConfirm: widget.onProceed,
+                        ),
+                      );
                     },
                     child: Container(
                       width: double.infinity,
@@ -712,7 +734,7 @@ class _CustomerOrderListPageState extends State<CustomerOrderListPage> {
                           const Icon(Icons.event_available_rounded, color: AppTheme.warmGold, size: 22),
                           const SizedBox(width: 10),
                           Text(
-                            'Proceed to Checkout',
+                            'Proceed to Reservation type',
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -759,3 +781,290 @@ Widget _stepperButton({
     ),
   );
 }
+
+// ─── Order Type Sheet ─────────────────────────────────────────────────────────
+// Shown when customer taps "Proceed to Checkout" in the cart.
+// Asks: Event Place or Advance Order? Dine In or Pick Up? Date? Time?
+// On confirm, calls onConfirm with all scheduling details.
+
+class _OrderTypeSheet extends StatefulWidget {
+  final Map<String, int> cartItems;
+  final void Function(
+    Map<String, int> items,
+    String reservationType,
+    String advanceOrderType,
+    String date,
+    String time,
+  ) onConfirm;
+
+  const _OrderTypeSheet({
+    required this.cartItems,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_OrderTypeSheet> createState() => _OrderTypeSheetState();
+}
+
+class _OrderTypeSheetState extends State<_OrderTypeSheet> {
+  String _reservationType = 'Advance Order'; // 'Advance Order' | 'Event Place'
+  String _advanceOrderType = 'Dine In';      // 'Dine In' | 'Pick Up'
+
+  void _confirm() {
+    Navigator.pop(context); // close sheet
+    Navigator.pop(context); // close cart page
+    widget.onConfirm(
+      widget.cartItems,
+      _reservationType,
+      _advanceOrderType,
+      '', // date set on reservation page
+      '', // time set on reservation page
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Container(
+              width: 44, height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+            decoration: BoxDecoration(
+              color: AppTheme.navColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.event_available_rounded, color: AppTheme.warmGold, size: 22),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Set Up Your Order',
+                      style: GoogleFonts.lora(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose your preferred reservation type ',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+
+                  // ── Step 1: Order Type ──────────────────────────────────────
+                  _sectionLabel('ORDER TYPE'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _typeCard(
+                          icon: Icons.shopping_bag_outlined,
+                          label: 'Advance Order',
+                          subtitle: 'Dine in or pick up',
+                          selected: _reservationType == 'Advance Order',
+                          onTap: () => setState(() => _reservationType = 'Advance Order'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _typeCard(
+                          icon: Icons.celebration_rounded,
+                          label: 'Event Place',
+                          subtitle: 'Reserve a venue',
+                          selected: _reservationType == 'Event Place',
+                          onTap: () => setState(() => _reservationType = 'Event Place'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // ── Step 2: Advance Order sub-type ─────────────────────────
+                  if (_reservationType == 'Advance Order') ...[
+                    const SizedBox(height: 24),
+                    _sectionLabel('ORDER MODE'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _typeCard(
+                            icon: Icons.restaurant_rounded,
+                            label: 'Dine In',
+                            subtitle: 'Eat at the restaurant',
+                            selected: _advanceOrderType == 'Dine In',
+                            onTap: () => setState(() => _advanceOrderType = 'Dine In'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _typeCard(
+                            icon: Icons.shopping_bag_rounded,
+                            label: 'Pick Up',
+                            subtitle: 'Take your order away',
+                            selected: _advanceOrderType == 'Pick Up',
+                            onTap: () => setState(() => _advanceOrderType = 'Pick Up'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Confirm Button ─────────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).padding.bottom + 20),
+            child: AnimatedTapScale(
+              onTap: _confirm,
+              child: Container(
+                width: double.infinity,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: AppTheme.forestGreen,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.forestGreen.withOpacity(0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: AppTheme.warmGold, size: 22),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Confirm Order Setup',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.arrow_forward_rounded, color: AppTheme.warmGold, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helper widgets ──────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String label) => Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.mediumGrey,
+          letterSpacing: 1.2,
+        ),
+      );
+
+  Widget _typeCard({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.forestGreen : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? AppTheme.forestGreen : AppTheme.cardBorder,
+            width: selected ? 2 : 1.2,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.forestGreen.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ]
+              : [],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: selected ? AppTheme.warmGold : AppTheme.mediumGrey),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: selected ? Colors.white : AppTheme.darkGrey,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: selected ? Colors.white70 : AppTheme.mediumGrey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
