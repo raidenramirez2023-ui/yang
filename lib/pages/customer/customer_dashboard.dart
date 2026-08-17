@@ -14203,42 +14203,34 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  void _proceedDirectlyToReservation(Map<String, int> selectedSubset) {
-
+  void _proceedDirectlyToReservation(
+    Map<String, int> selectedSubset,
+    String reservationType,
+    String advanceOrderType,
+    String date,
+    String time,
+  ) {
     setState(() {
-
       _selectedMenuItems = Map<String, int>.from(selectedSubset);
-
-      _selectedIndex = 1;
-
+      _reservationType = reservationType;
+      _advanceOrderType = advanceOrderType;
+      _dateController.text = date;
+      _startTimeController.text = time;
+      _selectedIndex = 1; // switch to Reservation tab
     });
-
   }
 
-
-
   void _showOrderListModal() {
-
     Navigator.push(
-
       context,
-
       MaterialPageRoute(
-
         builder: (context) => CustomerOrderListPage(
-
           selectedMenuItems: _preOrderCart,
-
           onProceed: _proceedDirectlyToReservation,
-
           onCartUpdated: _handleCartUpdated,
-
         ),
-
       ),
-
     );
-
   }
 
 
