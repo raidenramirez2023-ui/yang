@@ -147,6 +147,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   List<Map<String, dynamic>> customerReservations = [];
+  String _activityFilter = 'all'; // 'all', 'in_progress', 'confirmed'
 
   bool _isEligibleForReview = false;
 
@@ -3268,77 +3269,59 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildSubSelectionButton(String label, IconData icon) {
-
     final isSelected = _advanceOrderType == label;
 
-    return GestureDetector(
-
+    return AnimatedTapScale(
       onTap: () => setState(() => _advanceOrderType = label),
-
       child: AnimatedContainer(
-
-        duration: const Duration(milliseconds: 300),
-
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-
         decoration: BoxDecoration(
-
-          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
-
-          borderRadius: BorderRadius.circular(20),
-
+          gradient: isSelected ? AppTheme.goldGradient : null,
+          color: isSelected ? null : Colors.white,
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-
-            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
-
-            width: 1.5,
-
+            color: isSelected ? Colors.transparent : AppTheme.cardBorder,
+            width: 1.2,
           ),
-
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.warmGold.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-
         child: Row(
-
           mainAxisSize: MainAxisSize.min,
-
           children: [
-
             Icon(
-
               icon,
-
               size: 18,
-
-              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
-
+              color: isSelected ? AppTheme.darkBrownText : AppTheme.forestGreen,
             ),
-
             const SizedBox(width: 8),
-
             Text(
-
               label,
-
-              style: TextStyle(
-
-                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
-
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-
-                fontSize: 14,
-
+              style: GoogleFonts.inter(
+                color: isSelected ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                fontSize: 13,
               ),
-
             ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
 
 
@@ -3413,666 +3396,618 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
     }
 
-    
-
     return items;
-
   }
 
-
-
   Widget _buildHeroCarousel() {
-
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
-
     final List<MenuItem> items = _getTopSellingItems(allMenu);
-
-
 
     if (items.isEmpty) return const SizedBox.shrink();
 
-
-
     return Column(
-
       children: [
-
         SizedBox(
-
-          height: ResponsiveUtils.isDesktop(context) ? 400 : 220,
-
+          height: ResponsiveUtils.isDesktop(context) ? 380 : 230,
           child: PageView.builder(
-
             controller: _heroPageController,
-
             onPageChanged: (index) => setState(() => _currentHeroPage = index),
-
             itemCount: items.length,
-
             itemBuilder: (context, index) {
-
               final item = items[index];
-
               return AnimatedBuilder(
-
                 animation: _heroPageController,
-
                 builder: (context, child) {
-
                   double value = 1.0;
-
                   if (_heroPageController.position.haveDimensions) {
-
                     value = _heroPageController.page! - index;
-
-                    value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
-
+                    value = (1 - (value.abs() * 0.25)).clamp(0.0, 1.0);
                   }
-
                   return Center(
-
                     child: SizedBox(
-
-                      height: Curves.easeOut.transform(value) * (ResponsiveUtils.isDesktop(context) ? 400 : 220),
-
+                      height: Curves.easeOutCubic.transform(value) * (ResponsiveUtils.isDesktop(context) ? 380 : 230),
                       width: double.infinity,
-
                       child: child,
-
                     ),
-
                   );
-
                 },
-
-                child: Container(
-
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-
-                  decoration: BoxDecoration(
-
-                    borderRadius: BorderRadius.circular(28),
-
-                    boxShadow: [
-
-                      BoxShadow(
-
-                        color: Colors.black.withValues(alpha: 0.18),
-
-                        blurRadius: 20,
-
-                        offset: const Offset(0, 10),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                  child: ClipRRect(
-
-                    borderRadius: BorderRadius.circular(28),
-
-                    child: Stack(
-
-                      fit: StackFit.expand,
-
-                      children: [
-
-                        _buildImageWidget(item),
-
-                        // Gradient Overlay
-
-                        Container(
-
-                          decoration: BoxDecoration(
-
-                            gradient: LinearGradient(
-
-                              begin: Alignment.topCenter,
-
-                              end: Alignment.bottomCenter,
-
-                              colors: [
-
-                                Colors.transparent,
-
-                                Colors.black.withValues(alpha: 0.1),
-
-                                Colors.black.withValues(alpha: 0.8),
-
-                              ],
-
-                              stops: const [0.0, 0.4, 1.0],
-
-                            ),
-
-                          ),
-
-                        ),
-
-                        // Ad Content
-
-                        Positioned(
-
-                          left: 28,
-
-                          bottom: 28,
-
-                          right: 28,
-
-                          child: Column(
-
-                            crossAxisAlignment: CrossAxisAlignment.start,
-
-                            mainAxisSize: MainAxisSize.min,
-
-                            children: [
-
-                              const SizedBox(height: 8),
-
-                              Text(
-
-                                item.name,
-
-                                style: GoogleFonts.lora(
-
-                                  color: Colors.white,
-
-                                  fontSize: ResponsiveUtils.isDesktop(context) ? 32 : 24,
-
-                                  fontWeight: FontWeight.w800,
-
-                                  letterSpacing: -0.5,
-
-                                ),
-
-                              ),
-
-                              if (item.description != null) ...[
-
-                                const SizedBox(height: 6),
-
-                                Text(
-
-                                  item.description!,
-
-                                  style: TextStyle(
-
-                                    color: Colors.white.withValues(alpha: 0.95),
-
-                                    fontSize: ResponsiveUtils.isDesktop(context) ? 16 : 13,
-
-                                    fontWeight: FontWeight.w500,
-
-                                    letterSpacing: -0.2,
-
-                                  ),
-
-                                  maxLines: 2,
-
-                                  overflow: TextOverflow.ellipsis,
-
-                                ),
-
-                              ],
-
-                            ],
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ),
-
-                  ),
-
-                ),
-
-              );
-
-            },
-
-          ),
-
-        ),
-
-        const SizedBox(height: 16),
-
-        Row(
-
-          mainAxisAlignment: MainAxisAlignment.center,
-
-          children: List.generate(items.length, (index) {
-
-            final isActive = _currentHeroPage == index;
-
-            return AnimatedContainer(
-
-              duration: const Duration(milliseconds: 350),
-
-              curve: Curves.easeOutCubic,
-
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-
-              height: 7,
-
-              width: isActive ? 32 : 7,
-
-              decoration: BoxDecoration(
-
-                gradient: isActive ? AppTheme.goldGradient : null,
-
-                color: isActive ? null : Colors.grey.withValues(alpha: 0.3),
-
-                borderRadius: BorderRadius.circular(4),
-
-                boxShadow: isActive
-
-                    ? [
-
+                child: GestureDetector(
+                  onTap: () => _showMenuItemDetailsDialog(item),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
                         BoxShadow(
-
-                          color: AppTheme.goldenAmber.withValues(alpha: 0.5),
-
-                          blurRadius: 6,
-
-                          offset: const Offset(0, 2),
-
+                          color: Colors.black.withValues(alpha: 0.22),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                          spreadRadius: -2,
                         ),
-
-                      ]
-
-                    : null,
-
-              ),
-
-            );
-
-          }),
-
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildImageWidget(item),
+                          // Multi-stop Rich Gradient Scrim
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.2),
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.5),
+                                  Colors.black.withValues(alpha: 0.92),
+                                ],
+                                stops: const [0.0, 0.3, 0.65, 1.0],
+                              ),
+                            ),
+                          ),
+                          // Top Badge
+                          Positioned(
+                            top: 14,
+                            left: 16,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.goldGradient,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.stars_rounded, size: 14, color: AppTheme.darkBrownText),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "CHEF'S SPECIAL",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppTheme.darkBrownText,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Bottom Ad Info Content
+                          Positioned(
+                            left: 20,
+                            bottom: 18,
+                            right: 20,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (item.category.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          margin: const EdgeInsets.only(bottom: 6),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.warmGold.withValues(alpha: 0.25),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.5)),
+                                          ),
+                                          child: Text(
+                                            item.category.toUpperCase(),
+                                            style: GoogleFonts.inter(
+                                              color: AppTheme.primaryLight,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.8,
+                                            ),
+                                          ),
+                                        ),
+                                      Text(
+                                        item.name,
+                                        style: GoogleFonts.lora(
+                                          color: Colors.white,
+                                          fontSize: ResponsiveUtils.isDesktop(context) ? 28 : 20,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                      if (item.description != null && item.description!.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          item.description!,
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white.withValues(alpha: 0.88),
+                                            fontSize: ResponsiveUtils.isDesktop(context) ? 14 : 12,
+                                            fontWeight: FontWeight.w400,
+                                            height: 1.25,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: AppTheme.goldGradient,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.warmGold.withValues(alpha: 0.4),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    '₱${_fmt.format(item.price)}',
+                                    style: GoogleFonts.inter(
+                                      color: AppTheme.darkBrownText,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(items.length, (index) {
+            final isActive = _currentHeroPage == index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              height: 6,
+              width: isActive ? 28 : 6,
+              decoration: BoxDecoration(
+                gradient: isActive ? AppTheme.goldGradient : null,
+                color: isActive ? null : Colors.grey.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.goldenAmber.withValues(alpha: 0.5),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+            );
+          }),
+        ),
       ],
-
     );
-
   }
-
-
 
   Widget _buildHomeSection() {
-
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : (hour < 18 ? 'Good afternoon' : 'Good evening');
+    final formattedDate = DateFormat('EEEE, MMMM d').format(DateTime.now());
 
     return CustomScrollView(
-
       controller: _scrollController,
-
       physics: const AlwaysScrollableScrollPhysics(),
-
       slivers: [
-
         SliverToBoxAdapter(
-
           child: Column(
-
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
-
-          // ── Welcome Banner ──────────────────────────────────────────────
-
-          ClipRRect(
-
-            borderRadius: BorderRadius.circular(20),
-
-            child: Container(
-
-              padding: ResponsiveUtils.getResponsivePadding(context),
-
-              width: double.infinity,
-
-              decoration: BoxDecoration(
-
-                gradient: AppTheme.primaryGradient,
-
-                borderRadius: ResponsiveUtils.isMobile(context)
-
-                    ? const BorderRadius.vertical(bottom: Radius.circular(20))
-
-                    : BorderRadius.circular(20),
-
-                boxShadow: [
-
-                  BoxShadow(
-
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-
-                    blurRadius: 20,
-
-                    offset: const Offset(0, 8),
-
-                  ),
-
-                ],
-
-              ),
-
-              child: Stack(
-
-                children: [
-
-                  // Decorative circles overlay
-
-                  Positioned(
-
-                    right: -20,
-
-                    top: -20,
-
-                    child: Container(
-
-                      width: 110,
-
-                      height: 110,
-
-                      decoration: BoxDecoration(
-
-                        shape: BoxShape.circle,
-
-                        color: Colors.white.withValues(alpha: 0.07),
-
-                      ),
-
-                    ),
-
-                  ),
-
-                  Positioned(
-
-                    right: 30,
-
-                    bottom: -30,
-
-                    child: Container(
-
-                      width: 70,
-
-                      height: 70,
-
-                      decoration: BoxDecoration(
-
-                        shape: BoxShape.circle,
-
-                        color: Colors.white.withValues(alpha: 0.05),
-
-                      ),
-
-                    ),
-
-                  ),
-
-                  // Banner content
-
-                  Row(
-
-                    children: [
-
-                      Hero(
-
-                        tag: 'user_avatar',
-
-                        child: Container(
-
-                          width: ResponsiveUtils.isMobile(context) ? 60 : 80,
-
-                          height: ResponsiveUtils.isMobile(context) ? 60 : 80,
-
-                          decoration: BoxDecoration(
-
-                            color: Colors.white.withValues(alpha: 0.2),
-
-                            shape: BoxShape.circle,
-
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-
-                            image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
-
-                                ? DecorationImage(
-
-                                    image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
-
-                                    fit: BoxFit.cover,
-
-                                  )
-
-                                : null,
-
-                          ),
-
-                          child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
-
-                              ? Icon(Icons.person_rounded, color: Colors.white, size: ResponsiveUtils.isMobile(context) ? 30 : 40)
-
-                              : null,
-
-                        ),
-
-                      ),
-
-                      const SizedBox(width: 20),
-
-                      Expanded(
-
-                        child: Column(
-
-                          crossAxisAlignment: CrossAxisAlignment.start,
-
-                          children: [
-
-                            Text(
-
-                              'Hi, ${_getUserDisplayName()}!',
-
-                              style: TextStyle(
-
-                                color: Colors.white,
-
-                                fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 22, tablet: 26, desktop: 30),
-
-                                fontWeight: FontWeight.w600,
-
-                                letterSpacing: -0.5,
-
-                              ),
-
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            Text(
-
-                              'Ready for a premium dining experience?',
-
-                              style: TextStyle(
-
-                                color: Colors.white.withValues(alpha: 0.9),
-
-                                fontSize: 14,
-
-                              ),
-
-                            ),
-
-                          ],
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ],
-
-              ),
-
-            ),
-
-          ),
-
-
-
-          const SizedBox(height: 16),
-
-
-
-          // Hero Advertising Carousel
-
-          _buildHeroCarousel(),
-
-
-
-          const SizedBox(height: 16),
-
-
-
-          // ── Featured Dishes (Realtime from POS orders today) ───────────
-          _buildFeaturedDishesSection(),
-
-
-
-          const SizedBox(height: 16),
-
-          
-
+              // ── Realistic Luxury Welcome Banner ──────────────────────────────────
               Padding(
-
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-
-                child: Row(
-
-                  children: [
-
-                    Container(
-
-                      width: 4,
-
-                      height: 24,
-
-                      decoration: BoxDecoration(
-
-                        gradient: AppTheme.goldGradient,
-
-                        borderRadius: BorderRadius.circular(2),
-
-                      ),
-
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF0C241F),
+                        Color(0xFF13362F),
+                        Color(0xFF1B453D),
+                      ],
+                      stops: [0.0, 0.6, 1.0],
                     ),
-
-                    const SizedBox(width: 10),
-
-                    Text(
-
-                      'Complete Menu',
-
-                      style: GoogleFonts.inter(
-
-                        fontSize: 20,
-
-                        fontWeight: FontWeight.w800,
-
-                        color: AppTheme.darkGrey,
-
-                        letterSpacing: -0.3,
-
-                      ),
-
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppTheme.warmGold.withValues(alpha: 0.35),
+                      width: 1.2,
                     ),
-
-                  ],
-
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0A1C18).withValues(alpha: 0.45),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: AppTheme.warmGold.withValues(alpha: 0.08),
+                        blurRadius: 35,
+                        spreadRadius: -2,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(23),
+                    child: Stack(
+                      children: [
+                        // Decorative Gold Bokeh Glow (Top Right)
+                        Positioned(
+                          right: -40,
+                          top: -40,
+                          child: Container(
+                            width: 170,
+                            height: 170,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  AppTheme.warmGold.withValues(alpha: 0.22),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Decorative Forest Bokeh Glow (Bottom Left)
+                        Positioned(
+                          left: -30,
+                          bottom: -30,
+                          child: Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  const Color(0xFF285E53).withValues(alpha: 0.4),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Ambient Restaurant Watermark Silhouette (Right side for realism)
+                        Positioned(
+                          right: 15,
+                          bottom: -15,
+                          child: IgnorePointer(
+                            child: Icon(
+                              Icons.restaurant_rounded,
+                              size: 130,
+                              color: AppTheme.warmGold.withValues(alpha: 0.04),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Top Row: Date Pill & VIP Patron Chip
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.calendar_today_rounded, size: 12, color: AppTheme.warmGold),
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            child: Text(
+                                              formattedDate,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      gradient: AppTheme.goldGradient,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.verified_rounded, size: 13, color: AppTheme.darkBrownText),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'VALUED CUSTOMER',
+                                          style: GoogleFonts.inter(
+                                            color: AppTheme.darkBrownText,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // User Info & Status Row
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Hero(
+                                    tag: 'user_avatar',
+                                    child: Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            AppTheme.warmGold,
+                                            AppTheme.warmGold.withValues(alpha: 0.4),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.warmGold.withValues(alpha: 0.3),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.all(2.5),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF13362F),
+                                          shape: BoxShape.circle,
+                                          image: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null
+                                              ? DecorationImage(
+                                                  image: NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null,
+                                        ),
+                                        child: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null
+                                            ? const Center(
+                                                child: Icon(Icons.person_rounded, color: AppTheme.warmGold, size: 30),
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '$greeting,',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white.withValues(alpha: 0.75),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _getUserDisplayName(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.lora(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 7,
+                                              height: 7,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFF4ADEAA),
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Color(0xFF4ADEAA),
+                                                    blurRadius: 6,
+                                                    spreadRadius: 1,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'Authentic Chinese Culinary Experience',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white.withValues(alpha: 0.65),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-
               ),
-
+              const SizedBox(height: 18),
+              // Hero Advertising Carousel
+              _buildHeroCarousel(),
+              const SizedBox(height: 18),
+              // Featured Dishes (Realtime from POS orders today)
+              _buildFeaturedDishesSection(),
+              const SizedBox(height: 8),
+              // Complete Menu Title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.goldGradient,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Complete Menu',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkGrey,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.forestGreen.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${allMenu.values.fold(0, (acc, list) => acc + list.length)} items',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.forestGreen,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-
           ),
-
         ),
-
         SliverPersistentHeader(
-
           pinned: true,
-
           delegate: _StickyCategoryNavBarDelegate(
-
             child: Container(
-
               color: AppTheme.backgroundColor,
-
               padding: const EdgeInsets.only(top: 8),
-
               child: _buildCategoryNavBar(),
-
             ),
-
           ),
-
         ),
-
         SliverToBoxAdapter(
-
           child: Column(
-
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
-
               ...MenuService.categories.map((category) {
-
                 final items = allMenu[category] ?? [];
-
                 if (items.isEmpty) return const SizedBox.shrink();
-
                 return _buildMenuCategoryBlock(category, items);
-
-              }).toList(),
-
-
-
-              // ── Feedback section (conditional) ──────────────────────────────
-
+              }),
               if (_isEligibleForReview) ...[
-
-                const SizedBox(height: 16), // Reduced from 24
-
+                const SizedBox(height: 16),
                 _buildFeedbackSection(),
-
               ],
-
-
-
-
-
-              const SizedBox(height: 16), // Reduced from 24
-
+              const SizedBox(height: 24),
             ],
-
           ),
-
         ),
-
       ],
-
     );
-
   }
+
+
+
+
 
 
 
@@ -4427,1127 +4362,561 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       return null;
 
     } catch (e) {
-
       debugPrint('Error validating inventory: $e');
-
-      return null; // Fallback to allow if error
-
+      return null;
     }
-
   }
 
-
-
   Widget _buildReservationsSection() {
-
     return SingleChildScrollView(
-
       physics: const AlwaysScrollableScrollPhysics(),
-
-
-
       child: Padding(
-
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
-
-
-
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
           children: [
-
             // ── Section header ──────────────────────────────────────────
-
-            Text(
-
-              _reservationType == 'Event Place' ? 'Reserve Your Space' : 'Advance Order Food',
-
-              style: const TextStyle(
-
-                fontSize: 28,
-
-                fontWeight: FontWeight.w600,
-
-                color: AppTheme.darkGrey,
-
-                height: 1.2,
-
-                letterSpacing: -0.5,
-
-              ),
-
-            ),
-
-
-
-            const SizedBox(height: 6),
-
-
-
-            Text(
-
-              _reservationType == 'Event Place' 
-
-                  ? 'Curate your next memorable moment with ease.'
-
-                  : 'Order ahead and have your favorite meals ready for dinein or pickup.',
-
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-
-            ),
-
-
-
-            const SizedBox(height: 16), // Reduced from 24
-
-
-
-            // Reservation Type Selection
-
             Row(
-
               children: [
-
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.goldGradient,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-
-                  child: ElevatedButton(
-
-                    onPressed: () => setState(() => _reservationType = 'Event Place'),
-
-                    style: ElevatedButton.styleFrom(
-
-                      backgroundColor: _reservationType == 'Event Place'
-
-                          ? AppTheme.primaryColor
-
-                          : Colors.white,
-
-                      foregroundColor: _reservationType == 'Event Place'
-
-                          ? Colors.white
-
-                          : AppTheme.primaryColor,
-
-                      side: BorderSide(
-
-                        color: AppTheme.primaryColor,
-
-                        width: 1.5,
-
-                      ),
-
-                      elevation: _reservationType == 'Event Place' ? 4 : 0,
-
-                      shape: RoundedRectangleBorder(
-
-                        borderRadius: BorderRadius.circular(12),
-
-                      ),
-
-                    ),
-
-                    child: const Text('Event Place'),
-
-                  ),
-
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-
-                  child: ElevatedButton(
-
-                    onPressed: () => setState(() => _reservationType = 'Advance Order'),
-
-                    style: ElevatedButton.styleFrom(
-
-                      backgroundColor: _reservationType == 'Advance Order'
-
-                          ? AppTheme.primaryColor
-
-                          : Colors.white,
-
-                      foregroundColor: _reservationType == 'Advance Order'
-
-                          ? Colors.white
-
-                          : AppTheme.primaryColor,
-
-                      side: BorderSide(
-
-                        color: AppTheme.primaryColor,
-
-                        width: 1.5,
-
-                      ),
-
-                      elevation: _reservationType == 'Advance Order' ? 4 : 0,
-
-                      shape: RoundedRectangleBorder(
-
-                        borderRadius: BorderRadius.circular(12),
-
-                      ),
-
-                    ),
-
-                    child: const Text('Advance Order'),
-
-                  ),
-
-                ),
-
-              ],
-
-            ),
-
-
-
-            const SizedBox(height: 16), // Reduced from 24
-
-
-
-            // Sub-selection for Advance Order (Dine In / Pick Up)
-
-            if (_reservationType == 'Advance Order') ...[
-
-              Row(
-
-                mainAxisAlignment: MainAxisAlignment.center,
-
-                children: [
-
-                  _buildSubSelectionButton('Dine In', Icons.restaurant_rounded),
-
-                  const SizedBox(width: 16),
-
-                  _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
-
-                ],
-
-              ),
-
-              const SizedBox(height: 16), // Reduced from 24
-
-            ],
-
-
-
-            // Form Card
-
-            Container(
-
-              decoration: BoxDecoration(
-
-                color: Colors.white,
-
-                borderRadius: BorderRadius.circular(24),
-
-                border: const Border(
-
-                  left: BorderSide(color: AppTheme.primaryColor, width: 4),
-
-                ),
-
-                boxShadow: [
-
-                  BoxShadow(
-
-                    color: Colors.black.withValues(alpha: 0.04),
-
-                    blurRadius: 20,
-
-                    offset: const Offset(0, 10),
-
-                  ),
-
-                ],
-
-              ),
-
-              child: Padding(
-
-                padding: const EdgeInsets.all(24),
-
-                child: Form(
-
                   child: Column(
-
                     crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
-
+                      Text(
+                        _reservationType == 'Event Place' ? 'Book Event Venue' : 'Advance Food Order',
+                        style: GoogleFonts.lora(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.darkGrey,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        _reservationType == 'Event Place'
+                            ? 'Curate your exclusive banquet or gathering at Yang Chow'
+                            : 'Pre-order dishes for dine-in or fast take-out without waiting',
+                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.mediumGrey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            // Reservation Type Segmented Mode Switcher
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AnimatedTapScale(
+                      onTap: () => setState(() => _reservationType = 'Event Place'),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: _reservationType == 'Event Place' ? AppTheme.goldGradient : null,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: _reservationType == 'Event Place'
+                              ? [
+                                  BoxShadow(
+                                    color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.celebration_rounded,
+                              size: 18,
+                              color: _reservationType == 'Event Place' ? AppTheme.darkBrownText : AppTheme.mediumGrey,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Event Place',
+                              style: GoogleFonts.inter(
+                                color: _reservationType == 'Event Place' ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                                fontWeight: _reservationType == 'Event Place' ? FontWeight.w800 : FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: AnimatedTapScale(
+                      onTap: () => setState(() => _reservationType = 'Advance Order'),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: _reservationType == 'Advance Order' ? AppTheme.goldGradient : null,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: _reservationType == 'Advance Order'
+                              ? [
+                                  BoxShadow(
+                                    color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.takeout_dining_rounded,
+                              size: 18,
+                              color: _reservationType == 'Advance Order' ? AppTheme.darkBrownText : AppTheme.mediumGrey,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Advance Order',
+                              style: GoogleFonts.inter(
+                                color: _reservationType == 'Advance Order' ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                                fontWeight: _reservationType == 'Advance Order' ? FontWeight.w800 : FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Sub-selection for Advance Order (Dine In / Pick Up)
+            if (_reservationType == 'Advance Order') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSubSelectionButton('Dine In', Icons.restaurant_rounded),
+                  const SizedBox(width: 14),
+                  _buildSubSelectionButton('Pick Up', Icons.shopping_bag_rounded),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Form Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(22),
+                child: Form(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       if (_reservationType == 'Event Place') ...[
-
                         // Event Type
-
                         _buildFormLabel('EVENT TYPE'),
-
-
-
                         const SizedBox(height: 8),
-
-
-
                         _buildStyledDropdown<String>(
-
                           value: _selectedEventType,
-
-
-
                           hint: 'Select event type',
-
-
-
                           icon: Icons.celebration_rounded,
-
-
-
                           items: _eventTypes,
-
-
-
                           onChanged: (val) {
+                            setState(() {
+                              _selectedEventType = val;
+                              _eventController.text = val ?? '';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      // Date
+                      _buildFormLabel(_reservationType == 'Event Place' ? 'DATE' : (_advanceOrderType == 'Dine In' ? 'DINING DATE' : 'PICKUP DATE')),
+                      const SizedBox(height: 8),
+                      _buildStyledTextField(
+                        controller: _dateController,
+                        hint: 'Select a date',
+                        icon: Icons.calendar_month_rounded,
+                        readOnly: true,
+                        onTap: () async {
+                          final minDate = _reservationType == 'Advance Order'
+                              ? DateTime.now()
+                              : DateTime.now().add(const Duration(days: 4));
+
+                          DateTime? pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: minDate,
+                            firstDate: minDate,
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                          );
+
+                          if (pickedDate != null) {
+                            setState(() {
+                              _dateController.text =
+                                  DateFormat('MMMM d, yyyy').format(pickedDate);
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      // Start Time
+                      _buildFormLabel(_reservationType == 'Event Place' ? 'START TIME' : (_advanceOrderType == 'Dine In' ? 'DINING TIME' : 'PICKUP TIME')),
+                      const SizedBox(height: 8),
+                      _buildStyledTextField(
+                        controller: _startTimeController,
+                        hint: '-- : --',
+                        icon: Icons.access_time_filled_rounded,
+                        readOnly: true,
+                        onTap: () async {
+                          final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
+                          final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
+
+                          final TimeOfDay? pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay(hour: startHour, minute: 0),
+                          );
+
+                          if (pickedTime != null) {
+                            // Validate against operating hours
+                            if (pickedTime.hour < startHour ||
+                                pickedTime.hour > endHour ||
+                                (pickedTime.hour == endHour && pickedTime.minute > 0)) {
+                              _showSnackBar(
+                                'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+                                Colors.red,
+                              );
+                              return;
+                            }
+
+                            // Validate 40-minutes-ahead rule for same-day Advance Orders (Dine In & Pick Up)
+                            if (_reservationType == 'Advance Order') {
+                              final selectedDateStr = _dateController.text.trim();
+                              if (selectedDateStr.isNotEmpty) {
+                                try {
+                                  final now = DateTime.now();
+                                  final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
+                                  final isToday = selectedDate.year == now.year &&
+                                      selectedDate.month == now.month &&
+                                      selectedDate.day == now.day;
+
+                                  if (isToday) {
+                                    final selectedDateTime = DateTime(
+                                      now.year,
+                                      now.month,
+                                      now.day,
+                                      pickedTime.hour,
+                                      pickedTime.minute,
+                                    );
+                                    final timeDifference = selectedDateTime.difference(now);
+
+                                    if (timeDifference.inMinutes < 40) {
+                                      final earliestTime = now.add(const Duration(minutes: 40));
+                                      final earliestFormatted = '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+                                      _showSnackBar(
+                                        'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
+                                        Colors.red,
+                                      );
+                                      return;
+                                    }
+                                  }
+                                } catch (e) {
+                                  debugPrint('Error validating lead time: $e');
+                                }
+                              }
+                            }
 
                             setState(() {
-
-                              _selectedEventType = val;
-
-
-
-                              _eventController.text = val ?? '';
-
+                              _startTimeController.text = pickedTime.format(context);
                             });
-
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      if (_reservationType == 'Event Place') ...[
+                        // Duration
+                        _buildFormLabel('DURATION'),
+                        const SizedBox(height: 8),
+                        _buildStyledDropdown<String>(
+                          value: _selectedBaseDuration,
+                          hint: 'Select duration',
+                          icon: Icons.timer_rounded,
+                          items: _baseDurations,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedBaseDuration = val;
+                              _updateDurationText();
+                            });
                           },
-
                         ),
-
-
-
-                        const SizedBox(height: 24),
-
+                        const SizedBox(height: 20),
                       ],
-
-
-
-                              // Date
-
-                              _buildFormLabel(_reservationType == 'Event Place' ? 'DATE' : (_advanceOrderType == 'Dine In' ? 'DINING DATE' : 'PICKUP DATE')),
-
-
-
-                              const SizedBox(height: 8),
-
-
-
-                              _buildStyledTextField(
-
-                                controller: _dateController,
-
-
-
-                                hint: 'Select a date',
-
-
-
-                                icon: Icons.calendar_month_rounded,
-
-
-
-                                readOnly: true,
-
-
-
-                                onTap: () async {
-
-                                  final minDate = _reservationType == 'Advance Order'
-
-                                      ? DateTime.now()
-
-                                      : DateTime.now().add(const Duration(days: 4));
-
-
-
-                                  DateTime? pickedDate = await showDatePicker(
-
-                                    context: context,
-
-                                    initialDate: minDate,
-
-                                    firstDate: minDate,
-
-                                    lastDate: DateTime.now().add(
-
-                                      const Duration(days: 365),
-
-                                    ),
-
-                                  );
-
-
-
-                                  if (pickedDate != null) {
-
-                                    setState(() {
-
-                                      _dateController.text =
-
-                                          DateFormat('MMMM d, yyyy').format(pickedDate);
-
-                                    });
-
-                                  }
-
-                                },
-
-                              ),
-
-
-
-                              const SizedBox(height: 24),
-
-
-
-                              // Start Time
-
-                              _buildFormLabel(_reservationType == 'Event Place' ? 'START TIME' : (_advanceOrderType == 'Dine In' ? 'DINING TIME' : 'PICKUP TIME')),
-
-
-
-                              const SizedBox(height: 8),
-
-
-
-                              _buildStyledTextField(
-
-                                controller: _startTimeController,
-
-
-
-                                hint: '-- : --',
-
-
-
-                                icon: Icons.access_time_filled_rounded,
-
-
-
-                                readOnly: true,
-
-
-
-                                onTap: () async {
-
-                                  final startHour = _reservationType == 'Advance Order' ? 10 : _operatingHoursStart;
-
-                                  final endHour = _reservationType == 'Advance Order' ? 19 : _operatingHoursEnd;
-
-
-
-                                  final TimeOfDay? pickedTime = await showTimePicker(
-
-                                    context: context,
-
-                                    initialTime: TimeOfDay(hour: startHour, minute: 0),
-
-                                  );
-
-
-
-                                  if (pickedTime != null) {
-
-                                    // Validate against operating hours
-
-                                    if (pickedTime.hour < startHour ||
-
-                                        pickedTime.hour > endHour ||
-
-                                        (pickedTime.hour == endHour && pickedTime.minute > 0)) {
-
-                                      _showSnackBar(
-
-                                        'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
-
-                                        Colors.red,
-
-                                      );
-
-                                      return;
-
-                                    }
-
-                                    // Validate 40-minutes-ahead rule for same-day Advance Orders (Dine In & Pick Up)
-                                    if (_reservationType == 'Advance Order') {
-                                      final selectedDateStr = _dateController.text.trim();
-                                      if (selectedDateStr.isNotEmpty) {
-                                        try {
-                                          final now = DateTime.now();
-                                          final selectedDate = DateFormat('MMMM d, yyyy').parse(selectedDateStr);
-                                          final isToday = selectedDate.year == now.year &&
-                                              selectedDate.month == now.month &&
-                                              selectedDate.day == now.day;
-
-                                          if (isToday) {
-                                            final selectedDateTime = DateTime(
-                                              now.year,
-                                              now.month,
-                                              now.day,
-                                              pickedTime.hour,
-                                              pickedTime.minute,
-                                            );
-                                            final timeDifference = selectedDateTime.difference(now);
-
-                                            if (timeDifference.inMinutes < 40) {
-                                              final earliestTime = now.add(const Duration(minutes: 40));
-                                              final earliestFormatted = '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
-                                              _showSnackBar(
-                                                'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
-                                                Colors.red,
-                                              );
-                                              return;
-                                            }
-                                          }
-                                        } catch (e) {
-                                          debugPrint('Error validating lead time: $e');
-                                        }
-                                      }
-                                    }
-
-                                    setState(() {
-
-                                      _startTimeController.text = pickedTime.format(context);
-
-                                    });
-
-                                  }
-
-                                },
-
-                              ),
-
-
-
-                              const SizedBox(height: 24),
-
-
-
-                              if (_reservationType == 'Event Place') ...[
-
-                                // Duration
-
-                                _buildFormLabel('DURATION'),
-
-
-
-                                const SizedBox(height: 8),
-
-
-
-                                _buildStyledDropdown<String>(
-
-                                  value: _selectedBaseDuration,
-
-
-
-                                  hint: 'Select duration',
-
-
-
-                                  icon: Icons.timer_rounded,
-
-
-
-                                  items: _baseDurations,
-
-
-
-                                  onChanged: (val) {
-
-                                    setState(() {
-
-                                      _selectedBaseDuration = val;
-
-
-
-                                      _updateDurationText();
-
-                                    });
-
-                                  },
-
-                                ),
-
-
-
-                                const SizedBox(height: 24),
-
-                              ],
-
-
-
-                              // Number of Guests
-
-                              if (_reservationType == 'Event Place' || (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In')) ...[
-
-                                _buildFormLabel('GUESTS'),
-
-
-
-                                const SizedBox(height: 8),
-
-
-
-                                _buildStyledTextField(
-
-                                  controller: _guestsController,
-
-                                  hint: 'Enter number of guests',
-
-                                  icon: Icons.people_alt_rounded,
-
-                                  keyboardType: TextInputType.number,
-
-                                  inputFormatters: [
-
-                                    FilteringTextInputFormatter.digitsOnly,
-
-                                  ],
-
-                                  helperText: _reservationType == 'Event Place'
-
-                                      ? '$_minGuestCount–100 guests allowed'
-
-                                      : '1–20 guests allowed',
-
-                                ),
-
-
-
-                                const SizedBox(height: 24),
-
-                              ],
-
-
-
-                              // Menu Selection
-
-                              _buildFormLabel('MENU SELECTION'),
-
-
-
-                              const SizedBox(height: 8),
-
-
-
-                              Container(
-
-                                padding: const EdgeInsets.all(16),
-
-
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.grey.shade50,
-
-
-
-                                  borderRadius: BorderRadius.circular(16),
-
-
-
-                                  border: Border.all(
-
-                                    color: Colors.grey.shade200,
-
-                                  ),
-
-                                ),
-
-
-
-                                child: Column(
-
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
+                      // Number of Guests
+                      if (_reservationType == 'Event Place' || (_reservationType == 'Advance Order' && _advanceOrderType == 'Dine In')) ...[
+                        _buildFormLabel('GUESTS'),
+                        const SizedBox(height: 8),
+                        _buildStyledTextField(
+                          controller: _guestsController,
+                          hint: 'Enter number of guests',
+                          icon: Icons.people_alt_rounded,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          helperText: _reservationType == 'Event Place'
+                              ? '$_minGuestCount–100 guests allowed'
+                              : '1–20 guests allowed',
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      // Menu Selection (Digital Dining Check Style)
+                      _buildFormLabel('MENU SELECTION'),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.backgroundColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.cardBorder,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
                                   children: [
-
-                                    Row(
-
-                                      mainAxisAlignment:
-
-                                          MainAxisAlignment.spaceBetween,
-
-
-
-                                      children: [
-
-                                        Expanded(
-
-                                          child: Text(
-
-                                            _selectedMenuItems.isEmpty
-
-                                                ? 'No menu items selected'
-
-                                                : '${_selectedMenuItems.values.fold(0, (sum, qty) => sum + qty)} items selected',
-
-
-
-                                            style: TextStyle(
-
-                                              fontSize: 14,
-
-
-
-                                              color: _selectedMenuItems.isEmpty
-
-                                                  ? Colors.grey.shade600
-
-                                                  : Colors.black87,
-
-
-
-                                              fontWeight:
-
-                                                  _selectedMenuItems.isEmpty
-
-                                                  ? FontWeight.normal
-
-                                                  : FontWeight.w600,
-
-                                            ),
-
-                                          ),
-
-                                        ),
-
-
-
-                                        if (_selectedMenuItems.isNotEmpty)
-
-                                          TextButton(
-
-                                            onPressed: () => setState(() {
-
-                                              _selectedMenuItems.clear();
-
-                                              _preOrderCart.clear();
-
-                                            }),
-
-
-
-                                            child: const Text(
-
-                                              'Clear',
-
-                                              style: TextStyle(
-
-                                                color: Colors.red,
-
-                                              ),
-
-                                            ),
-
-                                          ),
-
-                                      ],
-
-                                    ),
-
-
-
-                                    if (_selectedMenuItems.isNotEmpty) ...[
-
-                                      const SizedBox(height: 12),
-
-
-
-                                      Container(
-
-                                        padding: const EdgeInsets.all(12),
-
-
-
-                                        decoration: BoxDecoration(
-
-                                          color: Colors.white,
-
-
-
-                                          borderRadius: BorderRadius.circular(
-
-                                            8,
-
-                                          ),
-
-
-
-                                          border: Border.all(
-
-                                            color: Colors.grey.shade300,
-
-                                          ),
-
-                                        ),
-
-
-
-                                        child: Column(
-
-                                          crossAxisAlignment:
-
-                                              CrossAxisAlignment.start,
-
-
-
-                                          children: [
-
-                                            Text(
-
-                                              'Selected Items:',
-
-
-
-                                              style: TextStyle(
-
-                                                fontSize: 12,
-
-
-
-                                                fontWeight: FontWeight.w600,
-
-
-
-                                                color: Colors.grey.shade700,
-
-                                              ),
-
-                                            ),
-
-
-
-                                            const SizedBox(height: 8),
-
-
-
-                                            ..._selectedMenuItems.entries.map(
-
-                                              (entry) => Padding(
-
-                                                padding: const EdgeInsets.only(
-
-                                                  bottom: 4,
-
-                                                ),
-
-
-
-                                                child: Row(
-
-                                                  mainAxisAlignment:
-
-                                                      MainAxisAlignment
-
-                                                          .spaceBetween,
-
-
-
-                                                  children: [
-
-                                                    Expanded(
-
-                                                      child: Text(
-
-                                                        '${entry.value}x ${entry.key}',
-
-
-
-                                                        style: const TextStyle(
-
-                                                          fontSize: 12,
-
-                                                        ),
-
-
-
-                                                        overflow: TextOverflow
-
-                                                            .ellipsis,
-
-                                                      ),
-
-                                                    ),
-
-
-
-                                                    Text(
-
-                                                      'PHP ${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice({entry.key: entry.value}))}',
-
-
-
-                                                      style: const TextStyle(
-
-                                                        fontSize: 12,
-
-
-
-                                                        fontWeight:
-
-                                                            FontWeight.w600,
-
-
-
-                                                        color: Colors.red,
-
-                                                      ),
-
-                                                    ),
-
-                                                  ],
-
-                                                ),
-
-                                              ),
-
-                                            ),
-
-
-
-                                            const Divider(height: 16),
-
-
-
-                                            Row(
-
-                                              mainAxisAlignment:
-
-                                                  MainAxisAlignment
-
-                                                      .spaceBetween,
-
-
-
-                                              children: [
-
-                                                const Text(
-
-                                                  'Total Menu Price:',
-
-
-
-                                                  style: TextStyle(
-
-                                                    fontSize: 12,
-
-
-
-                                                    fontWeight: FontWeight.w600,
-
-                                                  ),
-
-                                                ),
-
-
-
-                                                Text(
-
-                                                  'PHP ${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems))}',
-
-
-
-                                                  style: const TextStyle(
-
-                                                    fontSize: 12,
-
-
-
-                                                    fontWeight: FontWeight.bold,
-
-
-
-                                                    color: Colors.red,
-
-                                                  ),
-
-                                                ),
-
-                                              ],
-
-                                            ),
-
-
-
-                                            const SizedBox(height: 4),
-
-
-
-                                            Row(
-
-                                              mainAxisAlignment:
-
-                                                  MainAxisAlignment
-
-                                                      .spaceBetween,
-
-
-
-                                              children: [
-
-                                                Text(
-
-                                                  _reservationType == 'Advance Order' 
-
-                                                      ? 'Full Payment Required:' 
-
-                                                      : (_paymentOption == 'full' ? 'Full Payment Required:' : '50% Deposit Required:'),
-
-
-
-                                                  style: TextStyle(
-
-                                                    fontSize: 12,
-
-
-
-                                                    color: Colors.grey,
-
-                                                  ),
-
-                                                ),
-
-
-
-                                                Text(
-
-                                                  'PHP ${NumberFormat("#,##0.00").format(_paymentOption == 'full' && _reservationType == 'Event Place' ? _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems) : _menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
-
-
-
-                                                  style: const TextStyle(
-
-                                                    fontSize: 12,
-
-
-
-                                                    fontWeight: FontWeight.bold,
-
-
-
-                                                  ),
-
-                                                ),
-
-                                              ],
-
-                                            ),
-
-                                          ],
-
-                                        ),
-
+                                    const Icon(Icons.receipt_long_rounded, size: 18, color: AppTheme.forestGreen),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _selectedMenuItems.isEmpty
+                                          ? 'No dishes selected yet'
+                                          : '${_selectedMenuItems.values.fold(0, (sum, qty) => sum + qty)} items in pre-order',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        color: _selectedMenuItems.isEmpty
+                                            ? AppTheme.mediumGrey
+                                            : AppTheme.darkGrey,
+                                        fontWeight: _selectedMenuItems.isEmpty
+                                            ? FontWeight.normal
+                                            : FontWeight.w700,
                                       ),
-
-                                    ],
-
-
-
-                                    const SizedBox(height: 16),
-
-
-
-                                    SizedBox(
-
-                                      width: double.infinity,
-
-
-
-                                      child: ElevatedButton.icon(
-
-                                        onPressed: _navigateToMenuSelection,
-
-
-
-                                        icon: const Icon(
-
-                                          Icons.restaurant_menu,
-
-                                          size: 18,
-
-                                        ),
-
-
-
-                                        label: Text(
-
-                                          _selectedMenuItems.isEmpty
-
-                                              ? 'Select Menu Items'
-
-                                              : 'Change Selection',
-
-                                        ),
-
-
-
-                                        style: ElevatedButton.styleFrom(
-
-                                          backgroundColor:
-
-                                              AppTheme.primaryColor,
-
-
-
-                                          foregroundColor: Colors.white,
-
-
-
-                                          padding: const EdgeInsets.symmetric(
-
-                                            vertical: 12,
-
-                                          ),
-
-
-
-                                          shape: RoundedRectangleBorder(
-
-                                            borderRadius: BorderRadius.circular(
-
-                                              12,
-
-                                            ),
-
-                                          ),
-
-                                        ),
-
-                                      ),
-
                                     ),
-
                                   ],
-
                                 ),
-
+                                if (_selectedMenuItems.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () => setState(() {
+                                      _selectedMenuItems.clear();
+                                      _preOrderCart.clear();
+                                    }),
+                                    child: Text(
+                                      'Clear All',
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.errorRed,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            if (_selectedMenuItems.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppTheme.cardBorder),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ..._selectedMenuItems.entries.map(
+                                      (entry) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 6),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: AppTheme.warmGold.withValues(alpha: 0.2),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      '${entry.value}x',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: AppTheme.darkBrownText,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      entry.key,
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: AppTheme.darkGrey,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Text(
+                                              '₱${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice({entry.key: entry.value}))}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.forestGreen,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const Divider(height: 18),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Menu Subtotal:',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.darkGrey,
+                                          ),
+                                        ),
+                                        Text(
+                                          '₱${NumberFormat('#,##0.00').format(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems))}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.forestGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _reservationType == 'Advance Order'
+                                              ? 'Full Payment Required:'
+                                              : (_paymentOption == 'full' ? 'Full Payment Required:' : '50% Deposit Required:'),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: AppTheme.mediumGrey,
+                                          ),
+                                        ),
+                                        Text(
+                                          '₱${NumberFormat("#,##0.00").format(_paymentOption == 'full' && _reservationType == 'Event Place' ? _menuReservationService.calculateMenuTotalPrice(_selectedMenuItems) : _menuReservationService.calculateMenuDepositAmount(_menuReservationService.calculateMenuTotalPrice(_selectedMenuItems), reservationType: _reservationType))}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.darkBrownText,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ],
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: AnimatedTapScale(
+                                onTap: _navigateToMenuSelection,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  decoration: BoxDecoration(
+                                    gradient: AppTheme.goldGradient,
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.restaurant_menu_rounded, color: AppTheme.darkBrownText, size: 18),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _selectedMenuItems.isEmpty
+                                            ? 'Select Dishes from Menu'
+                                            : 'Modify Dish Selection',
+                                        style: GoogleFonts.inter(
+                                          color: AppTheme.darkBrownText,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-
-
-                              const SizedBox(height: 16),
-
-
-
-                              // Extra Time Toggle
+                      // Extra Time Toggle
 
                               if (_reservationType == 'Event Place') 
 
@@ -6694,25 +6063,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildFormLabel(String label) {
-
     return Text(
-
       label,
-
-      style: const TextStyle(
-
+      style: GoogleFonts.inter(
         fontSize: 11,
-
-        fontWeight: FontWeight.w500,
-
+        fontWeight: FontWeight.w800,
         color: AppTheme.mediumGrey,
-
         letterSpacing: 1.2,
-
       ),
-
     );
-
   }
 
 
@@ -6822,385 +6181,276 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildProfileSection() {
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
     final name = _getUserDisplayName();
-
     final email = currentUser?.email ?? 'Not provided';
-
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
 
-
-
     return SingleChildScrollView(
-
       physics: const AlwaysScrollableScrollPhysics(),
-
       child: Padding(
-
         padding: ResponsiveUtils.getResponsivePadding(context),
-
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-
-            // Premium Profile Header Container
-
+            // Realistic VIP Patron Card Header
             Container(
-
-              padding: const EdgeInsets.all(24),
-
-              decoration: AppTheme.cardDecoration(),
-
-              child: Row(
-
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF14332E), Color(0xFF1B3D37)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF14332E).withValues(alpha: 0.28),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
                 children: [
-
-                  Hero(
-
-                    tag: 'profile_avatar_large',
-
-                    child: Container(
-
-                      width: 80,
-
-                      height: 80,
-
-                      decoration: BoxDecoration(
-
-                        color: AppTheme.primaryLight.withValues(alpha: 0.1),
-
-                        shape: BoxShape.circle,
-
-                        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1), width: 3),
-
-                        image: currentUser?.userMetadata?['avatar_url'] != null
-
-                            ? DecorationImage(
-
-                                image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
-
-                                fit: BoxFit.cover,
-
-                              )
-
-                            : null,
-
-                      ),
-
-                      child: currentUser?.userMetadata?['avatar_url'] == null
-
-                          ? Center(
-
-                              child: Text(
-
-                                initial,
-
-                                style: const TextStyle(
-
-                                  fontSize: 32,
-
-                                  fontWeight: FontWeight.w600,
-
-                                  color: AppTheme.primaryColor,
-
-                                ),
-
+                  Row(
+                    children: [
+                      Hero(
+                        tag: 'profile_avatar_large',
+                        child: Container(
+                          width: 74,
+                          height: 74,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppTheme.warmGold, width: 2.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                blurRadius: 10,
                               ),
-
-                            )
-
-                          : null,
-
-                    ),
-
-                  ),
-
-                  const SizedBox(width: 20),
-
-                  Expanded(
-
-                    child: Column(
-
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      children: [
-
-                        Text(
-
-                          name,
-
-                          style: const TextStyle(
-
-                            fontSize: 22,
-
-                            fontWeight: FontWeight.w600,
-
-                            color: AppTheme.darkGrey,
-
-                            letterSpacing: -0.5,
-
+                            ],
+                            image: currentUser?.userMetadata?['avatar_url'] != null
+                                ? DecorationImage(
+                                    image: NetworkImage(currentUser!.userMetadata!['avatar_url']),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-
+                          child: currentUser?.userMetadata?['avatar_url'] == null
+                              ? Center(
+                                  child: Text(
+                                    initial,
+                                    style: GoogleFonts.lora(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.warmGold,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
-
-                        const SizedBox(height: 4),
-
-                        Text(
-
-                          email,
-
-                          style: TextStyle(
-
-                            fontSize: 14,
-
-                            color: AppTheme.mediumGrey,
-
-                            fontWeight: FontWeight.w500,
-
-                          ),
-
-                        ),
-
-                        if (currentUser?.userMetadata?['avatar_url'] == null) ...[
-
-                          const SizedBox(height: 8),
-
-                          InkWell(
-
-                            onTap: () async {
-
-                              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
-
-                              if (mounted) setState(() {});
-
-                            },
-
-                            child: const Text(
-
-                              'Add a profile photo →',
-
-                              style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
-
+                      ),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.goldGradient,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.stars_rounded, size: 13, color: AppTheme.darkBrownText),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'VIP PATRON',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppTheme.darkBrownText,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-
+                            const SizedBox(height: 6),
+                            Text(
+                              name,
+                              style: GoogleFonts.lora(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              email,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.75),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (currentUser?.userMetadata?['avatar_url'] == null) ...[
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InkWell(
+                        onTap: () async {
+                          await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                          if (mounted) setState(() {});
+                        },
+                        child: Text(
+                          'Update profile details or avatar →',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppTheme.warmGold,
+                            fontWeight: FontWeight.w700,
                           ),
-
-                        ],
-
-                      ],
-
+                        ),
+                      ),
                     ),
-
-                  ),
-
+                  ],
                 ],
-
               ),
-
             ),
-
-
-
-            const SizedBox(height: 20),
-
-
-
+            const SizedBox(height: 18),
             // Member Stats Row
-
             Container(
-
-              padding: const EdgeInsets.symmetric(vertical: 16),
-
-              decoration: AppTheme.cardDecoration(),
-
-              child: Row(
-
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
-                children: [
-
-                  _buildProfileStat('${customerReservations.length}', 'Reservations'),
-
-                  _buildProfileDivider(),
-
-                  _buildProfileStat(
-
-                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
-
-                    'Member Since',
-
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.cardBorder, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
-
                 ],
-
               ),
-
-            ),
-
-
-
-            const SizedBox(height: 32),
-
-
-
-            // Menu Cards
-
-            _buildAccountMenuCard(
-
-              icon: Icons.person_outline_rounded,
-
-              title: 'Edit Profile',
-
-              subtitle: 'Details about your account',
-
-              onTap: () async {
-
-                await Navigator.of(
-
-                  context,
-
-                ).push(MaterialPageRoute(builder: (_) => EditProfilePage()));
-
-
-
-                if (mounted) {
-
-                  setState(() {});
-
-                }
-
-              },
-
-            ),
-
-
-
-            if (currentUser?.appMetadata['provider'] == 'email')
-
-              _buildAccountMenuCard(
-
-                icon: Icons.lock_outline_rounded,
-
-                title: 'Change Password',
-
-                subtitle: 'Update your account security',
-
-                onTap: _showChangePasswordDialog,
-
-              ),
-
-
-
-            _buildAccountMenuCard(
-
-              icon: Icons.history_rounded,
-
-              title: 'Transactions',
-
-              subtitle: 'View your previous reservations',
-
-              onTap: () {
-
-                Navigator.of(context).push(
-
-                  MaterialPageRoute(
-
-                    builder: (context) => TransactionsPage(initialTransactions: customerReservations),
-
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildProfileStat('${customerReservations.length}', 'Total Bookings', Icons.event_seat_rounded),
+                  _buildProfileDivider(),
+                  _buildProfileStat(
+                    DateFormat('MMM yyyy').format(DateTime.parse(currentUser?.createdAt ?? DateTime.now().toUtc().toIso8601String())),
+                    'Member Since',
+                    Icons.verified_user_rounded,
                   ),
-
-                );
-
-              },
-
+                ],
+              ),
             ),
-
-
-
-            const Padding(
-
-              padding: EdgeInsets.symmetric(vertical: 8.0),
-
-              child: Divider(height: 1, thickness: 0.5, color: AppTheme.lightGrey),
-
+            const SizedBox(height: 24),
+            Text(
+              'ACCOUNT & PREFERENCES',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.mediumGrey,
+                letterSpacing: 1.1,
+              ),
             ),
-
-
-
+            const SizedBox(height: 12),
+            // Menu Cards
             _buildAccountMenuCard(
-
-              icon: Icons.logout_rounded,
-
-              title: 'Logout',
-
-              subtitle: 'Sign out of your account',
-
-              isDestructive: true,
-
-              onTap: _showLogoutDialog,
-
+              icon: Icons.person_outline_rounded,
+              title: 'Edit Profile',
+              subtitle: 'Update your contact information and display name',
+              onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage()));
+                if (mounted) setState(() {});
+              },
             ),
-
+            if (currentUser?.appMetadata['provider'] == 'email')
+              _buildAccountMenuCard(
+                icon: Icons.lock_outline_rounded,
+                title: 'Change Password',
+                subtitle: 'Update your account security and authentication',
+                onTap: _showChangePasswordDialog,
+              ),
+            _buildAccountMenuCard(
+              icon: Icons.history_rounded,
+              title: 'Transaction History',
+              subtitle: 'View receipts, payments, and past event orders',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => TransactionsPage(initialTransactions: customerReservations),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildAccountMenuCard(
+              icon: Icons.logout_rounded,
+              title: 'Log Out',
+              subtitle: 'Securely sign out of your Yang Chow account',
+              isDestructive: true,
+              onTap: _showLogoutDialog,
+            ),
           ],
-
         ),
-
       ),
-
     );
-
   }
 
-
-
-  Widget _buildProfileStat(String value, String label) {
-
-    return Column(
-
+  Widget _buildProfileStat(String value, String label, IconData icon) {
+    return Row(
       children: [
-
-        Text(
-
-          value,
-
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
-
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.forestGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 20, color: AppTheme.forestGreen),
         ),
-
-        const SizedBox(height: 4),
-
-        Text(
-
-          label,
-
-          style: const TextStyle(fontSize: 12, color: AppTheme.mediumGrey, fontWeight: FontWeight.w500),
-
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.darkGrey,
+              ),
+            ),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.mediumGrey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-
       ],
-
     );
-
   }
-
-
 
   Widget _buildProfileDivider() {
-
     return Container(
-
-      height: 30,
-
+      height: 36,
       width: 1,
-
-      color: AppTheme.lightGrey,
-
+      color: AppTheme.cardBorder,
     );
-
   }
 
 
@@ -7672,232 +6922,153 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   Widget _buildCategoryNavBar() {
 
     return Container(
-
-      height: 50,
-
+      height: 52,
       margin: const EdgeInsets.only(bottom: 16),
-
       child: ListView.builder(
-
         scrollDirection: Axis.horizontal,
-
         padding: const EdgeInsets.symmetric(horizontal: 16),
-
         itemCount: MenuService.categories.length,
-
         itemBuilder: (context, index) {
-
           final category = MenuService.categories[index];
-
           final isActive = _selectedCategory == category;
+          final catIcon = CategoryIconHelper.getIcon(category);
 
           return GestureDetector(
-
             key: _getChipKey(category),
-
             onTap: () async {
-
               setState(() => _selectedCategory = category);
-
               final key = _getCategoryKey(category);
-
               if (key.currentContext != null) {
-
                 _isScrollingToCategory = true;
-
                 await Scrollable.ensureVisible(
-
                   key.currentContext!,
-
                   duration: const Duration(milliseconds: 600),
-
                   curve: Curves.easeInOutCubic,
-
                 );
-
                 _isScrollingToCategory = false;
-
               }
-
             },
-
             child: AnimatedContainer(
-
               duration: const Duration(milliseconds: 250),
-
               curve: Curves.easeOutCubic,
-
               margin: const EdgeInsets.only(right: 10),
-
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-
-                color: isActive ? AppTheme.warmGold : Colors.white, // #E8B84B when active
-
-                borderRadius: BorderRadius.circular(22),
-
+                gradient: isActive ? AppTheme.goldGradient : null,
+                color: isActive ? null : Colors.white,
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-
-                  color: isActive ? Colors.transparent : AppTheme.cardBorder, // #E5E0D2
-
-                  width: 1.5,
-
+                  color: isActive ? Colors.transparent : AppTheme.cardBorder,
+                  width: 1.2,
                 ),
-
                 boxShadow: isActive
-
                     ? [
-
                         BoxShadow(
-
-                          color: AppTheme.warmGold.withValues(alpha: 0.3),
-
+                          color: AppTheme.warmGold.withValues(alpha: 0.35),
                           blurRadius: 10,
-
                           offset: const Offset(0, 4),
-
                         ),
-
                       ]
-
-                    : null,
-
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
               ),
-
-              child: Text(
-
-                category,
-
-                style: GoogleFonts.inter(
-
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-
-                  fontSize: 13,
-
-                  color: isActive ? AppTheme.darkBrownText : AppTheme.darkGrey, // #412402 on gold
-
-                  letterSpacing: isActive ? 0.1 : 0,
-
-                ),
-
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    catIcon,
+                    size: 16,
+                    color: isActive ? AppTheme.darkBrownText : AppTheme.forestGreen,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    category,
+                    style: GoogleFonts.inter(
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                      fontSize: 13,
+                      color: isActive ? AppTheme.darkBrownText : AppTheme.darkGrey,
+                      letterSpacing: isActive ? 0.1 : 0,
+                    ),
+                  ),
+                ],
               ),
-
             ),
-
           );
-
         },
-
       ),
-
     );
-
   }
-
-
 
   Widget _buildMenuCategoryBlock(String category, List<MenuItem> items) {
+    final catIcon = CategoryIconHelper.getIcon(category);
 
     return Column(
-
       key: _getCategoryKey(category),
-
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: [
-
         Padding(
-
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
           child: Row(
-
             children: [
-
               Container(
-
-                width: 4,
-
-                height: 20,
-
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-
-                  color: AppTheme.warmGold,
-
-                  borderRadius: BorderRadius.circular(2),
-
+                  color: AppTheme.forestGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-
+                child: Icon(catIcon, size: 18, color: AppTheme.forestGreen),
               ),
-
               const SizedBox(width: 10),
-
-              Text(
-
-                category,
-
-                style: GoogleFonts.inter(
-
-                  fontSize: 18,
-
-                  fontWeight: FontWeight.w800,
-
-                  color: AppTheme.darkGrey,
-
-                  letterSpacing: -0.3,
-
+              Flexible(
+                child: Text(
+                  category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.darkGrey,
+                    letterSpacing: -0.3,
+                  ),
                 ),
-
               ),
-
+              const SizedBox(width: 8),
+              Text(
+                '(${items.length})',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.mediumGrey,
+                ),
+              ),
             ],
-
           ),
-
         ),
-
         GridView.builder(
-
           shrinkWrap: true,
-
           physics: const NeverScrollableScrollPhysics(),
-
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-
             crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
-
             childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
-
             crossAxisSpacing: 12,
-
             mainAxisSpacing: 12,
-
           ),
-
           itemCount: items.length,
-
           itemBuilder: (context, index) {
-
             final item = items[index];
-
             return _buildProductCard(item);
-
           },
-
         ),
-
-        const SizedBox(height: 24),
-
+        const SizedBox(height: 20),
       ],
-
     );
-
   }
-
-
 
   // ══════════════════════════════════════════════════════════════════════
   //  FEATURED DISHES — Realtime from POS orders today
@@ -8070,31 +7241,13 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   letterSpacing: -0.3,
                 ),
               ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.warmGold,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '🔥 TOP PICKS',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.darkBrownText,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         // Horizontal scrollable cards (Mouse drag + Touch enabled)
         SizedBox(
-          height: 280,
+          height: 270,
           child: _featuredLoading
               ? _buildFeaturedShimmer()
               : ScrollConfiguration(
@@ -8130,24 +7283,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             menuItem.customImagePath ?? menuItem.fallbackImagePath)
         : '';
 
-    return GestureDetector(
+    return AnimatedTapScale(
       onTap: menuItem != null
           ? () => _showMenuItemDetailsDialog(menuItem)
           : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
+      child: Container(
         width: 220,
         margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.cardBorder, width: 1),
+          border: Border.all(color: AppTheme.cardBorder, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -8161,6 +7312,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(19)),
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
                     if (imageUrl.isNotEmpty)
                       Image.network(
@@ -8195,6 +7347,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               color: Colors.grey, size: 40),
                         ),
                       ),
+                    // Gradient shadow overlay on bottom of image for realism
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 45,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.45),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     // Count badge (Top-Left)
                     Positioned(
                       top: 8,
@@ -8347,313 +7518,139 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
-  // ignore: unused_element
-  Widget _buildIntegratedMenu() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: AppTheme.warmGold,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Featured Dishes',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.darkGrey,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppTheme.warmGold,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '🔥 TOP PICKS',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.darkBrownText,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildMenuCategoryGrid(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuCategoryGrid() {
-    final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
-    final List<MenuItem> items = _getTopSellingItems(allMenu);
-
-    if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.cardBorder),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.no_meals_outlined, size: 42, color: AppTheme.mediumGrey),
-              const SizedBox(height: 12),
-              Text(
-                'No featured dishes available.',
-                style: GoogleFonts.inter(color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
-        childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _buildProductCard(item);
-      },
-    );
-  }
-
   Widget _buildProductCard(MenuItem item) {
-
-    return GestureDetector(
-
+    return AnimatedTapScale(
       onTap: () => _showMenuItemDetailsDialog(item),
-
-      child: AnimatedContainer(
-
-        duration: const Duration(milliseconds: 200),
-
-        curve: Curves.easeOutCubic,
-
+      child: Container(
         decoration: BoxDecoration(
-
           color: Colors.white,
-
           borderRadius: BorderRadius.circular(20),
-
-          border: Border.all(color: AppTheme.cardBorder, width: 1), // Light warm gray border #E5E0D2
-
+          border: Border.all(color: AppTheme.cardBorder, width: 1.2),
           boxShadow: [
-
             BoxShadow(
-
               color: Colors.black.withValues(alpha: 0.04),
-
               blurRadius: 12,
-
               offset: const Offset(0, 4),
-
             ),
-
           ],
-
         ),
-
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-
             // Image Section
-
             Expanded(
-
               flex: 3,
-
               child: ClipRRect(
-
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
-
                 child: Stack(
-
+                  fit: StackFit.expand,
                   children: [
-
                     _buildImageWidget(item),
-
-                    // Uniform Price Badge across menu grid: #16302A bg with #F5F1E6 text
-
+                    // Gradient scrim at bottom of image
                     Positioned(
-
-                      top: 8,
-
-                      right: 8,
-
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 30,
                       child: Container(
-
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-
                         decoration: BoxDecoration(
-
-                          color: AppTheme.priceBadgeBg, // #16302A Deep forest green
-
-                          borderRadius: BorderRadius.circular(10),
-
-                          boxShadow: [
-
-                            BoxShadow(
-
-                              color: Colors.black.withValues(alpha: 0.18),
-
-                              blurRadius: 6,
-
-                              offset: const Offset(0, 2),
-
-                            ),
-
-                          ],
-
-                        ),
-
-                        child: Text(
-
-                          '₱${_fmt.format(item.price)}',
-
-                          style: GoogleFonts.inter(
-
-                            fontSize: 11,
-
-                            fontWeight: FontWeight.w800,
-
-                            color: AppTheme.priceBadgeText, // #F5F1E6 Off-white
-
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.35),
+                            ],
                           ),
-
                         ),
-
                       ),
-
                     ),
-
+                    // Price Badge: Deep forest green with gold/white text
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.forestGreen,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '₱${_fmt.format(item.price)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.priceBadgeText,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
-
                 ),
-
               ),
-
             ),
-
             // Info Section
-
             Padding(
-
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
-
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
-
                   Text(
-
                     item.name,
-
                     maxLines: 1,
-
                     overflow: TextOverflow.ellipsis,
-
                     style: GoogleFonts.inter(
-
                       fontSize: 12,
-
                       fontWeight: FontWeight.w800,
-
-                      color: AppTheme.darkGrey, // Near-black warm gray #2C2C2A
-
+                      color: AppTheme.darkGrey,
                       letterSpacing: -0.2,
-
                     ),
-
                   ),
-
                   const SizedBox(height: 4),
-
-                  // Category Tag: Rust/coral #993C1D
-
-                  Container(
-
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                    decoration: BoxDecoration(
-
-                      color: AppTheme.categoryTagText.withValues(alpha: 0.08),
-
-                      borderRadius: BorderRadius.circular(6),
-
-                    ),
-
-                    child: Text(
-
-                      item.category,
-
-                      maxLines: 1,
-
-                      overflow: TextOverflow.ellipsis,
-
-                      style: GoogleFonts.inter(
-
-                        fontSize: 9,
-
-                        color: AppTheme.categoryTagText, // #993C1D Rust/coral
-
-                        fontWeight: FontWeight.w700,
-
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.categoryTagText.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.category,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              color: AppTheme.categoryTagText,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
-
-                    ),
-
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.add_circle_outline_rounded,
+                        size: 16,
+                        color: AppTheme.forestGreen.withValues(alpha: 0.7),
+                      ),
+                    ],
                   ),
-
                 ],
-
               ),
-
             ),
-
           ],
-
         ),
-
       ),
-
     );
-
   }
 
 
@@ -10097,923 +9094,1040 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildActivitySection() {
-
-    return SingleChildScrollView(
-
-      physics: const AlwaysScrollableScrollPhysics(),
-
-      child: Padding(
-
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Reduced from 24, 32
-
-        child: Column(
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-            const Text(
-
-              'Reservation Activity',
-
-              style: TextStyle(
-
-                fontSize: 28,
-
-                fontWeight: FontWeight.w800,
-
-                color: AppTheme.darkGrey,
-
-                height: 1.2,
-
-                letterSpacing: -0.5,
-
-              ),
-
-            ),
-
-            const SizedBox(height: 6),
-
-            Text(
-
-              'Keep track of your upcoming and past events.',
-
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-
-            ),
-
-            const SizedBox(height: 32),
-
-            if (customerReservations.isEmpty)
-
-              Container(
-
-                padding: const EdgeInsets.symmetric(vertical: 60),
-
-                width: double.infinity,
-
-                decoration: AppTheme.cardDecoration(),
-
-                child: Column(
-
-                  mainAxisAlignment: MainAxisAlignment.center,
-
-                  children: [
-
-                    Container(
-
-                      width: 80,
-
-                      height: 80,
-
-                      decoration: BoxDecoration(
-
-                        color: AppTheme.primaryColor.withValues(alpha: 0.05),
-
-                        shape: BoxShape.circle,
-
-                      ),
-
-                      child: const Icon(
-
-                        Icons.assignment_rounded,
-
-                        size: 40,
-
-                        color: AppTheme.primaryColor,
-
-                      ),
-
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    const Text(
-
-                      'No reservation activity',
-
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.darkGrey),
-
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    const Text(
-
-                      'Your booking history will appear here once you make your first reservation.',
-
-                      textAlign: TextAlign.center,
-
-                      style: TextStyle(fontSize: 14, color: AppTheme.mediumGrey),
-
-                    ),
-
-                  ],
-
-                ),
-
-              )
-
-            else
-
-              ListView.builder(
-
-                shrinkWrap: true,
-
-                physics: const NeverScrollableScrollPhysics(),
-
-                itemCount: customerReservations.length,
-
-                itemBuilder: (context, index) {
-
-                  final reservation = customerReservations[index];
-
-                  return Container(
-
-                    margin: const EdgeInsets.only(bottom: 16),
-
-                    decoration: AppTheme.cardDecoration(),
-
-                    child: ClipRRect(
-
-                      borderRadius: BorderRadius.circular(16),
-
-                      child: Column(
-
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-
-                          Container(
-
-                            padding: const EdgeInsets.all(16),
-
-                            color: AppTheme.primaryColor.withValues(alpha: 0.03),
-
-                            child: Row(
-
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                              children: [
-
-                                Expanded(
-
-                                  child: Text(
-
-                                    reservation['event_type'] ?? 'Reservation',
-
-                                    style: const TextStyle(
-
-                                      fontSize: 16,
-
-                                      fontWeight: FontWeight.w700,
-
-                                      color: AppTheme.darkGrey,
-
-                                    ),
-
-                                  ),
-
-                                ),
-
-                                Row(
-
-                                  children: [
-
-                                    _buildStatusChip(reservation['status'] ?? 'pending'),
-
-                                    const SizedBox(width: 8),
-
-                                    if (reservation['_db_table'] == 'advance_orders' &&
-
-                                        reservation['status'] == 'confirmed' &&
-
-                                        reservation['payment_status'] != 'paid')
-
-                                      IconButton(
-
-                                        onPressed: () => _showPaymentDialog(reservation),
-
-                                        icon: const Icon(Icons.payment_rounded, color: AppTheme.successGreen, size: 22),
-
-                                        tooltip: 'Pay for Order',
-
-                                      ),
-
-                                    if (reservation['payment_status'] == 'paid' || 
-
-                                        reservation['payment_status'] == 'fully_paid')
-
-                                      Container(
-
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-
-                                        decoration: BoxDecoration(
-
-                                          color: AppTheme.successGreen.withValues(alpha: 0.1),
-
-                                          borderRadius: BorderRadius.circular(20),
-
-                                        ),
-
-                                        child: const Text(
-
-                                          'PAID',
-
-                                          style: TextStyle(
-
-                                            color: AppTheme.successGreen,
-
-                                            fontSize: 10,
-
-                                            fontWeight: FontWeight.w800,
-
-                                          ),
-
-                                        ),
-
-                                      ),
-
-                                    if ((reservation['status'] == 'confirmed' ||
-
-                                        reservation['status'] == 'pending') &&
-
-                                        !(reservation['_db_table'] == 'advance_orders' && 
-
-                                          (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')))
-
-                                      PopupMenuButton<String>(
-
-                                        icon: const Icon(Icons.more_vert_rounded, color: AppTheme.mediumGrey),
-
-                                        onSelected: (String value) {
-
-                                          if (value == 'cancel') {
-
-                                            _showCancellationDialog(reservation);
-
-                                          } else if (value == 'reschedule') {
-
-                                            _showRescheduleDialog(reservation);
-
-                                          }
-
-                                        },
-
-                                        itemBuilder: (BuildContext context) => [
-
-                                          const PopupMenuItem<String>(
-
-                                            value: 'cancel',
-
-                                            child: Row(
-
-                                              children: [
-
-                                                Icon(Icons.close_rounded, color: AppTheme.errorRed, size: 18),
-
-                                                SizedBox(width: 12),
-
-                                                Text('Cancel Reservation'),
-
-                                              ],
-
-                                            ),
-
-                                          ),
-
-                                          const PopupMenuItem<String>(
-
-                                            value: 'reschedule',
-
-                                            child: Row(
-
-                                              children: [
-
-                                                Icon(Icons.edit_calendar_rounded, color: AppTheme.infoBlue, size: 18),
-
-                                                SizedBox(width: 12),
-
-                                                Text('Reschedule'),
-
-                                              ],
-
-                                            ),
-
-                                          ),
-
-                                        ],
-
-                                      ),
-
-                                  ],
-
-                                ),
-
-                              ],
-
-                            ),
-
-                          ),
-
-                          Padding(
-
-                            padding: const EdgeInsets.all(20),
-
-                            child: Column(
-
-                              crossAxisAlignment: CrossAxisAlignment.start,
-
-                              children: [
-
-                                _buildActivityDetailRow(Icons.calendar_today_rounded, 'Date', reservation['event_date']),
-
-                                const SizedBox(height: 12),
-
-                                _buildActivityDetailRow(Icons.access_time_rounded, 'Time', reservation['start_time']),
-
-                                if (reservation['number_of_guests'] != null) ...[
-
-                                  const SizedBox(height: 12),
-
-                                  _buildActivityDetailRow(Icons.people_alt_rounded, 'Guests', '${reservation['number_of_guests']} guests'),
-
-                                ],
-
-                                if (reservation['_db_table'] == 'reservations') ...[
-
-                                  const SizedBox(height: 12),
-
-                                  _buildActivityDetailRow(Icons.timer_rounded, 'Duration', '${reservation['duration_hours']} hours'),
-
-                                ],
-
-                                const Divider(height: 32),
-
-                                Row(
-
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-                                  children: [
-
-                                    Text(
-
-                                      'Booked on: ${_formatLocalDateTime(reservation['created_at'])}',
-
-                                      style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 11),
-
-                                    ),
-
-                                    if (reservation['payment_status'] == 'paid' ||
-
-                                        reservation['payment_status'] == 'fully_paid')
-
-                                      const Icon(Icons.verified_rounded, color: AppTheme.successGreen, size: 16),
-
-                                  ],
-
-                                ),
-
-                                if (reservation['selected_menu_items'] != null && 
-
-                                     (reservation['selected_menu_items'] as Map).isNotEmpty) ...[
-
-                                   const Divider(height: 32),
-
-                                   _buildActivityOrderItems(reservation),
-
-                                 ],
-
-                                if (reservation['_db_table'] == 'advance_orders' && 
-
-                                     (reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid')) ...[
-
-                                   const Divider(height: 32),
-
-                                   _buildProgressStepper(reservation['status'] ?? 'pending'),
-
-                                 ],
-
-                              ],
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ),
-
-                  );
-
-                },
-
-              ),
-
-          ],
-
-        ),
-
-      ),
-
-    );
-
-  }
-
-
-
-  Widget _buildActivityOrderItems(Map<String, dynamic> reservation) {
-
-    final items = reservation['selected_menu_items'] as Map<String, dynamic>? ?? {};
-
-    if (items.isEmpty) return const SizedBox.shrink();
-
-
-
-    return Column(
-
-      crossAxisAlignment: CrossAxisAlignment.start,
-
-      children: [
-
-        const Text(
-
-          'ORDERED ITEMS',
-
-          style: TextStyle(
-
-            fontSize: 10,
-
-            fontWeight: FontWeight.w800,
-
-            color: AppTheme.mediumGrey,
-
-            letterSpacing: 1.2,
-
-          ),
-
-        ),
-
-        const SizedBox(height: 12),
-
-        ...items.entries.map((entry) {
-
-          return Padding(
-
-            padding: const EdgeInsets.only(bottom: 6),
-
-            child: Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-
-                    borderRadius: BorderRadius.circular(4),
-
-                  ),
-
-                  child: Text(
-
-                    'x${entry.value}',
-
-                    style: const TextStyle(
-
-                      fontSize: 12,
-
-                      fontWeight: FontWeight.bold,
-
-                      color: AppTheme.primaryColor,
-
-                    ),
-
-                  ),
-
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-
-                  child: Text(
-
-                    entry.key,
-
-                    style: const TextStyle(
-
-                      fontSize: 14,
-
-                      fontWeight: FontWeight.w600,
-
-                      color: AppTheme.darkGrey,
-
-                    ),
-
-                  ),
-
-                ),
-
-              ],
-
-            ),
-
-          );
-
-        }),
-
-      ],
-
-    );
-
-  }
-
-
-
-  Widget _buildProgressStepper(String status) {
-
-    final steps = ['Paid', 'Preparing', 'Ready'];
-
-    int currentStep = 0;
-
-    
-
-    final s = status.toLowerCase();
-
-    if (s == 'preparing') currentStep = 1;
-
-    else if (s == 'ready') currentStep = 2;
-
-    else if (s == 'done' || s == 'completed') currentStep = 2;
-
-    
-
-    return Container(
-
-      padding: const EdgeInsets.all(16),
-
-      decoration: BoxDecoration(
-
-        color: const Color(0xFFF7F3EE),
-
-        borderRadius: BorderRadius.circular(16),
-
-        border: Border.all(color: Colors.amber.shade100),
-
-      ),
-
-      child: Column(
-
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-
-          Text(
-
-            'ORDER PROGRESS',
-
-            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.mediumGrey, letterSpacing: 1.2),
-
-          ),
-
-          const SizedBox(height: 16),
-
-          Row(
-
-            children: List.generate(steps.length, (index) {
-
-              final isActive = index <= currentStep;
-
-              final isCompleted = index < currentStep;
-
-              final isCurrent = index == currentStep;
-
-              
-
-              return Expanded(
-
-                child: Row(
-
-                  children: [
-
-                    Column(
-
-                      children: [
-
-                        // Step circle
-
-                        Container(
-
-                          width: isCurrent ? 34 : 28,
-
-                          height: isCurrent ? 34 : 28,
-
-                          decoration: BoxDecoration(
-
-                            gradient: isCurrent
-
-                                ? AppTheme.goldGradient
-
-                                : (isCompleted
-
-                                    ? LinearGradient(colors: [AppTheme.successGreen, Colors.teal])
-
-                                    : null),
-
-                            color: (!isCurrent && !isCompleted) ? Colors.grey.shade300 : null,
-
-                            shape: BoxShape.circle,
-
-                            boxShadow: isCurrent
-
-                                ? [
-
-                                    BoxShadow(
-
-                                      color: AppTheme.goldenAmber.withValues(alpha: 0.45),
-
-                                      blurRadius: 10,
-
-                                      spreadRadius: 2,
-
-                                    ),
-
-                                  ]
-
-                                : null,
-
-                          ),
-
-                          child: Center(
-
-                            child: isCompleted
-
-                                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-
-                                : Icon(
-
-                                    isCurrent
-
-                                        ? (index == 0 ? Icons.receipt_long_rounded : (index == 1 ? Icons.soup_kitchen_rounded : Icons.takeout_dining_rounded))
-
-                                        : Icons.radio_button_unchecked_rounded,
-
-                                    size: isCurrent ? 18 : 14,
-
-                                    color: (isActive || isCompleted) ? (isCurrent ? Colors.black : Colors.white) : Colors.grey.shade500,
-
-                                  ),
-
-                          ),
-
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-
-                          steps[index],
-
-                          style: GoogleFonts.inter(
-
-                            fontSize: 10,
-
-                            fontWeight: isCurrent ? FontWeight.w800 : (isCompleted ? FontWeight.w600 : FontWeight.w400),
-
-                            color: isCurrent
-
-                                ? AppTheme.goldenAmber
-
-                                : (isCompleted ? AppTheme.darkGrey : AppTheme.mediumGrey),
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ),
-
-                    if (index < steps.length - 1)
-
-                      Expanded(
-
-                        child: Container(
-
-                          height: 3,
-
-                          margin: const EdgeInsets.only(bottom: 20),
-
-                          decoration: BoxDecoration(
-
-                            gradient: index < currentStep
-
-                                ? LinearGradient(colors: [AppTheme.successGreen, Colors.teal])
-
-                                : null,
-
-                            color: index >= currentStep ? Colors.grey.shade300 : null,
-
-                            borderRadius: BorderRadius.circular(2),
-
-                          ),
-
-                        ),
-
-                      ),
-
-                  ],
-
-                ),
-
-              );
-
-            }),
-
-          ),
-
-        ],
-
-      ),
-
-    );
-
-  }
-
-
-
-  Widget _buildActivityDetailRow(IconData icon, String label, String? value) {
-
-    return Row(
-
-      children: [
-
-        Icon(icon, size: 18, color: AppTheme.primaryColor.withValues(alpha: 0.6)),
-
-        const SizedBox(width: 12),
-
-        Text(
-
-          '$label:',
-
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.mediumGrey),
-
-        ),
-
-        const SizedBox(width: 8),
-
-        Expanded(
-
-          child: Text(
-
-            value ?? 'N/A',
-
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.darkGrey),
-
-            overflow: TextOverflow.ellipsis,
-
-          ),
-
-        ),
-
-      ],
-
-    );
-
-  }
-
-
-
-  Widget _buildStatusChip(String status) {
-
-    Color color;
-
-    IconData icon;
-
-    String label = status.toUpperCase();
-
-
-
-    switch (status.toLowerCase()) {
-
-      case 'pending':
-
-        color = AppTheme.warningOrange;
-
-        icon = Icons.pending_rounded;
-
-        break;
-
-      case 'confirmed':
-
-        color = AppTheme.successGreen;
-
-        icon = Icons.check_circle_rounded;
-
-        break;
-
-      case 'preparing':
-
-        color = AppTheme.infoBlue;
-
-        icon = Icons.local_fire_department_rounded;
-
-        label = 'PREPARING';
-
-        break;
-
-      case 'ready':
-
-        color = AppTheme.successGreen;
-
-        icon = Icons.restaurant_rounded;
-
-        label = 'READY';
-
-        break;
-
-      case 'done':
-
-        color = AppTheme.mediumGrey;
-
-        icon = Icons.check_circle_rounded;
-
-        label = 'COMPLETED';
-
-        break;
-
-      case 'cancelled':
-
-        color = AppTheme.errorRed;
-
-        icon = Icons.cancel_rounded;
-
-        break;
-
-      default:
-
-        color = AppTheme.mediumGrey;
-
-        icon = Icons.help_outline_rounded;
-
+    final activeBookings = customerReservations.where((r) {
+      final status = r['status']?.toString().toLowerCase() ?? '';
+      return status != 'cancelled' && status != 'done' && status != 'completed';
+    }).toList();
+
+    final confirmedBookings = customerReservations.where((r) => r['status'] == 'confirmed').toList();
+
+    // Filter displayed list according to selected filter
+    List<Map<String, dynamic>> displayedReservations;
+    if (_activityFilter == 'in_progress') {
+      displayedReservations = activeBookings;
+    } else if (_activityFilter == 'confirmed') {
+      displayedReservations = confirmedBookings;
+    } else {
+      displayedReservations = customerReservations;
     }
 
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Executive Live Order & Activity Overview Card ────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF0C241F),
+                    Color(0xFF14332E),
+                    Color(0xFF1B453D),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: AppTheme.warmGold.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0A1C18).withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: AppTheme.warmGold.withValues(alpha: 0.08),
+                    blurRadius: 30,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                              ),
+                              child: const Icon(
+                                Icons.timeline_rounded,
+                                color: Color(0xFFD9A441),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ORDER & ACTIVITY TRACKER',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFD9A441),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Live Status & Schedule',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Tappable TOTAL Pill
+                      AnimatedTapScale(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            _activityFilter = 'all';
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _activityFilter == 'all'
+                                ? const Color(0xFF34C759).withValues(alpha: 0.25)
+                                : const Color(0xFF34C759).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _activityFilter == 'all'
+                                  ? const Color(0xFF86EFAC)
+                                  : const Color(0xFF34C759).withValues(alpha: 0.35),
+                              width: _activityFilter == 'all' ? 1.4 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const LivePulseDot(color: Color(0xFF34C759), size: 6),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${customerReservations.length} TOTAL',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF86EFAC),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
 
+                  // Sub-metrics Bar (Clickable Filter Capsules)
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        // ── Active Pipeline Filter ──
+                        Expanded(
+                          child: AnimatedTapScale(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _activityFilter = _activityFilter == 'in_progress' ? 'all' : 'in_progress';
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _activityFilter == 'in_progress'
+                                    ? const Color(0xFFFF9500).withValues(alpha: 0.22)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _activityFilter == 'in_progress'
+                                      ? const Color(0xFFFF9500).withValues(alpha: 0.55)
+                                      : Colors.transparent,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.pending_actions_rounded,
+                                    color: _activityFilter == 'in_progress' ? const Color(0xFFFFB84D) : const Color(0xFFFF9500),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Active Pipeline',
+                                          style: GoogleFonts.inter(
+                                            color: _activityFilter == 'in_progress' ? Colors.white : const Color(0xFF94A3B8),
+                                            fontSize: 10,
+                                            fontWeight: _activityFilter == 'in_progress' ? FontWeight.w700 : FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${activeBookings.length} In Progress',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            color: _activityFilter == 'in_progress' ? const Color(0xFFFFD599) : Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 28,
+                          color: Colors.white.withValues(alpha: 0.12),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                        // ── Confirmed Filter ──
+                        Expanded(
+                          child: AnimatedTapScale(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _activityFilter = _activityFilter == 'confirmed' ? 'all' : 'confirmed';
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _activityFilter == 'confirmed'
+                                    ? const Color(0xFF34C759).withValues(alpha: 0.22)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _activityFilter == 'confirmed'
+                                      ? const Color(0xFF34C759).withValues(alpha: 0.55)
+                                      : Colors.transparent,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.verified_rounded,
+                                    color: _activityFilter == 'confirmed' ? const Color(0xFF86EFAC) : const Color(0xFF34C759),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Confirmed',
+                                          style: GoogleFonts.inter(
+                                            color: _activityFilter == 'confirmed' ? Colors.white : const Color(0xFF94A3B8),
+                                            fontSize: 10,
+                                            fontWeight: _activityFilter == 'confirmed' ? FontWeight.w700 : FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${confirmedBookings.length} Approved',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            color: _activityFilter == 'confirmed' ? const Color(0xFFBAF7D0) : const Color(0xFF86EFAC),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Section Title Row & Active Filter Tag ─────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD9A441),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _activityFilter == 'in_progress'
+                      ? 'In Progress Orders'
+                      : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings'),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const Spacer(),
+                if (_activityFilter != 'all')
+                  AnimatedTapScale(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _activityFilter = 'all');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Show All',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF14332E),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.close_rounded, size: 12, color: Color(0xFF14332E)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ── Empty State or Reservation List ─────────────────────────────
+            if (displayedReservations.isEmpty)
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.all(32),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.assignment_rounded,
+                        size: 38,
+                        color: Color(0xFFD9A441),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      _activityFilter == 'all'
+                          ? 'No Reservation Activity'
+                          : (_activityFilter == 'in_progress'
+                              ? 'No In-Progress Bookings'
+                              : 'No Confirmed Bookings'),
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _activityFilter == 'all'
+                          ? 'Your active orders and reservation history will appear here once booked.'
+                          : 'No records match this filter. Tap "Show All" to view everything.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF64748B),
+                        height: 1.4,
+                      ),
+                    ),
+                    if (_activityFilter != 'all') ...[
+                      const SizedBox(height: 14),
+                      TextButton.icon(
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _activityFilter = 'all');
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Show All Records'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF14332E),
+                          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayedReservations.length,
+                itemBuilder: (context, index) {
+                  final reservation = displayedReservations[index];
+                  final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
+                  final isPaid = reservation['payment_status'] == 'paid' || reservation['payment_status'] == 'fully_paid';
+                  final status = reservation['status'] as String? ?? 'pending';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Card Header (Petty Cash Style) ─────────────────
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Color(0xFF14332E),
+                                  Color(0xFF1E4A42),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(9),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                                  ),
+                                  child: Icon(
+                                    isAdvanceOrder ? Icons.takeout_dining_rounded : Icons.deck_rounded,
+                                    size: 18,
+                                    color: const Color(0xFFD9A441),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        reservation['event_type'] ?? (isAdvanceOrder ? 'Advance Order' : 'Reservation'),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (reservation['created_at'] != null)
+                                        Text(
+                                          'Booked ${_formatLocalDateTime(reservation['created_at'])}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: Colors.white.withValues(alpha: 0.75),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                _buildStatusChip(status),
+                                if (isAdvanceOrder && status == 'confirmed' && !isPaid) ...[
+                                  const SizedBox(width: 6),
+                                  AnimatedTapScale(
+                                    onTap: () => _showPaymentDialog(reservation),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        gradient: AppTheme.goldGradient,
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Pay',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w900,
+                                              color: AppTheme.darkBrownText,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (isPaid) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF34C759).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'PAID',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF86EFAC),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                if ((status == 'confirmed' || status == 'pending') &&
+                                    !(isAdvanceOrder && isPaid)) ...[
+                                  PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 20),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    onSelected: (String value) {
+                                      if (value == 'cancel') {
+                                        _showCancellationDialog(reservation);
+                                      } else if (value == 'reschedule') {
+                                        _showRescheduleDialog(reservation);
+                                      }
+                                    },
+                                    itemBuilder: (BuildContext context) => [
+                                      PopupMenuItem<String>(
+                                        value: 'reschedule',
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              'Reschedule',
+                                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem<String>(
+                                        value: 'cancel',
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              'Cancel Booking',
+                                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          // ── Card Body & Details ─────────────────────────────
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Event parameters grid
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      _buildActivityDetailRow(
+                                        Icons.calendar_today_rounded,
+                                        'Date',
+                                        reservation['event_date'] ?? reservation['order_date'] ?? 'N/A',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildActivityDetailRow(
+                                        Icons.access_time_rounded,
+                                        'Time',
+                                        reservation['start_time'] ?? reservation['pickup_time'] ?? 'N/A',
+                                      ),
+                                      if (reservation['number_of_guests'] != null) ...[
+                                        const SizedBox(height: 8),
+                                        _buildActivityDetailRow(
+                                          Icons.people_alt_rounded,
+                                          'Guests',
+                                          '${reservation['number_of_guests']} Guests',
+                                        ),
+                                      ],
+                                      if (reservation['_db_table'] == 'reservations' && reservation['duration_hours'] != null) ...[
+                                        const SizedBox(height: 8),
+                                        _buildActivityDetailRow(
+                                          Icons.timer_rounded,
+                                          'Duration',
+                                          '${reservation['duration_hours']} Hours',
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+
+                                // Ordered menu items
+                                if (reservation['selected_menu_items'] != null &&
+                                    (reservation['selected_menu_items'] as Map).isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  _buildActivityOrderItems(reservation),
+                                ],
+
+                                // Real-time order progress stepper for paid advance orders
+                                if (isAdvanceOrder && isPaid) ...[
+                                  const SizedBox(height: 14),
+                                  _buildProgressStepper(status),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityOrderItems(Map<String, dynamic> reservation) {
+    final items = reservation['selected_menu_items'] as Map<String, dynamic>? ?? {};
+    if (items.isEmpty) return const SizedBox.shrink();
 
     return Container(
-
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-
-        color: color.withValues(alpha: 0.12),
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-
-      child: Row(
-
-        mainAxisSize: MainAxisSize.min,
-
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          Icon(icon, size: 12, color: color),
-
-          const SizedBox(width: 4),
-
-          Text(
-
-            label,
-
-            style: TextStyle(
-
-              color: color,
-
-              fontSize: 10,
-
-              fontWeight: FontWeight.w800,
-
-              letterSpacing: 0.3,
-
-            ),
-
+          Row(
+            children: [
+              const Icon(Icons.restaurant_menu_rounded, size: 14, color: Color(0xFF14332E)),
+              const SizedBox(width: 6),
+              Text(
+                'ORDERED ITEMS',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF64748B),
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
           ),
-
+          const SizedBox(height: 8),
+          ...items.entries.map((entry) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${entry.value}x',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF14332E),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
-
       ),
-
     );
+  }
 
+  Widget _buildProgressStepper(String status) {
+    final steps = ['Paid', 'Preparing', 'Ready'];
+    int currentStep = 0;
+
+    final s = status.toLowerCase();
+    if (s == 'preparing' || s == 'cooking') {
+      currentStep = 1;
+    } else if (s == 'ready' || s == 'done' || s == 'completed') {
+      currentStep = 2;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14332E).withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.stream_rounded, size: 14, color: Color(0xFF14332E)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'LIVE ORDER TIMELINE',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF14332E),
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+              if (currentStep == 1)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const LivePulseDot(color: Color(0xFFFF9500), size: 7),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Kitchen Cooking',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFD97706),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: List.generate(steps.length, (index) {
+              final isCompleted = index < currentStep;
+              final isCurrent = index == currentStep;
+              final isActive = index <= currentStep;
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    Column(
+                      children: [
+                        Container(
+                          width: isCurrent ? 32 : 26,
+                          height: isCurrent ? 32 : 26,
+                          decoration: BoxDecoration(
+                            gradient: isCurrent
+                                ? AppTheme.goldGradient
+                                : (isCompleted ? const LinearGradient(colors: [Color(0xFF14332E), Color(0xFF1E4A42)]) : null),
+                            color: (!isCurrent && !isCompleted) ? const Color(0xFFE2E8F0) : null,
+                            shape: BoxShape.circle,
+                            boxShadow: isCurrent
+                                ? [
+                                    BoxShadow(
+                                      color: AppTheme.warmGold.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: isCompleted
+                                ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+                                : Icon(
+                                    isCurrent
+                                        ? (index == 0
+                                            ? Icons.receipt_long_rounded
+                                            : (index == 1 ? Icons.soup_kitchen_rounded : Icons.takeout_dining_rounded))
+                                        : Icons.radio_button_unchecked_rounded,
+                                    size: isCurrent ? 16 : 12,
+                                    color: (isActive || isCompleted)
+                                        ? (isCurrent ? AppTheme.darkBrownText : Colors.white)
+                                        : const Color(0xFF94A3B8),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          steps[index],
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: isCurrent ? FontWeight.w800 : (isCompleted ? FontWeight.w600 : FontWeight.w500),
+                            color: isCurrent
+                                ? const Color(0xFFB45309)
+                                : (isCompleted ? const Color(0xFF0F172A) : const Color(0xFF94A3B8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (index < steps.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: const EdgeInsets.only(bottom: 18),
+                          decoration: BoxDecoration(
+                            gradient: index < currentStep
+                                ? const LinearGradient(colors: [Color(0xFF14332E), Color(0xFF1E4A42)])
+                                : null,
+                            color: index >= currentStep ? const Color(0xFFE2E8F0) : null,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityDetailRow(IconData icon, String label, String? value) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFF14332E)),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF64748B),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value ?? 'N/A',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color color;
+    IconData icon;
+    String label = status.toUpperCase();
+    bool showPulse = false;
+
+    switch (status.toLowerCase()) {
+      case 'pending':
+        color = const Color(0xFFFF9500);
+        icon = Icons.pending_rounded;
+        showPulse = true;
+        break;
+      case 'confirmed':
+        color = const Color(0xFF34C759);
+        icon = Icons.check_circle_rounded;
+        break;
+      case 'preparing':
+      case 'cooking':
+        color = const Color(0xFF007AFF);
+        icon = Icons.soup_kitchen_rounded;
+        label = 'PREPARING';
+        showPulse = true;
+        break;
+      case 'ready':
+        color = const Color(0xFF34C759);
+        icon = Icons.restaurant_rounded;
+        label = 'READY';
+        showPulse = true;
+        break;
+      case 'done':
+      case 'completed':
+        color = const Color(0xFF64748B);
+        icon = Icons.check_circle_rounded;
+        label = 'COMPLETED';
+        break;
+      case 'cancelled':
+        color = const Color(0xFFDC2626);
+        icon = Icons.cancel_rounded;
+        break;
+      default:
+        color = const Color(0xFF64748B);
+        icon = Icons.help_outline_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showPulse) ...[
+            LivePulseDot(color: color, size: 6),
+            const SizedBox(width: 5),
+          ] else ...[
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -12804,1203 +11918,974 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildQuotationsSection() {
-
     final quotations = customerReservations.where((reservation) {
-
       return reservation['price_quotation_sent'] == true &&
-
           reservation['admin_set_price'] == true &&
-
           reservation['total_price'] != null &&
-
           reservation['total_price'] > 0;
-
     }).toList();
 
-
-
     if (quotations.isEmpty) {
-
       return Center(
-
         child: Container(
-
           margin: const EdgeInsets.all(24),
-
           padding: const EdgeInsets.all(32),
-
           decoration: BoxDecoration(
-
             color: Colors.white,
-
-            borderRadius: BorderRadius.circular(20),
-
-            border: Border.all(color: AppTheme.cardBorder),
-
-          ),
-
-          child: Column(
-
-            mainAxisSize: MainAxisSize.min,
-
-            children: [
-
-              Container(
-
-                padding: const EdgeInsets.all(16),
-
-                decoration: BoxDecoration(
-
-                  color: AppTheme.warmGold.withValues(alpha: 0.15),
-
-                  shape: BoxShape.circle,
-
-                ),
-
-                child: const Icon(
-
-                  Icons.receipt_long_outlined,
-
-                  size: 40,
-
-                  color: AppTheme.warmGold,
-
-                ),
-
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-
-              const SizedBox(height: 16),
-
-              Text(
-
-                'No Price Transactions Yet',
-
-                style: GoogleFonts.inter(
-
-                  fontSize: 18,
-
-                  fontWeight: FontWeight.w800,
-
-                  color: AppTheme.darkGrey,
-
-                ),
-
-              ),
-
-              const SizedBox(height: 6),
-
-              Text(
-
-                'Admin will send pricing transactions for your reservations here.',
-
-                textAlign: TextAlign.center,
-
-                style: GoogleFonts.inter(
-
-                  fontSize: 13,
-
-                  color: AppTheme.mediumGrey,
-
-                ),
-
-              ),
-
             ],
-
           ),
-
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  size: 38,
+                  color: Color(0xFFD9A441),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'No Price Transactions Yet',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Official price quotations and payment statements from admin will appear here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: const Color(0xFF64748B),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
-
       );
-
     }
 
+    final double totalTransactionsValue = quotations.fold<double>(
+      0.0,
+      (sum, q) => sum + ((q['total_price'] ?? 0.0) as num).toDouble(),
+    );
 
+    final double totalPaidValue = quotations.fold<double>(
+      0.0,
+      (sum, q) {
+        final status = q['payment_status']?.toString().toLowerCase() ?? '';
+        final isFullyPaid = status == 'paid' || status == 'fully_paid';
+        final isDepositPaid = status == 'deposit_paid';
+        if (isFullyPaid) {
+          return sum + ((q['total_price'] ?? 0.0) as num).toDouble();
+        } else if (isDepositPaid) {
+          return sum + ((q['deposit_amount'] ?? 0.0) as num).toDouble();
+        }
+        return sum;
+      },
+    );
+
+    final int pendingActionCount = quotations.where((q) => _reservationService.needsDepositPayment(q)).length;
 
     return SingleChildScrollView(
-
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Padding(
-
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Column(
-
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
-
-            Row(
-
-              children: [
-
-                Container(
-
-                  width: 4,
-
-                  height: 22,
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.warmGold,
-
-                    borderRadius: BorderRadius.circular(2),
-
-                  ),
-
-                ),
-
-                const SizedBox(width: 10),
-
-                Text(
-
-                  'Price Transactions',
-
-                  style: GoogleFonts.inter(
-
-                    fontSize: 20,
-
-                    fontWeight: FontWeight.w800,
-
-                    color: AppTheme.darkGrey,
-
-                    letterSpacing: -0.3,
-
-                  ),
-
-                ),
-
-                const Spacer(),
-
-                Container(
-
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.forestGreen,
-
-                    borderRadius: BorderRadius.circular(12),
-
-                  ),
-
-                  child: Text(
-
-                    '${quotations.length} transaction${quotations.length > 1 ? 's' : ''}',
-
-                    style: GoogleFonts.inter(
-
-                      fontSize: 12,
-
-                      color: AppTheme.priceBadgeText,
-
-                      fontWeight: FontWeight.w700,
-
-                    ),
-
-                  ),
-
-                ),
-
-              ],
-
-            ),
-
-            const SizedBox(height: 16),
-
-            ...quotations.map((reservation) => _buildQuotationCard(reservation)),
-
-          ],
-
-        ),
-
-      ),
-
-    );
-
-  }
-
-
-
-  Widget _buildQuotationCard(Map<String, dynamic> reservation) {
-
-    final totalPrice = (reservation['total_price'] ?? 0.0) as double;
-
-    final depositAmount = (reservation['deposit_amount'] ?? 0.0) as double;
-
-    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
-
-
-
-    final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
-
-        reservation['payment_option'] == 'full' ||
-
-        (totalPrice > 0 && depositAmount >= totalPrice);
-
-
-
-    final needsDepositPayment = _reservationService.needsDepositPayment(
-
-      reservation,
-
-    );
-
-
-
-    final isUnpaidOrDue = paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment;
-
-
-
-    return Container(
-
-      margin: const EdgeInsets.only(bottom: 16),
-
-      decoration: BoxDecoration(
-
-        color: Colors.white,
-
-        borderRadius: BorderRadius.circular(20),
-
-        border: Border.all(color: AppTheme.cardBorder, width: 1.2),
-
-        boxShadow: [
-
-          BoxShadow(
-
-            color: Colors.black.withValues(alpha: 0.04),
-
-            blurRadius: 16,
-
-            offset: const Offset(0, 4),
-
-          ),
-
-        ],
-
-      ),
-
-      child: Padding(
-
-        padding: const EdgeInsets.all(20),
-
-        child: Column(
-
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-
-            // Header
-
-            Row(
-
-              children: [
-
-                Container(
-
-                  padding: const EdgeInsets.all(10),
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.forestGreen,
-
-                    borderRadius: BorderRadius.circular(12),
-
-                  ),
-
-                  child: const Icon(
-
-                    Icons.receipt_long_rounded,
-
-                    color: AppTheme.priceBadgeText,
-
-                    size: 20,
-
-                  ),
-
-                ),
-
-                const SizedBox(width: 12),
-
-                Expanded(
-
-                  child: Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-
-                      Text(
-
-                        'Price Transaction',
-
-                        style: GoogleFonts.inter(
-
-                          fontSize: 15,
-
-                          fontWeight: FontWeight.w800,
-
-                          color: AppTheme.darkGrey,
-
-                        ),
-
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      Text(
-
-                        reservation['event_type'] ?? 'Event',
-
-                        style: GoogleFonts.inter(
-
-                          fontSize: 12,
-
-                          fontWeight: FontWeight.w600,
-
-                          color: AppTheme.sidebarSubtitle,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-                Container(
-
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-
-                  decoration: BoxDecoration(
-
-                    color: isUnpaidOrDue
-
-                        ? AppTheme.warmGold
-
-                        : AppTheme.forestGreen,
-
-                    borderRadius: BorderRadius.circular(10),
-
-                    boxShadow: [
-
-                      BoxShadow(
-
-                        color: (isUnpaidOrDue ? AppTheme.warmGold : AppTheme.forestGreen).withValues(alpha: 0.2),
-
-                        blurRadius: 6,
-
-                      ),
-
-                    ],
-
-                  ),
-
-                  child: Text(
-
-                    _getPaymentStatusText(
-
-                      paymentStatus, 
-
-                      true, 
-
-                      isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
-
-                      isPayInFull: isPayInFull,
-
-                    ),
-
-                    style: GoogleFonts.inter(
-
-                      fontSize: 10,
-
-                      fontWeight: FontWeight.w900,
-
-                      color: isUnpaidOrDue
-
-                          ? AppTheme.darkBrownText
-
-                          : AppTheme.priceBadgeText,
-
-                      letterSpacing: 0.3,
-
-                    ),
-
-                  ),
-
-                ),
-
-              ],
-
-            ),
-
-
-
-            const SizedBox(height: 16),
-
-
-
-            // Event Details Box
-
+            // ── Executive Treasury / Transaction Overview Card (Petty Cash Style) ────
             Container(
-
-              padding: const EdgeInsets.all(14),
-
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-
-                color: AppTheme.backgroundColor,
-
-                borderRadius: BorderRadius.circular(14),
-
-                border: Border.all(color: AppTheme.cardBorder),
-
-              ),
-
-              child: Column(
-
-                children: [
-
-                  _buildQuotationDetailRow(
-
-                    'Date',
-
-                    reservation['event_date'] ?? 'N/A',
-
-                    Icons.calendar_today_rounded,
-
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  _buildQuotationDetailRow(
-
-                    'Time',
-
-                    '${reservation['start_time']} (${reservation['duration_hours']}h)',
-
-                    Icons.access_time_rounded,
-
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  _buildQuotationDetailRow(
-
-                    'Guests',
-
-                    '${reservation['number_of_guests']} people',
-
-                    Icons.people_alt_rounded,
-
-                  ),
-
-                ],
-
-              ),
-
-            ),
-
-
-
-            // Menu Items Section
-
-            if (reservation['selected_menu_items'] != null) ...[
-
-              const SizedBox(height: 14),
-
-              Container(
-
-                padding: const EdgeInsets.all(14),
-
-                decoration: BoxDecoration(
-
-                  color: AppTheme.backgroundColor,
-
-                  borderRadius: BorderRadius.circular(14),
-
-                  border: Border.all(color: AppTheme.cardBorder),
-
-                ),
-
-                child: Column(
-
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-
-                    Row(
-
-                      children: [
-
-                        const Icon(
-
-                          Icons.restaurant_menu_rounded,
-
-                          color: AppTheme.categoryTagText,
-
-                          size: 18,
-
-                        ),
-
-                        const SizedBox(width: 6),
-
-                        Text(
-
-                          'Menu Items',
-
-                          style: GoogleFonts.inter(
-
-                            fontSize: 13,
-
-                            fontWeight: FontWeight.w800,
-
-                            color: AppTheme.darkGrey,
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    ..._buildMenuItemsList(
-
-                      reservation['selected_menu_items'],
-
-                    ),
-
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF0C241F),
+                    Color(0xFF14332E),
+                    Color(0xFF1B453D),
                   ],
-
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: AppTheme.warmGold.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0A1C18).withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: AppTheme.warmGold.withValues(alpha: 0.08),
+                    blurRadius: 30,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: Title + Status Pill
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: Color(0xFFD9A441),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PAYMENT STATEMENT',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFD9A441),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Financial Ledger & Quotes',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF34C759).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF34C759).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF34C759),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${quotations.length} RECORDS',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF86EFAC),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 10,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
 
-            ],
+                  // Big Currency Display
+                  Text(
+                    'TOTAL TRANSACTIONS VALUE',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '₱',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFD9A441),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _fmt.format(totalTransactionsValue),
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
+                  // Sub-metrics Bar (Petty Cash Style)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFF34C759),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Settled / Paid',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF94A3B8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '₱${_fmt.format(totalPaidValue)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: Colors.white.withValues(alpha: 0.12),
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                pendingActionCount > 0 ? Icons.pending_actions_rounded : Icons.verified_rounded,
+                                color: pendingActionCount > 0 ? const Color(0xFFFF9500) : const Color(0xFF34C759),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Action Required',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF94A3B8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      pendingActionCount > 0 ? '$pendingActionCount Pending' : 'All Clear',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        color: pendingActionCount > 0 ? const Color(0xFFFFB84D) : const Color(0xFF86EFAC),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
 
-
+            // ── Section Title ────────────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD9A441),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Transaction Records',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 14),
 
-
-
-            // Pricing Details Box
-
-            Container(
-
-              padding: const EdgeInsets.all(14),
-
-              decoration: BoxDecoration(
-
-                color: AppTheme.forestGreen.withValues(alpha: 0.06),
-
-                borderRadius: BorderRadius.circular(14),
-
-                border: Border.all(color: AppTheme.forestGreen.withValues(alpha: 0.18)),
-
-              ),
-
-              child: Column(
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-
-                children: [
-
-                  Row(
-
-                    children: [
-
-                      const Icon(
-
-                        Icons.monetization_on_rounded,
-
-                        color: AppTheme.forestGreen,
-
-                        size: 18,
-
-                      ),
-
-                      const SizedBox(width: 6),
-
-                      Text(
-
-                        'Pricing Details',
-
-                        style: GoogleFonts.inter(
-
-                          fontSize: 13,
-
-                          fontWeight: FontWeight.w800,
-
-                          color: AppTheme.forestGreen,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  _buildPricingRow('Total Price', totalPrice, AppTheme.darkGrey),
-
-                  if (!isPayInFull) ...[
-
-                    const SizedBox(height: 4),
-
-                    _buildPricingRow(
-
-                      'Deposit (50%)',
-
-                      depositAmount,
-
-                      AppTheme.forestGreen,
-
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    _buildPricingRow(
-
-                      'Remaining Balance',
-
-                      totalPrice - depositAmount,
-
-                      AppTheme.mediumGrey,
-
-                    ),
-
-                  ],
-
-                ],
-
-              ),
-
-            ),
-
-
-
-            const SizedBox(height: 16),
-
-
-
-            // Action Buttons
-
-            if (needsDepositPayment)
-
-              AnimatedTapScale(
-
-                onTap: () => _showPaymentDialog(reservation),
-
-                child: Container(
-
-                  width: double.infinity,
-
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-
-                  decoration: BoxDecoration(
-
-                    color: AppTheme.warmGold,
-
-                    borderRadius: BorderRadius.circular(14),
-
-                    boxShadow: [
-
-                      BoxShadow(
-
-                        color: AppTheme.warmGold.withValues(alpha: 0.35),
-
-                        blurRadius: 10,
-
-                        offset: const Offset(0, 4),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                  child: Row(
-
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-
-                      const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 20),
-
-                      const SizedBox(width: 8),
-
-                      Text(
-
-                        isPayInFull
-
-                            ? 'Pay Full Amount (PHP ${depositAmount.toStringAsFixed(2)})'
-
-                            : 'Pay Deposit (PHP ${depositAmount.toStringAsFixed(2)})',
-
-                        style: GoogleFonts.inter(
-
-                          fontSize: 14,
-
-                          fontWeight: FontWeight.w900,
-
-                          color: AppTheme.darkBrownText,
-
-                          letterSpacing: 0.2,
-
-                        ),
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-              )
-
-            else if (paymentStatus == 'deposit_paid')
-
-              Container(
-
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-
-                  color: Colors.orange.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(10),
-
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-
-                ),
-
-                child: Row(
-
-                  children: [
-
-                    const Icon(Icons.pending_actions, color: Colors.orange, size: 20),
-
-                    const SizedBox(width: 8),
-
-                    Expanded(
-
-                      child: Text(
-
-                        reservation['_db_table'] == 'advance_orders'
-
-                            ? 'Full paid! Awaiting admin approval.'
-
-                            : 'Deposit paid! Awaiting admin approval.',
-
-                        style: GoogleFonts.inter(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              )
-
-            else if (reservation['status'] == 'pending_admin_approval')
-
-              Container(
-
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-
-                  color: Colors.orange.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(10),
-
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-
-                ),
-
-                child: Row(
-
-                  children: [
-
-                    const Icon(Icons.pending_actions, color: Colors.orange, size: 20),
-
-                    const SizedBox(width: 8),
-
-                    Expanded(
-
-                      child: Text(
-
-                        'Payment received! Awaiting admin approval.',
-
-                        style: GoogleFonts.inter(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              )
-
-            else if (reservation['status'] == 'confirmed')
-
-              Container(
-
-                width: double.infinity,
-
-                padding: const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-
-                  color: AppTheme.successGreen.withValues(alpha: 0.1),
-
-                  borderRadius: BorderRadius.circular(10),
-
-                  border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
-
-                ),
-
-                child: Row(
-
-                  children: [
-
-                    const Icon(Icons.check_circle, color: AppTheme.successGreen, size: 20),
-
-                    const SizedBox(width: 8),
-
-                    Expanded(
-
-                      child: Text(
-
-                        'Reservation confirmed!',
-
-                        style: GoogleFonts.inter(color: AppTheme.successGreen, fontWeight: FontWeight.w600, fontSize: 13),
-
-                      ),
-
-                    ),
-
-                  ],
-
-                ),
-
-              ),
-
+            ...quotations.map((reservation) => _buildQuotationCard(reservation)),
           ],
-
         ),
-
       ),
-
     );
-
   }
 
+  Widget _buildQuotationCard(Map<String, dynamic> reservation) {
+    final totalPrice = (reservation['total_price'] ?? 0.0) as double;
+    final depositAmount = (reservation['deposit_amount'] ?? 0.0) as double;
+    final paymentStatus = reservation['payment_status'] as String? ?? 'unpaid';
 
+    final isPayInFull = reservation['_db_table'] == 'advance_orders' ||
+        reservation['payment_option'] == 'full' ||
+        (totalPrice > 0 && depositAmount >= totalPrice);
+
+    final needsDepositPayment = _reservationService.needsDepositPayment(
+      reservation,
+    );
+
+    final isUnpaidOrDue = paymentStatus == 'unpaid' || paymentStatus == 'pending' || needsDepositPayment;
+    final isDepositPaid = paymentStatus == 'deposit_paid';
+    final isFullyPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isUnpaidOrDue
+              ? const Color(0xFFD9A441).withValues(alpha: 0.5)
+              : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Voucher Receipt Header (Petty Cash Style) ───────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF14332E),
+                    Color(0xFF1E4A42),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                    ),
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: Color(0xFFD9A441),
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Price Transaction',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          reservation['event_type'] ?? (reservation['_db_table'] == 'advance_orders' ? 'Advance Order' : 'Reservation'),
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status Badge Pill (Petty Cash Style)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isFullyPaid
+                          ? const Color(0xFF34C759).withValues(alpha: 0.2)
+                          : isDepositPaid
+                              ? const Color(0xFF007AFF).withValues(alpha: 0.2)
+                              : const Color(0xFFD9A441).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isFullyPaid
+                            ? const Color(0xFF34C759).withValues(alpha: 0.45)
+                            : isDepositPaid
+                                ? const Color(0xFF007AFF).withValues(alpha: 0.45)
+                                : const Color(0xFFD9A441).withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isFullyPaid
+                                ? const Color(0xFF34C759)
+                                : isDepositPaid
+                                    ? const Color(0xFF38BDF8)
+                                    : const Color(0xFFD9A441),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _getPaymentStatusText(
+                            paymentStatus,
+                            true,
+                            isAdvanceOrder: reservation['_db_table'] == 'advance_orders',
+                            isPayInFull: isPayInFull,
+                          ),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: isFullyPaid
+                                ? const Color(0xFF86EFAC)
+                                : isDepositPaid
+                                    ? const Color(0xFFBAE6FD)
+                                    : const Color(0xFFFDE68A),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Event Details Grid ─────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildQuotationDetailRow(
+                          'Date',
+                          reservation['event_date'] ?? reservation['order_date'] ?? 'N/A',
+                          Icons.calendar_today_rounded,
+                        ),
+                        const SizedBox(height: 6),
+                        _buildQuotationDetailRow(
+                          'Time',
+                          '${reservation['start_time'] ?? reservation['pickup_time'] ?? 'N/A'} ${reservation['duration_hours'] != null ? '(${reservation['duration_hours']}h)' : ''}',
+                          Icons.access_time_rounded,
+                        ),
+                        if (reservation['number_of_guests'] != null) ...[
+                          const SizedBox(height: 6),
+                          _buildQuotationDetailRow(
+                            'Guests',
+                            '${reservation['number_of_guests']} people',
+                            Icons.people_alt_rounded,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  // ── Itemized Menu Items ──────────────────────────────────────────
+                  if (reservation['selected_menu_items'] != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.restaurant_menu_rounded,
+                                color: Color(0xFF14332E),
+                                size: 15,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Menu Items',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ..._buildMenuItemsList(
+                            reservation['selected_menu_items'],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+
+                  // ── Financial Statement Box (Petty Cash Style) ───────────────────
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14332E).withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.payments_rounded,
+                              color: Color(0xFF14332E),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Pricing Breakdown',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF14332E),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _buildPricingRow('Total Price', totalPrice, const Color(0xFF0F172A)),
+                        if (!isPayInFull) ...[
+                          const SizedBox(height: 5),
+                          _buildPricingRow(
+                            'Deposit (50%)',
+                            depositAmount,
+                            const Color(0xFF14332E),
+                          ),
+                          const SizedBox(height: 5),
+                          _buildPricingRow(
+                            'Remaining Balance',
+                            totalPrice - depositAmount,
+                            const Color(0xFF64748B),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Actions & Status Pill Callouts ──────────────────────────────
+                  if (needsDepositPayment)
+                    AnimatedTapScale(
+                      onTap: () => _showPaymentDialog(reservation),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.goldGradient,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.warmGold.withValues(alpha: 0.35),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 17),
+                            const SizedBox(width: 8),
+                            Text(
+                              isPayInFull
+                                  ? 'Pay Full Amount (₱${_fmt.format(depositAmount)})'
+                                  : 'Pay Deposit (₱${_fmt.format(depositAmount)})',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.darkBrownText,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (paymentStatus == 'deposit_paid')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF007AFF).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.pending_actions_rounded, color: Color(0xFF007AFF), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              reservation['_db_table'] == 'advance_orders'
+                                  ? 'Full payment received! Awaiting admin verification.'
+                                  : 'Deposit paid! Awaiting admin verification.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF007AFF),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (reservation['status'] == 'pending_admin_approval')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9500).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFF9500).withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.hourglass_top_rounded, color: Color(0xFFFF9500), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Payment submitted! Awaiting admin approval.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFD97706),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (reservation['status'] == 'confirmed')
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF34C759).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF34C759), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Reservation & payment confirmed!',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF16A34A),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildQuotationDetailRow(String label, String value, IconData icon) {
-
-    return Padding(
-
-      padding: const EdgeInsets.only(bottom: 2),
-
-      child: Row(
-
-        crossAxisAlignment: CrossAxisAlignment.center,
-
-        children: [
-
-          Icon(icon, size: 16, color: AppTheme.forestGreen),
-
-          const SizedBox(width: 8),
-
-          Text(
-
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 14, color: AppTheme.forestGreen),
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 2,
+          child: Text(
             '$label: ',
-
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-
               fontSize: 12,
-
               fontWeight: FontWeight.w500,
-
               color: AppTheme.mediumGrey,
-
             ),
-
           ),
-
-          Expanded(
-
-            child: Text(
-
-              value,
-
-              style: GoogleFonts.inter(
-
-                fontSize: 13,
-
-                fontWeight: FontWeight.w700,
-
-                color: AppTheme.darkGrey,
-
-              ),
-
+        ),
+        Expanded(
+          flex: 5,
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.darkGrey,
             ),
-
           ),
-
-        ],
-
-      ),
-
+        ),
+      ],
     );
-
   }
-
-
 
   double? _getMenuItemPrice(String menuName) {
-
     final menu = MenuService.getMenu();
-
     for (var category in menu.values) {
-
       for (var item in category) {
-
         if (item.name == menuName) {
-
           return item.price;
-
         }
-
       }
-
     }
-
     return null;
-
   }
-
-
 
   List<Widget> _buildMenuItemsList(Map<String, dynamic> selectedMenuItems) {
-
     if (selectedMenuItems.isEmpty) {
-
       return [
-
         Text(
-
           'No menu items selected',
-
           style: GoogleFonts.inter(color: AppTheme.mediumGrey, fontStyle: FontStyle.italic, fontSize: 12),
-
         ),
-
       ];
-
     }
 
-
-
     final menuItems = <Widget>[];
-
     final items = selectedMenuItems;
 
-
-
     items.forEach((menuName, quantity) {
-
       final qty = quantity is int
-
           ? quantity
-
           : int.tryParse(quantity.toString()) ?? 0;
-
       if (qty > 0) {
-
         final price = _getMenuItemPrice(menuName);
-
         final totalPrice = price != null ? price * qty : 0.0;
 
-
-
         menuItems.add(
-
           Padding(
-
             padding: const EdgeInsets.only(bottom: 6),
-
             child: Row(
-
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
               children: [
-
                 Expanded(
-
                   child: Row(
-
                     children: [
-
-                      Text(
-
-                        menuName,
-
-                        style: GoogleFonts.inter(
-
-                          color: AppTheme.darkGrey,
-
-                          fontSize: 13,
-
-                          fontWeight: FontWeight.w700,
-
-                        ),
-
-                      ),
-
-                      const SizedBox(width: 8),
-
                       Container(
-
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
                         decoration: BoxDecoration(
-
-                          color: AppTheme.categoryTagText.withValues(alpha: 0.08),
-
+                          color: AppTheme.warmGold.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-
                         ),
-
                         child: Text(
-
-                          'x$qty',
-
+                          '${qty}x',
                           style: GoogleFonts.inter(
-
-                            color: AppTheme.categoryTagText,
-
+                            color: AppTheme.darkBrownText,
                             fontSize: 11,
-
                             fontWeight: FontWeight.w800,
-
                           ),
-
                         ),
-
                       ),
-
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          menuName,
+                          style: GoogleFonts.inter(
+                            color: AppTheme.darkGrey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
-
                   ),
-
                 ),
-
                 if (price != null)
-
                   Text(
-
                     '₱${_fmt.format(totalPrice)}',
-
                     style: GoogleFonts.inter(
-
                       color: AppTheme.darkGrey,
-
-                      fontSize: 13,
-
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-
                     ),
-
                   ),
-
               ],
-
             ),
-
           ),
-
         );
-
       }
-
     });
 
-
-
     return menuItems;
-
   }
 
-
-
   Widget _buildPricingRow(String label, double amount, Color color) {
-
     return Padding(
-
       padding: const EdgeInsets.only(bottom: 4),
-
       child: Row(
-
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-
-          Text(
-
-            label,
-
-            style: GoogleFonts.inter(
-
-              fontSize: 12,
-
-              fontWeight: FontWeight.w600,
-
-              color: AppTheme.darkGrey.withValues(alpha: 0.75),
-
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.darkGrey.withValues(alpha: 0.75),
+              ),
             ),
-
           ),
-
+          const SizedBox(width: 8),
           Text(
-
             'PHP ${_fmt.format(amount)}',
-
             style: GoogleFonts.inter(
-
               fontSize: 13,
-
               fontWeight: FontWeight.w800,
-
               color: color,
-
             ),
-
           ),
-
         ],
-
       ),
-
     );
-
   }
 
 

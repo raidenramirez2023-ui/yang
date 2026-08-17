@@ -15,7 +15,6 @@ import 'package:yang_chow/models/menu_item.dart';
 import 'package:yang_chow/services/menu_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
-import 'package:yang_chow/utils/app_constants.dart';
 
 // ─── Cart Icon (with badge) ──────────────────────────────────────────────────
 
@@ -824,170 +823,219 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 380;
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final int totalSteps = _reservationType == 'Advance Order' ? 2 : 1;
+    final int currentStep = _reservationType == 'Advance Order' ? 2 : 1;
+
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: Color(0xFFF9FAFB),
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Drag handle
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
+          // ── Drag Handle ────────────────────────────────────────────────
+          Center(
             child: Container(
-              width: 44, height: 5,
+              margin: const EdgeInsets.only(top: 12, bottom: 2),
+              width: 36, height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(3),
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
 
-          // Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-            decoration: BoxDecoration(
-              color: AppTheme.navColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Header ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.event_available_rounded, color: AppTheme.warmGold, size: 22),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Set Up Your Order',
-                      style: GoogleFonts.lora(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+                // Icon badge
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0C241F),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: Text('📝', style: TextStyle(fontSize: 22)),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Choose your preferred reservation type ',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white70,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Set Up Your Order',
+                        style: GoogleFonts.inter(
+                          fontSize: isSmall ? 17 : 19,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Tell us how you want your order handled',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Step pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0C241F).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Step $currentStep / $totalSteps',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0C241F),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
+          // Progress bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+            child: Row(
+              children: List.generate(totalSteps, (i) {
+                final active = i < currentStep;
+                return Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(right: i < totalSteps - 1 ? 6 : 0),
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: active ? const Color(0xFF0C241F) : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+          const Divider(color: Color(0xFFF1F5F9), thickness: 1, height: 20),
+
+          // ── Body ────────────────────────────────────────────────
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ── Step 1: Order Type ──────────────────────────────────────
-                  _sectionLabel('ORDER TYPE'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _typeCard(
-                          icon: Icons.shopping_bag_outlined,
-                          label: 'Advance Order',
-                          subtitle: 'Dine in or pick up',
-                          selected: _reservationType == 'Advance Order',
-                          onTap: () => setState(() => _reservationType = 'Advance Order'),
-                        ),
+                  // ── STEP 1: ORDER TYPE ───────────────────────────────
+                  _sectionLabel('1. What type of order?'),
+                  const SizedBox(height: 10),
+                  _selectionRow(
+                    options: [
+                      _OptionData(
+                        emoji: '🛍️',
+                        label: 'Advance Order',
+                        description: 'Pre-order food for dine-in or pick-up',
+                        value: 'Advance Order',
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _typeCard(
-                          icon: Icons.celebration_rounded,
-                          label: 'Event Place',
-                          subtitle: 'Reserve a venue',
-                          selected: _reservationType == 'Event Place',
-                          onTap: () => setState(() => _reservationType = 'Event Place'),
-                        ),
+                      _OptionData(
+                        emoji: '🎉',
+                        label: 'Event Place',
+                        description: 'Book a venue for a special occasion',
+                        value: 'Event Place',
                       ),
                     ],
+                    selected: _reservationType,
+                    onSelect: (v) => setState(() => _reservationType = v),
                   ),
 
-                  // ── Step 2: Advance Order sub-type ─────────────────────────
+                  // ── STEP 2: ORDER MODE (Advance Order only) ─────────────
                   if (_reservationType == 'Advance Order') ...[
-                    const SizedBox(height: 24),
-                    _sectionLabel('ORDER MODE'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _typeCard(
-                            icon: Icons.restaurant_rounded,
-                            label: 'Dine In',
-                            subtitle: 'Eat at the restaurant',
-                            selected: _advanceOrderType == 'Dine In',
-                            onTap: () => setState(() => _advanceOrderType = 'Dine In'),
-                          ),
+                    const SizedBox(height: 20),
+                    _sectionLabel('2. How will you receive it?'),
+                    const SizedBox(height: 10),
+                    _selectionRow(
+                      options: [
+                        _OptionData(
+                          emoji: '🍽️',
+                          label: 'Dine In',
+                          description: 'Eat at the restaurant with table service',
+                          value: 'Dine In',
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _typeCard(
-                            icon: Icons.shopping_bag_rounded,
-                            label: 'Pick Up',
-                            subtitle: 'Take your order away',
-                            selected: _advanceOrderType == 'Pick Up',
-                            onTap: () => setState(() => _advanceOrderType = 'Pick Up'),
-                          ),
+                        _OptionData(
+                          emoji: '🥡',
+                          label: 'Pick Up',
+                          description: 'We\'ll have it ready when you arrive',
+                          value: 'Pick Up',
                         ),
                       ],
+                      selected: _advanceOrderType,
+                      onSelect: (v) => setState(() => _advanceOrderType = v),
                     ),
                   ],
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
           ),
 
-          // ── Confirm Button ─────────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).padding.bottom + 20),
+          // ── Confirm Button ───────────────────────────────────────────
+          Container(
+            padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPad + 20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF9FAFB),
+              border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+            ),
             child: AnimatedTapScale(
               onTap: _confirm,
               child: Container(
                 width: double.infinity,
-                height: 58,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: AppTheme.forestGreen,
-                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF0C241F),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.forestGreen.withOpacity(0.35),
+                      color: const Color(0xFF0C241F).withValues(alpha: 0.30),
                       blurRadius: 14,
-                      offset: const Offset(0, 4),
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: AppTheme.warmGold, size: 22),
-                    const SizedBox(width: 10),
                     Text(
-                      'Confirm Order Setup',
+                      'Continue',
                       style: GoogleFonts.inter(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        letterSpacing: 0.1,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    const Icon(Icons.arrow_forward_rounded, color: AppTheme.warmGold, size: 20),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, color: Color(0xFFD9A441), size: 20),
                   ],
                 ),
               ),
@@ -998,73 +1046,141 @@ class _OrderTypeSheetState extends State<_OrderTypeSheet> {
     );
   }
 
-  // ── Helper widgets ──────────────────────────────────────────────────────────
+  // ── Helper: Section label ───────────────────────────────────────────────
 
   Widget _sectionLabel(String label) => Text(
         label,
         style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: AppTheme.mediumGrey,
-          letterSpacing: 1.2,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF374151),
+          letterSpacing: 0.1,
         ),
       );
 
-  Widget _typeCard({
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required bool selected,
-    required VoidCallback onTap,
+  // ── Helper: Selection row ─────────────────────────────────────────────
+
+  Widget _selectionRow({
+    required List<_OptionData> options,
+    required String selected,
+    required ValueChanged<String> onSelect,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.forestGreen : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? AppTheme.forestGreen : AppTheme.cardBorder,
-            width: selected ? 2 : 1.2,
+    return Column(
+      children: options.map((opt) {
+        final isSelected = selected == opt.value;
+        return GestureDetector(
+          onTap: () => onSelect(opt.value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF0C241F) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFE5E7EB),
+                width: isSelected ? 1.5 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF0C241F).withValues(alpha: 0.18),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+            ),
+            child: Row(
+              children: [
+                // Emoji container
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(opt.emoji, style: const TextStyle(fontSize: 24)),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        opt.label,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : const Color(0xFF111827),
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        opt.description,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.55)
+                              : const Color(0xFF6B7280),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Radio indicator
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 22, height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? const Color(0xFFD9A441) : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFFD9A441) : const Color(0xFFD1D5DB),
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                      : null,
+                ),
+              ],
+            ),
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppTheme.forestGreen.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  )
-                ]
-              : [],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 20, color: selected ? AppTheme.warmGold : AppTheme.mediumGrey),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: selected ? Colors.white : AppTheme.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: selected ? Colors.white70 : AppTheme.mediumGrey,
-              ),
-            ),
-          ],
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
+}
+
+// ── Option Data Model ──────────────────────────────────────────────────
+class _OptionData {
+  final String emoji;
+  final String label;
+  final String description;
+  final String value;
+
+  const _OptionData({
+    required this.emoji,
+    required this.label,
+    required this.description,
+    required this.value,
+  });
 }
 
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/refund_service.dart';
@@ -12,11 +13,13 @@ class StaffOrderHistoryPage extends StatefulWidget {
 
 class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
   // ── Design tokens ──────────────────────────────────────────────────────────
+  static const _primaryDark = Color(0xFF0C241F);
+  static const _accentGold = Color(0xFFD9A441);
   static const _red = Color(0xFFDC2626);
-  static const _bg = Color(0xFFF5F6FA);
-  static const _border = Color(0xFFE5E7EB);
-  static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  static const _bg = Color(0xFFF8FAFC);
+  static const _border = Color(0xFFE2E8F0);
+  static const _grey = Color(0xFF64748B);
+  static const _textDark = Color(0xFF0F172A);
 
   final _supabase = Supabase.instance.client;
   final _fmt = NumberFormat('#,##0.00', 'en_US');
@@ -40,7 +43,6 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
         .order('created_at', ascending: false);
   }
 
-
   // ── Filter helpers ─────────────────────────────────────────────────────────
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> orders) {
     final now = DateTime.now();
@@ -51,27 +53,32 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       if (_selectedFilter == 'Today') {
         if (createdAt.year != now.year ||
             createdAt.month != now.month ||
-            createdAt.day != now.day) { return false; }
+            createdAt.day != now.day) {
+          return false;
+        }
       } else if (_selectedFilter == 'This Week') {
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+        final start =
+            DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
         if (createdAt.isBefore(start)) return false;
       }
 
       if (_searchQuery.isNotEmpty) {
-        // Exact match on the order number (transaction_id or padded db id)
-        final tid = (o['transaction_id'] ?? '').toString();
+        final q = _searchQuery.toLowerCase().trim();
+        final tid = (o['transaction_id'] ?? '').toString().toLowerCase();
         final dbid = (o['id'] ?? '').toString();
         final orderId = tid.isNotEmpty
             ? tid
             : (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
-        if (!orderId.contains(_searchQuery.trim())) return false;
+        final customerName = (o['customer_name'] ?? '').toString().toLowerCase();
+        if (!orderId.contains(q) && !customerName.contains(q)) {
+          return false;
+        }
       }
       return true;
     }).toList();
   }
 
-  // ── Widgets ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,157 +86,370 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _textDark),
-          onPressed: () => Navigator.pop(context),
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: _border, height: 1),
         ),
-        title: const Text(
-          'Order History',
-          style: TextStyle(
-            color: _textDark,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _border),
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded,
+                      color: _textDark, size: 18),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Order History',
+                      style: GoogleFonts.inter(
+                        color: _textDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'POS transactions & cash refund records',
+                      style: GoogleFonts.inter(
+                        color: _grey,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _primaryDark.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: _primaryDark.withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.point_of_sale_rounded,
+                        size: 13, color: _primaryDark),
+                    const SizedBox(width: 5),
+                    Text(
+                      'POS Register',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _primaryDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          _buildFilterChips(),
-          Expanded(child: _buildOrderList()),
-        ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _ordersStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: _primaryDark),
+            );
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading orders: ${snapshot.error}',
+                style: GoogleFonts.inter(color: _red, fontSize: 13),
+              ),
+            );
+          }
+
+          final allOrders = snapshot.data ?? [];
+          final filtered = _applyFilters(allOrders);
+
+          // Calculate summary metrics for currently visible orders
+          double totalRevenue = 0.0;
+          int refundedCount = 0;
+
+          for (final o in filtered) {
+            final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+            totalRevenue += amt;
+            if (o['refund_status'] == 'full_refund' ||
+                o['refund_status'] == 'partial_refund') {
+              refundedCount++;
+            }
+          }
+
+          return Column(
+            children: [
+              // Top filter controls
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  children: [
+                    _buildSearchBar(),
+                    const SizedBox(height: 10),
+                    _buildFilterChips(filtered.length),
+                  ],
+                ),
+              ),
+
+              // Summary metric banner
+              if (filtered.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildMetricItem(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Total Orders',
+                        value: '${filtered.length}',
+                        color: _textDark,
+                      ),
+                      Container(width: 1, height: 28, color: _border),
+                      _buildMetricItem(
+                        icon: Icons.payments_rounded,
+                        label: 'Net Sales',
+                        value: '₱ ${_fmt.format(totalRevenue)}',
+                        color: const Color(0xFF166534),
+                      ),
+                      Container(width: 1, height: 28, color: _border),
+                      _buildMetricItem(
+                        icon: Icons.assignment_return_rounded,
+                        label: 'Refunds',
+                        value: '$refundedCount',
+                        color: refundedCount > 0 ? _red : _grey,
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Orders List
+              Expanded(
+                child: filtered.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) => _OrderCard(
+                          order: filtered[index],
+                          fmt: _fmt,
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  Widget _buildMetricItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: _grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildSearchBar() {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border),
+      ),
       child: TextField(
         controller: _searchController,
-        keyboardType: TextInputType.number,
+        keyboardType: TextInputType.text,
         onChanged: (v) => setState(() => _searchQuery = v.trim()),
-        style: const TextStyle(fontSize: 13, color: _textDark),
+        style: GoogleFonts.inter(fontSize: 13, color: _textDark),
         decoration: InputDecoration(
-          hintText: 'Search by order number…',
-          hintStyle: const TextStyle(color: _grey, fontSize: 13),
-          prefixIcon: const Icon(Icons.search, color: _grey, size: 18),
+          hintText: 'Search by order #, transaction ID, or customer name...',
+          hintStyle: GoogleFonts.inter(color: _grey, fontSize: 13),
+          prefixIcon: const Icon(Icons.search_rounded, color: _grey, size: 19),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, color: _grey, size: 18),
+                  icon: const Icon(Icons.clear_rounded, color: _grey, size: 18),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   },
                 )
               : null,
-          filled: true,
-          fillColor: _bg,
+          filled: false,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: _red, width: 1.5),
-          ),
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: InputBorder.none,
         ),
       ),
     );
   }
 
-  Widget _buildFilterChips() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(
-        children: _filters.map((f) {
-          final selected = _selectedFilter == f;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(f,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: selected ? Colors.white : _grey,
-                    fontWeight: FontWeight.w500,
-                  )),
-              selected: selected,
-              selectedColor: _red,
-              backgroundColor: _bg,
-              side: BorderSide(color: selected ? _red : _border),
-              onSelected: (_) => setState(() => _selectedFilter = f),
+  Widget _buildFilterChips(int count) {
+    return Row(
+      children: _filters.map((f) {
+        final selected = _selectedFilter == f;
+        IconData filterIcon;
+        if (f == 'All') {
+          filterIcon = Icons.list_alt_rounded;
+        } else if (f == 'Today') {
+          filterIcon = Icons.today_rounded;
+        } else {
+          filterIcon = Icons.date_range_rounded;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedFilter = f),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? _primaryDark : _bg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: selected ? _primaryDark : _border,
+                  width: selected ? 1.5 : 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: _primaryDark.withValues(alpha: 0.18),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        )
+                      ]
+                    : [],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    filterIcon,
+                    size: 14,
+                    color: selected ? _accentGold : _grey,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    f,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Colors.white : _grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildOrderList() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _ordersStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: _red));
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}',
-                style: const TextStyle(color: _red)),
-          );
-        }
-
-        final all = snapshot.data ?? [];
-        final filtered = _applyFilters(all);
-
-        if (filtered.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.receipt_long_outlined,
-                    size: 64, color: _grey.withOpacity(0.4)),
-                const SizedBox(height: 16),
-                const Text(
-                  'No orders found',
-                  style: TextStyle(
-                    color: _grey,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Completed orders will appear here.',
-                  style: TextStyle(color: _grey, fontSize: 13),
-                ),
-              ],
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+              border: Border.all(color: _border),
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filtered.length,
-          itemBuilder: (context, index) =>
-              _OrderCard(order: filtered[index], fmt: _fmt),
-        );
-      },
+            child: const Icon(Icons.receipt_long_outlined,
+                size: 48, color: _grey),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No orders found',
+            style: GoogleFonts.inter(
+              color: _textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _searchQuery.isNotEmpty
+                ? 'Try searching with a different order number'
+                : 'Completed POS transactions will appear here.',
+            style: GoogleFonts.inter(color: _grey, fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ── Single order card ───────────────────────────────────────────────────────
+// ── Single Order Card (Realistic Digital Receipt) ─────────────────────────────
 class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final NumberFormat fmt;
@@ -241,14 +461,20 @@ class _OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<_OrderCard> {
+  static const _primaryDark = Color(0xFF0C241F);
   static const _red = Color(0xFFDC2626);
-  static const _border = Color(0xFFE5E7EB);
-  static const _grey = Color(0xFF6B7280);
-  static const _textDark = Color(0xFF1A1A2E);
+  static const _border = Color(0xFFE2E8F0);
+  static const _grey = Color(0xFF64748B);
+  static const _textDark = Color(0xFF0F172A);
 
-  bool _expanded = false;
   List<Map<String, dynamic>>? _items;
   bool _loadingItems = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
 
   Future<void> _loadItems() async {
     if (_items != null) return;
@@ -274,7 +500,7 @@ class _OrderCardState extends State<_OrderCard> {
     if (raw == null) return '—';
     final dt = DateTime.tryParse(raw)?.toLocal();
     if (dt == null) return raw;
-    return DateFormat('MMM d, yyyy  h:mm a').format(dt);
+    return DateFormat('MMM d, yyyy • h:mm a').format(dt);
   }
 
   @override
@@ -283,345 +509,507 @@ class _OrderCardState extends State<_OrderCard> {
     final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
     final tid = o['transaction_id']?.toString();
     final dbid = o['id']?.toString() ?? '';
-    final orderId = tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
+    final orderId =
+        tid ?? (int.tryParse(dbid) != null ? dbid.padLeft(3, '0') : dbid);
     final shortId = orderId;
     final ts = _formatTs(o['created_at']?.toString());
     final itemCount = (o['item_count'] as num?)?.toInt() ?? 0;
+    final refundStatus = o['refund_status']?.toString();
+    final isFullRefund = refundStatus == 'full_refund';
+    final isPartialRefund = refundStatus == 'partial_refund';
+    final rawName = o['customer_name']?.toString().trim();
+    final customerName = (rawName != null &&
+            rawName.isNotEmpty &&
+            rawName.toLowerCase() != 'guest' &&
+            rawName.toLowerCase() != 'walk-in customer' &&
+            rawName.toLowerCase() != 'walk-in')
+        ? rawName
+        : (rawName != null && rawName.isNotEmpty && rawName != 'Guest' ? rawName : null);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header row ────────────────────────────────────────────────────
-          InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              setState(() => _expanded = !_expanded);
-              if (_expanded) _loadItems();
-            },
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-              child: Row(
-                children: [
-                  // Order icon
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: _red.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
+          // ── Header Row ────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: Row(
+              children: [
+                // Receipt Icon Container
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: isFullRefund
+                        ? Colors.red.shade50
+                        : _primaryDark.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isFullRefund
+                          ? Colors.red.shade100
+                          : _primaryDark.withValues(alpha: 0.12),
                     ),
-                    child: const Icon(Icons.receipt_long, color: _red, size: 20),
                   ),
-                  const SizedBox(width: 12),
-                  // Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              '#$shortId',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _textDark,
+                  child: Center(
+                    child: Icon(
+                      isFullRefund
+                          ? Icons.receipt_rounded
+                          : Icons.point_of_sale_rounded,
+                      color: isFullRefund ? _red : _primaryDark,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Order Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '#$shortId',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: _textDark,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          if (customerName != null) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '• $customerName',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _primaryDark,
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(ts,
-                            style: const TextStyle(fontSize: 11, color: _grey)),
-                        if (itemCount > 0)
-                          Text('$itemCount item${itemCount != 1 ? 's' : ''}',
-                              style: const TextStyle(fontSize: 11, color: _grey)),
-                      ],
-                    ),
-                  ),
-                  // Total
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '₱ ${widget.fmt.format(total)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: _textDark,
-                        ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              o['order_type'] ?? 'POS',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: _grey,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (o['refund_status'] == 'full_refund')
-                              ? Colors.red.shade50
-                              : (o['refund_status'] == 'partial_refund')
-                                  ? Colors.orange.shade50
-                                  : Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: (o['refund_status'] == 'full_refund')
-                                ? Colors.red.shade200
-                                : (o['refund_status'] == 'partial_refund')
-                                    ? Colors.orange.shade200
-                                    : Colors.green.shade200,
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded,
+                              size: 12, color: _grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            ts,
+                            style: GoogleFonts.inter(
+                                fontSize: 11, color: _grey),
                           ),
-                        ),
-                        child: Text(
-                          (o['refund_status'] == 'full_refund')
-                              ? 'Refunded'
-                              : (o['refund_status'] == 'partial_refund')
-                                  ? 'Partially Refunded'
-                                  : 'Paid',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: (o['refund_status'] == 'full_refund')
-                                ? Colors.red.shade700
-                                : (o['refund_status'] == 'partial_refund')
-                                    ? Colors.orange.shade700
-                                    : Colors.green.shade700,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          if (itemCount > 0) ...[
+                            const SizedBox(width: 8),
+                            Text('•',
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: _grey)),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$itemCount item${itemCount != 1 ? 's' : ''}',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: _grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: _grey,
-                    size: 20,
-                  ),
-                ],
-              ),
+                ),
+
+                // Total & Status Badge
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₱ ${widget.fmt.format(total)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isFullRefund ? _grey : _textDark,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildStatusBadge(isFullRefund, isPartialRefund),
+                  ],
+                ),
+              ],
             ),
           ),
 
-          // ── Expanded items ────────────────────────────────────────────────
-          if (_expanded)
-            Container(
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: _border)),
+          // ── Visible Itemized Breakdown Section ───────────────────────────
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFFBFBFB),
+              border: Border(
+                top: BorderSide(color: _border),
+                bottom: BorderSide(color: _border),
               ),
-              child: _loadingItems
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              color: _red, strokeWidth: 2),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: _loadingItems
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: _primaryDark,
+                          strokeWidth: 2,
                         ),
                       ),
-                    )
-                  : _items == null || _items!.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('No item details found.',
-                              style: TextStyle(color: _grey, fontSize: 13)),
-                        )
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                          child: Column(
+                    ),
+                  )
+                : _items == null || _items!.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'No item details available.',
+                          style: GoogleFonts.inter(color: _grey, fontSize: 12),
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Column Headers
+                          Row(
                             children: [
-                              // Column headers
-                              const Row(
-                                children: [
-                                  Expanded(
-                                    flex: 5,
-                                    child: Text('Item',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: _grey)),
-                                  ),
-                                  SizedBox(
-                                    width: 36,
-                                    child: Text('Qty',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: _grey)),
-                                  ),
-                                  Expanded(
-                                    flex: 3,
-                                    child: Text('Price',
-                                        textAlign: TextAlign.right,
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: _grey)),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              const Divider(color: _border, height: 1),
-                              const SizedBox(height: 8),
-                              ..._items!.map((it) {
-                                final name = it['item_name'] ?? '—';
-                                final qty =
-                                    (it['quantity'] as num?)?.toInt() ?? 1;
-                                final price =
-                                    (it['unit_price'] as num?)?.toDouble() ?? 0.0;
-                                final sub = price * qty;
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        flex: 5,
-                                        child: Text(name,
-                                            style: const TextStyle(
-                                                fontSize: 13, color: _textDark),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis),
-                                      ),
-                                      SizedBox(
-                                        width: 36,
-                                        child: Text('×$qty',
-                                            textAlign: TextAlign.center,
-                                            style: const TextStyle(
-                                                fontSize: 13, color: _grey)),
-                                      ),
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text(
-                                            '₱ ${widget.fmt.format(sub)}',
-                                            textAlign: TextAlign.right,
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                color: _textDark,
-                                                fontWeight: FontWeight.w500)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                              if (o['note'] != null && o['note'].toString().isNotEmpty) ...[
-                                const Divider(color: _border, height: 24),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Note: ',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: _grey)),
-                                    Expanded(
-                                      child: Text(o['note'].toString(),
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: _textDark,
-                                              fontStyle: FontStyle.italic)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              const Divider(color: _border, height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Subtotal',
-                                      style: TextStyle(
-                                          fontSize: 13, color: _grey)),
-                                  Text(
-                                      '₱ ${widget.fmt.format(total)}',
-                                      style: const TextStyle(
-                                          fontSize: 13, color: _textDark)),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                      'Paid with ${o['payment_method'] ?? 'Cash'}',
-                                      style: const TextStyle(
-                                          fontSize: 13, color: _grey)),
-                                  Text(
-                                      '₱ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
-                                      style: const TextStyle(
-                                          fontSize: 13, color: _textDark)),
-                                ],
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Change Due',
-                                      style: TextStyle(
-                                          fontSize: 13, color: _grey)),
-                                  Text(
-                                      '₱ ${widget.fmt.format((o['change_due'] as num?)?.toDouble() ?? 0.0)}',
-                                      style: const TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                              const Divider(color: _border, height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Total Amount',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: _textDark)),
-                                  Text(
-                                      '₱ ${widget.fmt.format(total)}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: _textDark)),
-                                ],
-                              ),
-
-                              // ── Refund Action Button (Same-Day POS Orders) ─────
-                              if (o['refund_status'] != 'full_refund') ...[
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _showPosRefundDialog(context),
-                                    icon: const Icon(Icons.assignment_return_rounded, size: 16, color: _red),
-                                    label: const Text(
-                                      'Process Cash Refund',
-                                      style: TextStyle(color: _red, fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      side: const BorderSide(color: _red),
-                                      padding: const EdgeInsets.symmetric(vertical: 10),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    ),
+                              Expanded(
+                                flex: 5,
+                                child: Text(
+                                  'ITEM',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _grey,
+                                    letterSpacing: 0.8,
                                   ),
                                 ),
-                              ],
+                              ),
+                              SizedBox(
+                                width: 36,
+                                child: Text(
+                                  'QTY',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _grey,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  'PRICE',
+                                  textAlign: TextAlign.right,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _grey,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                        ),
+                          // Scrollable Items List
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 140),
+                            child: Scrollbar(
+                              thumbVisibility: (_items?.length ?? 0) > 3,
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: Column(
+                                  children: [
+                                    ..._items!.map((it) {
+                                      final name = it['item_name'] ?? '—';
+                                      final qty =
+                                          (it['quantity'] as num?)?.toInt() ?? 1;
+                                      final price =
+                                          (it['unit_price'] as num?)
+                                                  ?.toDouble() ??
+                                              0.0;
+                                      final sub = price * qty;
+
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 5,
+                                              child: Text(
+                                                name,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _textDark,
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 36,
+                                              child: Center(
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 5,
+                                                          vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        const Color(0xFFF1F5F9),
+                                                    borderRadius:
+                                                        BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    '×$qty',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: const Color(
+                                                          0xFF475569),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 3,
+                                              child: Text(
+                                                '₱ ${widget.fmt.format(sub)}',
+                                                textAlign: TextAlign.right,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _textDark,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Note if any
+                          if (o['note'] != null &&
+                              o['note'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEFCE8),
+                                borderRadius: BorderRadius.circular(6),
+                                border:
+                                    Border.all(color: const Color(0xFFFEF08A)),
+                              ),
+                              child: Text(
+                                'Note: ${o['note']}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: const Color(0xFF854D0E),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+          ),
+
+          // ── Payment Summary & Action Footer ──────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Payment breakdown
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.payments_outlined,
+                              size: 13, color: _grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Paid: ₱ ${widget.fmt.format((o['amount_paid'] as num?)?.toDouble() ?? total)}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: _grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if ((o['change_due'] as num?) != null &&
+                              (o['change_due'] as num) > 0) ...[
+                            const SizedBox(width: 8),
+                            Text('•',
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: _grey)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Change: ₱ ${widget.fmt.format((o['change_due'] as num).toDouble())}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFF166534),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Refund button
+                if (!isFullRefund)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showPosRefundDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _red,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _red.withValues(alpha: 0.25),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.assignment_return_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Process Refund',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(bool isFullRefund, bool isPartialRefund) {
+    Color bg;
+    Color borderCol;
+    Color textColor;
+    String label;
+    IconData icon;
+
+    if (isFullRefund) {
+      bg = const Color(0xFFFEF2F2);
+      borderCol = const Color(0xFFFCA5A5);
+      textColor = const Color(0xFF991B1B);
+      label = 'Refunded';
+      icon = Icons.assignment_return_rounded;
+    } else if (isPartialRefund) {
+      bg = const Color(0xFFFFFBEB);
+      borderCol = const Color(0xFFFDE68A);
+      textColor = const Color(0xFF92400E);
+      label = 'Partially Refunded';
+      icon = Icons.sync_rounded;
+    } else {
+      bg = const Color(0xFFF0FDF4);
+      borderCol = const Color(0xFF86EFAC);
+      textColor = const Color(0xFF166534);
+      label = 'Paid';
+      icon = Icons.check_circle_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderCol),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
         ],
       ),
     );
@@ -632,13 +1020,15 @@ class _OrderCardState extends State<_OrderCard> {
     final reasonCtrl = TextEditingController();
     bool isLoading = false;
     String? errorMsg;
+    bool obscurePasscode = true;
 
     final o = widget.order;
     final orderId = o['id'].toString();
     final transactionId = o['transaction_id']?.toString() ?? orderId;
     final totalAmount = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
 
-    List<Map<String, dynamic>> localItems = List<Map<String, dynamic>>.from(_items ?? []);
+    List<Map<String, dynamic>> localItems =
+        List<Map<String, dynamic>>.from(_items ?? []);
     bool fetchingItems = _items == null;
     Set<int> selectedIndices = {};
 
@@ -650,7 +1040,6 @@ class _OrderCardState extends State<_OrderCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
-          // Fetch items if not already cached in state
           if (fetchingItems) {
             Supabase.instance.client
                 .from('order_items')
@@ -663,7 +1052,8 @@ class _OrderCardState extends State<_OrderCard> {
                   localItems = List<Map<String, dynamic>>.from(res);
                   _items = localItems;
                   fetchingItems = false;
-                  selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                  selectedIndices =
+                      Set.from(List.generate(localItems.length, (i) => i));
                 });
               }
             }).catchError((err) {
@@ -675,8 +1065,8 @@ class _OrderCardState extends State<_OrderCard> {
             });
           }
 
-          // Calculate current refund total based on selected items
-          final currentRefundTotal = selectedIndices.fold<double>(0.0, (sum, i) {
+          final currentRefundTotal =
+              selectedIndices.fold<double>(0.0, (sum, i) {
             if (i < localItems.length) {
               final it = localItems[i];
               final qty = (it['quantity'] as num?)?.toInt() ?? 1;
@@ -686,15 +1076,51 @@ class _OrderCardState extends State<_OrderCard> {
             return sum;
           });
 
-          final allSelected = localItems.isNotEmpty && selectedIndices.length == localItems.length;
+          final allSelected = localItems.isNotEmpty &&
+              selectedIndices.length == localItems.length;
 
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            title: Row(
               children: [
-                Icon(Icons.assignment_return_rounded, color: _red),
-                SizedBox(width: 8),
-                Text('Process POS Cash Refund', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade100),
+                  ),
+                  child: const Icon(Icons.assignment_return_rounded,
+                      color: _red, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Process POS Cash Refund',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: _textDark,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      Text(
+                        'Order #$transactionId',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: _grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             content: SizedBox(
@@ -704,65 +1130,88 @@ class _OrderCardState extends State<_OrderCard> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Order #${widget.order['transaction_id'] ?? widget.order['id']}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 12),
-
-                    // ── Items Selection List ──
-                    const Text('Select Items to Refund:',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _textDark)),
-                    const SizedBox(height: 6),
+                    Text(
+                      'SELECT ITEMS TO REFUND',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        color: _grey,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     if (fetchingItems)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
+                        padding: EdgeInsets.symmetric(vertical: 24),
                         child: Center(
-                          child: CircularProgressIndicator(color: _red, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              color: _red, strokeWidth: 2),
                         ),
                       )
                     else if (localItems.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Text('No order items found.', style: TextStyle(color: _grey, fontSize: 12)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'No order items found.',
+                          style: GoogleFonts.inter(color: _grey, fontSize: 12),
+                        ),
                       )
                     else
                       Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: _border),
-                          borderRadius: BorderRadius.circular(8),
-                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFF8FAFC),
                         ),
                         child: Column(
                           children: [
                             // Select All Header
                             InkWell(
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(12)),
                               onTap: () {
                                 setDlgState(() {
                                   if (allSelected) {
                                     selectedIndices.clear();
                                   } else {
-                                    selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                                    selectedIndices = Set.from(
+                                        List.generate(
+                                            localItems.length, (i) => i));
                                   }
                                 });
                               },
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
                                 child: Row(
                                   children: [
                                     Checkbox(
                                       value: allSelected,
                                       activeColor: _red,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
                                       onChanged: (val) {
                                         setDlgState(() {
                                           if (val == true) {
-                                            selectedIndices = Set.from(List.generate(localItems.length, (i) => i));
+                                            selectedIndices = Set.from(
+                                                List.generate(
+                                                    localItems.length,
+                                                    (i) => i));
                                           } else {
                                             selectedIndices.clear();
                                           }
                                         });
                                       },
                                     ),
-                                    const Text('Select All Items',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textDark)),
+                                    Text(
+                                      'Select All Items',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: _textDark,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -773,8 +1222,11 @@ class _OrderCardState extends State<_OrderCard> {
                               final idx = entry.key;
                               final it = entry.value;
                               final name = it['item_name'] ?? 'Item';
-                              final qty = (it['quantity'] as num?)?.toInt() ?? 1;
-                              final price = (it['unit_price'] as num?)?.toDouble() ?? 0.0;
+                              final qty =
+                                  (it['quantity'] as num?)?.toInt() ?? 1;
+                              final price =
+                                  (it['unit_price'] as num?)?.toDouble() ??
+                                      0.0;
                               final itemSubtotal = price * qty;
                               final isChecked = selectedIndices.contains(idx);
 
@@ -789,12 +1241,16 @@ class _OrderCardState extends State<_OrderCard> {
                                   });
                                 },
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
                                   child: Row(
                                     children: [
                                       Checkbox(
                                         value: isChecked,
                                         activeColor: _red,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4)),
                                         onChanged: (val) {
                                           setDlgState(() {
                                             if (val == true) {
@@ -806,17 +1262,27 @@ class _OrderCardState extends State<_OrderCard> {
                                         },
                                       ),
                                       Expanded(
-                                        child: Text('$name ×$qty',
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: isChecked ? FontWeight.w600 : FontWeight.normal,
-                                                color: _textDark)),
+                                        child: Text(
+                                          '$name ×$qty',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: isChecked
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: _textDark,
+                                          ),
+                                        ),
                                       ),
-                                      Text('₱ ${widget.fmt.format(itemSubtotal)}',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
-                                              color: isChecked ? _red : _grey)),
+                                      Text(
+                                        '₱ ${widget.fmt.format(itemSubtotal)}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: isChecked
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          color: isChecked ? _red : _grey,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -825,34 +1291,124 @@ class _OrderCardState extends State<_OrderCard> {
                           ],
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total Refund Amount:',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        Text('₱ ${widget.fmt.format(currentRefundTotal)}',
-                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
-                      ],
+                    const SizedBox(height: 14),
+
+                    // Refund Summary Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF86EFAC)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Refund Amount:',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF166534),
+                            ),
+                          ),
+                          Text(
+                            '₱ ${widget.fmt.format(currentRefundTotal)}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF166534),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+
+                    // Reason Field
+                    Text(
+                      'REFUND REASON',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: _grey,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: reasonCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Refund Reason',
-                        hintText: 'e.g. Item unavailable, customer cancelled',
-                        border: OutlineInputBorder(),
+                      style: GoogleFonts.inter(fontSize: 13, color: _textDark),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Customer cancelled, wrong item',
+                        hintStyle:
+                            GoogleFonts.inter(fontSize: 12, color: _grey),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Passcode Field
+                    Text(
+                      'ADMIN PASSCODE',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: _grey,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: passcodeCtrl,
-                      obscureText: true,
+                      obscureText: obscurePasscode,
                       keyboardType: TextInputType.number,
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: _textDark,
+                          letterSpacing: 2),
                       decoration: InputDecoration(
-                        labelText: 'Admin Passcode',
                         hintText: 'Enter 4-digit passcode',
-                        border: const OutlineInputBorder(),
+                        hintStyle: GoogleFonts.inter(
+                            fontSize: 12, color: _grey, letterSpacing: 0),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePasscode
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            size: 18,
+                            color: _grey,
+                          ),
+                          onPressed: () {
+                            setDlgState(() {
+                              obscurePasscode = !obscurePasscode;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
                         errorText: errorMsg,
                       ),
                     ),
@@ -860,15 +1416,28 @@ class _OrderCardState extends State<_OrderCard> {
                 ),
               ),
             ),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _grey,
+                  ),
+                ),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _red,
                   foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
                 onPressed: (isLoading || selectedIndices.isEmpty)
                     ? null
@@ -876,7 +1445,8 @@ class _OrderCardState extends State<_OrderCard> {
                         final passcode = passcodeCtrl.text.trim();
                         final reason = reasonCtrl.text.trim();
                         if (passcode.isEmpty) {
-                          setDlgState(() => errorMsg = 'Please enter Admin passcode');
+                          setDlgState(() =>
+                              errorMsg = 'Please enter Admin passcode');
                           return;
                         }
                         setDlgState(() {
@@ -884,7 +1454,8 @@ class _OrderCardState extends State<_OrderCard> {
                           errorMsg = null;
                         });
 
-                        final isValidPasscode = await RefundService().verifyAdminPasscode(passcode);
+                        final isValidPasscode = await RefundService()
+                            .verifyAdminPasscode(passcode);
                         if (!isValidPasscode) {
                           setDlgState(() {
                             isLoading = false;
@@ -893,31 +1464,56 @@ class _OrderCardState extends State<_OrderCard> {
                           return;
                         }
 
-                        final selectedItems = selectedIndices.map((i) => localItems[i]).toList();
+                        final selectedItems = selectedIndices
+                            .map((i) => localItems[i])
+                            .toList();
 
-                        final result = await RefundService().processImmediatePOSRefund(
+                        final result = await RefundService()
+                            .processImmediatePOSRefund(
                           orderId: orderId,
                           transactionId: transactionId,
-                          customerName: o['customer_name'] ?? 'Walk-in Customer',
+                          customerName:
+                              o['customer_name'] ?? 'Walk-in Customer',
                           refundedItems: selectedItems,
                           refundAmount: currentRefundTotal,
                           originalAmount: totalAmount,
                           reason: reason.isEmpty ? 'POS Item Refund' : reason,
-                          staffEmail: Supabase.instance.client.auth.currentUser?.email ?? 'staff@yangchow.com',
+                          staffEmail: Supabase
+                                  .instance.client.auth.currentUser?.email ??
+                              'staff@yangchow.com',
                         );
 
                         if (ctx.mounted) Navigator.pop(ctx);
 
-                        if (result['success'] == true || result['id'] != null) {
+                        if (result['success'] == true ||
+                            result['id'] != null) {
                           if (mounted) {
-                            final isFullRefund = currentRefundTotal >= totalAmount;
+                            final isFullRefund =
+                                currentRefundTotal >= totalAmount;
                             setState(() {
-                              widget.order['refund_status'] = isFullRefund ? 'full_refund' : 'partial_refund';
+                              widget.order['refund_status'] = isFullRefund
+                                  ? 'full_refund'
+                                  : 'partial_refund';
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('POS refund processed successfully! (₱${widget.fmt.format(currentRefundTotal)})'),
-                                backgroundColor: Colors.green,
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: Colors.white, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'POS cash refund processed successfully! (₱${widget.fmt.format(currentRefundTotal)})',
+                                        style: GoogleFonts.inter(fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFF166534),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
                               ),
                             );
                           }
@@ -925,8 +1521,15 @@ class _OrderCardState extends State<_OrderCard> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(result['error']?.toString() ?? 'Failed to process refund.'),
-                                backgroundColor: Colors.red,
+                                content: Text(
+                                  result['error']?.toString() ??
+                                      'Failed to process refund.',
+                                  style: GoogleFonts.inter(fontSize: 13),
+                                ),
+                                backgroundColor: _red,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
                               ),
                             );
                           }
@@ -936,11 +1539,16 @@ class _OrderCardState extends State<_OrderCard> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
                       )
-                    : Text(selectedIndices.length == localItems.length
-                        ? 'Confirm Refund (Full)'
-                        : 'Confirm Refund (${selectedIndices.length} Item${selectedIndices.length > 1 ? 's' : ''})'),
+                    : Text(
+                        selectedIndices.length == localItems.length
+                            ? 'Confirm Full Refund (₱${widget.fmt.format(currentRefundTotal)})'
+                            : 'Confirm Refund (${selectedIndices.length} items • ₱${widget.fmt.format(currentRefundTotal)})',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
               ),
             ],
           );

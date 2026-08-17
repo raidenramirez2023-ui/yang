@@ -7,7 +7,9 @@ import 'package:yang_chow/utils/app_theme.dart';
 
 class RefundManagementPage extends StatefulWidget {
   final bool isFullscreen;
-  const RefundManagementPage({super.key, this.isFullscreen = false});
+  /// When true, only shows refunds from today (for Staff POS Dashboard use).
+  final bool todayOnly;
+  const RefundManagementPage({super.key, this.isFullscreen = false, this.todayOnly = false});
 
   @override
   State<RefundManagementPage> createState() => _RefundManagementPageState();
@@ -22,6 +24,13 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   String _searchQuery = '';
   int _currentPage = 0;
   final int _rowsPerPage = 10;
+
+  Stream<List<Map<String, dynamic>>> _ordersStream() {
+    return Supabase.instance.client
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false);
+  }
 
 
 
@@ -103,7 +112,17 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
 
   // ── Filter ────────────────────────────────────────────────
   List<Map<String, dynamic>> _filterRefunds(List<Map<String, dynamic>> refunds) {
+    final now = DateTime.now();
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
     var filtered = refunds.where((r) {
+      // ── Today-only gate (Staff POS mode) ──────────────────
+      if (widget.todayOnly) {
+        final created = r['created_at']?.toString() ?? '';
+        if (!created.startsWith(todayStr)) {
+          return false;
+        }
+      }
+      // ── Status filter ────────────────────────────────────
       if (_selectedFilter != 'all' && r['status']?.toString().toLowerCase() != _selectedFilter) {
         return false;
       }
@@ -423,36 +442,61 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _refundService.refundsStream(),
-        builder: (context, snapshot) {
-          final allRefunds = snapshot.data ?? [];
-          final filteredRefunds = _filterRefunds(allRefunds);
-          final totalPages = (filteredRefunds.length / _rowsPerPage).ceil();
-          final startIndex = _currentPage * _rowsPerPage;
-          final endIndex = (startIndex + _rowsPerPage).clamp(0, filteredRefunds.length);
-          final pageRefunds = filteredRefunds.isEmpty ? <Map<String, dynamic>>[] : filteredRefunds.sublist(startIndex, endIndex);
+        builder: (context, refundSnapshot) {
+          return StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _ordersStream(),
+            builder: (context, orderSnapshot) {
+              final rawRefunds = refundSnapshot.data ?? [];
+              final rawOrders = orderSnapshot.data ?? [];
+              final now = DateTime.now();
+              final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Header Card (Petty Cash style) ──
-                      _buildHeader(allRefunds),
-                      const SizedBox(height: 20),
+              final allRefunds = widget.todayOnly
+                  ? rawRefunds.where((r) {
+                      final created = r['created_at']?.toString() ?? '';
+                      return created.startsWith(todayStr);
+                    }).toList()
+                  : rawRefunds;
 
-                      // ── Analytics Grid ──
-                      _buildAnalyticsGrid(allRefunds),
-                      const SizedBox(height: 24),
+              final todayOrders = rawOrders.where((o) {
+                final created = o['created_at']?.toString() ?? '';
+                return created.startsWith(todayStr);
+              }).toList();
+
+              double currentOrdersTotal = 0.0;
+              final relevantOrders = widget.todayOnly ? todayOrders : rawOrders;
+              for (final o in relevantOrders) {
+                currentOrdersTotal += (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+              }
+
+              final filteredRefunds = _filterRefunds(allRefunds);
+              final totalPages = (filteredRefunds.length / _rowsPerPage).ceil();
+              final startIndex = _currentPage * _rowsPerPage;
+              final endIndex = (startIndex + _rowsPerPage).clamp(0, filteredRefunds.length);
+              final pageRefunds = filteredRefunds.isEmpty ? <Map<String, dynamic>>[] : filteredRefunds.sublist(startIndex, endIndex);
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Header Card (Petty Cash style) ──
+                          _buildHeader(allRefunds, currentOrdersTotal, relevantOrders.length),
+                          if (!widget.todayOnly) ...[
+                            const SizedBox(height: 20),
+                            // ── Analytics Grid (Admin View) ──
+                            _buildAnalyticsGrid(allRefunds),
+                          ],
+                          const SizedBox(height: 24),
 
                       // ── Section Title ──
                       Row(
@@ -461,17 +505,43 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Refund Management',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                  letterSpacing: -0.4,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    widget.todayOnly ? "Today's POS Refunds" : 'Refund Management',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF0F172A),
+                                      letterSpacing: -0.4,
+                                    ),
+                                  ),
+                                  if (widget.todayOnly) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                                      ),
+                                      child: Text(
+                                        'TODAY ONLY',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF14332E),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
-                                'Manage refund requests from customers and POS',
+                                widget.todayOnly
+                                    ? "Displaying refund requests and records for today's orders"
+                                    : 'Manage refund requests from customers and POS',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   color: const Color(0xFF64748B),
@@ -523,21 +593,22 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-
-                      // ── Filter Pills (Petty Cash style) ──
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded, const Color(0xFF14332E)),
-                            _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
-                            _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded, const Color(0xFF0284C7)),
-                            _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded, const Color(0xFF15803D)),
-                            _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
-                          ],
+                      if (!widget.todayOnly) ...[
+                        const SizedBox(height: 12),
+                        // ── Filter Pills (Admin View) ──
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded, const Color(0xFF14332E)),
+                              _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
+                              _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded, const Color(0xFF0284C7)),
+                              _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded, const Color(0xFF15803D)),
+                              _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -545,7 +616,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               ),
 
               // ── Refund list ──
-              if (snapshot.connectionState == ConnectionState.waiting && allRefunds.isEmpty)
+              if (refundSnapshot.connectionState == ConnectionState.waiting && allRefunds.isEmpty)
                 const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))))
               else if (filteredRefunds.isEmpty)
                 SliverFillRemaining(
@@ -636,12 +707,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             ],
           );
         },
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 
   // ── Header Card (mirrors Petty Cash Executive Card) ───────
-  Widget _buildHeader(List<Map<String, dynamic>> allRefunds) {
+  Widget _buildHeader(List<Map<String, dynamic>> allRefunds, double currentOrdersTotal, int ordersCount) {
     double totalRefunded = 0;
     for (final r in allRefunds) {
       if (r['status'] == 'completed') {
@@ -649,6 +722,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       }
     }
     final pending = allRefunds.where((r) => r['status'] == 'pending').length;
+    final netSales = currentOrdersTotal;
 
     return Container(
       width: double.infinity,
@@ -702,29 +776,49 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD9A441).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFE6C374), size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Refund Management',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFFE6C374),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                            letterSpacing: 1.1,
+                  Row(
+                    children: [
+                      if (Navigator.canPop(context) || widget.isFullscreen) ...[
+                        InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 16),
                           ),
                         ),
                       ],
-                    ),
+                      // Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD9A441).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFE6C374), size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              widget.todayOnly ? 'TODAY POS NET SALES' : 'REFUND MANAGEMENT',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFFE6C374),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   Row(
                     children: [
@@ -783,7 +877,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               ),
               const SizedBox(height: 18),
               Text(
-                'TOTAL REFUNDED',
+                widget.todayOnly ? "TODAY'S NET SALES (KITA NGAYONG ARAW)" : 'TOTAL REFUNDED',
                 style: GoogleFonts.plusJakartaSans(
                   color: const Color(0xFF94A3B8),
                   fontSize: 11,
@@ -799,57 +893,59 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   Text('₱', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFD9A441), fontSize: 28, fontWeight: FontWeight.w700)),
                   const SizedBox(width: 4),
                   Text(
-                    NumberFormat('#,##0.00').format(totalRefunded),
+                    NumberFormat('#,##0.00').format(widget.todayOnly ? (netSales < 0 ? 0 : netSales) : totalRefunded),
                     style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: -0.8),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              // Sub-stats row
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 16),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Total Records', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
-                              Text('${allRefunds.length} ${allRefunds.length == 1 ? 'refund' : 'refunds'}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ],
+              if (!widget.todayOnly) ...[
+                const SizedBox(height: 16),
+                // Sub-stats row (Admin View)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 16),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Total Records', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
+                                Text('${allRefunds.length} ${allRefunds.length == 1 ? 'refund' : 'refunds'}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.12)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.pending_actions_rounded, color: Color(0xFFFF9500), size: 16),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Pending Review', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
-                              Text('$pending ${pending == 1 ? 'item' : 'items'}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFFB020), fontSize: 13, fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ],
+                      Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.12)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.pending_actions_rounded, color: Color(0xFFFF9500), size: 16),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Pending Review', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
+                                Text('$pending ${pending == 1 ? 'item' : 'items'}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFFB020), fontSize: 13, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -857,7 +953,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  // ── Analytics grid (same tile design as Petty Cash) ───────
+  // ── Analytics grid (Admin View) ───────────────────────────
   Widget _buildAnalyticsGrid(List<Map<String, dynamic>> allRefunds) {
     final pending = allRefunds.where((r) => r['status'] == 'pending').length;
     final approved = allRefunds.where((r) => r['status'] == 'approved').length;
@@ -966,7 +1062,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  // ── Filter Pill (identical to Petty Cash) ─────────────────
+  // ── Filter Pill (Admin View) ──────────────────────────────
   Widget _buildFilterPill(String key, String label, IconData icon, Color color) {
     final isSelected = _selectedFilter == key;
     return Padding(
