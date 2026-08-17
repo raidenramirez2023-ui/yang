@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 import 'package:intl/intl.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
 import '../models/menu_item.dart';
 
 import '../services/menu_service.dart';
@@ -348,35 +350,135 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   Widget _buildHeader() {
 
+    final cartCount = widget.cart.fold(0, (s, e) => s + e.quantity);
+
     return Container(
 
-      height: 40,
+      decoration: BoxDecoration(
 
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+        gradient: const LinearGradient(
 
-      decoration: const BoxDecoration(
+          colors: [Color(0xFF0C241F), Color(0xFF14332E), Color(0xFF1B453D)],
 
-        color: Colors.white,
+          begin: Alignment.topLeft,
 
-        border: Border(bottom: BorderSide(color: _border)),
+          end: Alignment.bottomRight,
+
+        ),
+
+        border: Border(bottom: BorderSide(color: const Color(0xFFD9A441).withValues(alpha: 0.3), width: 1.2)),
 
       ),
 
-      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
 
-      child: const Text(
+      child: Row(
 
-        'Order Details',
+        children: [
 
-        style: TextStyle(
+          Container(
 
-          color: _textDark,
+            padding: const EdgeInsets.all(7),
 
-          fontWeight: FontWeight.bold,
+            decoration: BoxDecoration(
 
-          fontSize: 18,
+              color: const Color(0xFFD9A441).withValues(alpha: 0.15),
 
-        ),
+              borderRadius: BorderRadius.circular(9),
+
+              border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.3)),
+
+            ),
+
+            child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFD9A441), size: 17),
+
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+
+            child: Column(
+
+              crossAxisAlignment: CrossAxisAlignment.start,
+
+              children: [
+
+                Text(
+
+                  'ORDER DETAILS',
+
+                  style: GoogleFonts.inter(
+
+                    color: const Color(0xFFD9A441),
+
+                    fontSize: 10,
+
+                    fontWeight: FontWeight.w800,
+
+                    letterSpacing: 1.2,
+
+                  ),
+
+                ),
+
+                Text(
+
+                  'Current Transaction',
+
+                  style: GoogleFonts.inter(
+
+                    color: Colors.white,
+
+                    fontSize: 13,
+
+                    fontWeight: FontWeight.w700,
+
+                  ),
+
+                ),
+
+              ],
+
+            ),
+
+          ),
+
+          if (cartCount > 0)
+
+            Container(
+
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+
+              decoration: BoxDecoration(
+
+                color: Colors.white.withValues(alpha: 0.12),
+
+                borderRadius: BorderRadius.circular(20),
+
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+
+              ),
+
+              child: Text(
+
+                '$cartCount item${cartCount > 1 ? 's' : ''}',
+
+                style: GoogleFonts.inter(
+
+                  color: Colors.white,
+
+                  fontSize: 11,
+
+                  fontWeight: FontWeight.w700,
+
+                ),
+
+              ),
+
+            ),
+
+        ],
 
       ),
 
@@ -1302,102 +1404,187 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
     );
 
-  }
+  }  Widget _buildFooter() {
 
-
-
-  Widget _buildFooter() {
+    final isEnabled = widget.cart.isNotEmpty;
 
     return Container(
 
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
 
-      decoration: const BoxDecoration(color: Colors.white),
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 1)),
+
+      ),
 
       child: Column(
 
         children: [
 
-          SizedBox(
+          GestureDetector(
 
-            width: double.infinity,
+            onTap: isEnabled
 
-            height: 54,
+                ? () {
 
-            child: ElevatedButton(
+                    HapticFeedback.lightImpact();
 
-              onPressed: widget.cart.isNotEmpty
+                    final subtotal = _subtotal;
 
-                  ? () {
+                    double maxSingleItemPrice = 0.0;
 
-                      final subtotal = _subtotal;
+                    if (widget.cart.isNotEmpty) {
 
-                      double maxSingleItemPrice = 0.0;
-
-                      if (widget.cart.isNotEmpty) {
-
-                        maxSingleItemPrice = widget.cart.map((e) => e.item.price).reduce((a, b) => a > b ? a : b);
-
-                      }
-
-                      final discountAmount = _isDiscountEnabled ? (maxSingleItemPrice * 0.20) : 0.0;
-
-                      final total = subtotal - discountAmount;
-
-                      final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
-
-                      final tableNumber = _tableNumberController.text.trim();
-
-                      
-
-                      // When discount is enabled, use discount details for discount columns
-                      // When discount is NOT enabled, use regular customer details for customer columns
-                      final regularCustomerName = _customerNameController.text.trim();
-                      final regularCustomerAddress = _customerAddressController.text.trim();
-                      
-                      final discountName = _isDiscountEnabled ? _discountCustomerName : '';
-                      final discountAddress = _isDiscountEnabled ? _discountCustomerAddress : '';
-                      
-                      print('DEBUG: Proceeding to payment - Customer Name: $regularCustomerName, Customer Address: $regularCustomerAddress, Discount Enabled: $_isDiscountEnabled, Discount Name: $discountName, Discount Address: $discountAddress');
-                      
-                      widget.onProceedPayment(
-                        regularCustomerName,
-                        regularCustomerAddress,
-                        _noteController.text.trim(),
-                        total,
-                        guestCount,
-                        tableNumber,
-                        discountAmount,
-                        _discountLabel,
-                        discountName,
-                        discountAddress,
-                      );
+                      maxSingleItemPrice = widget.cart.map((e) => e.item.price).reduce((a, b) => a > b ? a : b);
 
                     }
 
-                  : null,
+                    final discountAmount = _isDiscountEnabled ? (maxSingleItemPrice * 0.20) : 0.0;
 
-              style: ElevatedButton.styleFrom(
+                    final total = subtotal - discountAmount;
 
-                backgroundColor: Colors.red,
+                    final guestCount = int.tryParse(_guestCountController.text.trim()) ?? 1;
 
-                foregroundColor: Colors.white,
+                    final tableNumber = _tableNumberController.text.trim();
 
-                elevation: 0,
+                    final regularCustomerName = _customerNameController.text.trim();
 
-                shape: RoundedRectangleBorder(
+                    final regularCustomerAddress = _customerAddressController.text.trim();
 
-                  borderRadius: BorderRadius.circular(12),
+                    final discountName = _isDiscountEnabled ? _discountCustomerName : '';
+
+                    final discountAddress = _isDiscountEnabled ? _discountCustomerAddress : '';
+
+                    print('DEBUG: Proceeding to payment - Customer Name: $regularCustomerName, Customer Address: $regularCustomerAddress, Discount Enabled: $_isDiscountEnabled, Discount Name: $discountName, Discount Address: $discountAddress');
+
+                    widget.onProceedPayment(
+
+                      regularCustomerName,
+
+                      regularCustomerAddress,
+
+                      _noteController.text.trim(),
+
+                      total,
+
+                      guestCount,
+
+                      tableNumber,
+
+                      discountAmount,
+
+                      _discountLabel,
+
+                      discountName,
+
+                      discountAddress,
+
+                    );
+
+                  }
+
+                : null,
+
+            child: AnimatedContainer(
+
+              duration: const Duration(milliseconds: 200),
+
+              width: double.infinity,
+
+              height: 52,
+
+              decoration: BoxDecoration(
+
+                gradient: isEnabled
+
+                    ? const LinearGradient(
+
+                        colors: [Color(0xFF0C241F), Color(0xFF14332E), Color(0xFF1B453D)],
+
+                        begin: Alignment.topLeft,
+
+                        end: Alignment.bottomRight,
+
+                      )
+
+                    : null,
+
+                color: isEnabled ? null : const Color(0xFFE2E8F0),
+
+                borderRadius: BorderRadius.circular(14),
+
+                border: Border.all(
+
+                  color: isEnabled
+
+                      ? const Color(0xFFD9A441).withValues(alpha: 0.45)
+
+                      : Colors.transparent,
+
+                  width: 1.2,
 
                 ),
 
+                boxShadow: isEnabled
+
+                    ? [
+
+                        BoxShadow(
+
+                          color: const Color(0xFF0C241F).withValues(alpha: 0.3),
+
+                          blurRadius: 12,
+
+                          offset: const Offset(0, 4),
+
+                        ),
+
+                      ]
+
+                    : [],
+
               ),
 
-              child: const Text(
+              child: Row(
 
-                'Proceed Payment',
+                mainAxisAlignment: MainAxisAlignment.center,
 
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                children: [
+
+                  Icon(
+
+                    Icons.payments_rounded,
+
+                    color: isEnabled ? const Color(0xFFD9A441) : const Color(0xFF94A3B8),
+
+                    size: 20,
+
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  Text(
+
+                    'Proceed Payment',
+
+                    style: GoogleFonts.inter(
+
+                      fontWeight: FontWeight.w800,
+
+                      fontSize: 15,
+
+                      color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
+
+                      letterSpacing: 0.3,
+
+                    ),
+
+                  ),
+
+                ],
 
               ),
 

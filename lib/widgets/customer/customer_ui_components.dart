@@ -2,6 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 
+/// Helper to provide distinct modern icons for food categories
+class CategoryIconHelper {
+  static IconData getIcon(String category) {
+    final c = category.toLowerCase().trim();
+    if (c.contains('dim sum') || c.contains('siomai') || c.contains('dumpling') || c.contains('steamed')) {
+      return Icons.bakery_dining_rounded;
+    }
+    if (c.contains('rice') || c.contains('fried rice') || c.contains('yang chow')) {
+      return Icons.rice_bowl_rounded;
+    }
+    if (c.contains('noodle') || c.contains('pancit') || c.contains('canton') || c.contains('bihon') || c.contains('mami')) {
+      return Icons.ramen_dining_rounded;
+    }
+    if (c.contains('soup') || c.contains('hotpot') || c.contains('broth')) {
+      return Icons.soup_kitchen_rounded;
+    }
+    if (c.contains('seafood') || c.contains('fish') || c.contains('shrimp') || c.contains('crab') || c.contains('squid')) {
+      return Icons.set_meal_rounded;
+    }
+    if (c.contains('chicken') || c.contains('poultry') || c.contains('buttered')) {
+      return Icons.egg_rounded;
+    }
+    if (c.contains('pork') || c.contains('beef') || c.contains('meat') || c.contains('lechon')) {
+      return Icons.kebab_dining_rounded;
+    }
+    if (c.contains('vegetable') || c.contains('veggie') || c.contains('broccoli') || c.contains('salad')) {
+      return Icons.eco_rounded;
+    }
+    if (c.contains('drink') || c.contains('beverage') || c.contains('juice') || c.contains('tea') || c.contains('coffee')) {
+      return Icons.local_bar_rounded;
+    }
+    if (c.contains('dessert') || c.contains('sweet') || c.contains('cake') || c.contains('halo')) {
+      return Icons.icecream_rounded;
+    }
+    if (c.contains('bundle') || c.contains('family') || c.contains('platter') || c.contains('feast')) {
+      return Icons.dinner_dining_rounded;
+    }
+    return Icons.restaurant_menu_rounded;
+  }
+}
+
 /// Shimmer loader effect widget for food loading states
 class AppShimmer extends StatefulWidget {
   final double width;
@@ -424,8 +465,8 @@ class StockBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: isAvailable
-            ? AppTheme.successGreen.withOpacity(0.12)
-            : AppTheme.errorRed.withOpacity(0.12),
+            ? AppTheme.successGreen.withValues(alpha: 0.12)
+            : AppTheme.errorRed.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -439,3 +480,66 @@ class StockBadge extends StatelessWidget {
     );
   }
 }
+
+/// Pulsing live status dot indicator
+class LivePulseDot extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const LivePulseDot({
+    super.key,
+    this.color = AppTheme.successGreen,
+    this.size = 8,
+  });
+
+  @override
+  State<LivePulseDot> createState() => _LivePulseDotState();
+}
+
+class _LivePulseDotState extends State<LivePulseDot> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: _animation.value),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: _animation.value * 0.6),
+                blurRadius: widget.size,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+

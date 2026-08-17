@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
 
 
 import 'order_list_panel.dart';
@@ -3450,33 +3452,87 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     return Container(
 
-      width: 150,
+      width: 158,
 
-      color: Colors.white,
+      decoration: const BoxDecoration(
+
+        gradient: LinearGradient(
+
+          colors: [
+
+            Color(0xFF0C241F),
+
+            Color(0xFF14332E),
+
+          ],
+
+          begin: Alignment.topCenter,
+
+          end: Alignment.bottomCenter,
+
+        ),
+
+        border: Border(right: BorderSide(color: Color(0xFF1E4A42), width: 1)),
+
+      ),
 
       child: Column(
 
         children: [
 
-          const Padding(
+          // ── Sidebar Header ──
 
-            padding: EdgeInsets.fromLTRB(12, 14, 12, 8),
+          Container(
 
-            child: Text(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 10),
 
-              'Categories',
+            decoration: BoxDecoration(
 
-              style: TextStyle(
+              border: Border(bottom: BorderSide(color: const Color(0xFFD9A441).withValues(alpha: 0.25), width: 1)),
 
-                fontSize: 11,
+            ),
 
-                fontWeight: FontWeight.w600,
+            child: Row(
 
-                color: Color(0xFF9CA3AF),
+              children: [
 
-                letterSpacing: 0.5,
+                Container(
 
-              ),
+                  padding: const EdgeInsets.all(5),
+
+                  decoration: BoxDecoration(
+
+                    color: const Color(0xFFD9A441).withValues(alpha: 0.15),
+
+                    borderRadius: BorderRadius.circular(7),
+
+                  ),
+
+                  child: const Icon(Icons.grid_view_rounded, color: Color(0xFFD9A441), size: 13),
+
+                ),
+
+                const SizedBox(width: 8),
+
+                Text(
+
+                  'MENU',
+
+                  style: GoogleFonts.inter(
+
+                    fontSize: 10,
+
+                    fontWeight: FontWeight.w800,
+
+                    color: const Color(0xFFD9A441),
+
+                    letterSpacing: 1.4,
+
+                  ),
+
+                ),
+
+              ],
 
             ),
 
@@ -3486,7 +3542,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
             child: ListView.builder(
 
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
 
               itemCount: MenuService.categories.length,
 
@@ -3530,15 +3586,31 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
         duration: const Duration(milliseconds: 180),
 
-        margin: const EdgeInsets.only(bottom: 4),
+        margin: const EdgeInsets.only(bottom: 3),
 
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
 
         decoration: BoxDecoration(
 
-          color: selected ? const Color(0xFFEEEdFD) : Colors.transparent,
+          color: selected
 
-          borderRadius: BorderRadius.circular(8),
+              ? const Color(0xFFD9A441).withValues(alpha: 0.18)
+
+              : Colors.white.withValues(alpha: 0.04),
+
+          borderRadius: BorderRadius.circular(10),
+
+          border: Border.all(
+
+            color: selected
+
+                ? const Color(0xFFD9A441).withValues(alpha: 0.45)
+
+                : Colors.transparent,
+
+            width: 1.2,
+
+          ),
 
         ),
 
@@ -3546,29 +3618,27 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
           children: [
 
-            if (selected)
+            AnimatedContainer(
 
-              Container(
+              duration: const Duration(milliseconds: 180),
 
-                width: 3,
+              width: 3,
 
-                height: 16,
+              height: selected ? 18 : 0,
 
-                margin: const EdgeInsets.only(right: 8),
+              margin: const EdgeInsets.only(right: 8),
 
-                decoration: BoxDecoration(
+              decoration: BoxDecoration(
 
-                  color: const Color.fromARGB(255, 255, 0, 0),
+                color: const Color(0xFFD9A441),
 
-                  borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2),
 
-                ),
+              ),
 
-              )
+            ),
 
-            else
-
-              const SizedBox(width: 11),
+            if (!selected) const SizedBox(width: 11),
 
             Expanded(
 
@@ -3576,17 +3646,17 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                 MenuService.categories[index],
 
-                style: TextStyle(
+                style: GoogleFonts.inter(
 
                   fontSize: 12,
 
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
 
                   color: selected
 
-                      ? const Color.fromARGB(255, 255, 0, 0)
+                      ? const Color(0xFFD9A441)
 
-                      : const Color(0xFF374151),
+                      : Colors.white.withValues(alpha: 0.7),
 
                 ),
 
@@ -3616,13 +3686,29 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     return Container(
 
-      height: 38,
+      height: 40,
 
       decoration: BoxDecoration(
 
-        color: const Color(0xFFF0F1F5),
+        color: Colors.white,
 
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
+
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+
+            blurRadius: 8,
+
+            offset: const Offset(0, 2),
+
+          ),
+
+        ],
 
       ),
 
@@ -3632,19 +3718,19 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
         onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
 
-        style: const TextStyle(fontSize: 13),
+        style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF1E293B)),
 
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
 
-          hintText: 'Search',
+          hintText: 'Search menu items...',
 
-          hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+          hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 13),
 
-          prefixIcon: Icon(Icons.search, color: Color(0xFF9CA3AF), size: 18),
+          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 18),
 
           border: InputBorder.none,
 
-          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          contentPadding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
 
           isDense: true,
 
