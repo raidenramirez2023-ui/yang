@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -29,7 +30,8 @@ class _LoginPageState extends State<LoginPage> {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb
         ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID
-        : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID (adjust based on platform if needed)
+        : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID
+    serverClientId: '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Web Client ID - required for idToken on Android
   );
 
   @override
@@ -40,19 +42,38 @@ class _LoginPageState extends State<LoginPage> {
 
     // Only add auth listener for web OAuth redirects
     if (kIsWeb) {
-      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-        final session = data.session;
-        if (session == null || !mounted) return;
+      Supabase.instance.client.auth.onAuthStateChange.listen(
+        (data) {
+          final session = data.session;
+          if (session == null || !mounted) return;
 
-        final provider =
-            session.user.appMetadata['provider']?.toString() ?? 'email';
+          final provider =
+              session.user.appMetadata['provider']?.toString() ?? 'email';
 
-        // Only handle OAuth events on web
-        if (provider != 'email' && data.event == AuthChangeEvent.signedIn) {
-          debugPrint('Web OAuth detected: $provider');
-          _handleOAuthSuccess(session);
-        }
-      });
+          // Only handle OAuth events on web
+          if (provider != 'email' && data.event == AuthChangeEvent.signedIn) {
+            debugPrint('Web OAuth detected: $provider');
+            _handleOAuthSuccess(session);
+          }
+        },
+        onError: (error) {
+          debugPrint('Auth state error: $error');
+          // Handle PKCE code verifier errors gracefully
+          if (error.toString().contains('Code verifier')) {
+            if (mounted) {
+              setState(() {
+                _isSessionChecking = false;
+                _isLoading = false;
+              });
+              _showSnackBar(
+                "Sign-in session expired. Please try signing in again.",
+                Colors.orange.shade700,
+                Icons.refresh,
+              );
+            }
+          }
+        },
+      );
     }
   }
 
@@ -330,45 +351,94 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
+      // Ensure Supabase is initialized before attempting sign-in
+      try {
+        Supabase.instance.client;
+      } catch (_) {
+        _showSnackBar(
+          "Still connecting to server. Please wait a moment and try again.",
+          Colors.orange.shade700,
+          Icons.wifi_off,
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
       if (kIsWeb) {
         // Web: Use OAuth redirect flow
-        await Supabase.instance.client.auth.signOut();
+        // Note: Don't call signOut() here — it clears the PKCE code_verifier
+        // from localStorage, causing "Code verifier could not be found" errors
+        // when Google redirects back to the app.
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: kIsWeb
-              ? '${Uri.base.origin}/#/login'
-              : 'io.supabase.flutter://login-callback/',
+          redirectTo: '${Uri.base.origin}/#/login',
           queryParams: {'prompt': 'select_account'},
         );
       } else {
-        // Mobile: Use native Google Sign-In SDK
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        // Mobile: Use native Google Sign-In SDK with timeout for slow connections
+        final GoogleSignInAccount? googleUser = await _googleSignIn
+            .signIn()
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () {
+                throw TimeoutException(
+                  'Google Sign-In timed out. Please check your internet connection.',
+                );
+              },
+            );
         if (googleUser == null) {
           // User cancelled the sign-in
           setState(() => _isLoading = false);
           return;
         }
 
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth = await googleUser
+            .authentication
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () {
+                throw TimeoutException(
+                  'Token exchange timed out. Please check your internet connection.',
+                );
+              },
+            );
         final String? idToken = googleAuth.idToken;
 
         if (idToken == null) {
-          throw Exception('Failed to get ID token from Google Sign-In');
+          throw Exception(
+            'Failed to get ID token from Google Sign-In. Please try again.',
+          );
         }
 
         // Sign in with Supabase using the ID token
-        await Supabase.instance.client.auth.signInWithIdToken(
-          provider: OAuthProvider.google,
-          idToken: idToken,
-          accessToken: googleAuth.accessToken,
-        );
+        await Supabase.instance.client.auth
+            .signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: googleAuth.accessToken,
+            )
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () {
+                throw TimeoutException(
+                  'Server authentication timed out. Please check your internet connection.',
+                );
+              },
+            );
 
         // Handle success directly
         final session = Supabase.instance.client.auth.currentSession;
         if (session != null && mounted) {
           _handleOAuthSuccess(session);
         }
+      }
+    } on TimeoutException catch (e) {
+      if (mounted) {
+        _showSnackBar(
+          e.message ?? 'Connection timed out. Please try again.',
+          Colors.orange.shade700,
+          Icons.wifi_off,
+        );
       }
     } catch (e) {
       if (mounted) {
