@@ -1178,22 +1178,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 children: [
                   Row(
                     children: [
-                      if (Navigator.canPop(context) || widget.isFullscreen) ...[
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                            ),
-                            child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 16),
-                          ),
-                        ),
-                      ],
                       // Badge
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
