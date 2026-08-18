@@ -1529,16 +1529,22 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobileDialog = screenWidth < 600;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobileDialog ? 10 : 16,
+        vertical: isMobileDialog ? 16 : 24,
+      ),
       backgroundColor: Colors.white,
       child: Container(
-        width: 520,
+        width: double.infinity,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: 520,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
         ),
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.all(isMobileDialog ? 16 : 22),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
           child: _buildCurrentView(),
@@ -1736,17 +1742,20 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF0F172A),
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF0F172A),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: badgeColor.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -1758,6 +1767,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                               fontWeight: FontWeight.w800,
                               color: badgeColor,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -1902,16 +1912,19 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '$eventType #${resId.isEmpty ? index + 1 : resId}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                                color: Color(0xFF0F172A),
+                            Expanded(
+                              child: Text(
+                                '$eventType #${resId.isEmpty ? index + 1 : resId}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: Color(0xFF0F172A),
+                                ),
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             _buildStatusBadge(status),
                           ],
                         ),
@@ -1941,31 +1954,33 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Total Package', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
-                                  Text('₱$total', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Paid / Downpayment', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
-                                  Text('₱$paid', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text('Remaining Balance', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
-                                  Text('₱$remaining', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFFDC2626))),
-                                ],
-                              ),
-                            ],
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Use a 3-column row if wide enough, else wrap
+                              final isWide = constraints.maxWidth > 220;
+                              final items = [
+                                _buildBalanceItem('Total Package', '₱$total', const Color(0xFF1E293B), CrossAxisAlignment.start),
+                                _buildBalanceItem('Paid / Downpayment', '₱$paid', const Color(0xFF10B981), CrossAxisAlignment.start),
+                                _buildBalanceItem('Remaining Balance', '₱$remaining', const Color(0xFFDC2626), CrossAxisAlignment.end),
+                              ];
+                              if (isWide) {
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: items,
+                                );
+                              } else {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    items[0],
+                                    const SizedBox(height: 6),
+                                    items[1],
+                                    const SizedBox(height: 6),
+                                    items[2],
+                                  ],
+                                );
+                              }
+                            },
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -2190,16 +2205,19 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Request for #${resId.isEmpty ? index + 1 : resId}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13.5,
-                                color: Color(0xFF0F172A),
+                            Expanded(
+                              child: Text(
+                                'Request for #${resId.isEmpty ? index + 1 : resId}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13.5,
+                                  color: Color(0xFF0F172A),
+                                ),
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             _buildStatusBadge(status),
                           ],
                         ),
@@ -2539,6 +2557,25 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
     });
 
     return combined;
+  }
+
+  Widget _buildBalanceItem(
+    String label,
+    String value,
+    Color valueColor,
+    CrossAxisAlignment alignment,
+  ) {
+    return Column(
+      crossAxisAlignment: alignment,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+        Text(
+          value,
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: valueColor),
+        ),
+      ],
+    );
   }
 
   Widget _buildStatusBadge(String status) {

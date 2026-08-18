@@ -424,17 +424,27 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         content: Row(
           children: [
             Icon(
-              color == Colors.green ? Icons.check_circle : Icons.error_outline,
+              color == Colors.green ? Icons.check_circle_rounded : Icons.error_rounded,
               color: Colors.white,
+              size: 20,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height - 110,
+          left: 16,
+          right: 16,
+        ),
       ),
     );
   }

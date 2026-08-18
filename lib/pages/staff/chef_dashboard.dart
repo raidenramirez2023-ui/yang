@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/notification_service.dart';
 
@@ -32,11 +33,72 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   static const Duration _popupDebounceDelay = Duration(seconds: 2);
   bool _isPopupShowing = false;
 
+  // ── Top Toast Notification Overlay for Chef ──
+  OverlayEntry? _currentChefTopToastEntry;
+  Timer? _chefTopToastTimer;
+  final Set<String> _shownToastChefNotificationIds = {};
+  StreamSubscription<List<Map<String, dynamic>>>? _chefNotifsSubscription;
+
+  void _dismissChefTopToast() {
+    _chefTopToastTimer?.cancel();
+    _chefTopToastTimer = null;
+    _currentChefTopToastEntry?.remove();
+    _currentChefTopToastEntry = null;
+  }
+
+  void _showChefTopToast({
+    required Widget content,
+    Duration? duration,
+  }) {
+    if (!mounted) return;
+    _dismissChefTopToast();
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _ChefTopToastWidget(
+        onDismiss: () {
+          if (_currentChefTopToastEntry == entry) {
+            _dismissChefTopToast();
+          }
+        },
+        duration: duration,
+        child: content,
+      ),
+    );
+
+    _currentChefTopToastEntry = entry;
+    overlay.insert(entry);
+
+    if (duration != null) {
+      _chefTopToastTimer = Timer(duration, () {
+        if (_currentChefTopToastEntry == entry) {
+          _dismissChefTopToast();
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
     _listenForNewOrders();
+
+    _chefNotifsSubscription = NotificationService.getKitchenNotificationsStream().listen((notifs) {
+      if (!mounted) return;
+      final unread = notifs.where((n) => n['is_read'] == false).toList();
+      if (unread.isNotEmpty) {
+        final latest = unread.first;
+        final id = latest['id']?.toString();
+        if (id != null && !_shownToastChefNotificationIds.contains(id)) {
+          _shownToastChefNotificationIds.add(id);
+          _showChefNotificationToast(latest);
+        }
+      }
+    });
   }
 
   @override
@@ -44,6 +106,8 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     _pageController.dispose();
     _orderStream?.cancel();
     _popupDebounceTimer?.cancel();
+    _chefNotifsSubscription?.cancel();
+    _dismissChefTopToast();
     super.dispose();
   }
 
@@ -1453,6 +1517,15 @@ _closePopup();
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
     NotificationService.markAllAsRead('', forAdmin: true);
+    if (notifications.isNotEmpty) {
+      final unreadIds = notifications
+          .where((n) => n['is_read'] == false)
+          .map((n) => n['id'].toString())
+          .toList();
+      if (unreadIds.isNotEmpty) {
+        NotificationService.markVisibleAsRead(unreadIds);
+      }
+    }
 
     showDialog(
       context: context,
@@ -1516,81 +1589,185 @@ _closePopup();
     );
   }
 
+  void _showChefNotificationToast(Map<String, dynamic> n) {
+    if (!mounted) return;
+    final title = _getNotificationTitle(n);
+    final subtitle = _getNotificationSubtitle(n);
+
+    void openBellDialog() {
+      _dismissChefTopToast();
+      NotificationService.getKitchenNotificationsStream()
+          .first
+          .then((notifs) {
+        if (mounted) _showNotificationsDialog(notifs);
+      });
+    }
+
+    // FIXED at top: stays until Chef clicks 'VIEW'
+    _showChefTopToast(
+      duration: null,
+      content: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: openBellDialog,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFF59E0B),
+                width: 1.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getIconForAction(n['action_type']),
+                    color: const Color(0xFFF59E0B),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: const Color(0xFFCBD5E1),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    backgroundColor: const Color(0xFFF59E0B),
+                    foregroundColor: const Color(0xFF0F172A),
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 15, color: Color(0xFF0F172A)),
+                  label: Text(
+                    'VIEW',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  onPressed: openBellDialog,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _getIconForAction(String action) {
     switch (action) {
+      case 'stock_approved':
+        return Icons.check_circle_rounded;
+      case 'stock_rejected':
+        return Icons.cancel_rounded;
       case 'stock_request':
-        return Icons.inventory_2;
+        return Icons.inventory_2_rounded;
       case 'stock_alert':
         return Icons.warning_amber_rounded;
       case 'pos_order':
-        return Icons.shopping_cart;
-      case 'created':
-        return Icons.add_circle;
-      case 'cancelled':
-      case 'deleted':
-        return Icons.cancel;
-      case 'paid':
-        return Icons.payments;
-      case 'updated':
-        return Icons.edit;
+        return Icons.restaurant_rounded;
       case 'advance_order_ticket':
-        return Icons.assignment;
+        return Icons.assignment_rounded;
       default:
-        return Icons.notifications;
+        return Icons.notifications_active_rounded;
     }
   }
 
   String _getNotificationTitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_approved') {
+      return 'Stock Request Approved';
+    }
+    if (n['action_type'] == 'stock_rejected') {
+      return 'Stock Request Declined';
+    }
     if (n['action_type'] == 'stock_request') {
       return 'Stock Request';
     }
     if (n['action_type'] == 'stock_alert') {
-      return 'Stock Alert';
+      return 'Kitchen Stock Alert';
     }
     if (n['action_type'] == 'pos_order') {
-      return 'New Order';
+      return 'New Kitchen Order';
     }
     if (n['action_type'] == 'advance_order_ticket') {
       final eventType = n['event_type']?.toString() ?? '';
       if (eventType.contains('Event Reservation')) {
-        return 'Event Reservation Approved';
+        return 'Event Reservation Ticket';
       }
-      return 'New Advance Order';
+      return 'Advance Order Ticket';
     }
-    switch (n['action_type']) {
-      case 'created':
-        return 'New Reservation';
-      case 'cancelled':
-        return 'Reservation Cancelled';
-      case 'deleted':
-        return 'Reservation Deleted';
-      case 'paid':
-        return 'Payment Received';
-      case 'updated':
-        return 'Reservation Modified';
-      default:
-        return 'Activity Alert';
-    }
+    return 'Kitchen Alert';
   }
 
   String _getNotificationSubtitle(Map<String, dynamic> n) {
+    if (n['action_type'] == 'stock_approved') {
+      return n['event_type'] ?? 'Inventory approved your requested kitchen stock.';
+    }
+    if (n['action_type'] == 'stock_rejected') {
+      return n['event_type'] ?? 'Inventory declined your requested kitchen stock.';
+    }
     if (n['action_type'] == 'stock_request') {
-      return 'Kitchen has requested stock: ${n['event_type']}';
+      return 'Stock requested: ${n['event_type'] ?? ''}';
     }
     if (n['action_type'] == 'stock_alert') {
-      return n['event_type'] ?? 'Stock Alert';
+      return n['event_type'] ?? 'Kitchen item low/out of stock.';
     }
     if (n['action_type'] == 'pos_order') {
-      return 'POS staff have order please process';
+      return 'New order from POS cashier. Please start preparing.';
     }
     if (n['action_type'] == 'advance_order_ticket') {
-      final eventType = n['event_type']?.toString() ?? '';
-      if (eventType.contains('Event Reservation')) {
-        return 'An event reservation menu ticket has been approved by admin.';
-      }
-      return 'An advance order menu ticket has been approved by admin.';
+      return n['event_type'] ?? 'Advance order ticket ready for preparation.';
     }
-    return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
+    return n['event_type'] ?? 'New activity in the kitchen.';
   }
 
   // ── Bottom Navigation ────────────────────────────────────
@@ -1731,6 +1908,8 @@ _closePopup();
               ),
             ),
             onPressed: () async {
+              _dismissChefTopToast();
+              _shownToastChefNotificationIds.clear();
               Navigator.pop(ctx);
               await Supabase.instance.client.auth.signOut();
               if (mounted) {
@@ -4174,7 +4353,7 @@ class _InventoryRequestTab extends StatefulWidget {
 
 class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   int _currentPage = 1;
-  static const int _itemsPerPage = 20;
+  static const int _itemsPerPage = 15;
 
   // Form controllers
   final _itemCtrl = TextEditingController();
@@ -4183,26 +4362,19 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   final _unitCtrl = TextEditingController();
   String _selectedUnit = '';
   String _selectedPriority = 'Low';
+  String _historyFilter = 'All'; // 'All', 'Pending', 'Approved', 'Rejected'
   bool _submitting = false;
 
-  static const _priorities = ['Low', 'Urgent'];
-
-  static const _priorityColors = {
-    'Low': Color(0xFFFFA726),
-    'Urgent': Color(0xFFE53935),
-  };
-
-  static const _statusColors = {
-    'Pending': Color(0xFFFFA726),
-    'Approved': Color(0xFF4CAF50),
-    'Rejected': Color(0xFFE53935),
-  };
+  static const _priorities = [
+    ('Low', 'Standard Replenish', Icons.check_circle_outline_rounded, Color(0xFF10B981)),
+    ('Urgent', 'Immediate / Critical', Icons.warning_amber_rounded, Color(0xFFEF4444)),
+  ];
 
   List<String> _availableItems = [];
-  Map<String, String> _itemUnits = {}; // Map to store item -> unit mapping
-  Map<String, int> _itemStocks = {}; // Map to store item -> available quantity
+  Map<String, String> _itemUnits = {};
+  Map<String, int> _itemStocks = {};
 
-  List<String> _suggestions = []; // Auto-complete suggestions
+  List<String> _suggestions = [];
   bool _showSuggestions = false;
 
   @override
@@ -4210,6 +4382,16 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     super.initState();
     _loadAvailableItems();
     _itemCtrl.addListener(_onItemChanged);
+  }
+
+  @override
+  void dispose() {
+    _itemCtrl.removeListener(_onItemChanged);
+    _itemCtrl.dispose();
+    _qtyCtrl.dispose();
+    _noteCtrl.dispose();
+    _unitCtrl.dispose();
+    super.dispose();
   }
 
   void _resetUnit() {
@@ -4222,7 +4404,6 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
   void _onItemChanged() {
     final itemName = _itemCtrl.text.trim();
 
-    // Auto-update unit if exact match found
     if (_itemUnits.containsKey(itemName)) {
       setState(() {
         _selectedUnit = _itemUnits[itemName]!;
@@ -4232,7 +4413,6 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
       _resetUnit();
     }
 
-    // Update suggestions for auto-complete
     if (itemName.isEmpty) {
       setState(() {
         _suggestions = [];
@@ -4241,7 +4421,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     } else {
       final matches = _availableItems
           .where((item) => item.toLowerCase().contains(itemName.toLowerCase()))
-          .take(5) // Limit to 5 suggestions
+          .take(6)
           .toList();
 
       setState(() {
@@ -4263,13 +4443,10 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
   Future<void> _loadAvailableItems() async {
     try {
-      // 1. Fetch main inventory
       final items = await Supabase.instance.client
           .from('inventory')
           .select('name, unit, quantity')
           .order('name');
-
-
 
       if (mounted) {
         setState(() {
@@ -4289,25 +4466,23 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     }
   }
 
-  @override
-  void dispose() {
-    _itemCtrl.dispose();
-    _qtyCtrl.dispose();
-    _noteCtrl.dispose();
-    _unitCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _submitRequest() async {
     final itemName = _itemCtrl.text.trim();
     final qty = int.tryParse(_qtyCtrl.text.trim());
 
-    // Validation: Check if item exists in Pagsanjaninv inventory
     if (itemName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an item name'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text('Please specify an ingredient name'),
+            ],
+          ),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -4317,9 +4492,11 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '"$itemName" is not available in inventory. Please select from available items.',
+            '"$itemName" is not listed in Main Inventory. Please select from available items.',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -4327,23 +4504,26 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
 
     if (qty == null || qty <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid quantity'),
-          backgroundColor: Colors.orange,
+        SnackBar(
+          content: const Text('Please enter a valid requested quantity (> 0)'),
+          backgroundColor: const Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
     }
 
-    // Validate quantity against available stock
     final availableStock = _itemStocks[itemName] ?? 0;
     if (qty > availableStock) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Cannot request $qty $itemName. Only $availableStock ${_itemUnits[itemName] ?? 'pcs'} available in inventory.',
+            'Cannot request $qty $itemName. Only $availableStock ${_itemUnits[itemName] ?? 'pcs'} currently available in Main Inventory.',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
       return;
@@ -4363,13 +4543,13 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         'created_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-      // Send notification to Inventory/Admin
+      // Send real-time notification to Pagsanjan Inventory team
       await NotificationService.sendNotification(
         isForAdmin: true,
         actorName: chef.split('@')[0],
         actionType: 'stock_request',
         reservationId: 'N/A',
-        eventType: 'Stock Request: $itemName ($qty)',
+        eventType: '$itemName ($qty $_selectedUnit)',
       );
 
       if (mounted) {
@@ -4378,45 +4558,22 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
         _noteCtrl.clear();
         setState(() {
           _resetUnit();
-          _selectedPriority = 'Normal';
+          _selectedPriority = 'Low';
           _submitting = false;
         });
 
-        // Show success dialog with redirect option
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: Colors.white,
-            title: const Row(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
               children: [
-                Icon(
-                  Icons.check_circle,
-                  color: AppTheme.successGreen,
-                  size: 24,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Request Submitted!',
-                  style: TextStyle(color: AppTheme.darkGrey),
-                ),
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Text('Stock Request for $itemName dispatched to Inventory!'),
               ],
             ),
-            content: const Text(
-              'Your stock request has been sent to the inventory team. You can track its status in the Pagsanjaninv dashboard.',
-              style: TextStyle(color: AppTheme.darkGrey),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(color: AppTheme.mediumGrey),
-                ),
-              ),
-            ],
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -4430,154 +4587,440 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
     }
   }
 
-
-
-
-
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: Supabase.instance.client
+          .from('kitchen_requests')
+          .stream(primaryKey: ['id'])
+          .order('created_at', ascending: false),
+      builder: (context, snap) {
+        final allRequests = snap.data ?? [];
+        final pendingCount = allRequests.where((r) => r['status'] == 'Pending').length;
+        final approvedCount = allRequests.where((r) => r['status'] == 'Approved').length;
+        final urgentCount = allRequests.where((r) => r['priority'] == 'Urgent' && r['status'] == 'Pending').length;
+
+        // Filtered list
+        final filteredRequests = _historyFilter == 'All'
+            ? allRequests
+            : allRequests.where((r) => r['status'] == _historyFilter).toList();
+
+        final int totalPages = (filteredRequests.length / _itemsPerPage).ceil();
+        if (_currentPage > totalPages && totalPages > 0) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _currentPage = totalPages);
+          });
+        }
+        final int startIndex = (_currentPage - 1) * _itemsPerPage;
+        int endIndex = startIndex + _itemsPerPage;
+        if (endIndex > filteredRequests.length) endIndex = filteredRequests.length;
+        final currentRequests = (startIndex < filteredRequests.length)
+            ? filteredRequests.sublist(startIndex, endIndex)
+            : <Map<String, dynamic>>[];
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── KPI Summary Cards ────────────────────────
+                  _buildSummaryBar(
+                    total: allRequests.length,
+                    pending: pendingCount,
+                    approved: approvedCount,
+                    urgent: urgentCount,
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ── Main Requisition Form Card ───────────────
+                  _buildRequisitionCard(),
+                  const SizedBox(height: 28),
+
+                  // ── Request History Section ──────────────────
+                  _buildHistoryHeader(
+                    total: allRequests.length,
+                    pending: pendingCount,
+                    approved: approvedCount,
+                  ),
+                  const SizedBox(height: 14),
+
+                  if (snap.connectionState == ConnectionState.waiting && allRequests.isEmpty)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(color: Color(0xFFD97706)),
+                      ),
+                    )
+                  else if (filteredRequests.isEmpty)
+                    _buildEmptyState(
+                      Icons.inventory_2_outlined,
+                      'No ${_historyFilter == 'All' ? '' : '$_historyFilter '}Stock Requests',
+                      _historyFilter == 'All'
+                          ? 'Fill out the form above to request ingredients from Main Inventory.'
+                          : 'No stock requests currently match the "$_historyFilter" filter.',
+                    )
+                  else ...[
+                    ...currentRequests.map((r) => _RealisticRequestCard(request: r)),
+                    if (totalPages > 1) _buildPagination(totalPages),
+                  ],
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── 1. KPI Top Summary Bar ─────────────────────────────────
+  Widget _buildSummaryBar({
+    required int total,
+    required int pending,
+    required int approved,
+    required int urgent,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 650;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _buildStatMetric(
+              title: 'Total Requisitions',
+              value: '$total',
+              icon: Icons.assignment_outlined,
+              iconColor: const Color(0xFF64748B),
+              bgColor: Colors.white,
+              width: isMobile ? double.infinity : (constraints.maxWidth - 36) / 4,
+            ),
+            _buildStatMetric(
+              title: 'Pending Dispatch',
+              value: '$pending',
+              icon: Icons.hourglass_top_rounded,
+              iconColor: const Color(0xFFF59E0B),
+              bgColor: const Color(0xFFFFFBEB),
+              borderColor: const Color(0xFFFDE68A),
+              width: isMobile ? double.infinity : (constraints.maxWidth - 36) / 4,
+            ),
+            _buildStatMetric(
+              title: 'Approved by Inventory',
+              value: '$approved',
+              icon: Icons.check_circle_rounded,
+              iconColor: const Color(0xFF10B981),
+              bgColor: const Color(0xFFECFDF5),
+              borderColor: const Color(0xFFA7F3D0),
+              width: isMobile ? double.infinity : (constraints.maxWidth - 36) / 4,
+            ),
+            _buildStatMetric(
+              title: 'Urgent Priority',
+              value: '$urgent',
+              icon: Icons.bolt_rounded,
+              iconColor: const Color(0xFFEF4444),
+              bgColor: const Color(0xFFFEF2F2),
+              borderColor: const Color(0xFFFECACA),
+              width: isMobile ? double.infinity : (constraints.maxWidth - 36) / 4,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatMetric({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    Color? borderColor,
+    required double width,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor ?? const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          // ── Request Form ─────────────────────────────
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+              color: iconColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── 2. Requisition Form Card ───────────────────────────────
+  Widget _buildRequisitionCard() {
+    final quickItems = [
+      'Broccoli Flower',
+      'Fresh Egg',
+      'Chicken Breast',
+      'Pork Belly',
+      'Cooking Oil',
+      'White Rice',
+      'Garlic',
+      'Onion',
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Card Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(17)),
+              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B211D),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.kitchen_rounded,
+                    color: Color(0xFFE6C374),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Request Ingredients from Main Inventory',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'Direct line to Pagsanjan Inventory dispatch. Items will be transferred upon approval.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Form Body
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.add_shopping_cart,
-                          color: AppTheme.primaryColor,
-                          size: 22,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Request Ingredients',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                  ],
+                // Quick Suggestion Chips
+                Text(
+                  'QUICK POPULAR INGREDIENTS',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: const Color(0xFF94A3B8),
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: quickItems.map((item) {
+                      final isSelected = _itemCtrl.text.trim().toLowerCase() == item.toLowerCase();
+                      final isAvailable = _availableItems.any((i) => i.toLowerCase() == item.toLowerCase());
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ActionChip(
+                          avatar: Icon(
+                            isSelected ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+                            size: 15,
+                            color: isSelected ? const Color(0xFF0B211D) : const Color(0xFF64748B),
+                          ),
+                          label: Text(item),
+                          labelStyle: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected ? const Color(0xFF0B211D) : const Color(0xFF334155),
+                          ),
+                          backgroundColor: isSelected
+                              ? const Color(0xFFE6C374).withValues(alpha: 0.35)
+                              : const Color(0xFFF1F5F9),
+                          side: BorderSide(
+                            color: isSelected ? const Color(0xFFD97706) : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          onPressed: isAvailable ? () => _selectSuggestion(item) : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 18),
 
-                // Item name with suggestions
+                // Item Name with Dropdown Autocomplete
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _lightField(
-                      _itemCtrl,
-                      'Item Name',
-                      Icons.inventory_2_outlined,
+                    _buildModernField(
+                      controller: _itemCtrl,
+                      label: 'Ingredient Name',
+                      hintText: 'Search or type ingredient name (e.g. Broccoli Flower)...',
+                      icon: Icons.inventory_2_outlined,
+                      suffixIcon: _itemCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
+                              onPressed: () {
+                                _itemCtrl.clear();
+                                _resetUnit();
+                              },
+                            )
+                          : null,
                     ),
                     if (_showSuggestions && _suggestions.isNotEmpty)
                       Container(
-                        margin: const EdgeInsets.only(top: 4),
+                        margin: const EdgeInsets.only(top: 6),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: _suggestions.map((suggestion) {
-                            final unit = _itemUnits[suggestion] ?? '';
+                            final unit = _itemUnits[suggestion] ?? 'pcs';
                             final stock = _itemStocks[suggestion] ?? 0;
                             return InkWell(
                               onTap: () => _selectSuggestion(suggestion),
+                              borderRadius: BorderRadius.circular(12),
                               child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: const Color(
-                                        0xFFE5E7EB,
-                                      ).withValues(alpha: 0.5),
-                                    ),
-                                  ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                decoration: const BoxDecoration(
+                                  border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
                                 ),
                                 child: Row(
                                   children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.shopping_basket_outlined, size: 16, color: Color(0xFF475569)),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            suggestion,
-                                            style: const TextStyle(
-                                              color: Color(0xFF1E293B),
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Available: $stock $unit',
-                                            style: TextStyle(
-                                              color: stock == 0
-                                                  ? AppTheme.errorRed
-                                                  : stock < 10
-                                                  ? AppTheme.warningOrange
-                                                  : AppTheme.successGreen,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
+                                      child: Text(
+                                        suggestion,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13.5,
+                                          color: const Color(0xFF0F172A),
+                                        ),
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor.withValues(
-                                          alpha: 0.1,
+                                        color: stock > 10
+                                            ? const Color(0xFFECFDF5)
+                                            : stock > 0
+                                                ? const Color(0xFFFFFBEB)
+                                                : const Color(0xFFFEF2F2),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: stock > 10
+                                              ? const Color(0xFFA7F3D0)
+                                              : stock > 0
+                                                  ? const Color(0xFFFDE68A)
+                                                  : const Color(0xFFFECACA),
                                         ),
-                                        borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        unit,
-                                        style: TextStyle(
-                                          color: AppTheme.primaryColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
+                                        'Stock: $stock $unit',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: stock > 10
+                                              ? const Color(0xFF065F46)
+                                              : stock > 0
+                                                  ? const Color(0xFF92400E)
+                                                  : const Color(0xFF991B1B),
                                         ),
                                       ),
                                     ),
@@ -4590,25 +5033,23 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // Qty + Unit row
+                // Quantity & Unit Row
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _lightField(
-                            _qtyCtrl,
-                            'Quantity',
-                            Icons.numbers,
+                          _buildModernField(
+                            controller: _qtyCtrl,
+                            label: 'Quantity Needed',
+                            hintText: 'Enter quantity',
+                            icon: Icons.numbers_rounded,
                             isNumber: true,
-                            suffixText:
-                                _itemStocks.containsKey(_itemCtrl.text.trim())
-                                ? 'Max: ${_itemStocks[_itemCtrl.text.trim()]}'
-                                : null,
                             onChanged: (val) {
                               final currentItem = _itemCtrl.text.trim();
                               if (_itemStocks.containsKey(currentItem)) {
@@ -4616,14 +5057,7 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                                 final parsed = int.tryParse(val);
                                 if (parsed != null && parsed > maxStock) {
                                   _qtyCtrl.text = maxStock.toString();
-                                  _qtyCtrl
-                                      .selection = TextSelection.fromPosition(
-                                    TextPosition(offset: _qtyCtrl.text.length),
-                                  );
-                                } else if (parsed != null && parsed < 1) {
-                                  _qtyCtrl.text = '1';
-                                  _qtyCtrl
-                                      .selection = TextSelection.fromPosition(
+                                  _qtyCtrl.selection = TextSelection.fromPosition(
                                     TextPosition(offset: _qtyCtrl.text.length),
                                   );
                                 }
@@ -4632,73 +5066,102 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                           ),
                           if (_itemStocks.containsKey(_itemCtrl.text.trim()))
                             Padding(
-                              padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(
-                                'Available in Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
-                                style: const TextStyle(
-                                  color: AppTheme.successGreen,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              padding: const EdgeInsets.only(top: 5, left: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Available in Main Inventory: ${_itemStocks[_itemCtrl.text.trim()]} ${_itemUnits[_itemCtrl.text.trim()] ?? ''}',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: const Color(0xFF047857),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
-                      child: _lightField(
-                        _unitCtrl,
-                        'Unit',
-                        Icons.straighten,
+                      flex: 2,
+                      child: _buildModernField(
+                        controller: _unitCtrl,
+                        label: 'Unit of Measure',
+                        hintText: 'Auto-set from item',
+                        icon: Icons.straighten_rounded,
                         readOnly: true,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
 
-                // Priority
-                const Text(
-                  'Priority',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                // Priority Level Selector
+                Text(
+                  'PRIORITY LEVEL',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: const Color(0xFF94A3B8),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: _priorities.map((p) {
-                    final selected = _selectedPriority == p;
-                    final color = _priorityColors[p] ?? AppTheme.infoBlue;
+                    final (key, desc, icon, color) = p;
+                    final selected = _selectedPriority == key;
                     return Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.only(right: 10),
                         child: InkWell(
-                          onTap: () => setState(() => _selectedPriority = p),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          onTap: () => setState(() => _selectedPriority = key),
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
-                              color: selected
-                                  ? color.withValues(alpha: 0.1)
-                                  : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
+                              color: selected ? color.withValues(alpha: 0.08) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: selected
-                                    ? color
-                                    : const Color(0xFFE5E7EB),
+                                color: selected ? color : const Color(0xFFE2E8F0),
+                                width: selected ? 2 : 1,
                               ),
                             ),
-                            child: Text(
-                              p,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: selected
-                                    ? color
-                                    : const Color(0xFF64748B),
-                                fontSize: 12,
-                                fontWeight: selected
-                                    ? FontWeight.w800
-                                    : FontWeight.w500,
-                              ),
+                            child: Row(
+                              children: [
+                                Icon(icon, color: selected ? color : const Color(0xFF94A3B8), size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        key == 'Low' ? 'Standard' : 'Urgent',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: selected ? color : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                      Text(
+                                        desc,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 10.5,
+                                          color: const Color(0xFF64748B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  Icon(Icons.check_circle_rounded, color: color, size: 16),
+                              ],
                             ),
                           ),
                         ),
@@ -4706,335 +5169,260 @@ class _InventoryRequestTabState extends State<_InventoryRequestTab> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 12),
-
-                // Note
-                _lightField(
-                  _noteCtrl,
-                  'Note (optional)',
-                  Icons.note_alt_outlined,
-                  maxLines: 2,
-                ),
                 const SizedBox(height: 18),
 
-                // Submit button
+                // Kitchen Note Field
+                _buildModernField(
+                  controller: _noteCtrl,
+                  label: 'Kitchen Station Note (Optional)',
+                  hintText: 'e.g. Needed for dinner banquet service prep, running low on line...',
+                  icon: Icons.edit_note_rounded,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 22),
+
+                // Submit Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
+                  height: 52,
+                  child: ElevatedButton(
                     onPressed: _submitting ? null : _submitRequest,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF0B211D),
+                      foregroundColor: const Color(0xFFE6C374),
+                      elevation: 4,
+                      shadowColor: const Color(0xFF0B211D).withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                        side: const BorderSide(color: Color(0xFFE6C374), width: 1.2),
                       ),
                     ),
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
+                    child: _submitting
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFFE6C374),
+                                  strokeWidth: 2.5,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text('Sending Requisition to Inventory...'),
+                            ],
                           )
-                        : const Icon(Icons.send_rounded, size: 18),
-                    label: Text(
-                      _submitting ? 'Submitting…' : 'Send Request to Inventory',
-                    ),
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.send_rounded, size: 18, color: Color(0xFFE6C374)),
+                              const SizedBox(width: 10),
+                              Text(
+                                'DISPATCH REQUEST TO INVENTORY',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // ── Request History ──────────────────────────
-          const Text(
-            'MY REQUESTS',
-            style: TextStyle(
-              color: Color(0xFF8892B0),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: Supabase.instance.client
-                .from('kitchen_requests')
-                .stream(primaryKey: ['id'])
-                .order('created_at', ascending: false),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                );
-              }
-              final requests = snap.data!;
-              if (requests.isEmpty) {
-                return _buildEmptyState(
-                  Icons.inbox_outlined,
-                  'No requests yet',
-                  'Submit a request above.',
-                );
-              }
-              final int totalPages = (requests.length / _itemsPerPage).ceil();
-              if (_currentPage > totalPages && totalPages > 0) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) setState(() => _currentPage = totalPages);
-                });
-              }
-              final int startIndex = (_currentPage - 1) * _itemsPerPage;
-              int endIndex = startIndex + _itemsPerPage;
-              if (endIndex > requests.length) endIndex = requests.length;
-              final currentRequests = (startIndex < requests.length)
-                  ? requests.sublist(startIndex, endIndex)
-                  : <Map<String, dynamic>>[];
-
-              return Column(
-                children: [
-                  ...currentRequests.map(
-                    (r) => _RequestHistoryCard(
-                      request: r,
-                      statusColors: _statusColors,
-                      priorityColors: _priorityColors,
-                    ),
-                  ),
-                  if (totalPages > 1) _buildPagination(totalPages),
-                ],
-              );
-            },
-          ),
         ],
       ),
     );
   }
 
-
-
-  Widget _lightField(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
+  // ── 3. Modern Text Field Helper ────────────────────────────
+  Widget _buildModernField({
+    required TextEditingController controller,
+    required String label,
+    required String hintText,
+    required IconData icon,
     bool isNumber = false,
     int maxLines = 1,
-    String? suffixText,
     bool readOnly = false,
+    Widget? suffixIcon,
     ValueChanged<String>? onChanged,
   }) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      maxLines: maxLines,
-      readOnly: readOnly,
-      onChanged: isNumber
-          ? (value) {
-              // Filter out non-numeric characters
-              final filteredValue = value.replaceAll(RegExp(r'[^0-9]'), '');
-              if (filteredValue != value) {
-                ctrl.value = TextEditingValue(
-                  text: filteredValue,
-                  selection: TextSelection.collapsed(
-                    offset: filteredValue.length,
-                  ),
-                );
-              }
-              if (onChanged != null) onChanged(filteredValue);
-            }
-          : onChanged,
-      style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-        prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 18),
-        suffixText: suffixText,
-        suffixStyle: const TextStyle(
-          color: AppTheme.primaryColor,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF1F5F9),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 14,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: AppTheme.primaryColor,
-            width: 1.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF475569),
           ),
         ),
-      ),
-    );
-  }
-  
-  Widget _buildPagination(int totalPages) {
-    List<Widget> pageWidgets = [];
-    bool lastWasEllipsis = false;
-    // Show more numbers: current +/- 2
-    for (int i = 1; i <= totalPages; i++) {
-      if (totalPages <= 7 || i == 1 || i == totalPages || (i >= _currentPage - 2 && i <= _currentPage + 2)) {
-        final isSelected = i == _currentPage;
-        pageWidgets.add(
-          GestureDetector(
-            onTap: () => setState(() => _currentPage = i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isSelected ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
-                  width: 1.5,
-                ),
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  )
-                ] : null,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$i',
-                style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          maxLines: maxLines,
+          readOnly: readOnly,
+          onChanged: isNumber
+              ? (value) {
+                  final filtered = value.replaceAll(RegExp(r'[^0-9]'), '');
+                  if (filtered != value) {
+                    controller.value = TextEditingValue(
+                      text: filtered,
+                      selection: TextSelection.collapsed(offset: filtered.length),
+                    );
+                  }
+                  if (onChanged != null) onChanged(filtered);
+                }
+              : onChanged,
+          style: GoogleFonts.plusJakartaSans(
+            color: const Color(0xFF0F172A),
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: GoogleFonts.plusJakartaSans(
+              color: const Color(0xFF94A3B8),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: readOnly ? const Color(0xFFF1F5F9) : const Color(0xFFFAFAFA),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.6),
             ),
           ),
-        );
-        lastWasEllipsis = false;
-      } else {
-        if (!lastWasEllipsis) {
-          pageWidgets.add(const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Text('...', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 16)),
-          ));
-          lastWasEllipsis = true;
-        }
-      }
-    }
+        ),
+      ],
+    );
+  }
+
+  // ── 4. History Header with Status Filter Chips ──────────────
+  Widget _buildHistoryHeader({
+    required int total,
+    required int pending,
+    required int approved,
+  }) {
+    final filters = [
+      ('All', total),
+      ('Pending', pending),
+      ('Approved', approved),
+      ('Rejected', total - pending - approved),
+    ];
+
+    return Row(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'MY REQUISITION FEED',
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFF0F172A),
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            Text(
+              'Track real-time status and stock approvals',
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFF64748B),
+                fontSize: 11.5,
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: filters.map((f) {
+              final (label, count) = f;
+              final isSelected = _historyFilter == label;
+              return Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: ChoiceChip(
+                  label: Text('$label ($count)'),
+                  labelStyle: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                  ),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFF0B211D),
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  onSelected: (val) {
+                    if (val) setState(() => _historyFilter = label);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPagination(int totalPages) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-      decoration: const BoxDecoration(
-        color: Colors.transparent,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Prev button
-          _buildNavButton(
-            label: 'PREV',
-            icon: Icons.chevron_left_rounded,
-            isEnabled: _currentPage > 1,
-            onTap: () => setState(() => _currentPage--),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
           ),
-          const SizedBox(width: 16),
-          ...pageWidgets,
-          const SizedBox(width: 16),
-          // Next button
-          _buildNavButton(
-            label: 'NEXT',
-            icon: Icons.chevron_right_rounded,
-            isEnabled: _currentPage < totalPages,
-            onTap: () => setState(() => _currentPage++),
-            isTrailing: true,
+          const SizedBox(width: 8),
+          Text(
+            'Page $_currentPage of $totalPages',
+            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
           ),
         ],
-      ),
-    );
-  }
-  Widget _buildNavButton({
-    required String label,
-    required IconData icon,
-    required bool isEnabled,
-    required VoidCallback onTap,
-    bool isTrailing = false,
-  }) {
-    return InkWell(
-      onTap: isEnabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isEnabled ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: isEnabled ? [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            )
-          ] : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
-            if (!isTrailing) const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isEnabled ? Colors.white : const Color(0xFF94A3B8),
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 1.1,
-              ),
-            ),
-            if (isTrailing) const SizedBox(width: 6),
-            if (isTrailing) Icon(icon, color: isEnabled ? Colors.white : const Color(0xFF94A3B8), size: 18),
-          ],
-        ),
       ),
     );
   }
 }
 
-class _RequestHistoryCard extends StatelessWidget {
+// ══════════════════════════════════════════════════════════
+//  REALISTIC REQUEST HISTORY CARD
+// ══════════════════════════════════════════════════════════
+class _RealisticRequestCard extends StatelessWidget {
   final Map<String, dynamic> request;
-  final Map<String, Color> statusColors;
-  final Map<String, Color> priorityColors;
 
-  const _RequestHistoryCard({
-    required this.request,
-    required this.statusColors,
-    required this.priorityColors,
-  });
+  const _RealisticRequestCard({required this.request});
 
   @override
   Widget build(BuildContext context) {
     final status = request['status']?.toString() ?? 'Pending';
-    final priority = request['priority']?.toString() ?? 'Normal';
-    final statusColor = statusColors[status] ?? AppTheme.warningOrange;
-    final priorityColor = priorityColors[priority] ?? AppTheme.infoBlue;
+    final priority = request['priority']?.toString() ?? 'Low';
+    final itemName = request['item_name']?.toString() ?? '—';
+    final qty = request['quantity_needed']?.toString() ?? '0';
+    final unit = request['unit']?.toString() ?? 'pcs';
+    final note = request['note']?.toString() ?? '';
+
     final createdAt = request['created_at'] != null
         ? DateTime.tryParse(request['created_at'].toString())
         : null;
@@ -5042,23 +5430,79 @@ class _RequestHistoryCard extends StatelessWidget {
         ? DateFormat('MMM d, hh:mm a').format(createdAt.toLocal())
         : '—';
 
+    // Status styling
+    final isApproved = status.toLowerCase() == 'approved';
+    final isRejected = status.toLowerCase() == 'rejected';
+    final isPending = !isApproved && !isRejected;
+
+    final statusBg = isApproved
+        ? const Color(0xFFECFDF5)
+        : isRejected
+            ? const Color(0xFFFEF2F2)
+            : const Color(0xFFFFFBEB);
+
+    final statusBorder = isApproved
+        ? const Color(0xFFA7F3D0)
+        : isRejected
+            ? const Color(0xFFFECACA)
+            : const Color(0xFFFDE68A);
+
+    final statusColor = isApproved
+        ? const Color(0xFF047857)
+        : isRejected
+            ? const Color(0xFFB91C1C)
+            : const Color(0xFFB45309);
+
+    final statusIcon = isApproved
+        ? Icons.check_circle_rounded
+        : isRejected
+            ? Icons.cancel_rounded
+            : Icons.hourglass_top_rounded;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isPending ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0),
+          width: isPending ? 1.2 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
+          // Icon Avatar
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isApproved
+                  ? const Color(0xFFECFDF5)
+                  : isPending
+                      ? const Color(0xFFFFFBEB)
+                      : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.restaurant_menu_rounded,
+              color: isApproved
+                  ? const Color(0xFF10B981)
+                  : isPending
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF64748B),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Main Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -5066,71 +5510,116 @@ class _RequestHistoryCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      request['item_name']?.toString() ?? '—',
-                      style: const TextStyle(
-                        color: Color(0xFF1E293B),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                      itemName,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                        color: const Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                    if (priority.toLowerCase() == 'urgent')
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFDC2626)),
+                            const SizedBox(width: 2),
+                            Text(
+                              'URGENT',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFFDC2626),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
-                        color: priorityColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        color: const Color(0xFF0B211D).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        priority,
-                        style: TextStyle(
-                          color: priorityColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                        '$qty $unit',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11.5,
+                          color: const Color(0xFF0B211D),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '•   $timeStr',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF94A3B8),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${request['quantity_needed']} ${request['unit']}  •  $timeStr',
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-                if ((request['note']?.toString() ?? '').isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                if (note.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
                     child: Text(
-                      request['note'].toString(),
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
+                      'Note: $note',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF64748B),
+                        fontSize: 11.5,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: 12),
+
+          // Status Badge Pill
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
+              color: statusBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+              border: Border.all(color: statusBorder),
             ),
-            child: Text(
-              status,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(statusIcon, color: statusColor, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  status.toUpperCase(),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -5921,4 +6410,85 @@ Widget _buildEmptyState(IconData icon, String title, String subtitle) {
       ],
     ),
   );
+}
+
+/// Animated Top Toast Notification Banner for Chef
+class _ChefTopToastWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDismiss;
+  final Duration? duration;
+
+  const _ChefTopToastWidget({
+    required this.child,
+    required this.onDismiss,
+    this.duration,
+  });
+
+  @override
+  State<_ChefTopToastWidget> createState() => _ChefTopToastWidgetState();
+}
+
+class _ChefTopToastWidgetState extends State<_ChefTopToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 10 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

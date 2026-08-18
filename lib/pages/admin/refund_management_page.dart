@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,10 +41,55 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         .order('created_at', ascending: false);
   }
 
+  // ── Top Toast Notification Overlay ──
+  OverlayEntry? _currentRefundTopToastEntry;
+  Timer? _refundTopToastTimer;
+
+  void _dismissRefundTopToast() {
+    _refundTopToastTimer?.cancel();
+    _refundTopToastTimer = null;
+    _currentRefundTopToastEntry?.remove();
+    _currentRefundTopToastEntry = null;
+  }
+
+  void _showTopToast({
+    required Widget content,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    if (!mounted) return;
+    _dismissRefundTopToast();
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _RefundTopToastWidget(
+        onDismiss: () {
+          if (_currentRefundTopToastEntry == entry) {
+            _dismissRefundTopToast();
+          }
+        },
+        duration: duration,
+        child: content,
+      ),
+    );
+
+    _currentRefundTopToastEntry = entry;
+    overlay.insert(entry);
+
+    _refundTopToastTimer = Timer(duration, () {
+      if (_currentRefundTopToastEntry == entry) {
+        _dismissRefundTopToast();
+      }
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     _rescheduleSearchController.dispose();
+    _dismissRefundTopToast();
     super.dispose();
   }
 
@@ -622,12 +668,89 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+    final isGreen = color == Colors.green ||
+        color == const Color(0xFF15803D) ||
+        color == const Color(0xFF10B981) ||
+        color == const Color(0xFF059669);
+    final isRed = color == Colors.red ||
+        color == const Color(0xFFDC2626) ||
+        color == const Color(0xFFEF4444);
+    final isOrange = color == Colors.orange ||
+        color == const Color(0xFFD97706) ||
+        color == const Color(0xFFF59E0B);
+
+    final IconData iconData = isGreen
+        ? Icons.check_circle_rounded
+        : (isRed
+            ? Icons.error_rounded
+            : (isOrange ? Icons.warning_amber_rounded : Icons.info_rounded));
+
+    final Color bgColor = isGreen
+        ? const Color(0xFF0F2E23)
+        : (isRed
+            ? const Color(0xFF3B1219)
+            : (isOrange ? const Color(0xFF382305) : const Color(0xFF1E293B)));
+
+    final Color borderColor = isGreen
+        ? const Color(0xFF10B981)
+        : (isRed
+            ? const Color(0xFFEF4444)
+            : (isOrange ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)));
+
+    final Color iconColor = isGreen
+        ? const Color(0xFF34D399)
+        : (isRed
+            ? const Color(0xFFF87171)
+            : (isOrange ? const Color(0xFFFBBF24) : const Color(0xFF60A5FA)));
+
+    _showTopToast(
+      duration: const Duration(seconds: 4),
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor.withValues(alpha: 0.6), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.close_rounded,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: 16,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2429,3 +2552,100 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 }
+
+/// Animated Top Toast Notification Banner for Refund Management
+class _RefundTopToastWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDismiss;
+  final Duration duration;
+
+  const _RefundTopToastWidget({
+    required this.child,
+    required this.onDismiss,
+    required this.duration,
+  });
+
+  @override
+  State<_RefundTopToastWidget> createState() => _RefundTopToastWidgetState();
+}
+
+class _RefundTopToastWidgetState extends State<_RefundTopToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
+  }
+
+  void _dismiss() async {
+    if (!mounted) return;
+    if (_animController.isAnimating) return;
+    await _animController.reverse();
+    widget.onDismiss();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 10 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: GestureDetector(
+                  onVerticalDragUpdate: (details) {
+                    if (details.primaryDelta != null && details.primaryDelta! < -4) {
+                      _dismiss();
+                    }
+                  },
+                  onTap: _dismiss,
+                  child: widget.child,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

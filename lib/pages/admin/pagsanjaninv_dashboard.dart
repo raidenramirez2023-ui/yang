@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/staff/inventory_management.dart';
@@ -60,6 +62,54 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     }
   }
 
+  // ── Top Toast Notification Overlay for Inventory ──
+  OverlayEntry? _currentInvTopToastEntry;
+  Timer? _invTopToastTimer;
+  final Set<String> _shownToastInvNotificationIds = {};
+  StreamSubscription<List<Map<String, dynamic>>>? _invNotifsSubscription;
+
+  void _dismissInvTopToast() {
+    _invTopToastTimer?.cancel();
+    _invTopToastTimer = null;
+    _currentInvTopToastEntry?.remove();
+    _currentInvTopToastEntry = null;
+  }
+
+  void _showInvTopToast({
+    required Widget content,
+    Duration? duration,
+  }) {
+    if (!mounted) return;
+    _dismissInvTopToast();
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _InvTopToastWidget(
+        onDismiss: () {
+          if (_currentInvTopToastEntry == entry) {
+            _dismissInvTopToast();
+          }
+        },
+        duration: duration,
+        child: content,
+      ),
+    );
+
+    _currentInvTopToastEntry = entry;
+    overlay.insert(entry);
+
+    if (duration != null) {
+      _invTopToastTimer = Timer(duration, () {
+        if (_currentInvTopToastEntry == entry) {
+          _dismissInvTopToast();
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +123,19 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     _selectedWeek = _getCurrentWeekOfMonth(now);
     _loadDashboardData();
     _setupRealtimeSubscription();
+
+    _invNotifsSubscription = NotificationService.getInventoryNotificationsStream().listen((notifs) {
+      if (!mounted) return;
+      final unread = notifs.where((n) => n['is_read'] == false).toList();
+      if (unread.isNotEmpty) {
+        final latest = unread.first;
+        final id = latest['id']?.toString();
+        if (id != null && !_shownToastInvNotificationIds.contains(id)) {
+          _shownToastInvNotificationIds.add(id);
+          _showInvNotificationToast(latest);
+        }
+      }
+    });
   }
 
   void _setupRealtimeSubscription() {
@@ -99,6 +162,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   @override
   void dispose() {
+    _invNotifsSubscription?.cancel();
+    _dismissInvTopToast();
     _inventorySubscription?.unsubscribe();
     super.dispose();
   }
@@ -2299,10 +2364,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           }
         }
       } else {
+        final request = await _supabase
+            .from('kitchen_requests')
+            .select()
+            .eq('id', requestId)
+            .maybeSingle();
+
         await _supabase
             .from('kitchen_requests')
             .update({'status': newStatus})
             .eq('id', requestId);
+
+        final itemName = request?['item_name']?.toString() ?? 'Stock item';
+        final qty = request?['quantity_needed']?.toString() ?? '';
+        final unit = request?['unit']?.toString() ?? '';
+
+        await NotificationService.sendNotification(
+          isForAdmin: true,
+          actorName: 'Pagsanjan Inv',
+          actionType: 'stock_rejected',
+          reservationId: 'Kitchen',
+          eventType: 'Stock Request Declined: $itemName ($qty $unit)',
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -2312,6 +2395,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             ),
           );
         }
+      }
+      if (mounted) {
+        setState(() {
+          _allRequestsStream = _supabase
+              .from('kitchen_requests')
+              .stream(primaryKey: ['id'])
+              .order('created_at', ascending: false);
+        });
       }
       _loadDashboardData();
     } catch (e) {
@@ -2332,56 +2423,58 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     if (itemName != null && quantityNeeded > 0) {
       final inventoryItems = await _supabase
           .from('inventory')
-          .select('id, quantity')
+          .select('id, quantity, category')
           .ilike('name', '%$itemName%')
           .limit(1);
 
       if (inventoryItems.isNotEmpty) {
         final inventoryItem = inventoryItems.first;
         final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
-
         final transferQty = quantityNeeded > currentQuantity ? currentQuantity : quantityNeeded;
-        final newQuantity = currentQuantity - transferQty;
 
+        final newInventoryQuantity = currentQuantity - transferQty;
         await _supabase
             .from('inventory')
-            .update({'quantity': newQuantity})
+            .update({'quantity': newInventoryQuantity})
             .eq('id', inventoryItem['id']);
 
-        final fullInventoryItem = await _supabase
-            .from('inventory')
-            .select('name, category, unit')
-            .eq('id', inventoryItem['id'])
-            .single();
-
-        final kitchenItem = await _supabase
+        final kitchenItems = await _supabase
             .from('kitchen_inventory')
-            .select()
-            .eq('name', fullInventoryItem['name'])
-            .maybeSingle();
+            .select('id, quantity')
+            .ilike('name', '%$itemName%')
+            .limit(1);
 
-        if (kitchenItem != null) {
-          final currentKitchenQty = (kitchenItem['quantity'] as num?)?.toInt() ?? 0;
+        int newKitchenQuantity;
+        if (kitchenItems.isNotEmpty) {
+          final kitchenItem = kitchenItems.first;
+          final currentKitchenQuantity = (kitchenItem['quantity'] as num?)?.toInt() ?? 0;
+          newKitchenQuantity = currentKitchenQuantity + transferQty;
           await _supabase
               .from('kitchen_inventory')
-              .update({'quantity': currentKitchenQty + transferQty})
+              .update({'quantity': newKitchenQuantity})
               .eq('id', kitchenItem['id']);
         } else {
+          newKitchenQuantity = transferQty;
           await _supabase.from('kitchen_inventory').insert({
-            'name': fullInventoryItem['name'],
-            'category': fullInventoryItem['category'],
-            'unit': fullInventoryItem['unit'],
-            'quantity': transferQty,
+            'name': itemName,
+            'quantity': newKitchenQuantity,
+            'unit': request['unit'] ?? 'pcs',
+            'category': inventoryItem['category'] ?? 'General',
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           });
         }
 
+        final reqBy = request['requested_by']?.toString();
+        final requestedBy = (reqBy != null && reqBy.isNotEmpty) ? reqBy : 'chef';
+
         await _supabase.from('stock_transactions').insert({
           'item_name': itemName,
-          'quantity': transferQty,
           'transaction_type': 'outgoing',
-          'purpose': 'Kitchen request approved (Amount served: $transferQty)',
-          'requested_by': request['requested_by'],
-          'processed_by': _supabase.auth.currentUser?.email,
+          'quantity': transferQty,
+          'unit': request['unit'] ?? 'pcs',
+          'processed_by': _userName,
+          'requested_by': requestedBy,
+          'purpose': 'Transferred to kitchen (Request #${request['id']})',
           'created_at': DateTime.now().toUtc().toIso8601String(),
         });
 
@@ -2408,10 +2501,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     try {
       NotificationService.setBulkOperation(true);
 
-      final pendingRequests = await _supabase
-          .from('kitchen_requests')
-          .select()
-          .eq('status', 'Pending');
+      // Fetch pending requests, main inventory, and kitchen inventory in parallel
+      final results = await Future.wait([
+        _supabase.from('kitchen_requests').select().eq('status', 'Pending'),
+        _supabase.from('inventory').select('id, name, quantity, category, unit'),
+        _supabase.from('kitchen_inventory').select('id, name, quantity, category, unit'),
+      ]);
+
+      final pendingRequests = List<Map<String, dynamic>>.from(results[0] as List);
+      final inventoryItems = List<Map<String, dynamic>>.from(results[1] as List);
+      final kitchenItems = List<Map<String, dynamic>>.from(results[2] as List);
 
       if (pendingRequests.isEmpty) {
         if (mounted) {
@@ -2424,37 +2523,149 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         return;
       }
 
-      int approvedCount = 0;
+      // Index inventory and kitchen inventory by normalized name
+      final Map<String, Map<String, dynamic>> inventoryMap = {};
+      for (final item in inventoryItems) {
+        final name = (item['name']?.toString() ?? '').toLowerCase().trim();
+        if (name.isNotEmpty) inventoryMap[name] = Map<String, dynamic>.from(item);
+      }
+
+      final Map<String, Map<String, dynamic>> kitchenMap = {};
+      for (final item in kitchenItems) {
+        final name = (item['name']?.toString() ?? '').toLowerCase().trim();
+        if (name.isNotEmpty) kitchenMap[name] = Map<String, dynamic>.from(item);
+      }
+
+      final List<dynamic> approvedIds = [];
+      final List<Map<String, dynamic>> transactionsToInsert = [];
+      final Set<String> modifiedInventoryNames = {};
+      final Set<String> modifiedKitchenNames = {};
       int outOfStockCount = 0;
 
-      for (var request in pendingRequests) {
-        final itemName = request['item_name']?.toString();
+      final nowUtc = DateTime.now().toUtc().toIso8601String();
+
+      for (final request in pendingRequests) {
+        final reqName = (request['item_name']?.toString() ?? '').trim();
+        final reqNameKey = reqName.toLowerCase();
         final quantityNeeded = (request['quantity_needed'] as num?)?.toInt() ?? 0;
 
-        if (itemName != null && quantityNeeded > 0) {
-          final inventoryItems = await _supabase
-              .from('inventory')
-              .select('id, quantity')
-              .ilike('name', '%$itemName%')
-              .limit(1);
+        if (reqName.isEmpty || quantityNeeded <= 0) continue;
 
-          if (inventoryItems.isNotEmpty) {
-            final inventoryItem = inventoryItems.first;
-            final currentQuantity = (inventoryItem['quantity'] as num?)?.toInt() ?? 0;
+        // Find matching inventory item (exact or partial match)
+        Map<String, dynamic>? invItem = inventoryMap[reqNameKey];
+        if (invItem == null) {
+          final matchKey = inventoryMap.keys.firstWhere(
+            (k) => k.contains(reqNameKey) || reqNameKey.contains(k),
+            orElse: () => '',
+          );
+          if (matchKey.isNotEmpty) invItem = inventoryMap[matchKey];
+        }
 
-            if (currentQuantity >= quantityNeeded) {
-              await _approveRequestCore(request, skipNotification: true);
-              approvedCount++;
+        if (invItem != null) {
+          final currentInvQty = (invItem['quantity'] as num?)?.toInt() ?? 0;
+
+          if (currentInvQty >= quantityNeeded) {
+            final transferQty = quantityNeeded;
+            invItem['quantity'] = currentInvQty - transferQty;
+            modifiedInventoryNames.add(invItem['name'].toString().toLowerCase().trim());
+
+            // Update or create kitchen item in memory
+            final kKey = invItem['name'].toString().toLowerCase().trim();
+            if (kitchenMap.containsKey(kKey)) {
+              final kItem = kitchenMap[kKey]!;
+              final currentKQty = (kItem['quantity'] as num?)?.toInt() ?? 0;
+              kItem['quantity'] = currentKQty + transferQty;
+              modifiedKitchenNames.add(kKey);
             } else {
-              outOfStockCount++;
+              kitchenMap[kKey] = {
+                'name': invItem['name'],
+                'quantity': transferQty,
+                'unit': request['unit'] ?? invItem['unit'] ?? 'pcs',
+                'category': invItem['category'] ?? 'General',
+                'is_new': true,
+              };
+              modifiedKitchenNames.add(kKey);
             }
+
+            approvedIds.add(request['id']);
+
+            final itemReqBy = request['requested_by']?.toString();
+            final safeReqBy = (itemReqBy != null && itemReqBy.isNotEmpty) ? itemReqBy : 'chef';
+
+            transactionsToInsert.add({
+              'item_name': invItem['name'],
+              'transaction_type': 'outgoing',
+              'quantity': transferQty,
+              'unit': request['unit'] ?? invItem['unit'] ?? 'pcs',
+              'processed_by': _userName,
+              'requested_by': safeReqBy,
+              'purpose': 'Bulk Transferred to kitchen (Request #${request['id']})',
+              'created_at': nowUtc,
+            });
           } else {
             outOfStockCount++;
           }
+        } else {
+          outOfStockCount++;
         }
       }
 
+      final approvedCount = approvedIds.length;
+
       if (approvedCount > 0) {
+        // Execute batch database updates in parallel
+        final List<Future<dynamic>> batchOps = [];
+
+        // 1. Bulk update all approved kitchen_requests
+        batchOps.add(
+          _supabase
+              .from('kitchen_requests')
+              .update({'status': 'Approved'})
+              .inFilter('id', approvedIds),
+        );
+
+        // 2. Bulk insert stock transactions
+        if (transactionsToInsert.isNotEmpty) {
+          batchOps.add(_supabase.from('stock_transactions').insert(transactionsToInsert));
+        }
+
+        // 3. Update main inventory items
+        for (final nameKey in modifiedInventoryNames) {
+          final item = inventoryMap[nameKey]!;
+          batchOps.add(
+            _supabase
+                .from('inventory')
+                .update({'quantity': item['quantity']})
+                .eq('id', item['id']),
+          );
+        }
+
+        // 4. Update or insert kitchen inventory items
+        for (final nameKey in modifiedKitchenNames) {
+          final item = kitchenMap[nameKey]!;
+          if (item['is_new'] == true) {
+            batchOps.add(
+              _supabase.from('kitchen_inventory').insert({
+                'name': item['name'],
+                'quantity': item['quantity'],
+                'unit': item['unit'],
+                'category': item['category'],
+                'updated_at': nowUtc,
+              }),
+            );
+          } else {
+            batchOps.add(
+              _supabase
+                  .from('kitchen_inventory')
+                  .update({'quantity': item['quantity']})
+                  .eq('id', item['id']),
+            );
+          }
+        }
+
+        await Future.wait(batchOps);
+
+        // Send single consolidated notification to kitchen
         await NotificationService.sendNotification(
           isForAdmin: true,
           actorName: 'Pagsanjan Inv',
@@ -2467,17 +2678,24 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       NotificationService.setBulkOperation(false);
 
       if (mounted) {
+        setState(() {
+          _allRequestsStream = _supabase
+              .from('kitchen_requests')
+              .stream(primaryKey: ['id'])
+              .order('created_at', ascending: false);
+        });
+
         String message;
         Color backgroundColor;
 
         if (approvedCount > 0 && outOfStockCount > 0) {
-          message = 'Approved $approvedCount requests! $outOfStockCount remain pending (low stock).';
+          message = 'Approved $approvedCount requests! $outOfStockCount remain pending (insufficient stock).';
           backgroundColor = AppTheme.warningOrange;
         } else if (approvedCount > 0) {
-          message = 'Approved $approvedCount requests successfully!';
+          message = 'Approved all $approvedCount requests!';
           backgroundColor = AppTheme.successGreen;
         } else {
-          message = 'No requests approved. All $outOfStockCount requests remain pending (insufficient stock).';
+          message = 'Cannot approve: Insufficient stock for all pending items in inventory.';
           backgroundColor = AppTheme.errorRed;
         }
 
@@ -2488,6 +2706,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       _loadDashboardData();
     } catch (e) {
+      NotificationService.setBulkOperation(false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Bulk Error: $e'), backgroundColor: AppTheme.errorRed),
@@ -2507,7 +2726,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           .select('id, item_name')
           .eq('status', 'Pending');
 
-      if (pendingRequests.isEmpty) {
+      final count = pendingRequests.length;
+      if (count == 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No pending requests to reject.')),
@@ -2517,17 +2737,31 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         return;
       }
 
-      for (var request in pendingRequests) {
-        await _supabase
-            .from('kitchen_requests')
-            .update({'status': 'Rejected'})
-            .eq('id', request['id']);
-      }
+      // Fast, atomic single-query bulk update for ALL pending records
+      await _supabase
+          .from('kitchen_requests')
+          .update({'status': 'Rejected'})
+          .eq('status', 'Pending');
+
+      await NotificationService.sendNotification(
+        isForAdmin: true,
+        actorName: 'Pagsanjan Inv',
+        actionType: 'stock_rejected',
+        reservationId: 'Kitchen',
+        eventType: 'Stock Requests Declined: $count item(s)',
+      );
 
       if (mounted) {
+        setState(() {
+          _allRequestsStream = _supabase
+              .from('kitchen_requests')
+              .stream(primaryKey: ['id'])
+              .order('created_at', ascending: false);
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Rejected ${pendingRequests.length} requests successfully!'),
+            content: Text('Rejected $count requests successfully!'),
             backgroundColor: AppTheme.errorRed,
           ),
         );
@@ -2933,6 +3167,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
     NotificationService.markAllAsRead('', forAdmin: true);
+    if (notifications.isNotEmpty) {
+      final unreadIds = notifications
+          .where((n) => n['is_read'] == false)
+          .map((n) => n['id'].toString())
+          .toList();
+      if (unreadIds.isNotEmpty) {
+        NotificationService.markVisibleAsRead(unreadIds);
+      }
+    }
 
     showDialog(
       context: context,
@@ -2990,6 +3233,120 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     );
   }
 
+  void _showInvNotificationToast(Map<String, dynamic> n) {
+    if (!mounted) return;
+    final title = _getNotificationTitle(n);
+    final subtitle = _getNotificationSubtitle(n);
+
+    void openBellDialog() {
+      _dismissInvTopToast();
+      NotificationService.getInventoryNotificationsStream()
+          .first
+          .then((notifs) {
+        if (mounted) _showNotificationsDialog(notifs);
+      });
+    }
+
+    // FIXED at top: stays until Inventory Admin clicks 'VIEW'
+    _showInvTopToast(
+      duration: null,
+      content: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: openBellDialog,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF10B981),
+                width: 1.8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getIconForAction(n['action_type']),
+                    color: const Color(0xFF10B981),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: const Color(0xFFCBD5E1),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+                  label: Text(
+                    'VIEW',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  onPressed: openBellDialog,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   IconData _getIconForAction(String action) {
     switch (action) {
       case 'stock_request':
@@ -3004,19 +3361,100 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   String _getNotificationTitle(Map<String, dynamic> n) {
-    if (n['action_type'] == 'stock_request') return 'Stock Request';
-    if (n['action_type'] == 'stock_alert') return 'Stock Alert';
-    if (n['action_type'] == 'pos_order') return 'New Order';
+    if (n['action_type'] == 'stock_request') return 'Stock Request from Kitchen';
+    if (n['action_type'] == 'stock_alert') return 'Inventory Stock Alert';
+    if (n['action_type'] == 'pos_order') return 'New POS Order';
     return 'Inventory Notification';
   }
 
   String _getNotificationSubtitle(Map<String, dynamic> n) {
     if (n['action_type'] == 'stock_request') {
-      return 'Kitchen requested: ${n['event_type'] ?? ''}';
+      return 'Kitchen Chef requested: ${n['event_type'] ?? 'Stock items'}';
     }
     if (n['action_type'] == 'stock_alert') {
-      return n['event_type'] ?? 'Stock Alert';
+      return n['event_type'] ?? 'Stock level is critical.';
     }
-    return n['event_type'] ?? 'System Update';
+    return n['event_type'] ?? 'Inventory system update.';
+  }
+}
+
+/// Animated Top Toast Notification Banner for Inventory
+class _InvTopToastWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDismiss;
+  final Duration? duration;
+
+  const _InvTopToastWidget({
+    required this.child,
+    required this.onDismiss,
+    this.duration,
+  });
+
+  @override
+  State<_InvTopToastWidget> createState() => _InvTopToastWidgetState();
+}
+
+class _InvTopToastWidgetState extends State<_InvTopToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 10 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

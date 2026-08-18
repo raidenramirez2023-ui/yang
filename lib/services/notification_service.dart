@@ -191,10 +191,11 @@ class NotificationService {
             .update({'is_read': true})
             .eq('is_for_admin', true);
       } else {
+        final lower = email.toLowerCase().trim();
         await _supabase
             .from('notifications')
             .update({'is_read': true})
-            .eq('recipient_email', email.toLowerCase());
+            .or('recipient_email.eq.$lower,customer_email.eq.$lower');
       }
     } catch (e) {
       debugPrint('Error marking notifications as read: $e');
@@ -208,7 +209,7 @@ class NotificationService {
       await _supabase
           .from('notifications')
           .update({'is_read': true})
-          .filter('id', 'in', notificationIds);
+          .inFilter('id', notificationIds);
     } catch (e) {
       debugPrint('Error marking specific notifications as read: $e');
     }
@@ -271,40 +272,26 @@ class NotificationService {
         .order('created_at', ascending: false);
   }
 
-  /// Stream for Kitchen Side (POS orders, stock approval, advance order tickets)
-  /// Also includes event reservations only when the event is within 2 days
+  /// Stream for Kitchen Side (POS orders, stock approval & rejection from inventory, advance order tickets, kitchen alerts)
   static Stream<List<Map<String, dynamic>>> getKitchenNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
+          // Kitchen receives approvals/rejections from inventory and new incoming orders
           if (actionType == 'pos_order' ||
-              actionType == 'stock_approved') {
+              actionType == 'stock_approved' ||
+              actionType == 'stock_rejected') {
             return true;
           }
-          // Advance order tickets - only if within 2 days, EXCEPT Event Reservations which always show immediately
+          if (actionType == 'stock_alert' && n['reservation_id'] == 'Kitchen') {
+            return true;
+          }
+          // Advance order tickets
           if (actionType == 'advance_order_ticket') {
             final eventTypeStr = n['event_type']?.toString() ?? '';
             if (eventTypeStr.contains('Event Reservation')) {
               return true; // Always notify kitchen immediately of event reservations
             }
 
-            final eventDateStr = n['event_date']?.toString();
-            if (eventDateStr != null) {
-              try {
-                final eventDate = DateTime.parse(eventDateStr);
-                final now = DateTime.now();
-                final daysUntilEvent = eventDate.difference(now).inDays;
-                // Only include if within 2 days (including today and tomorrow)
-                return daysUntilEvent >= 0 && daysUntilEvent <= 2;
-              } catch (e) {
-                // If date parsing fails, don't include the notification
-                return false;
-              }
-            }
-            return false;
-          }
-          // Include event reservations only if within 2 days
-          if (actionType == 'created' || actionType == 'updated' || actionType == 'paid' ||
-              actionType == 'deposit_paid' || actionType == 'fully_paid' || actionType == 'balance_cleared') {
             final eventDateStr = n['event_date']?.toString();
             if (eventDateStr != null) {
               try {
@@ -318,19 +305,19 @@ class NotificationService {
                 return false;
               }
             }
+            return true;
           }
           return false;
         }).toList());
   }
 
-  /// Stream for Main Inventory Side (stock requests, inventory stock alerts)
+  /// Stream for Main Inventory Side (stock requests from Chef, inventory stock alerts)
   static Stream<List<Map<String, dynamic>>> getInventoryNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          if (actionType == 'stock_request') {
-            return true;
-          }
-          if (actionType == 'stock_alert' && n['reservation_id'] == 'Main Inventory') {
+          // Inventory receives stock requests submitted by Kitchen and inventory stock alerts
+          if (actionType == 'stock_request' ||
+              actionType == 'stock_alert') {
             return true;
           }
           return false;
@@ -341,7 +328,7 @@ class NotificationService {
   static Stream<List<Map<String, dynamic>>> getAdminOnlyNotificationsStream() {
     return getAdminNotificationsStream().map((list) => list.where((n) {
           final actionType = n['action_type'];
-          final kitchenTypes = ['pos_order', 'stock_approved', 'advance_order_ticket'];
+          final kitchenTypes = ['pos_order', 'stock_approved', 'stock_rejected', 'advance_order_ticket'];
           final inventoryTypes = ['stock_request'];
           if (kitchenTypes.contains(actionType) || inventoryTypes.contains(actionType)) {
             return false;
