@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -18,23 +19,46 @@ class AdminChatPage extends StatefulWidget {
 
 class _AdminChatPageState extends State<AdminChatPage> {
   final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
+
   Map<String, dynamic>? _selectedConversation;
   bool _isSending = false;
   bool _isUploading = false;
+  bool _isTyping = false;
   XFile? _selectedImage;
+  String _searchQuery = '';
+
   Stream<List<Map<String, dynamic>>>? _conversationsStream;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
+
+  Map<String, String> _messageReactions = {};
+
+  final List<String> _cannedReplies = [
+    '👋 Hello! How may we assist with your reservation today?',
+    '✅ Your reservation is confirmed! We look forward to serving you.',
+    '💳 We have verified your downpayment / remaining balance. Thank you!',
+    '🔄 Your reschedule request is currently being reviewed by our management.',
+    '📋 You can check your refund policy & cancellation status anytime in Help Center.',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _searchQuery = '';
+    _messageReactions = {};
+    _isTyping = false;
     _initializeChat();
+    _messageController.addListener(() {
+      final isNowTyping = _messageController.text.trim().isNotEmpty;
+      if (isNowTyping != (_isTyping)) {
+        setState(() => _isTyping = isNowTyping);
+      }
+    });
   }
 
   Future<void> _initializeChat() async {
-    // Set up stream for conversations
     _conversationsStream = Supabase.instance.client
         .from('chat_sessions')
         .stream(primaryKey: ['id'])
@@ -42,24 +66,18 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   void _selectConversation(Map<String, dynamic> conversation) {
-    debugPrint(
-      'Admin selecting conversation: ${conversation['customer_email']}',
-    );
     setState(() {
       _selectedConversation = conversation;
     });
 
     final customerEmail = conversation['customer_email'];
-    debugPrint('Setting up message stream for: $customerEmail');
 
-    // Set up stream for messages in this conversation
     _messagesStream = Supabase.instance.client
         .from('chat_messages')
         .stream(primaryKey: ['id'])
         .eq('customer_email', customerEmail)
         .order('created_at', ascending: true);
 
-    // Mark messages as read
     _markMessagesAsRead(customerEmail);
   }
 
@@ -69,18 +87,17 @@ class _AdminChatPageState extends State<AdminChatPage> {
           .from('chat_messages')
           .update({'is_read': true})
           .eq('customer_email', customerEmail)
-          .eq('is_from_customer', true); // Only mark customer messages as read
+          .eq('is_from_customer', true);
     } catch (e) {
       debugPrint('Error marking messages as read: $e');
     }
   }
 
-  Future<void> _sendMessage() async {
-    if (_selectedConversation == null) {
-      return;
-    }
+  Future<void> _sendMessage([String? customText]) async {
+    if (_selectedConversation == null) return;
 
-    if (_messageController.text.trim().isEmpty && _selectedImage == null) return;
+    final textToSend = customText ?? _messageController.text.trim();
+    if (textToSend.isEmpty && _selectedImage == null) return;
     if (_isSending || _isUploading) return;
 
     final customerEmail = _selectedConversation!['customer_email'];
@@ -90,8 +107,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
 
     try {
       String? imageUrl;
-      
-      // Upload image if selected
+
       if (_selectedImage != null) {
         setState(() => _isUploading = true);
         imageUrl = await ChatService().uploadChatImage(
@@ -99,13 +115,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
           customerEmail,
         );
         setState(() => _isUploading = false);
-        
+
         if (imageUrl == null) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Failed to upload image'),
               backgroundColor: AppTheme.errorRed,
+              behavior: SnackBarBehavior.floating,
             ),
           );
           setState(() => _isSending = false);
@@ -116,12 +133,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
       await ChatService().sendMessageWithImage(
         customerEmail: customerEmail,
         customerName: customerName,
-        message: _messageController.text.trim(),
+        message: textToSend,
         isFromCustomer: false,
         imageUrl: imageUrl,
       );
 
-      _messageController.clear();
+      if (customText == null) {
+        _messageController.clear();
+      }
       setState(() => _selectedImage = null);
       _scrollToBottom();
     } catch (e) {
@@ -131,6 +150,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         const SnackBar(
           content: Text('Failed to send message'),
           backgroundColor: AppTheme.errorRed,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {
@@ -149,7 +169,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         source: ImageSource.gallery,
         imageQuality: 80,
       );
-      
+
       if (image != null) {
         setState(() => _selectedImage = image);
       }
@@ -175,10 +195,30 @@ class _AdminChatPageState extends State<AdminChatPage> {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          curve: Curves.easeOutCubic,
         );
       }
     });
+  }
+
+  String _formatDateDivider(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDate = DateTime(date.year, date.month, date.day);
+
+    if (msgDate == today) {
+      return 'Today';
+    } else if (msgDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('MMMM d, yyyy').format(date);
+    }
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
   }
 
   @override
@@ -186,26 +226,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: AppTheme.adminMainBackground,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppTheme.adminChatButton,
-        foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            const Icon(Icons.support_agent),
-            const SizedBox(width: 12),
-            const Text('Customer Support Chat'),
-            if (!isDesktop && _selectedConversation != null) ...[
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => setState(() => _selectedConversation = null),
-              ),
-            ],
-          ],
-        ),
-      ),
+      backgroundColor: const Color(0xFFF1F5F9),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
     );
   }
@@ -213,84 +234,25 @@ class _AdminChatPageState extends State<AdminChatPage> {
   Widget _buildDesktopLayout() {
     return Row(
       children: [
-        // Conversations List
-        Material(
-          color: Colors.white,
-          child: SizedBox(
-            width: 350,
-            child: Column(
-              children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline,
-                      color: AppTheme.adminChatButton,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Conversations',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.adminPrimaryText,
-                      ),
-                    ),
-                    const Spacer(),
-                    StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _conversationsStream,
-                      builder: (context, snapshot) {
-                        final totalUnread =
-                            snapshot.data?.fold<int>(
-                              0,
-                              (sum, conv) =>
-                                  sum +
-                                  ((conv['unread_customer_count'] as num?)
-                                          ?.toInt() ??
-                                      0),
-                            ) ??
-                            0;
-
-                        if (totalUnread > 0) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.adminChatButton,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '$totalUnread',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Conversations List
+        // Left: Conversation Sidebar
+        Container(
+          width: 380,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              right: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildSidebarHeader(),
+              _buildSearchBar(),
               Expanded(child: _buildConversationsList()),
             ],
           ),
         ),
-      ),
 
-        // Chat Area
+        // Right: Active Chat Room
         Expanded(
           child: _selectedConversation != null
               ? _buildChatArea()
@@ -305,31 +267,132 @@ class _AdminChatPageState extends State<AdminChatPage> {
       return _buildChatArea();
     }
 
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.white,
-          child: const Row(
-            children: [
-              Icon(Icons.chat_bubble_outline, color: AppTheme.adminChatButton),
-              SizedBox(width: 12),
-              Text(
-                'Customer Conversations',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.adminPrimaryText,
-                ),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF14332E),
+        elevation: 0,
+        title: const Text(
+          'Customer Conversations',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
           ),
         ),
+      ),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          Expanded(child: _buildConversationsList()),
+        ],
+      ),
+    );
+  }
 
-        // Conversations List
-        Expanded(child: _buildConversationsList()),
-      ],
+  Widget _buildSidebarHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.forum_rounded,
+              color: Color(0xFFD9A441),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Live Chat Inbox',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.4,
+            ),
+          ),
+          const Spacer(),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _conversationsStream,
+            builder: (context, snapshot) {
+              final totalUnread = snapshot.data?.fold<int>(
+                    0,
+                    (sum, conv) =>
+                        sum +
+                        ((conv['unread_customer_count'] as num?)?.toInt() ?? 0),
+                  ) ??
+                  0;
+
+              if (totalUnread > 0) {
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorRed,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '$totalUnread New',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: Colors.white,
+      child: TextField(
+        controller: _searchController,
+        onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+        decoration: InputDecoration(
+          hintText: 'Search customer name or email...',
+          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF94A3B8),
+            size: 20,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+          ),
+        ),
+      ),
     );
   }
 
@@ -339,151 +402,196 @@ class _AdminChatPageState extends State<AdminChatPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: AppTheme.adminChatButton),
+            child: CircularProgressIndicator(
+              color: Color(0xFF14332E),
+              strokeWidth: 2.5,
+            ),
           );
         }
 
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading conversations',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Error loading chats: ${snapshot.error}',
+                style: const TextStyle(color: AppTheme.errorRed, fontSize: 13),
+              ),
             ),
           );
         }
 
-        final conversations = snapshot.data ?? [];
+        var conversations = snapshot.data ?? [];
+        final query = (_searchQuery ?? '').trim().toLowerCase();
+
+        if (query.isNotEmpty) {
+          conversations = conversations.where((c) {
+            final name = (c['customer_name'] ?? '').toString().toLowerCase();
+            final email = (c['customer_email'] ?? '').toString().toLowerCase();
+            return name.contains(query) || email.contains(query);
+          }).toList();
+        }
 
         if (conversations.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No conversations yet',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 36,
+                    color: Color(0xFF94A3B8),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Customer chats will appear here',
-                  style: TextStyle(color: Colors.grey.shade500),
+                const SizedBox(height: 12),
+                const Text(
+                  'No conversations found',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF334155),
+                    fontSize: 15,
+                  ),
                 ),
               ],
             ),
           );
         }
 
-        return ListView.builder(
+        return ListView.separated(
           itemCount: conversations.length,
+          separatorBuilder: (_, __) =>
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
           itemBuilder: (context, index) {
             final conversation = conversations[index];
-            return _buildConversationItem(conversation);
+            return _buildConversationListItem(conversation);
           },
         );
       },
     );
   }
 
-  Widget _buildConversationItem(Map<String, dynamic> conversation) {
-    final isSelected =
-        _selectedConversation?['id'] == conversation['id'];
+  Widget _buildConversationListItem(Map<String, dynamic> conversation) {
+    final isSelected = _selectedConversation?['id'] == conversation['id'];
     final customerName = conversation['customer_name'] ?? 'Customer';
-    final customerEmail = conversation['customer_email'];
-    final unreadCount = conversation['unread_customer_count'] ?? 0;
-    final lastMessageTime = conversation['last_message_time'] != null
-        ? DateTime.parse(conversation['last_message_time']).toLocal()
+    final customerEmail = conversation['customer_email'] ?? '';
+    final unreadCount =
+        (conversation['unread_customer_count'] as num?)?.toInt() ?? 0;
+    final lastMessageTime = conversation['last_message_at'] != null
+        ? DateTime.parse(conversation['last_message_at']).toLocal()
         : null;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
+    final initial = customerName.isNotEmpty
+        ? customerName[0].toUpperCase()
+        : customerEmail.isNotEmpty
+            ? customerEmail[0].toUpperCase()
+            : 'C';
+
+    return InkWell(
+      onTap: () => _selectConversation(conversation),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: isSelected
-            ? AppTheme.adminChatButton.withValues(alpha: 0.1)
+            ? const Color(0xFF14332E).withOpacity(0.06)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isSelected
-            ? Border.all(color: AppTheme.adminChatButton.withValues(alpha: 0.3))
-            : null,
-      ),
-      child: ListTile(
-        onTap: () => _selectConversation(conversation),
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.adminChatButton.withValues(alpha: 0.1),
-          child: Icon(Icons.person, color: AppTheme.adminChatButton),
-        ),
-        title: Row(
+        child: Row(
           children: [
-            Expanded(
+            // Customer Avatar with fallback initial
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: isSelected
+                  ? const Color(0xFF14332E)
+                  : const Color(0xFFE2E8F0),
               child: Text(
-                customerName,
+                initial,
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? AppTheme.adminChatButton : Colors.black87,
+                  color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (unreadCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.adminChatButton,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$unreadCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+            const SizedBox(width: 12),
+
+            // Name & Email
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          customerName,
+                          style: TextStyle(
+                            fontWeight: isSelected || unreadCount > 0
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                            color: const Color(0xFF0F172A),
+                            fontSize: 14.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (lastMessageTime != null)
+                        Text(
+                          ChatService.formatMessageTime(lastMessageTime),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: unreadCount > 0
+                                ? const Color(0xFF14332E)
+                                : const Color(0xFF94A3B8),
+                            fontWeight: unreadCount > 0
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          customerEmail,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (unreadCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14332E),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              customerEmail,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              overflow: TextOverflow.ellipsis,
             ),
-            if (lastMessageTime != null)
-              Text(
-                _formatLastMessageTime(lastMessageTime),
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
           ],
         ),
-        trailing: isSelected
-            ? Icon(Icons.check_circle, color: AppTheme.adminChatButton, size: 20)
-            : null,
       ),
     );
   }
@@ -494,31 +602,45 @@ class _AdminChatPageState extends State<AdminChatPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(32),
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: AppTheme.adminChatButton.withValues(alpha: 0.1),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF14332E).withOpacity(0.18),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Icon(
-              Icons.chat_bubble_outline,
-              size: 80,
-              color: AppTheme.adminChatButton,
+            child: const Center(
+              child: Icon(
+                Icons.support_agent_rounded,
+                size: 52,
+                color: Color(0xFFD9A441),
+              ),
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Select a conversation',
+          const Text(
+            'Yang Chow Support Console',
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Choose a customer conversation from the list\nto start chatting',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+          const SizedBox(height: 8),
+          const Text(
+            'Select a customer conversation from the left to start responding.',
+            style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
           ),
         ],
       ),
@@ -526,26 +648,45 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Widget _buildChatArea() {
-    if (_selectedConversation == null) return const SizedBox.shrink();
-
     final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
     final customerEmail = _selectedConversation!['customer_email'];
 
     return Container(
-      color: Colors.white,
+      color: const Color(0xFFF8FAFC),
       child: Column(
         children: [
-          // Chat Header
+          // Active Chat Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+              ),
             ),
             child: Row(
               children: [
+                if (!ResponsiveUtils.isDesktop(context)) ...[
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () =>
+                        setState(() => _selectedConversation = null),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 CircleAvatar(
-                  backgroundColor: AppTheme.adminChatButton.withValues(alpha: 0.1),
-                  child: const Icon(Icons.person, color: AppTheme.adminChatButton),
+                  radius: 20,
+                  backgroundColor: const Color(0xFF14332E),
+                  child: Text(
+                    customerName.isNotEmpty
+                        ? customerName[0].toUpperCase()
+                        : 'C',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -555,82 +696,44 @@ class _AdminChatPageState extends State<AdminChatPage> {
                       Text(
                         customerName,
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           fontSize: 16,
-                          color: AppTheme.adminPrimaryText,
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                       Text(
                         customerEmail,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Color(0xFF64748B),
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (!ResponsiveUtils.isDesktop(context))
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () =>
-                        setState(() => _selectedConversation = null),
-                  ),
               ],
             ),
           ),
 
-          // Messages List
+          // Message Stream
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _messagesStream,
               builder: (context, snapshot) {
-                debugPrint(
-                  'Admin StreamBuilder state: ${snapshot.connectionState}',
-                );
-                debugPrint('Admin has error: ${snapshot.hasError}');
-                debugPrint('Admin has data: ${snapshot.hasData}');
-                if (snapshot.hasData) {
-                  debugPrint('Admin messages count: ${snapshot.data?.length}');
-                }
-                if (snapshot.hasError) {
-                  debugPrint('Admin stream error: ${snapshot.error}');
-                }
-
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
-                      color: AppTheme.adminChatButton,
+                      color: Color(0xFF14332E),
+                      strokeWidth: 2.5,
                     ),
                   );
                 }
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error loading messages',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Error: ${snapshot.error}',
-                          style: TextStyle(color: Colors.red, fontSize: 12),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                    child: Text(
+                      'Error loading messages: ${snapshot.error}',
+                      style: const TextStyle(color: AppTheme.errorRed),
                     ),
                   );
                 }
@@ -638,33 +741,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 final messages = snapshot.data ?? [];
 
                 if (messages.isEmpty) {
-                  debugPrint('Admin: No messages found, showing empty state');
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No messages yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                  return const Center(
+                    child: Text(
+                      'No messages yet in this conversation',
+                      style: TextStyle(color: Color(0xFF94A3B8)),
                     ),
                   );
                 }
 
-                debugPrint('Admin displaying ${messages.length} messages');
-
-                // Scroll to bottom when new messages arrive
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _scrollToBottom();
                 });
@@ -675,183 +759,246 @@ class _AdminChatPageState extends State<AdminChatPage> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
-                    return _buildMessageBubble(message);
+                    final currentCreatedAt =
+                        DateTime.parse(message['created_at']).toLocal();
+
+                    bool showDateDivider = false;
+                    if (index == 0) {
+                      showDateDivider = true;
+                    } else {
+                      final prevCreatedAt =
+                          DateTime.parse(messages[index - 1]['created_at'])
+                              .toLocal();
+                      showDateDivider =
+                          !_isSameDay(currentCreatedAt, prevCreatedAt);
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showDateDivider)
+                          Center(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border:
+                                    Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                _formatDateDivider(currentCreatedAt),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ),
+                        _buildAdminMessageBubble(message, index),
+                      ],
+                    );
                   },
                 );
               },
             ),
           ),
 
-          // Message Input
-          _buildMessageInput(),
+          // Canned Responses Pills
+          _buildCannedResponsesBar(),
+
+          // Image Preview Tray
+          if (_selectedImage != null) _buildAdminImagePreview(),
+
+          // Input Bar
+          _buildAdminInputBar(),
         ],
       ),
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
+  Widget _buildAdminMessageBubble(Map<String, dynamic> message, int index) {
     final isFromCustomer = message['is_from_customer'] ?? true;
     final messageText = message['message'] ?? '';
     final imageUrl = message['image_url'] as String?;
-    final timestamp = DateTime.parse(message['created_at']).toLocal();
+    final isUnsent = messageText == ChatService.unsentMessageSentinel;
+
+    DateTime timestamp;
+    try {
+      timestamp = DateTime.parse(message['created_at']).toLocal();
+    } catch (_) {
+      timestamp = DateTime.now();
+    }
     final timeStr = DateFormat('h:mm a').format(timestamp);
+    final messageId = message['id']?.toString() ?? '$index';
+    final reaction = _messageReactions[messageId];
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: isFromCustomer
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.end,
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment:
+            isFromCustomer ? MainAxisAlignment.start : MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Row(
-            mainAxisAlignment: isFromCustomer
-                ? MainAxisAlignment.start
-                : MainAxisAlignment.end,
-            children: [
-              if (isFromCustomer) ...[
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Flexible(
-                child: GestureDetector(
-                  onLongPress:
-                      !isFromCustomer &&
-                              messageText != ChatService.unsentMessageSentinel
-                          ? () => _showUnsendDialog(message['id'].toString())
-                          : null,
-                  child: Container(
+          if (isFromCustomer) ...[
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: const Color(0xFFE2E8F0),
+              child: const Icon(
+                Icons.person_rounded,
+                size: 16,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: GestureDetector(
+              onLongPress: () =>
+                  _showAdminMessageActionSheet(message, isFromCustomer),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
                     constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                      maxWidth: MediaQuery.of(context).size.width * 0.7,
+                      minWidth: 70,
                     ),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 14,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: messageText == ChatService.unsentMessageSentinel
-                          ? Colors.grey.withValues(alpha: 0.1)
+                      gradient: isUnsent
+                          ? null
                           : isFromCustomer
-                              ? Colors.grey.shade100
-                              : AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(20).copyWith(
-                        bottomLeft: Radius.circular(isFromCustomer ? 4 : 20),
-                        bottomRight: Radius.circular(isFromCustomer ? 20 : 4),
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFF14332E),
+                                    Color(0xFF1B433C),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                      color: isUnsent
+                          ? const Color(0xFFF1F5F9)
+                          : isFromCustomer
+                              ? Colors.white
+                              : null,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(18),
+                        topRight: const Radius.circular(18),
+                        bottomLeft: Radius.circular(isFromCustomer ? 4 : 18),
+                        bottomRight: Radius.circular(isFromCustomer ? 18 : 4),
                       ),
-                      border: messageText == ChatService.unsentMessageSentinel
-                          ? Border.all(color: Colors.grey.shade300)
-                          : null,
+                      border: Border.all(
+                        color: isUnsent
+                            ? const Color(0xFFCBD5E1)
+                            : isFromCustomer
+                                ? const Color(0xFFE2E8F0)
+                                : const Color(0xFF0E2420),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: isFromCustomer
+                          ? CrossAxisAlignment.start
+                          : CrossAxisAlignment.end,
                       children: [
                         if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              imageUrl,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  height: 150,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
-                                          : null,
-                                      color: AppTheme.adminChatButton,
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 150,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: Colors.grey,
-                                      size: 40,
-                                    ),
-                                  ),
-                                );
-                              },
+                          GestureDetector(
+                            onTap: () => _openFullscreenImage(imageUrl),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                imageUrl,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
-                          if (messageText.isNotEmpty) const SizedBox(height: 8),
+                          if (messageText.isNotEmpty &&
+                              messageText != '📷 Image')
+                            const SizedBox(height: 6),
                         ],
-                        if (messageText.isNotEmpty)
+                        if (isUnsent)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.block_flipped,
+                                size: 14,
+                                color: Color(0xFF94A3B8),
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Message was unsent',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (messageText.isNotEmpty &&
+                            !(imageUrl != null && messageText == '📷 Image'))
                           Text(
-                            messageText == ChatService.unsentMessageSentinel
-                                ? (!isFromCustomer
-                                    ? 'You unsent a message'
-                                    : 'This message was unsent')
-                                : messageText,
+                            messageText,
                             style: TextStyle(
-                              color: messageText == ChatService.unsentMessageSentinel
-                                  ? Colors.grey.shade600
-                                  : isFromCustomer
-                                      ? Colors.black87
-                                      : Colors.white,
-                              fontSize: 16,
-                              fontStyle:
-                                  messageText == ChatService.unsentMessageSentinel
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
+                              color: isFromCustomer
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
+                              fontSize: 14,
+                              height: 1.4,
                             ),
                           ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isFromCustomer
+                                ? const Color(0xFF94A3B8)
+                                : Colors.white.withOpacity(0.7),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
+                  if (reaction != null)
+                    Positioned(
+                      bottom: -10,
+                      right: isFromCustomer ? null : 4,
+                      left: isFromCustomer ? 4 : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(reaction, style: const TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                ],
               ),
-              if (!isFromCustomer) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.adminChatButton,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.support_agent,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: EdgeInsets.only(
-              left: isFromCustomer ? 32 : 0,
-              right: isFromCustomer ? 0 : 32,
-            ),
-            child: Text(
-              timeStr,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           ),
         ],
@@ -859,220 +1006,301 @@ class _AdminChatPageState extends State<AdminChatPage> {
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildCannedResponsesBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 40,
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _cannedReplies.length,
+        itemBuilder: (context, index) {
+          final reply = _cannedReplies[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ActionChip(
+              label: Text(
+                reply,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF14332E),
+                ),
+              ),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              onPressed: () => _sendMessage(reply),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAdminImagePreview() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
-          // Attachment button
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              onPressed: _pickImage,
-              icon: const Icon(
-                Icons.attach_file,
-                color: Colors.grey,
-                size: 24,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.grey.shade100,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_selectedImage != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: kIsWeb
-                              ? Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.image,
-                                    color: Colors.grey,
-                                    size: 30,
-                                  ),
-                                )
-                              : Image.file(
-                                  File(_selectedImage!.path),
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Image selected',
-                            style: TextStyle(
-                              color: AppTheme.adminChatButton,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: _clearSelectedImage,
-                          icon: const Icon(
-                            Icons.close,
-                            color: Colors.grey,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: kIsWeb
+                ? Container(
+                    width: 48,
+                    height: 48,
+                    color: const Color(0xFFF1F5F9),
+                    child: const Icon(Icons.image, color: Color(0xFF14332E)),
+                  )
+                : Image.file(
+                    File(_selectedImage!.path),
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
                   ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type your response...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      hintStyle: TextStyle(color: Colors.grey),
-                    ),
-                    maxLines: null,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: _isSending || _isUploading ? Colors.grey.shade300 : AppTheme.primaryColor,
-              shape: BoxShape.circle,
+          const Expanded(
+            child: Text(
+              'Image attached to response',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
-            child: IconButton(
-              onPressed: (_isSending || _isUploading) ? null : _sendMessage,
-              icon: _isUploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                      ),
-                    )
-                  : _isSending
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(Icons.send, color: Colors.white),
-            ),
+          ),
+          IconButton(
+            onPressed: _clearSelectedImage,
+            icon: const Icon(Icons.close_rounded, size: 20),
           ),
         ],
       ),
     );
   }
 
-  void _showUnsendDialog(String messageId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsend message?'),
-        content: const Text(
-          'Unsending will remove this message from the chat for everyone. People in the chat may have already seen it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ChatService().unsendMessage(messageId);
-              if (!success) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Failed to unsend message'),
-                    backgroundColor: AppTheme.errorRed,
-                  ),
-                );
-              }
-            },
-            child: const Text(
-              'Unsend',
-              style: TextStyle(
-                color: AppTheme.adminChatBadge,
-                fontWeight: FontWeight.bold,
+  Widget _buildAdminInputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            IconButton(
+              tooltip: 'Attach Image',
+              onPressed: _pickImage,
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Icon(
+                  Icons.add_photo_alternate_rounded,
+                  color: Color(0xFF475569),
+                  size: 20,
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                constraints: const BoxConstraints(maxHeight: 120),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: _isTyping
+                        ? const Color(0xFF14332E)
+                        : const Color(0xFFCBD5E1),
+                    width: 1.2,
+                  ),
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _sendMessage(),
+                  decoration: const InputDecoration(
+                    hintText: 'Reply as Admin support...',
+                    hintStyle:
+                        TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 11,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: (_isSending || _isUploading) ? null : () => _sendMessage(),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: (_isTyping || _selectedImage != null)
+                      ? const LinearGradient(
+                          colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                        )
+                      : const LinearGradient(
+                          colors: [Color(0xFFCBD5E1), Color(0xFF94A3B8)],
+                        ),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: _isUploading || _isSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  String _formatLastMessageTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
+  void _showAdminMessageActionSheet(
+    Map<String, dynamic> message,
+    bool isFromCustomer,
+  ) {
+    final messageId = message['id']?.toString() ?? '';
+    final messageText = message['message'] ?? '';
 
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return DateFormat('MMM d').format(dateTime);
-    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: ['❤️', '👍', '🍜', '🔥', '😮', '🙏'].map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _messageReactions[messageId] = emoji;
+                      });
+                    },
+                    child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (messageText.isNotEmpty &&
+                messageText != ChatService.unsentMessageSentinel)
+              ListTile(
+                leading:
+                    const Icon(Icons.copy_rounded, color: Color(0xFF334155)),
+                title: const Text('Copy Message Text'),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: messageText));
+                  Navigator.pop(context);
+                },
+              ),
+            if (!isFromCustomer &&
+                messageText != ChatService.unsentMessageSentinel)
+              ListTile(
+                leading:
+                    const Icon(Icons.undo_rounded, color: AppTheme.errorRed),
+                title: const Text(
+                  'Unsend Message',
+                  style: TextStyle(color: AppTheme.errorRed),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await ChatService().unsendMessage(messageId);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openFullscreenImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            InteractiveViewer(
+              child: Image.network(imageUrl, fit: BoxFit.contain),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }

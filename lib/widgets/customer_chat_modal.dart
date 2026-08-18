@@ -14,7 +14,7 @@ class CustomerChatModal extends StatefulWidget {
 class _CustomerChatModalState extends State<CustomerChatModal> {
   bool _isClosed = true;
   bool _isMinimized = false;
-  
+
   // Draggable modal properties
   Offset _position = const Offset(0, 0);
   bool _isDragging = false;
@@ -53,26 +53,26 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
+    final isMobile =
+        !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
 
     if (isMobile) {
       final screenSize = MediaQuery.of(context).size;
-      final modalWidth = screenSize.width - 40;
-      final modalHeight = screenSize.height * 0.7;
+      final modalWidth = screenSize.width - 24;
+      final modalHeight = (screenSize.height * 0.78).clamp(380.0, 680.0);
 
       // Initialize position for mobile (button position)
       if (!_positionInitialized) {
         _position = Offset(
-          screenSize.width - 80,
-          screenSize.height - 150,
+          screenSize.width - 76,
+          screenSize.height - 120,
         );
         _positionInitialized = true;
       }
 
-      // Constrain button position to screen bounds
       final maxX = (screenSize.width - 60).clamp(0.0, double.infinity);
       final maxY = (screenSize.height - 60).clamp(0.0, double.infinity);
-      final minY = 50.0;
+      const minY = 50.0;
       final safeMaxY = maxY > minY ? maxY : minY;
 
       final constrainedPosition = Offset(
@@ -80,16 +80,15 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
         _position.dy.clamp(minY, safeMaxY),
       );
 
-      // Calculate modal position based on button position
       final modalPosition = Offset(
-        constrainedPosition.dx,
+        12,
         constrainedPosition.dy - modalHeight - 16,
       );
 
-      // Constrain modal position
       final modalMaxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
-      final modalMaxY = (screenSize.height - modalHeight - 80).clamp(0.0, double.infinity);
-      final modalMinY = 50.0;
+      final modalMaxY =
+          (screenSize.height - modalHeight - 80).clamp(0.0, double.infinity);
+      const modalMinY = 50.0;
       final modalSafeMaxY = modalMaxY > modalMinY ? modalMaxY : modalMinY;
 
       final constrainedModalPosition = Offset(
@@ -108,67 +107,27 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
                 height: modalHeight,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
+                      color: Colors.black.withOpacity(0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
                     ),
                   ],
                   border: Border.all(
-                    color: _isDragging ? AppTheme.primaryColor : Colors.grey.shade300,
+                    color: _isDragging
+                        ? const Color(0xFF14332E)
+                        : const Color(0xFFE2E8F0),
                     width: _isDragging ? 2 : 1,
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
-                        ),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onPanStart: (details) => setState(() => _isDragging = true),
-                              onPanUpdate: (details) {
-                                setState(() {
-                                  _position = Offset(
-                                    _position.dx + details.delta.dx,
-                                    _position.dy + details.delta.dy,
-                                  );
-                                });
-                              },
-                              onPanEnd: (details) => setState(() => _isDragging = false),
-                              child: Icon(
-                                _isDragging ? Icons.drag_indicator : Icons.drag_handle,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Customer Support',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => setState(() => _isClosed = true),
-                              child: const Icon(Icons.close, color: Colors.white, size: 20),
-                            ),
-                          ],
-                        ),
-                      ),
+                      // Top draggable bar
+                      _buildModalHeaderBar(isMobile: true),
                       const Expanded(
                         child: CustomerChatPage(),
                       ),
@@ -181,7 +140,7 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
             left: constrainedPosition.dx,
             top: constrainedPosition.dy,
             child: GestureDetector(
-              onPanStart: (details) => setState(() => _isDragging = true),
+              onPanStart: (_) => setState(() => _isDragging = true),
               onPanUpdate: (details) {
                 setState(() {
                   _position = Offset(
@@ -190,16 +149,8 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
                   );
                 });
               },
-              onPanEnd: (details) => setState(() => _isDragging = false),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: _isDragging 
-                    ? Border.all(color: AppTheme.primaryColor, width: 2)
-                    : null,
-                  shape: BoxShape.circle,
-                ),
-                child: _buildChatButton(),
-              ),
+              onPanEnd: (_) => setState(() => _isDragging = false),
+              child: _buildChatButton(),
             ),
           ),
         ],
@@ -208,20 +159,18 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
       // Desktop Layout
       if (_isClosed) {
         final screenSize = MediaQuery.of(context).size;
-        
-        // Initialize position for closed state (chat button only)
+
         if (!_positionInitialized) {
           _position = Offset(
-            screenSize.width - 100,
-            screenSize.height - 100,
+            screenSize.width - 86,
+            screenSize.height - 96,
           );
           _positionInitialized = true;
         }
 
-        // Constrain button position
-        final maxX = (screenSize.width - 60).clamp(0.0, double.infinity);
-        final maxY = (screenSize.height - 60).clamp(0.0, double.infinity);
-        final minY = 50.0;
+        final maxX = (screenSize.width - 64).clamp(0.0, double.infinity);
+        final maxY = (screenSize.height - 64).clamp(0.0, double.infinity);
+        const minY = 50.0;
         final safeMaxY = maxY > minY ? maxY : minY;
 
         final constrainedPosition = Offset(
@@ -233,7 +182,7 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
           left: constrainedPosition.dx,
           top: constrainedPosition.dy,
           child: GestureDetector(
-            onPanStart: (details) => setState(() => _isDragging = true),
+            onPanStart: (_) => setState(() => _isDragging = true),
             onPanUpdate: (details) {
               setState(() {
                 _position = Offset(
@@ -242,37 +191,32 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
                 );
               });
             },
-            onPanEnd: (details) => setState(() => _isDragging = false),
-            child: Container(
-              decoration: BoxDecoration(
-                border: _isDragging 
-                  ? Border.all(color: AppTheme.primaryColor, width: 2)
-                  : null,
-                shape: BoxShape.circle,
-              ),
-              child: _buildChatButton(),
-            ),
+            onPanEnd: (_) => setState(() => _isDragging = false),
+            child: _buildChatButton(),
           ),
         );
       }
 
       final screenSize = MediaQuery.of(context).size;
-      final modalWidth = _isMinimized ? 300.0 : 400.0;
-      final maxModalHeight = screenSize.height - 120;
-      final modalHeight = _isMinimized ? 60.0 : (maxModalHeight.clamp(400.0, 600.0));
+      final modalWidth = _isMinimized ? 320.0 : 420.0;
+      final maxModalHeight = screenSize.height - 100;
+      final modalHeight =
+          _isMinimized ? 52.0 : (maxModalHeight.clamp(440.0, 620.0));
 
       if (!_positionInitialized) {
-        final safeInitialY = (screenSize.height - modalHeight - 80).clamp(50.0, 200.0);
+        final safeInitialY =
+            (screenSize.height - modalHeight - 80).clamp(50.0, 200.0);
         _position = Offset(
-          screenSize.width - modalWidth - 20,
+          screenSize.width - modalWidth - 24,
           safeInitialY,
         );
         _positionInitialized = true;
       }
 
       final maxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
-      final maxY = (screenSize.height - modalHeight - 40).clamp(0.0, double.infinity);
-      final minY = 50.0;
+      final maxY =
+          (screenSize.height - modalHeight - 30).clamp(0.0, double.infinity);
+      const minY = 50.0;
       final safeMaxY = maxY > minY ? maxY : minY;
 
       final constrainedPosition = Offset(
@@ -290,76 +234,26 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
               height: modalHeight,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
                 ],
                 border: Border.all(
-                  color: _isDragging ? AppTheme.primaryColor : Colors.grey.shade300,
+                  color: _isDragging
+                      ? const Color(0xFF14332E)
+                      : const Color(0xFFE2E8F0),
                   width: _isDragging ? 2 : 1,
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-                      ),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onPanStart: (details) => setState(() => _isDragging = true),
-                            onPanUpdate: (details) {
-                              setState(() {
-                                _position = Offset(
-                                  _position.dx + details.delta.dx,
-                                  _position.dy + details.delta.dy,
-                                );
-                              });
-                            },
-                            onPanEnd: (details) => setState(() => _isDragging = false),
-                            child: Icon(
-                              _isDragging ? Icons.drag_indicator : Icons.drag_handle,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Customer Support',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => setState(() => _isMinimized = !_isMinimized),
-                            child: Icon(
-                              _isMinimized ? Icons.expand_more : Icons.minimize,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: () => setState(() => _isClosed = true),
-                            child: const Icon(Icons.close, color: Colors.white, size: 20),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildModalHeaderBar(isMobile: false),
                     if (!_isMinimized)
                       const Expanded(
                         child: CustomerChatPage(),
@@ -369,12 +263,12 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
               ),
             ),
           ),
-          // Draggable chat button when modal is open
+          // Floating chat button to toggle when desktop open
           Positioned(
-            left: constrainedPosition.dx + modalWidth - 60,
-            top: constrainedPosition.dy + modalHeight + 16,
+            left: constrainedPosition.dx + modalWidth - 58,
+            top: constrainedPosition.dy + modalHeight + 14,
             child: GestureDetector(
-              onPanStart: (details) => setState(() => _isDragging = true),
+              onPanStart: (_) => setState(() => _isDragging = true),
               onPanUpdate: (details) {
                 setState(() {
                   _position = Offset(
@@ -383,16 +277,8 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
                   );
                 });
               },
-              onPanEnd: (details) => setState(() => _isDragging = false),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: _isDragging 
-                    ? Border.all(color: AppTheme.primaryColor, width: 2)
-                    : null,
-                  shape: BoxShape.circle,
-                ),
-                child: _buildChatButton(),
-              ),
+              onPanEnd: (_) => setState(() => _isDragging = false),
+              child: _buildChatButton(),
             ),
           ),
         ],
@@ -400,43 +286,132 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
     }
   }
 
+  Widget _buildModalHeaderBar({required bool isMobile}) {
+    return GestureDetector(
+      onPanStart: (_) => setState(() => _isDragging = true),
+      onPanUpdate: (details) {
+        setState(() {
+          _position = Offset(
+            _position.dx + details.delta.dx,
+            _position.dy + details.delta.dy,
+          );
+        });
+      },
+      onPanEnd: (_) => setState(() => _isDragging = false),
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _isDragging
+                  ? Icons.drag_indicator_rounded
+                  : Icons.drag_handle_rounded,
+              color: Colors.white.withOpacity(0.8),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Yang Chow Support',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            if (!isMobile) ...[
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  _isMinimized
+                      ? Icons.open_in_full_rounded
+                      : Icons.remove_rounded,
+                  color: Colors.white.withOpacity(0.85),
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _isMinimized = !_isMinimized),
+              ),
+              const SizedBox(width: 12),
+            ],
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              icon: Icon(
+                Icons.close_rounded,
+                color: Colors.white.withOpacity(0.85),
+                size: 20,
+              ),
+              onPressed: () => setState(() => _isClosed = true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChatButton() {
     return GestureDetector(
       onTap: () => setState(() => _isClosed = !_isClosed),
       child: Container(
-        width: 60,
-        height: 60,
+        width: 58,
+        height: 58,
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFD9A441), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: const Color(0xFF14332E).withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            const Center(
-              child: Icon(
-                Icons.chat_bubble_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
+            Icon(
+              _isClosed
+                  ? Icons.chat_bubble_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: _isClosed ? 26 : 32,
             ),
             if (_unreadCount > 0)
               Positioned(
                 right: 0,
                 top: 0,
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: AppTheme.errorRed,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
                   ),
                   child: Center(
                     child: Text(
@@ -444,19 +419,10 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                ),
-              ),
-            if (_isDragging)
-              const Positioned(
-                bottom: 2,
-                child: Icon(
-                  Icons.drag_handle,
-                  color: Colors.white70,
-                  size: 12,
                 ),
               ),
           ],

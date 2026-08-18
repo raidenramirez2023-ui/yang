@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../pages/admin/admin_chat_page.dart';
 import '../services/chat_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/responsive_utils.dart';
@@ -13,20 +14,11 @@ class AdminChatModal extends StatefulWidget {
 
 class _AdminChatModalState extends State<AdminChatModal> {
   final ChatService _chatService = ChatService();
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
   Stream<List<Map<String, dynamic>>>? _conversationsStream;
-  Stream<List<Map<String, dynamic>>>? _messagesStream;
-  Map<String, dynamic>? _selectedConversation;
   List<Map<String, dynamic>> _conversations = [];
-  // ignore: unused_field
-  List<Map<String, dynamic>> _messages = [];
-  // ignore: unused_field
-  bool _isLoading = false;
-  bool _isSending = false;
+
   bool _isMinimized = false;
-  bool _isClosed = false;
+  bool _isClosed = true;
 
   // Draggable modal properties
   Offset _position = const Offset(0, 0);
@@ -36,25 +28,11 @@ class _AdminChatModalState extends State<AdminChatModal> {
   @override
   void initState() {
     super.initState();
-    // Auto-close on all devices
-    _isClosed = true;
     _initializeChat();
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   Future<void> _initializeChat() async {
-    setState(() => _isLoading = true);
-
-    // Set up stream for conversations and listen for updates
     _conversationsStream = _chatService.getConversationsStream();
-
-    // Listen to stream updates in real-time
     _conversationsStream?.listen((conversations) {
       if (mounted) {
         setState(() {
@@ -62,105 +40,13 @@ class _AdminChatModalState extends State<AdminChatModal> {
         });
       }
     });
-
-    setState(() => _isLoading = false);
-  }
-
-  void _selectConversation(Map<String, dynamic> conversation) {
-    setState(() {
-      _selectedConversation = conversation;
-      _messages = [];
-    });
-
-    final customerEmail = conversation['customer_email'];
-
-    // Set up stream for messages in this conversation
-    _messagesStream = _chatService.getMessagesStream(customerEmail);
-
-    // Mark messages as read using the database function
-    _markMessagesAsReadInDatabase(customerEmail);
-  }
-
-  Future<void> _markMessagesAsReadInDatabase(String customerEmail) async {
-    try {
-      // Call the function and get the new unread count
-      final newCount = await Supabase.instance.client.rpc(
-        'mark_conversation_as_read',
-        params: {'p_customer_email': customerEmail},
-      );
-
-      // Update the local conversations list to trigger immediate UI update
-      setState(() {
-        if (_selectedConversation != null) {
-          // Update the selected conversation's unread count
-          _selectedConversation!['unread_customer_count'] = newCount;
-        }
-
-        // Update the conversations list
-        _conversations = _conversations.map((conv) {
-          if (conv['customer_email'] == customerEmail) {
-            conv['unread_customer_count'] = newCount;
-          }
-          return conv;
-        }).toList();
-      });
-
-      debugPrint('Messages marked as read, new count: $newCount');
-    } catch (e) {
-      debugPrint('Error marking conversation as read in database: $e');
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty ||
-        _isSending ||
-        _selectedConversation == null) {
-      return;
-    }
-
-    final customerEmail = _selectedConversation!['customer_email'];
-    final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
-
-    setState(() => _isSending = true);
-
-    try {
-      await _chatService.sendAdminMessage(
-        customerEmail: customerEmail,
-        customerName: customerName,
-        message: _messageController.text.trim(),
-      );
-      _messageController.clear();
-      _scrollToBottom();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error sending message: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isSending = false);
-    }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isMobile =
-        !ResponsiveUtils.isDesktop(context) &&
-        !ResponsiveUtils.isTablet(context);
+        !ResponsiveUtils.isDesktop(context) && !ResponsiveUtils.isTablet(context);
 
-    // Show floating chat button on all devices
     return _buildFloatingChatButton(isMobile);
   }
 
@@ -172,7 +58,6 @@ class _AdminChatModalState extends State<AdminChatModal> {
     );
 
     if (isMobile) {
-      // Mobile layout
       return Positioned(
         bottom: 20,
         right: 20,
@@ -180,42 +65,33 @@ class _AdminChatModalState extends State<AdminChatModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Show modal when not closed
             if (!_isClosed)
               Container(
-                width: MediaQuery.of(context).size.width - 40,
-                height: MediaQuery.of(context).size.height * 0.7,
+                width: MediaQuery.of(context).size.width - 24,
+                height: MediaQuery.of(context).size.height * 0.78,
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 15,
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
                   ],
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   child: Column(
                     children: [
-                      // Header (static on mobile)
-                      _buildHeader(true),
-                      const Divider(height: 1),
-                      // Content
-                      Expanded(
-                        child: _selectedConversation == null
-                            ? _buildConversationsList()
-                            : _buildChatArea(),
-                      ),
+                      _buildHeader(true, totalUnread),
+                      const Expanded(child: AdminChatPage()),
                     ],
                   ),
                 ),
               ),
-
-            // Floating chat button
             _buildChatButton(totalUnread),
           ],
         ),
@@ -223,46 +99,33 @@ class _AdminChatModalState extends State<AdminChatModal> {
     } else {
       // Desktop layout
       if (_isClosed) {
-        // Only show floating button when closed
         return Positioned(
-          bottom: 20,
-          right: 20,
+          bottom: 24,
+          right: 24,
           child: _buildChatButton(totalUnread),
         );
       }
 
-      // Show draggable modal when open
       final screenSize = MediaQuery.of(context).size;
-      final modalWidth = _isMinimized ? 300.0 : 400.0;
-      // Calculate modal height to fit within viewport with safe margins
-      final maxModalHeight = screenSize.height - 120; // Leave 120px for margins
-      final modalHeight = _isMinimized
-          ? 60.0
-          : (maxModalHeight.clamp(400.0, 550.0));
+      final modalWidth = _isMinimized ? 380.0 : 880.0;
+      final maxModalHeight = screenSize.height - 100;
+      final modalHeight =
+          _isMinimized ? 52.0 : (maxModalHeight.clamp(500.0, 680.0));
 
-      // Initialize position on first build
       if (!_positionInitialized) {
-        // Calculate safe initial position that ensures modal fits in viewport
-        final safeInitialY = (screenSize.height - modalHeight - 80).clamp(
-          50.0,
-          200.0,
-        );
+        final safeInitialY =
+            (screenSize.height - modalHeight - 60).clamp(40.0, 160.0);
         _position = Offset(
-          screenSize.width - modalWidth - 20, // Start from right
-          safeInitialY, // Start from top with safe margin
+          screenSize.width - modalWidth - 30,
+          safeInitialY,
         );
         _positionInitialized = true;
       }
 
-      // Ensure modal stays within screen bounds with safe margins
       final maxX = (screenSize.width - modalWidth).clamp(0.0, double.infinity);
-      final maxY = (screenSize.height - modalHeight - 40).clamp(
-        0.0,
-        double.infinity,
-      );
-
-      // Ensure minimum is not greater than maximum
-      final minY = 50.0;
+      final maxY =
+          (screenSize.height - modalHeight - 20).clamp(0.0, double.infinity);
+      const minY = 40.0;
       final safeMaxY = maxY > minY ? maxY : minY;
 
       final constrainedPosition = Offset(
@@ -270,10 +133,8 @@ class _AdminChatModalState extends State<AdminChatModal> {
         _position.dy.clamp(minY, safeMaxY),
       );
 
-      // Show draggable modal when open
       return Stack(
         children: [
-          // Draggable modal
           Positioned(
             left: constrainedPosition.dx,
             top: constrainedPosition.dy,
@@ -282,69 +143,50 @@ class _AdminChatModalState extends State<AdminChatModal> {
               height: modalHeight,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
+                    color: Colors.black.withOpacity(0.22),
+                    blurRadius: 28,
+                    offset: const Offset(0, 10),
                   ),
                 ],
                 border: Border.all(
                   color: _isDragging
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade300,
+                      ? const Color(0xFF14332E)
+                      : const Color(0xFFE2E8F0),
                   width: _isDragging ? 2 : 1,
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header (draggable on desktop)
-                    GestureDetector(
-                      onPanStart: (details) {
-                        setState(() {
-                          _isDragging = true;
-                        });
-                      },
-                      onPanUpdate: (details) {
-                        setState(() {
-                          _position = Offset(
-                            _position.dx + details.delta.dx,
-                            _position.dy + details.delta.dy,
-                          );
-                        });
-                      },
-                      onPanEnd: (details) {
-                        setState(() {
-                          _isDragging = false;
-                        });
-                      },
-                      child: _buildHeader(false),
-                    ),
-                    if (!_isMinimized) ...[
-                      const Divider(height: 1),
-                      // Content
-                      Expanded(
-                        child: _selectedConversation == null
-                            ? _buildConversationsList()
-                            : _buildChatArea(),
-                      ),
-                    ],
+                    _buildHeader(false, totalUnread),
+                    if (!_isMinimized)
+                      const Expanded(child: AdminChatPage()),
                   ],
                 ),
               ),
             ),
           ),
-          // Floating button (hide when modal is open on desktop)
-          if (_isClosed)
-            Positioned(
-              bottom: 20,
-              right: 20,
+          Positioned(
+            left: constrainedPosition.dx + modalWidth - 58,
+            top: constrainedPosition.dy + modalHeight + 14,
+            child: GestureDetector(
+              onPanStart: (_) => setState(() => _isDragging = true),
+              onPanUpdate: (details) {
+                setState(() {
+                  _position = Offset(
+                    _position.dx + details.delta.dx,
+                    _position.dy + details.delta.dy,
+                  );
+                });
+              },
+              onPanEnd: (_) => setState(() => _isDragging = false),
               child: _buildChatButton(totalUnread),
             ),
+          ),
         ],
       );
     }
@@ -354,54 +196,60 @@ class _AdminChatModalState extends State<AdminChatModal> {
     return GestureDetector(
       onTap: () => setState(() => _isClosed = !_isClosed),
       child: Container(
-        width: 56,
-        height: 56,
+        width: 58,
+        height: 58,
         decoration: BoxDecoration(
-          color: AppTheme.adminChatButton,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFD9A441), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: const Color(0xFF14332E).withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Stack(
+          alignment: Alignment.center,
           children: [
-            Center(
-              child: Icon(
-                Icons.chat, // Always show chat icon
-                color: Colors.white,
-                size: 24,
-              ),
+            Icon(
+              _isClosed ? Icons.forum_rounded : Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: _isClosed ? 26 : 32,
             ),
-            if (totalUnread > 0) // Show badge when there are unread messages
+            if (totalUnread > 0)
               Positioned(
-                right: -4,
-                top: -4,
+                right: 0,
+                top: 0,
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: AppTheme.adminChatBadge,
+                    color: AppTheme.errorRed,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
                       ),
                     ],
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
                   ),
                   child: Center(
                     child: Text(
                       totalUnread > 99 ? '99+' : '$totalUnread',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
@@ -413,519 +261,97 @@ class _AdminChatModalState extends State<AdminChatModal> {
     );
   }
 
-  Widget _buildHeader(bool isMobile) {
-    final totalUnread = _conversations.fold<int>(
-      0,
-      (sum, conv) =>
-          sum + ((conv['unread_customer_count'] as num?)?.toInt() ?? 0),
-    );
-
-    final headerWidget = Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.adminChatButton,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          topRight: Radius.circular(12),
+  Widget _buildHeader(bool isMobile, int totalUnread) {
+    return GestureDetector(
+      onPanStart: isMobile ? null : (_) => setState(() => _isDragging = true),
+      onPanUpdate: isMobile
+          ? null
+          : (details) {
+              setState(() {
+                _position = Offset(
+                  _position.dx + details.delta.dx,
+                  _position.dy + details.delta.dy,
+                );
+              });
+            },
+      onPanEnd: isMobile ? null : (_) => setState(() => _isDragging = false),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          if (!isMobile && _isDragging)
-            Icon(Icons.drag_indicator, color: Colors.white, size: 12),
-          if (!isMobile && !_isDragging)
-            Icon(Icons.support_agent, color: Colors.white, size: 14),
-          if (isMobile)
-            Icon(Icons.support_agent, color: Colors.white, size: 14),
-          const SizedBox(width: 2),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Customer Support',
+        child: Row(
+          children: [
+            Icon(
+              _isDragging
+                  ? Icons.drag_indicator_rounded
+                  : Icons.support_agent_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Customer Support Console',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            if (totalUnread > 0) ...[
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorRed,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$totalUnread new',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (totalUnread > 0)
-                  Text(
-                    '$totalUnread unread message${totalUnread > 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 7,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          if (totalUnread > 0)
-            Container(
-              padding: const EdgeInsets.all(1),
-              decoration: BoxDecoration(
-                color: AppTheme.adminChatBadge,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                totalUnread > 99 ? '99+' : '$totalUnread',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 6,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          const SizedBox(width: 1),
-          if (!isMobile) // Only show minimize on desktop
-            GestureDetector(
-              onTap: () => setState(() => _isMinimized = !_isMinimized),
-              child: Icon(
-                _isMinimized ? Icons.expand : Icons.minimize,
-                color: Colors.white,
-                size: 12,
-              ),
-            ),
-          if (!isMobile) const SizedBox(width: 1),
-          GestureDetector(
-            onTap: () => setState(() => _isClosed = true),
-            child: const Icon(Icons.close, color: Colors.white, size: 12),
-          ),
-        ],
-      ),
-    );
-
-    // Only make draggable on desktop
-    if (!isMobile) {
-      return GestureDetector(
-        onPanStart: (details) {
-          setState(() {
-            _isDragging = true;
-          });
-        },
-        onPanUpdate: (details) {
-          setState(() {
-            _position = Offset(
-              _position.dx + details.delta.dx,
-              _position.dy + details.delta.dy,
-            );
-          });
-        },
-        onPanEnd: (details) {
-          setState(() {
-            _isDragging = false;
-          });
-        },
-        child: headerWidget,
-      );
-    }
-
-    return headerWidget;
-  }
-
-  Widget _buildConversationsList() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _conversationsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: AppTheme.adminChatButton),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Error loading conversations',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          );
-        }
-
-        final conversations = snapshot.data ?? [];
-
-        // Update the conversations list for badge counting
-        _conversations = conversations;
-
-        if (conversations.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 48,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No active conversations',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(8),
-          itemCount: conversations.length,
-          itemBuilder: (context, index) {
-            final conversation = conversations[index];
-            final customerName = conversation['customer_name'] ?? 'Customer';
-            final customerEmail = conversation['customer_email'];
-            final unreadCount =
-                (conversation['unread_customer_count'] as num?)?.toInt() ?? 0;
-            final lastMessageTime = conversation['last_message_at'] != null
-                ? ChatService.formatMessageTime(
-                    DateTime.parse(conversation['last_message_at']),
-                  )
-                : '';
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  child: Icon(Icons.person, color: AppTheme.adminChatButton),
-                ),
-                title: Text(
-                  customerName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  customerEmail,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      lastMessageTime,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                    if (unreadCount > 0) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          unreadCount > 99 ? '99+' : '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                onTap: () => _selectConversation(conversation),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildChatArea() {
-    if (_selectedConversation == null) return const SizedBox.shrink();
-
-    final customerName = _selectedConversation!['customer_name'] ?? 'Customer';
-    final customerEmail = _selectedConversation!['customer_email'];
-
-    return Column(
-      children: [
-        // Chat Header
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppTheme.cardBorder)),
-          ),
-          child: Row(
-            children: [
+              const SizedBox(width: 10),
+            ],
+            if (!isMobile) ...[
               IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() {
-                  _selectedConversation = null;
-                  _messages = [];
-                }),
-              ),
-              CircleAvatar(
-                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                child: Icon(Icons.person, color: AppTheme.primaryColor),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  _isMinimized
+                      ? Icons.open_in_full_rounded
+                      : Icons.remove_rounded,
+                  color: Colors.white.withOpacity(0.85),
+                  size: 18,
+                ),
+                onPressed: () => setState(() => _isMinimized = !_isMinimized),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      customerName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppTheme.adminPrimaryText,
-                      ),
-                    ),
-                    Text(
-                      customerEmail,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
-          ),
-        ),
-
-        // Messages List
-        Expanded(
-          child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _messagesStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryColor,
-                  ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error loading messages',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                );
-              }
-
-              final messages = snapshot.data ?? [];
-
-              // Filter messages for this conversation (client-side filtering)
-              final filteredMessages = messages.where((message) {
-                return message['customer_email'] == customerEmail;
-              }).toList();
-
-              if (filteredMessages.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.chat_bubble_outline,
-                        size: 48,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No messages yet',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12),
-                itemCount: filteredMessages.length,
-                itemBuilder: (context, index) {
-                  final message = filteredMessages[index];
-                  return _buildMessageBubble(message);
-                },
-              );
-            },
-          ),
-        ),
-
-        // Message Input
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: AppTheme.cardBorder)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  decoration: InputDecoration(
-                    hintText: 'Type your message...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: AppTheme.primaryColor),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  onSubmitted: (_) => _sendMessage(),
-                ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              icon: Icon(
+                Icons.close_rounded,
+                color: Colors.white.withOpacity(0.85),
+                size: 20,
               ),
-              const SizedBox(width: 8),
-              FloatingActionButton(
-                onPressed: _isSending ? null : _sendMessage,
-                backgroundColor: AppTheme.primaryColor,
-                mini: true,
-                child: _isSending
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
-                    : const Icon(Icons.send, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    final isFromCustomer = message['is_from_customer'] ?? true;
-    final messageText = message['message'] ?? '';
-    final imageUrl = message['image_url'] as String?;
-    final timestamp = DateTime.parse(message['created_at']).toLocal();
-    final timeStr = ChatService.formatMessageTime(timestamp);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: isFromCustomer
-            ? MainAxisAlignment.start
-            : MainAxisAlignment.end,
-        children: [
-          if (!isFromCustomer) const SizedBox(width: 40),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isFromCustomer
-                    ? Colors.grey.shade200
-                    : AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(20).copyWith(
-                  bottomLeft: Radius.circular(isFromCustomer ? 4 : 20),
-                  bottomRight: Radius.circular(isFromCustomer ? 20 : 4),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                color: Colors.grey,
-                                size: 40,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    if (messageText.isNotEmpty) const SizedBox(height: 8),
-                  ],
-                  if (messageText.isNotEmpty)
-                    Text(
-                      messageText,
-                      style: TextStyle(
-                        color: isFromCustomer ? Colors.black87 : Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      color: isFromCustomer
-                          ? Colors.grey.shade600
-                          : Colors.white.withValues(alpha: 0.8),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
+              onPressed: () => setState(() => _isClosed = true),
             ),
-          ),
-          if (isFromCustomer) const SizedBox(width: 40),
-        ],
+          ],
+        ),
       ),
     );
   }
