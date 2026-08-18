@@ -136,42 +136,69 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   late Timer? _countRefreshTimer;
   StreamSubscription<List<Map<String, dynamic>>>? _adminNotifsSubscription;
-  String? _lastToastAdminNotificationId;
+  final Set<String> _shownToastAdminNotificationIds = {};
 
+  // ── Top Toast Notification Overlay ──
+  OverlayEntry? _currentAdminTopToastEntry;
+  Timer? _adminTopToastTimer;
 
+  void _dismissAdminTopToast() {
+    _adminTopToastTimer?.cancel();
+    _adminTopToastTimer = null;
+    _currentAdminTopToastEntry?.remove();
+    _currentAdminTopToastEntry = null;
+  }
 
+  void _showAdminTopToast({
+    required Widget content,
+    Duration? duration,
+  }) {
+    if (!mounted) return;
+    _dismissAdminTopToast();
 
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
 
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _AdminTopToastWidget(
+        onDismiss: () {
+          if (_currentAdminTopToastEntry == entry) {
+            _dismissAdminTopToast();
+          }
+        },
+        duration: duration,
+        child: content,
+      ),
+    );
 
+    _currentAdminTopToastEntry = entry;
+    overlay.insert(entry);
+
+    if (duration != null) {
+      _adminTopToastTimer = Timer(duration, () {
+        if (_currentAdminTopToastEntry == entry) {
+          _dismissAdminTopToast();
+        }
+      });
+    }
+  }
 
   @override
-
   void initState() {
-
     super.initState();
-
     _checkUserRole();
-
     _loadPendingPaymentCount();
-
     _loadPendingReservationCount();
-
     _loadRemainingBalanceCount();
-
     _loadPendingRefundCount();
 
     // Start periodic refresh for counts (reduced frequency to prevent database issues)
-
-    _countRefreshTimer = Timer.periodic(Duration(minutes: 1), (timer) {
-
+    _countRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       _loadPendingPaymentCount();
-
       _loadPendingReservationCount();
-
       _loadRemainingBalanceCount();
-
       _loadPendingRefundCount();
-
     });
 
     NotificationService.startStockMonitoring();
@@ -184,24 +211,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
       _loadRemainingBalanceCount();
       _loadPendingRefundCount();
 
-      final unread = notifs.where((n) => !n['is_read']).toList();
+      final unread = notifs.where((n) => n['is_read'] == false).toList();
       if (unread.isNotEmpty) {
-        final latestId = unread.first['id']?.toString();
-        if (_lastToastAdminNotificationId != null &&
-            _lastToastAdminNotificationId != latestId) {
-          _showAdminNotificationToast(unread.first);
+        final latest = unread.first;
+        final id = latest['id']?.toString();
+        if (id != null && !_shownToastAdminNotificationIds.contains(id)) {
+          _shownToastAdminNotificationIds.add(id);
+          _showAdminNotificationToast(latest);
         }
-        _lastToastAdminNotificationId = latestId;
       }
     });
-
   }
-
-
-
-
-
-
 
   Future<void> _checkUserRole() async {
 
@@ -540,6 +560,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
     NotificationService.stopStockMonitoring();
     _countRefreshTimer?.cancel();
     _adminNotifsSubscription?.cancel();
+    _dismissAdminTopToast();
     super.dispose();
   }
 
@@ -2698,49 +2719,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
             onPressed: () async {
-
-
-
+              _dismissAdminTopToast();
+              _shownToastAdminNotificationIds.clear();
               Navigator.pop(context);
-
-
-
               final navigator = Navigator.of(context);
-
-
-
               await Supabase.instance.client.auth.signOut();
-
-
-
               try {
-
-
-
                 await GoogleSignIn().signOut();
-
-
-
               } catch (_) {}
-
-
-
-
-
-
-
               if (mounted) {
-
-
-
                 navigator.pushReplacementNamed('/staff-login');
-
-
-
               }
-
-
-
             },
 
 
@@ -2884,20 +2873,35 @@ class _AdminMainPageState extends State<AdminMainPage> {
     final title = _getAdminNotificationTitle(n);
     final subtitle = _getAdminNotificationSubtitle(n);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
+    // FIXED at top: will NEVER disappear until Admin clicks 'VIEW'
+    _showAdminTopToast(
+      duration: null,
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFF59E0B),
+            width: 1.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.7),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
+            ),
+          ],
         ),
-        content: Row(
+        child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                 shape: BoxShape.circle,
@@ -2905,10 +2909,10 @@ class _AdminMainPageState extends State<AdminMainPage> {
               child: const Icon(
                 Icons.notifications_active_rounded,
                 color: Color(0xFFF59E0B),
-                size: 20,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -2917,42 +2921,51 @@ class _AdminMainPageState extends State<AdminMainPage> {
                   Text(
                     title,
                     style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      color: const Color(0xFF94A3B8),
+                      fontSize: 12,
+                      color: const Color(0xFFCBD5E1),
+                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            TextButton(
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: const Color(0xFF0F172A),
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF0F172A)),
+              label: Text(
+                'VIEW',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
               onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                _dismissAdminTopToast();
                 NotificationService.getAdminOnlyNotificationsStream()
                     .first
                     .then((notifs) {
                   if (mounted) _showAdminNotificationsDialog(notifs);
                 });
               },
-              child: Text(
-                'VIEW',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: const Color(0xFFF59E0B),
-                ),
-              ),
             ),
           ],
         ),
@@ -2967,10 +2980,16 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   void _showAdminNotificationsDialog(List<Map<String, dynamic>> notifications) {
-
-
-
     NotificationService.markAllAsRead('', forAdmin: true);
+    if (notifications.isNotEmpty) {
+      final unreadIds = notifications
+          .where((n) => n['is_read'] == false)
+          .map((n) => n['id'].toString())
+          .toList();
+      if (unreadIds.isNotEmpty) {
+        NotificationService.markVisibleAsRead(unreadIds);
+      }
+    }
 
 
 
@@ -3350,9 +3369,89 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
   }
 
-
-
 }
+
+/// Animated Top Toast Notification Banner for Admin
+class _AdminTopToastWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDismiss;
+  final Duration? duration;
+
+  const _AdminTopToastWidget({
+    required this.child,
+    required this.onDismiss,
+    this.duration,
+  });
+
+  @override
+  State<_AdminTopToastWidget> createState() => _AdminTopToastWidgetState();
+}
+
+class _AdminTopToastWidgetState extends State<_AdminTopToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 10 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 
 

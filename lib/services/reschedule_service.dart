@@ -186,9 +186,31 @@ class RescheduleService {
           .eq('id', reservationId);
 
       // 3. Notify customer of approval
-      if (customerEmail != null && customerEmail.isNotEmpty) {
+      String? targetEmail = customerEmail?.trim().toLowerCase();
+      if (targetEmail == null || targetEmail.isEmpty) {
+        try {
+          final res = await _supabase
+              .from('reservations')
+              .select('customer_email')
+              .eq('id', reservationId)
+              .maybeSingle();
+          targetEmail = res?['customer_email']?.toString().trim().toLowerCase();
+        } catch (_) {}
+      }
+      if (targetEmail == null || targetEmail.isEmpty) {
+        try {
+          final req = await _supabase
+              .from('reschedule_requests')
+              .select('customer_email')
+              .eq('id', requestId)
+              .maybeSingle();
+          targetEmail = req?['customer_email']?.toString().trim().toLowerCase();
+        } catch (_) {}
+      }
+
+      if (targetEmail != null && targetEmail.isNotEmpty) {
         await NotificationService.sendNotification(
-          recipientEmail: customerEmail,
+          recipientEmail: targetEmail,
           isForAdmin: false,
           actorName: 'Admin',
           actionType: 'reschedule_approved',
@@ -238,9 +260,31 @@ class RescheduleService {
       }
 
       // 3. Notify customer of rejection with reason
-      if (customerEmail != null && customerEmail.isNotEmpty) {
+      String? targetEmail = customerEmail?.trim().toLowerCase();
+      if (targetEmail == null || targetEmail.isEmpty) {
+        try {
+          final res = await _supabase
+              .from('reservations')
+              .select('customer_email')
+              .eq('id', reservationId)
+              .maybeSingle();
+          targetEmail = res?['customer_email']?.toString().trim().toLowerCase();
+        } catch (_) {}
+      }
+      if (targetEmail == null || targetEmail.isEmpty) {
+        try {
+          final req = await _supabase
+              .from('reschedule_requests')
+              .select('customer_email')
+              .eq('id', requestId)
+              .maybeSingle();
+          targetEmail = req?['customer_email']?.toString().trim().toLowerCase();
+        } catch (_) {}
+      }
+
+      if (targetEmail != null && targetEmail.isNotEmpty) {
         await NotificationService.sendNotification(
-          recipientEmail: customerEmail,
+          recipientEmail: targetEmail,
           isForAdmin: false,
           actorName: 'Admin',
           actionType: 'reschedule_rejected',

@@ -161,10 +161,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Stream<List<Map<String, dynamic>>>? _notificationsStream;
-
-
-
-  String? _lastToastNotificationId;
   StreamSubscription<List<Map<String, dynamic>>>? _customerNotifsSubscription;
 
   // ── Featured Dishes (Realtime) ──
@@ -174,6 +170,53 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   bool _featuredLoading = true;
 
 
+
+  // ── Top Toast Notification Overlay ──
+  OverlayEntry? _currentTopToastEntry;
+  Timer? _topToastTimer;
+  final Set<String> _shownToastCustomerNotificationIds = {};
+
+  void _dismissTopToast() {
+    _topToastTimer?.cancel();
+    _topToastTimer = null;
+    _currentTopToastEntry?.remove();
+    _currentTopToastEntry = null;
+  }
+
+  void _showTopToast({
+    required Widget content,
+    Duration? duration,
+  }) {
+    if (!mounted) return;
+    _dismissTopToast();
+
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _TopToastWidget(
+        onDismiss: () {
+          if (_currentTopToastEntry == entry) {
+            _dismissTopToast();
+          }
+        },
+        duration: duration,
+        child: content,
+      ),
+    );
+
+    _currentTopToastEntry = entry;
+    overlay.insert(entry);
+
+    if (duration != null) {
+      _topToastTimer = Timer(duration, () {
+        if (_currentTopToastEntry == entry) {
+          _dismissTopToast();
+        }
+      });
+    }
+  }
 
   // Pre-order cart: persists across navigation until customer explicitly clears it
 
@@ -468,12 +511,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         final unreadNotifs =
             notifs.where((n) => n['is_read'] == false).toList();
         if (unreadNotifs.isNotEmpty) {
-          final latestId = unreadNotifs.first['id']?.toString();
-          if (_lastToastNotificationId != null &&
-              _lastToastNotificationId != latestId) {
-            _showNotificationToast(unreadNotifs.first);
+          final latest = unreadNotifs.first;
+          final id = latest['id']?.toString();
+          if (id != null && !_shownToastCustomerNotificationIds.contains(id)) {
+            _shownToastCustomerNotificationIds.add(id);
+            _showNotificationToast(latest);
           }
-          _lastToastNotificationId = latestId;
         }
       });
     }
@@ -531,8 +574,6 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       });
     }
   }
-
-
 
   void _startHeroTimer() {
 
@@ -765,6 +806,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _featuredOrdersSubscription?.cancel();
     _rescheduleRequestsSubscription?.cancel();
     _customerNotifsSubscription?.cancel();
+    _dismissTopToast();
 
     super.dispose();
 
@@ -1204,80 +1246,113 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     final title = _getNotificationTitle(n);
     final subtitle = _getNotificationSubtitle(n);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: Color(0xFF334155), width: 1),
-        ),
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.warmGold.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
+    void openBellDialog() {
+      _dismissTopToast();
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser?.email != null) {
+        NotificationService.getCustomerAdminNotificationsStream(
+          currentUser!.email!,
+        ).first.then((notifs) {
+          if (mounted) _showNotificationsDialog(notifs);
+        });
+      }
+    }
+
+    // FIXED at top: will NEVER disappear until Customer clicks 'VIEW'
+    _showTopToast(
+      duration: null,
+      content: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: openBellDialog,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFD9A441),
+                width: 1.8,
               ),
-              child: const Icon(
-                Icons.notifications_active_rounded,
-                color: AppTheme.warmGold,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                final currentUser = Supabase.instance.client.auth.currentUser;
-                if (currentUser?.email != null) {
-                  NotificationService.getCustomerAdminNotificationsStream(
-                    currentUser!.email!,
-                  ).first.then((notifs) {
-                    if (mounted) _showNotificationsDialog(notifs);
-                  });
-                }
-              },
-              child: Text(
-                'VIEW',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: AppTheme.warmGold,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
-              ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.75),
+                  blurRadius: 28,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
-          ],
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warmGold.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_active_rounded,
+                    color: AppTheme.warmGold,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: const Color(0xFFCBD5E1),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    backgroundColor: AppTheme.warmGold,
+                    foregroundColor: const Color(0xFF0F172A),
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 15, color: Color(0xFF0F172A)),
+                  label: Text(
+                    'VIEW',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.5,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  onPressed: openBellDialog,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1286,25 +1361,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   void _showNotificationsDialog(List<Map<String, dynamic>> notifications) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser?.email != null) {
+      NotificationService.markAllAsRead(currentUser!.email!);
+    }
 
     if (notifications.isNotEmpty) {
-
       final unreadIds = notifications
-
-          .where((n) => !n['is_read'])
-
+          .where((n) => n['is_read'] == false)
           .map((n) => n['id'].toString())
-
           .toList();
 
-
-
       if (unreadIds.isNotEmpty) {
-
         NotificationService.markVisibleAsRead(unreadIds);
-
       }
-
     }
 
 
@@ -6789,47 +6859,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       
 
                       if (context.mounted) {
-
                         Navigator.pop(context); // Close dialog
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-
-                          const SnackBar(
-
-                            content: Text('Password updated successfully!'),
-
-                            backgroundColor: AppTheme.successGreen,
-
-                            behavior: SnackBarBehavior.floating,
-
-                          ),
-
+                        _showSnackBar(
+                          'Password updated successfully!',
+                          AppTheme.successGreen,
                         );
-
                       }
-
                     } catch (e) {
-
                       setDialogState(() => isUpdating = false);
-
                       if (context.mounted) {
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-
-                          SnackBar(
-
-                            content: Text('Error updating password: $e'),
-
-                            backgroundColor: AppTheme.errorRed,
-
-                            behavior: SnackBarBehavior.floating,
-
-                          ),
-
+                        _showSnackBar(
+                          'Error updating password: $e',
+                          AppTheme.errorRed,
                         );
-
                       }
-
                     }
 
                   }
@@ -8131,19 +8174,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       });
 
       if (mounted) {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-
-          SnackBar(
-
-            content: Text('Failed to upload ID: $e'),
-
-            backgroundColor: Colors.red,
-
-          ),
-
-        );
-
+        _showSnackBar('Failed to upload ID: $e', Colors.red);
       }
 
     }
@@ -9454,116 +9485,130 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
             const SizedBox(height: 20),
 
             // ── Section Title Row & Active Filter Tag ─────────────────────────
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 4,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD9A441),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  _activityFilter == 'in_progress'
-                      ? 'In Progress Orders'
-                      : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings'),
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const Spacer(),
-                // ── Track Reschedules Button ──
-                StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _rescheduleService.customerRescheduleRequestsStream(
-                    Supabase.instance.client.auth.currentUser?.email ?? '',
-                  ),
-                  builder: (context, snapshot) {
-                    final requests = snapshot.data ?? [];
-                    if (requests.isEmpty) return const SizedBox.shrink();
-                    final pendingCount = requests.where((r) => r['status'] == 'pending').length;
-
-                    return AnimatedTapScale(
-                      onTap: () => _showRescheduleTrackerModal(),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF007AFF).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.edit_calendar_rounded, size: 14, color: Color(0xFF007AFF)),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Track Reschedules',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF007AFF),
-                              ),
-                            ),
-                            if (pendingCount > 0) ...[
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF007AFF),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '$pendingCount',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                if (_activityFilter != 'all')
-                  AnimatedTapScale(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _activityFilter = 'all');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF14332E).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Show All',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF14332E),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.close_rounded, size: 12, color: Color(0xFF14332E)),
-                        ],
+                        color: const Color(0xFFD9A441),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _activityFilter == 'in_progress'
+                            ? 'In Progress Orders'
+                            : (_activityFilter == 'confirmed' ? 'Confirmed Bookings' : 'Active & Recent Bookings'),
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    // ── Track Reschedules Button ──
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _rescheduleService.customerRescheduleRequestsStream(
+                        Supabase.instance.client.auth.currentUser?.email ?? '',
+                      ),
+                      builder: (context, snapshot) {
+                        final requests = snapshot.data ?? [];
+                        if (requests.isEmpty) return const SizedBox.shrink();
+                        final pendingCount = requests.where((r) => r['status'] == 'pending').length;
+
+                        return AnimatedTapScale(
+                          onTap: () => _showRescheduleTrackerModal(),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.edit_calendar_rounded, size: 14, color: Color(0xFF007AFF)),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Track Reschedules',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF007AFF),
+                                  ),
+                                ),
+                                if (pendingCount > 0) ...[
+                                  const SizedBox(width: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF007AFF),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$pendingCount',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_activityFilter != 'all')
+                      AnimatedTapScale(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _activityFilter = 'all');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Show All',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF14332E),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.close_rounded, size: 12, color: Color(0xFF14332E)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -9701,250 +9746,275 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                 end: Alignment.bottomRight,
                               ),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(9),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                                  ),
-                                  child: Icon(
-                                    isAdvanceOrder ? Icons.takeout_dining_rounded : Icons.deck_rounded,
-                                    size: 18,
-                                    color: const Color(0xFFD9A441),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        reservation['event_type'] ?? (isAdvanceOrder ? 'Advance Order' : 'Reservation'),
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (reservation['created_at'] != null)
-                                        Text(
-                                          'Booked ${_formatLocalDateTime(reservation['created_at'])}',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            color: Colors.white.withValues(alpha: 0.75),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                _buildStatusChip(status),
-                                if (isAdvanceOrder && status == 'confirmed' && !isPaid) ...[
-                                  const SizedBox(width: 6),
-                                  AnimatedTapScale(
-                                    onTap: () => _showPaymentDialog(reservation),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(9),
                                       decoration: BoxDecoration(
-                                        gradient: AppTheme.goldGradient,
+                                        color: Colors.white.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(10),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppTheme.warmGold.withValues(alpha: 0.35),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
+                                        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                      child: Icon(
+                                        isAdvanceOrder ? Icons.takeout_dining_rounded : Icons.deck_rounded,
+                                        size: 18,
+                                        color: const Color(0xFFD9A441),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
-                                          const SizedBox(width: 4),
                                           Text(
-                                            'Pay',
+                                            reservation['event_type'] ?? (isAdvanceOrder ? 'Advance Order' : 'Reservation'),
                                             style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w900,
-                                              color: AppTheme.darkBrownText,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
                                             ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
+                                          if (reservation['created_at'] != null)
+                                            Text(
+                                              'Booked ${_formatLocalDateTime(reservation['created_at'])}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 11,
+                                                color: Colors.white.withValues(alpha: 0.75),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                         ],
                                       ),
                                     ),
-                                  ),
-                                ],
-                                if (isPaid) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF34C759).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'PAID',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF86EFAC),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                if (reservation['reschedule_status'] == 'pending_approval') ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD97706).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.45)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.pending_actions_rounded, color: Color(0xFFFBBF24), size: 12),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'RESCHEDULE PENDING',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFFFBBF24),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ] else if (reservation['reschedule_status'] == 'reschedule_rejected' ||
-                                    reservation['reschedule_status'] == 'rejected' ||
-                                    reservation['reschedule_status'] == 'declined') ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFDC2626).withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.45)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 12),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'DECLINED',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFFEF4444),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ] else if (reservation['reschedule_status'] == 'rescheduled' ||
-                                    reservation['reschedule_status'] == 'approved') ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF15803D).withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFF15803D).withValues(alpha: 0.45)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.event_available_rounded, color: Color(0xFF86EFAC), size: 12),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'RESCHEDULED',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF86EFAC),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                                if ((status == 'confirmed' || status == 'pending') &&
-                                    !(isAdvanceOrder && isPaid)) ...[
-                                  PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 20),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                    onSelected: (String value) {
-                                      if (value == 'cancel') {
-                                        _showCancellationDialog(reservation);
-                                      } else if (value == 'reschedule') {
-                                        if (reservation['reschedule_status'] == 'pending_approval') {
-                                          _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
-                                        } else {
-                                          _showRescheduleDialog(reservation);
-                                        }
-                                      }
-                                    },
-                                    itemBuilder: (BuildContext context) => [
-                                      PopupMenuItem<String>(
-                                        value: 'reschedule',
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              reservation['reschedule_status'] == 'pending_approval'
-                                                  ? 'Reschedule Pending'
-                                                  : (reservation['reschedule_status'] == 'reschedule_rejected' ||
-                                                          reservation['reschedule_status'] == 'rejected' ||
-                                                          reservation['reschedule_status'] == 'declined'
-                                                      ? 'Reschedule (Declined)'
-                                                      : 'Reschedule'),
-                                              style: GoogleFonts.inter(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: reservation['reschedule_status'] == 'pending_approval'
-                                                    ? Colors.orange
-                                                    : null,
+                                    const SizedBox(width: 8),
+                                    _buildStatusChip(status),
+                                    if ((status == 'confirmed' || status == 'pending') &&
+                                        !(isAdvanceOrder && isPaid)) ...[
+                                      const SizedBox(width: 2),
+                                      SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: PopupMenuButton<String>(
+                                          padding: EdgeInsets.zero,
+                                          icon: const Icon(Icons.more_vert_rounded, color: Colors.white70, size: 18),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                          onSelected: (String value) {
+                                            if (value == 'cancel') {
+                                              _showCancellationDialog(reservation);
+                                            } else if (value == 'reschedule') {
+                                              if (reservation['reschedule_status'] == 'pending_approval') {
+                                                _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
+                                              } else {
+                                                _showRescheduleDialog(reservation);
+                                              }
+                                            }
+                                          },
+                                          itemBuilder: (BuildContext context) => [
+                                            PopupMenuItem<String>(
+                                              value: 'reschedule',
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    reservation['reschedule_status'] == 'pending_approval'
+                                                        ? 'Reschedule Pending'
+                                                        : (reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                                                reservation['reschedule_status'] == 'rejected' ||
+                                                                reservation['reschedule_status'] == 'declined'
+                                                            ? 'Reschedule (Declined)'
+                                                            : 'Reschedule'),
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: reservation['reschedule_status'] == 'pending_approval'
+                                                          ? Colors.orange
+                                                          : null,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem<String>(
+                                              value: 'cancel',
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    'Cancel Booking',
+                                                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      PopupMenuItem<String>(
-                                        value: 'cancel',
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 16),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              'Cancel Booking',
-                                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)),
+                                    ],
+                                  ],
+                                ),
+                                // ── Extra Badges Row (PAID / RESCHEDULE PENDING / Pay button) ──
+                                if (isPaid || (isAdvanceOrder && status == 'confirmed' && !isPaid)) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      if (isAdvanceOrder && status == 'confirmed' && !isPaid)
+                                        AnimatedTapScale(
+                                          onTap: () => _showPaymentDialog(reservation),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              gradient: AppTheme.goldGradient,
+                                              borderRadius: BorderRadius.circular(10),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
                                             ),
-                                          ],
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Pay Now',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: AppTheme.darkBrownText,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                      if (isPaid)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF34C759).withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'PAID',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(0xFF86EFAC),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                                // ── Reschedule Status Badge Row ──
+                                if (reservation['reschedule_status'] == 'pending_approval' ||
+                                    reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                    reservation['reschedule_status'] == 'rejected' ||
+                                    reservation['reschedule_status'] == 'declined' ||
+                                    reservation['reschedule_status'] == 'rescheduled' ||
+                                    reservation['reschedule_status'] == 'approved') ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      if (reservation['reschedule_status'] == 'pending_approval')
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFD97706).withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.45)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.pending_actions_rounded, color: Color(0xFFFBBF24), size: 12),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'RESCHEDULE PENDING',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(0xFFFBBF24),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else if (reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                          reservation['reschedule_status'] == 'rejected' ||
+                                          reservation['reschedule_status'] == 'declined')
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.45)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 12),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'DECLINED',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(0xFFEF4444),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else if (reservation['reschedule_status'] == 'rescheduled' ||
+                                          reservation['reschedule_status'] == 'approved')
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF15803D).withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: const Color(0xFF15803D).withValues(alpha: 0.45)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.event_available_rounded, color: Color(0xFF86EFAC), size: 12),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'RESCHEDULED',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(0xFF86EFAC),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ],
@@ -11901,53 +11971,93 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   void _showSnackBar(String message, Color color) {
-
     if (!mounted) return;
 
+    final isGreen = color == Colors.green ||
+        color == const Color(0xFF059669) ||
+        color == const Color(0xFF10B981) ||
+        color == const Color(0xFF34C759);
+    final isRed = color == Colors.red ||
+        color == const Color(0xFFDC2626) ||
+        color == const Color(0xFFEF4444);
+    final isOrange = color == Colors.orange ||
+        color == const Color(0xFFD97706) ||
+        color == const Color(0xFFF59E0B) ||
+        color == const Color(0xFFFF9500);
 
+    final IconData iconData = isGreen
+        ? Icons.check_circle_rounded
+        : (isRed
+            ? Icons.error_rounded
+            : (isOrange ? Icons.warning_amber_rounded : Icons.info_rounded));
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    final Color bgColor = isGreen
+        ? const Color(0xFF0F2E23)
+        : (isRed
+            ? const Color(0xFF3B1219)
+            : (isOrange ? const Color(0xFF382305) : const Color(0xFF1E293B)));
 
-      SnackBar(
+    final Color borderColor = isGreen
+        ? const Color(0xFF10B981)
+        : (isRed
+            ? const Color(0xFFEF4444)
+            : (isOrange ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6)));
 
-        content: Row(
+    final Color iconColor = isGreen
+        ? const Color(0xFF34D399)
+        : (isRed
+            ? const Color(0xFFF87171)
+            : (isOrange ? const Color(0xFFFBBF24) : const Color(0xFF60A5FA)));
 
-          children: [
-
-            Icon(
-
-              color == Colors.green ? Icons.check_circle : Icons.error_outline,
-
-
-
-              color: Colors.white,
-
+    _showTopToast(
+      duration: const Duration(seconds: 4),
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor.withValues(alpha: 0.6), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
-
-
-
-            const SizedBox(width: 12),
-
-
-
-            Expanded(child: Text(message)),
-
           ],
-
         ),
-
-
-
-        backgroundColor: color,
-
-
-
-        behavior: SnackBarBehavior.floating,
-
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                message,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.close_rounded,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: 16,
+            ),
+          ],
+        ),
       ),
-
     );
-
   }
 
 
@@ -12507,45 +12617,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
     if (currentUser == null) {
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        const SnackBar(
-
-          content: Row(
-
-            children: [
-
-              Icon(Icons.error_outline, color: Colors.white),
-
-
-
-              SizedBox(width: 12),
-
-
-
-              Text('User not authenticated'),
-
-            ],
-
-          ),
-
-
-
-          backgroundColor: Colors.red,
-
-
-
-          behavior: SnackBarBehavior.floating,
-
-        ),
-
-      );
-
-
-
+      _showSnackBar('User not authenticated', Colors.red);
       return;
-
     }
 
 
@@ -12786,49 +12859,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       }
 
     } catch (e) {
-
       if (!mounted) return;
-
-
 
       setState(() => _isLoading = false);
 
-
-
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(
-
-          content: Row(
-
-            children: [
-
-              const Icon(Icons.error_outline, color: Colors.white),
-
-
-
-              const SizedBox(width: 12),
-
-
-
-              Expanded(child: Text('Error: ${e.toString()}')),
-
-            ],
-
-          ),
-
-
-
-          backgroundColor: Colors.red,
-
-
-
-          behavior: SnackBarBehavior.floating,
-
-        ),
-
-      );
-
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
     }
 
   }
@@ -13927,49 +13962,26 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
             onPressed: () async {
-
+              _dismissTopToast();
+              _shownToastCustomerNotificationIds.clear();
               Navigator.pop(dialogContext);
 
-
-
               // Sign out from Supabase
-
-
-
               await Supabase.instance.client.auth.signOut();
 
-
-
               // Also sign out from Google to allow account switching
-
-
-
               try {
-
                 await _googleSignIn.signOut();
-
               } catch (e) {
-
                 debugPrint('Error signing out from Google: $e');
-
               }
-
-
 
               if (mounted) {
-
                 Navigator.of(context).pushNamedAndRemoveUntil(
-
                   '/login',
-
-
-
                   (route) => false,
-
                 );
-
               }
-
             },
 
 
@@ -14093,13 +14105,91 @@ class _StickyCategoryNavBarDelegate extends SliverPersistentHeaderDelegate {
 
 
   @override
-
   bool shouldRebuild(covariant _StickyCategoryNavBarDelegate oldDelegate) {
-
     return oldDelegate.child != child;
+  }
+}
 
+/// Animated Top Toast Notification Banner
+class _TopToastWidget extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDismiss;
+  final Duration? duration;
+
+  const _TopToastWidget({
+    required this.child,
+    required this.onDismiss,
+    this.duration,
+  });
+
+  @override
+  State<_TopToastWidget> createState() => _TopToastWidgetState();
+}
+
+class _TopToastWidgetState extends State<_TopToastWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 340),
+      reverseDuration: const Duration(milliseconds: 240),
+    );
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, -1.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    _fadeAnim = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    _animController.forward();
   }
 
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding > 0 ? topPadding + 10 : 18,
+      left: 16,
+      right: 16,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: SlideTransition(
+              position: _slideAnim,
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: widget.child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
 
 
