@@ -78,11 +78,10 @@ import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
 import 'package:yang_chow/services/notification_service.dart';
 
-import 'package:yang_chow/services/refund_service.dart';
 
 
 
-
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 
@@ -136,6 +135,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   late Timer? _countRefreshTimer;
+  StreamSubscription<List<Map<String, dynamic>>>? _adminNotifsSubscription;
+  String? _lastToastAdminNotificationId;
 
 
 
@@ -174,6 +175,25 @@ class _AdminMainPageState extends State<AdminMainPage> {
     });
 
     NotificationService.startStockMonitoring();
+
+    // Listen to admin notifications in real-time to show floating toast banner and update sidebar badges
+    _adminNotifsSubscription = NotificationService.getAdminOnlyNotificationsStream().listen((notifs) {
+      if (!mounted) return;
+      _loadPendingPaymentCount();
+      _loadPendingReservationCount();
+      _loadRemainingBalanceCount();
+      _loadPendingRefundCount();
+
+      final unread = notifs.where((n) => !n['is_read']).toList();
+      if (unread.isNotEmpty) {
+        final latestId = unread.first['id']?.toString();
+        if (_lastToastAdminNotificationId != null &&
+            _lastToastAdminNotificationId != latestId) {
+          _showAdminNotificationToast(unread.first);
+        }
+        _lastToastAdminNotificationId = latestId;
+      }
+    });
 
   }
 
@@ -474,41 +494,53 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   Future<void> _loadPendingRefundCount() async {
-
     try {
+      final supabase = Supabase.instance.client;
 
-      final count = await RefundService().getPendingRefundCount();
-
-      if (mounted) {
-
-        setState(() {
-
-          _pendingRefundCount = count;
-
-        });
-
+      // 1. Pending refunds from refunds table
+      int refundsCount = 0;
+      try {
+        final refundRes = await supabase
+            .from('refunds')
+            .select('id')
+            .eq('status', 'pending');
+        refundsCount = (refundRes as List).length;
+      } catch (e) {
+        debugPrint('Error counting pending refunds: $e');
       }
 
+      // 2. Pending reschedules from reschedule_requests table
+      int reschedulesCount = 0;
+      try {
+        final rescheduleRes = await supabase
+            .from('reschedule_requests')
+            .select('id')
+            .eq('status', 'pending');
+        reschedulesCount = (rescheduleRes as List).length;
+      } catch (e) {
+        debugPrint('Error counting pending reschedules: $e');
+      }
+
+      final totalPending = refundsCount + reschedulesCount;
+
+      if (mounted) {
+        setState(() {
+          _pendingRefundCount = totalPending;
+        });
+      }
     } catch (e) {
-
-      debugPrint('Error loading pending refund count: $e');
-
+      debugPrint('Error loading pending refund/reschedule count: $e');
     }
-
   }
 
 
 
   @override
-
   void dispose() {
-
     NotificationService.stopStockMonitoring();
-
     _countRefreshTimer?.cancel();
-
+    _adminNotifsSubscription?.cancel();
     super.dispose();
-
   }
 
 
@@ -569,7 +601,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Petty Cash',
 
-    'Refund Management',
+    'Refunds & Reschedules',
 
 
 
@@ -989,21 +1021,17 @@ class _AdminMainPageState extends State<AdminMainPage> {
                         }
 
                         // Refresh count when switching to Remaining Balance
-
                         if (_pageTitles[index] == 'Remaining Balance') {
-
-                          // Reset count to 0 when admin views remaining balance (mark as seen)
-
                           if (mounted) {
-
                             setState(() {
-
                               _remainingBalanceCount = 0;
-
                             });
-
                           }
+                        }
 
+                        // Refresh count when switching to Refunds & Reschedules
+                        if (_pageTitles[index] == 'Refunds & Reschedules') {
+                          _loadPendingRefundCount();
                         }
 
                       },
@@ -1176,38 +1204,29 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-                            // Add badge for Refund Management
-
-                            if (_pageTitles[index] == 'Refund Management' && _pendingRefundCount > 0)
-
+                            // Add badge for Refunds & Reschedules
+                            if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
                               Container(
-
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
                                 decoration: BoxDecoration(
-
-                                  color: Colors.orange,
-
+                                  color: const Color(0xFFEF4444), // Vibrant Red
                                   borderRadius: BorderRadius.circular(10),
-
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withValues(alpha: 0.4),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
                                 ),
-
                                 child: Text(
-
                                   '$_pendingRefundCount',
-
                                   style: const TextStyle(
-
                                     color: Colors.white,
-
                                     fontSize: 11,
-
                                     fontWeight: FontWeight.bold,
-
                                   ),
-
                                 ),
-
                               ),
 
 
@@ -2186,37 +2205,46 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
                             // Add badge for Remaining Balance
-
                             if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
-
                               Container(
-
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
                                 decoration: BoxDecoration(
-
                                   color: Colors.red,
-
                                   borderRadius: BorderRadius.circular(10),
-
                                 ),
-
                                 child: Text(
-
                                   '$_remainingBalanceCount',
-
                                   style: const TextStyle(
-
                                     color: Colors.white,
-
                                     fontSize: 11,
-
                                     fontWeight: FontWeight.bold,
-
                                   ),
-
                                 ),
+                              ),
 
+                            // Add badge for Refunds & Reschedules
+                            if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withValues(alpha: 0.4),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '$_pendingRefundCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
 
 
@@ -2786,145 +2814,150 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   Widget _buildAdminNotificationIcon() {
-
-
-
     return StreamBuilder<List<Map<String, dynamic>>>(
-
-
-
       stream: NotificationService.getAdminOnlyNotificationsStream(),
-
-
-
       builder: (context, snapshot) {
-
-
-
         final notifications = snapshot.data ?? [];
-
-
-
-        final hasUnread = notifications.any((n) => !n['is_read']);
-
-
-
-
-
-
+        final unreadCount = notifications.where((n) => !n['is_read']).length;
+        final hasUnread = unreadCount > 0;
 
         return Stack(
-
-
-
+          clipBehavior: Clip.none,
           children: [
-
-
-
             IconButton(
-
-
-
-              icon: const Icon(
-
-
-
-                Icons.notifications_none_rounded,
-
-
-
-                color: AppTheme.adminSecondaryText,
-
-
-
+              icon: Icon(
+                hasUnread
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_none_rounded,
+                color: hasUnread
+                    ? const Color(0xFFF59E0B)
+                    : AppTheme.adminSecondaryText,
+                size: 24,
               ),
-
-
-
               onPressed: () => _showAdminNotificationsDialog(notifications),
-
-
-
-              tooltip: 'Notifications',
-
-
-
+              tooltip: hasUnread
+                  ? '$unreadCount unread notification${unreadCount > 1 ? 's' : ''}'
+                  : 'Notifications',
             ),
-
-
-
             if (hasUnread)
-
-
-
               Positioned(
-
-
-
-                right: 8,
-
-
-
-                top: 8,
-
-
-
+                right: 6,
+                top: 6,
                 child: Container(
-
-
-
-                  width: 10,
-
-
-
-                  height: 10,
-
-
-
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
                   decoration: BoxDecoration(
-
-
-
-                    color: AppTheme.adminChatButton,
-
-
-
-                    shape: BoxShape.circle,
-
-
-
-                    border: Border.all(color: Colors.white, width: 2),
-
-
-
+                    color: const Color(0xFFEF4444), // Vibrant Red
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withValues(alpha: 0.6),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-
-
-
+                  child: Center(
+                    child: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
                 ),
-
-
-
               ),
-
-
-
           ],
-
-
-
         );
-
-
-
       },
-
-
-
     );
+  }
 
+  void _showAdminNotificationToast(Map<String, dynamic> n) {
+    if (!mounted) return;
+    final title = _getAdminNotificationTitle(n);
+    final subtitle = _getAdminNotificationSubtitle(n);
 
-
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFF334155), width: 1),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: Color(0xFFF59E0B),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                NotificationService.getAdminOnlyNotificationsStream()
+                    .first
+                    .then((notifs) {
+                  if (mounted) _showAdminNotificationsDialog(notifs);
+                });
+              },
+              child: Text(
+                'VIEW',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: const Color(0xFFF59E0B),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 

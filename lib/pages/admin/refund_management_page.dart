@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/services/refund_service.dart';
+import 'package:yang_chow/services/reschedule_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 
 class RefundManagementPage extends StatefulWidget {
@@ -17,12 +18,19 @@ class RefundManagementPage extends StatefulWidget {
 
 class _RefundManagementPageState extends State<RefundManagementPage> {
   final RefundService _refundService = RefundService();
+  final RescheduleService _rescheduleService = RescheduleService();
   final _currencyFormat = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _rescheduleSearchController = TextEditingController();
 
+  int _selectedMainTab = 0; // 0: Refunds, 1: Reschedule Requests
   String _selectedFilter = 'all';
   String _searchQuery = '';
   int _currentPage = 0;
+
+  String _rescheduleFilter = 'all';
+  String _rescheduleSearchQuery = '';
+  int _rescheduleCurrentPage = 0;
   final int _rowsPerPage = 10;
 
   Stream<List<Map<String, dynamic>>> _ordersStream() {
@@ -32,11 +40,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         .order('created_at', ascending: false);
   }
 
-
-
   @override
   void dispose() {
     _searchController.dispose();
+    _rescheduleSearchController.dispose();
     super.dispose();
   }
 
@@ -136,6 +143,189 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       return true;
     }).toList();
     return filtered;
+  }
+
+  List<Map<String, dynamic>> _filterReschedules(List<Map<String, dynamic>> requests) {
+    var filtered = requests.where((r) {
+      if (_rescheduleFilter != 'all' && r['status']?.toString().toLowerCase() != _rescheduleFilter) {
+        return false;
+      }
+      if (_rescheduleSearchQuery.isNotEmpty) {
+        final query = _rescheduleSearchQuery.toLowerCase();
+        final name = (r['customer_name'] ?? '').toString().toLowerCase();
+        final email = (r['customer_email'] ?? '').toString().toLowerCase();
+        final phone = (r['customer_phone'] ?? '').toString().toLowerCase();
+        final reason = (r['reason'] ?? '').toString().toLowerCase();
+        final resId = (r['reservation_id'] ?? '').toString().toLowerCase();
+        return name.contains(query) || email.contains(query) || phone.contains(query) || reason.contains(query) || resId.contains(query);
+      }
+      return true;
+    }).toList();
+    return filtered;
+  }
+
+  // ── Approve Reschedule dialog ─────────────────────────────
+  void _showApproveRescheduleDialog(Map<String, dynamic> request) {
+    final notesController = TextEditingController();
+    final customerName = request['customer_name'] ?? 'Customer';
+    final newDate = request['new_date'] ?? '';
+    final newTime = request['new_time'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Color(0xFF15803D)),
+            const SizedBox(width: 10),
+            Text(
+              'Approve Reschedule',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Confirm rescheduling reservation for $customerName to $newDate at $newTime?',
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: InputDecoration(
+                labelText: 'Admin Notes (optional)',
+                hintText: 'e.g., Table assigned, confirmed with customer',
+                labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final success = await _rescheduleService.approveReschedule(
+                requestId: request['id'].toString(),
+                reservationId: request['reservation_id'].toString(),
+                adminEmail: adminEmail,
+                newDate: request['new_date'].toString(),
+                newTime: request['new_time'].toString(),
+                newDuration: (request['new_duration'] as num?)?.toInt(),
+                newGuests: (request['new_guests'] as num?)?.toInt(),
+                adminNotes: notesController.text.trim().isNotEmpty ? notesController.text.trim() : null,
+                customerEmail: request['customer_email']?.toString(),
+                customerName: customerName,
+              );
+              if (mounted) {
+                _showSnackBar(
+                  success ? 'Reschedule approved successfully! Schedule updated.' : 'Failed to approve reschedule',
+                  success ? Colors.green : Colors.red,
+                );
+              }
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF15803D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Reject Reschedule dialog ──────────────────────────────
+  void _showRejectRescheduleDialog(Map<String, dynamic> request) {
+    final reasonController = TextEditingController();
+    final customerName = request['customer_name'] ?? 'Customer';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626)),
+            const SizedBox(width: 10),
+            Text(
+              'Reject Reschedule',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reject reschedule request for $customerName?',
+              style: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: InputDecoration(
+                labelText: 'Rejection Reason (required)',
+                hintText: 'e.g., Fully booked on requested date/time',
+                labelStyle: GoogleFonts.plusJakartaSans(fontSize: 13),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              if (reasonController.text.trim().isEmpty) {
+                _showSnackBar('Please provide a rejection reason', Colors.orange);
+                return;
+              }
+              Navigator.pop(ctx);
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final success = await _rescheduleService.rejectReschedule(
+                requestId: request['id'].toString(),
+                reservationId: request['reservation_id'].toString(),
+                adminEmail: adminEmail,
+                rejectionReason: reasonController.text.trim(),
+                customerEmail: request['customer_email']?.toString(),
+                customerName: customerName,
+              );
+              if (mounted) {
+                _showSnackBar(
+                  success ? 'Reschedule request rejected.' : 'Failed to reject reschedule',
+                  success ? Colors.orange : Colors.red,
+                );
+              }
+            },
+            icon: const Icon(Icons.close, size: 18),
+            label: Text('Reject Request', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Approve dialog ────────────────────────────────────────
@@ -452,265 +642,475 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           return StreamBuilder<List<Map<String, dynamic>>>(
             stream: _ordersStream(),
             builder: (context, orderSnapshot) {
-              final rawRefunds = refundSnapshot.data ?? [];
-              final rawOrders = orderSnapshot.data ?? [];
-              final now = DateTime.now();
-              final todayStr = DateFormat('yyyy-MM-dd').format(now);
+              return StreamBuilder<List<Map<String, dynamic>>>(
+                stream: _rescheduleService.rescheduleRequestsStream(),
+                builder: (context, rescheduleSnapshot) {
+                  final rawRefunds = refundSnapshot.data ?? [];
+                  final rawOrders = orderSnapshot.data ?? [];
+                  final rawReschedules = rescheduleSnapshot.data ?? [];
+                  final now = DateTime.now();
+                  final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
-              final allRefunds = widget.todayOnly
-                  ? rawRefunds.where((r) {
-                      final created = r['created_at']?.toString() ?? '';
-                      return created.startsWith(todayStr);
-                    }).toList()
-                  : rawRefunds;
+                  final allRefunds = widget.todayOnly
+                      ? rawRefunds.where((r) {
+                          final created = r['created_at']?.toString() ?? '';
+                          return created.startsWith(todayStr);
+                        }).toList()
+                      : rawRefunds;
 
-              final todayOrders = rawOrders.where((o) {
-                final created = o['created_at']?.toString() ?? '';
-                return created.startsWith(todayStr);
-              }).toList();
+                  final todayOrders = rawOrders.where((o) {
+                    final created = o['created_at']?.toString() ?? '';
+                    return created.startsWith(todayStr);
+                  }).toList();
 
-              double currentOrdersTotal = 0.0;
-              final relevantOrders = widget.todayOnly ? todayOrders : rawOrders;
-              for (final o in relevantOrders) {
-                currentOrdersTotal += (o['total_amount'] as num?)?.toDouble() ?? 0.0;
-              }
+                  double currentOrdersTotal = 0.0;
+                  final relevantOrders = widget.todayOnly ? todayOrders : rawOrders;
+                  for (final o in relevantOrders) {
+                    currentOrdersTotal += (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+                  }
 
-              final filteredRefunds = _filterRefunds(allRefunds);
-              final totalPages = (filteredRefunds.length / _rowsPerPage).ceil();
-              final startIndex = _currentPage * _rowsPerPage;
-              final endIndex = (startIndex + _rowsPerPage).clamp(0, filteredRefunds.length);
-              final pageRefunds = filteredRefunds.isEmpty ? <Map<String, dynamic>>[] : filteredRefunds.sublist(startIndex, endIndex);
+                  final pendingRefundsCount = allRefunds.where((r) => r['status'] == 'pending').length;
+                  final pendingReschedulesCount = rawReschedules.where((r) => r['status'] == 'pending').length;
 
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Header Card (Petty Cash style) ──
-                          _buildHeader(allRefunds, currentOrdersTotal, relevantOrders.length),
-                          if (!widget.todayOnly) ...[
-                            const SizedBox(height: 20),
-                            // ── Analytics Grid (Admin View) ──
-                            _buildAnalyticsGrid(allRefunds),
-                          ],
-                          const SizedBox(height: 24),
+                  // ── Refund Filtering & Pagination ──
+                  final filteredRefunds = _filterRefunds(allRefunds);
+                  final totalRefundPages = (filteredRefunds.length / _rowsPerPage).ceil();
+                  final refundStartIndex = _currentPage * _rowsPerPage;
+                  final refundEndIndex = (refundStartIndex + _rowsPerPage).clamp(0, filteredRefunds.length);
+                  final pageRefunds = filteredRefunds.isEmpty
+                      ? <Map<String, dynamic>>[]
+                      : filteredRefunds.sublist(refundStartIndex, refundEndIndex);
 
-                      // ── Section Title ──
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
+                  // ── Reschedule Filtering & Pagination ──
+                  final filteredReschedules = _filterReschedules(rawReschedules);
+                  final totalReschedulePages = (filteredReschedules.length / _rowsPerPage).ceil();
+                  final rescheduleStartIndex = _rescheduleCurrentPage * _rowsPerPage;
+                  final rescheduleEndIndex = (rescheduleStartIndex + _rowsPerPage).clamp(0, filteredReschedules.length);
+                  final pageReschedules = filteredReschedules.isEmpty
+                      ? <Map<String, dynamic>>[]
+                      : filteredReschedules.sublist(rescheduleStartIndex, rescheduleEndIndex);
+
+                  return CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    widget.todayOnly ? "Today's POS Refunds" : 'Refund Management',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF0F172A),
-                                      letterSpacing: -0.4,
-                                    ),
-                                  ),
-                                  if (widget.todayOnly) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF14332E).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
-                                      ),
-                                      child: Text(
-                                        'TODAY ONLY',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF14332E),
-                                          letterSpacing: 0.5,
+                              // ── Header Card ──
+                              _buildHeader(allRefunds, currentOrdersTotal, relevantOrders.length),
+
+                              // ── Top Main Tab Selector (Admin View only) ──
+                              if (!widget.todayOnly) ...[
+                                const SizedBox(height: 20),
+                                _buildMainTabSelector(pendingRefundsCount, pendingReschedulesCount),
+                              ],
+
+                              if (_selectedMainTab == 0) ...[
+                                if (!widget.todayOnly) ...[
+                                  const SizedBox(height: 20),
+                                  _buildAnalyticsGrid(allRefunds),
+                                ],
+                                const SizedBox(height: 24),
+
+                                // ── Section Title ──
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              widget.todayOnly ? "Today's POS Refunds" : 'Refund Management',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w800,
+                                                color: const Color(0xFF0F172A),
+                                                letterSpacing: -0.4,
+                                              ),
+                                            ),
+                                            if (widget.todayOnly) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                                                ),
+                                                child: Text(
+                                                  'TODAY ONLY',
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: const Color(0xFF14332E),
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
-                                      ),
+                                        Text(
+                                          widget.todayOnly
+                                              ? "Displaying refund requests and records for today's orders"
+                                              : 'Manage refund requests from customers and POS',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            color: const Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 14),
+
+                                // ── Search bar ──
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextField(
+                                    controller: _searchController,
+                                    onChanged: (v) => setState(() {
+                                      _searchQuery = v;
+                                      _currentPage = 0;
+                                    }),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF0F172A)),
+                                    decoration: InputDecoration(
+                                      hintText: 'Search by name, email, or transaction ID...',
+                                      hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                                      suffixIcon: _searchQuery.isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
+                                              onPressed: () => setState(() {
+                                                _searchController.clear();
+                                                _searchQuery = '';
+                                              }),
+                                            )
+                                          : null,
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    ),
+                                  ),
+                                ),
+                                if (!widget.todayOnly) ...[
+                                  const SizedBox(height: 12),
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded, const Color(0xFF14332E)),
+                                        _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
+                                        _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded, const Color(0xFF0284C7)),
+                                        _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded, const Color(0xFF15803D)),
+                                        _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                                      ],
+                                    ),
+                                  ),
                                 ],
-                              ),
-                              Text(
-                                widget.todayOnly
-                                    ? "Displaying refund requests and records for today's orders"
-                                    : 'Manage refund requests from customers and POS',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  color: const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
+                                const SizedBox(height: 16),
+                              ] else ...[
+                                // ── RESCHEDULE REQUESTS TAB HEADER & CONTROLS ──
+                                const SizedBox(height: 20),
+                                _buildRescheduleAnalyticsGrid(rawReschedules),
+                                const SizedBox(height: 24),
+
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Reschedule Requests',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFF0F172A),
+                                            letterSpacing: -0.4,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Review, approve, or decline customer booking schedule changes',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            color: const Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+
+                                // ── Reschedule Search Bar ──
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextField(
+                                    controller: _rescheduleSearchController,
+                                    onChanged: (v) => setState(() {
+                                      _rescheduleSearchQuery = v;
+                                      _rescheduleCurrentPage = 0;
+                                    }),
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF0F172A)),
+                                    decoration: InputDecoration(
+                                      hintText: 'Search by customer, email, reservation ID, or reason...',
+                                      hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF94A3B8)),
+                                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                                      suffixIcon: _rescheduleSearchQuery.isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
+                                              onPressed: () => setState(() {
+                                                _rescheduleSearchController.clear();
+                                                _rescheduleSearchQuery = '';
+                                              }),
+                                            )
+                                          : null,
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+
+                                // ── Reschedule Filter Pills ──
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _buildRescheduleFilterPill('all', 'All Requests (${rawReschedules.length})', Icons.apps_rounded, const Color(0xFF14332E)),
+                                      _buildRescheduleFilterPill('pending', 'Pending Approval (${rawReschedules.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
+                                      _buildRescheduleFilterPill('approved', 'Approved (${rawReschedules.where((r) => r['status'] == 'approved').length})', Icons.check_circle_rounded, const Color(0xFF15803D)),
+                                      _buildRescheduleFilterPill('rejected', 'Rejected (${rawReschedules.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // ══════════════════════════════════════════
+                      //  TAB 0: REFUNDS LIST
+                      // ══════════════════════════════════════════
+                      if (_selectedMainTab == 0) ...[
+                        if (refundSnapshot.connectionState == ConnectionState.waiting && allRefunds.isEmpty)
+                          const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))))
+                        else if (filteredRefunds.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF1F5F9),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.receipt_long_rounded, size: 48, color: Color(0xFF94A3B8)),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _selectedFilter == 'all' ? 'No refund records yet' : 'No ${_selectedFilter} refunds',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFF64748B),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Refund requests will appear here',
+                                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 13),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ── Search bar ──
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
                             ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (v) => setState(() {
-                            _searchQuery = v;
-                            _currentPage = 0;
-                          }),
-                          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF0F172A)),
-                          decoration: InputDecoration(
-                            hintText: 'Search by name, email, or transaction ID...',
-                            hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF94A3B8)),
-                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
-                                    onPressed: () => setState(() {
-                                      _searchController.clear();
-                                      _searchQuery = '';
-                                    }),
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          )
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index >= pageRefunds.length) return null;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                                  child: _buildRefundCard(pageRefunds[index]),
+                                );
+                              },
+                              childCount: pageRefunds.length,
+                            ),
                           ),
-                        ),
-                      ),
-                      if (!widget.todayOnly) ...[
-                        const SizedBox(height: 12),
-                        // ── Filter Pills (Admin View) ──
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded, const Color(0xFF14332E)),
-                              _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
-                              _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded, const Color(0xFF0284C7)),
-                              _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded, const Color(0xFF15803D)),
-                              _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
-                            ],
+
+                        if (totalRefundPages > 1)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                                    icon: const Icon(Icons.chevron_left),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF14332E),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Page ${_currentPage + 1} of $totalRefundPages',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: _currentPage < totalRefundPages - 1 ? () => setState(() => _currentPage++) : null,
+                                    icon: const Icon(Icons.chevron_right),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                      ] else ...[
+                        // ══════════════════════════════════════════
+                        //  TAB 1: RESCHEDULE REQUESTS LIST
+                        // ══════════════════════════════════════════
+                        if (rescheduleSnapshot.connectionState == ConnectionState.waiting && rawReschedules.isEmpty)
+                          const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: Color(0xFF007AFF))))
+                        else if (filteredReschedules.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFEFF6FF),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.edit_calendar_rounded, size: 48, color: Color(0xFF007AFF)),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _rescheduleFilter == 'all' ? 'No reschedule requests yet' : 'No ${_rescheduleFilter} requests',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFF64748B),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Customer reschedule requests will appear here for review',
+                                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                if (index >= pageReschedules.length) return null;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                                  child: _buildRescheduleCard(pageReschedules[index]),
+                                );
+                              },
+                              childCount: pageReschedules.length,
+                            ),
+                          ),
+
+                        if (totalReschedulePages > 1)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    onPressed: _rescheduleCurrentPage > 0 ? () => setState(() => _rescheduleCurrentPage--) : null,
+                                    icon: const Icon(Icons.chevron_left),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF007AFF),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Page ${_rescheduleCurrentPage + 1} of $totalReschedulePages',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: _rescheduleCurrentPage < totalReschedulePages - 1 ? () => setState(() => _rescheduleCurrentPage++) : null,
+                                    icon: const Icon(Icons.chevron_right),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
-                      const SizedBox(height: 16),
+                      const SliverToBoxAdapter(child: SizedBox(height: 40)),
                     ],
-                  ),
-                ),
-              ),
-
-              // ── Refund list ──
-              if (refundSnapshot.connectionState == ConnectionState.waiting && allRefunds.isEmpty)
-                const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: Color(0xFF14332E))))
-              else if (filteredRefunds.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF1F5F9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.receipt_long_rounded, size: 48, color: Color(0xFF94A3B8)),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _selectedFilter == 'all' ? 'No refund records yet' : 'No ${_selectedFilter} refunds',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: const Color(0xFF64748B),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Refund requests will appear here',
-                            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index >= pageRefunds.length) return null;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                        child: _buildRefundCard(pageRefunds[index]),
-                      );
-                    },
-                    childCount: pageRefunds.length,
-                  ),
-                ),
-
-              // ── Pagination ──
-              if (totalPages > 1)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                          icon: const Icon(Icons.chevron_left),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF14332E),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'Page ${_currentPage + 1} of $totalPages',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                          icon: const Icon(Icons.chevron_right),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 40)),
-            ],
+                  );
+                },
+              );
+            },
           );
         },
-      );
-    },
-  ),
-);
+      ),
+    );
   }
 
   // ── Header Card (mirrors Petty Cash Executive Card) ───────
@@ -1426,6 +1826,620 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  RESCHEDULE UI HELPERS & COMPONENTS
+  // ══════════════════════════════════════════════════════════
+
+  Widget _buildMainTabSelector(int pendingRefunds, int pendingReschedules) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedMainTab = 0),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedMainTab == 0 ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedMainTab == 0
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 16,
+                      color: _selectedMainTab == 0 ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Refund Requests',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: _selectedMainTab == 0 ? FontWeight.w800 : FontWeight.w600,
+                        color: _selectedMainTab == 0 ? const Color(0xFF14332E) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    if (pendingRefunds > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD97706),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$pendingRefunds',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedMainTab = 1),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedMainTab == 1 ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _selectedMainTab == 1
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.edit_calendar_rounded,
+                      size: 16,
+                      color: _selectedMainTab == 1 ? const Color(0xFF007AFF) : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Reschedule Requests',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: _selectedMainTab == 1 ? FontWeight.w800 : FontWeight.w600,
+                        color: _selectedMainTab == 1 ? const Color(0xFF007AFF) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    if (pendingReschedules > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007AFF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$pendingReschedules',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRescheduleAnalyticsGrid(List<Map<String, dynamic>> requests) {
+    final total = requests.length;
+    final pending = requests.where((r) => r['status'] == 'pending').length;
+    final approved = requests.where((r) => r['status'] == 'approved').length;
+    final rejected = requests.where((r) => r['status'] == 'rejected').length;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 600;
+        final cardWidth = isNarrow ? (constraints.maxWidth - 12) / 2 : (constraints.maxWidth - 36) / 4;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _buildRescheduleStatCard('Total Requests', '$total', Icons.calendar_month_rounded, const Color(0xFF0F172A), cardWidth),
+            _buildRescheduleStatCard('Pending Approval', '$pending', Icons.hourglass_top_rounded, const Color(0xFFD97706), cardWidth),
+            _buildRescheduleStatCard('Approved', '$approved', Icons.check_circle_rounded, const Color(0xFF15803D), cardWidth),
+            _buildRescheduleStatCard('Rejected', '$rejected', Icons.cancel_rounded, const Color(0xFFDC2626), cardWidth),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRescheduleStatCard(String title, String value, IconData icon, Color color, double width) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRescheduleFilterPill(String filterKey, String label, IconData icon, Color color) {
+    final isSelected = _rescheduleFilter == filterKey;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () => setState(() {
+          _rescheduleFilter = filterKey;
+          _rescheduleCurrentPage = 0;
+        }),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isSelected ? color : const Color(0xFFE2E8F0)),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: isSelected ? Colors.white : color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRescheduleCard(Map<String, dynamic> request) {
+    final customerName = request['customer_name']?.toString() ?? 'Customer';
+    final customerEmail = request['customer_email']?.toString() ?? '';
+    final customerPhone = request['customer_phone']?.toString() ?? '';
+    final oldDate = request['old_date']?.toString() ?? '';
+    final oldTime = request['old_time']?.toString() ?? '';
+    final oldDuration = request['old_duration'];
+    final oldGuests = request['old_guests'];
+    final newDate = request['new_date']?.toString() ?? '';
+    final newTime = request['new_time']?.toString() ?? '';
+    final newDuration = request['new_duration'];
+    final newGuests = request['new_guests'];
+    final reason = request['reason']?.toString() ?? 'Customer requested reschedule';
+    final status = (request['status'] ?? 'pending').toString().toLowerCase();
+    final adminNotes = request['admin_notes'];
+    final reviewedBy = request['reviewed_by'];
+
+    String requestedAtStr = '';
+    if (request['created_at'] != null) {
+      try {
+        final parsed = DateTime.parse(request['created_at'].toString()).toLocal();
+        requestedAtStr = DateFormat('MMM dd, yyyy • h:mm a').format(parsed);
+      } catch (_) {
+        requestedAtStr = request['created_at'].toString();
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: status == 'pending'
+              ? const Color(0xFF007AFF).withValues(alpha: 0.35)
+              : const Color(0xFFE2E8F0),
+          width: status == 'pending' ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top Row: Customer Info & Status Badge ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.person_rounded, color: Color(0xFF007AFF), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        customerName,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          if (customerEmail.isNotEmpty)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.email_outlined, size: 12, color: Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  customerEmail,
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          if (customerPhone.isNotEmpty)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.phone_outlined, size: 12, color: Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  customerPhone,
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      if (requestedAtStr.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Requested on: $requestedAtStr',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 10, color: const Color(0xFF94A3B8)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_statusIcon(status), size: 12, color: _statusColor(status)),
+                      const SizedBox(width: 4),
+                      Text(
+                        status.toUpperCase(),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _statusColor(status),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Schedule Comparison Banner ──
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  // Old Schedule
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ORIGINAL SCHEDULE',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF64748B),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '$oldDate @ $oldTime',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: const Color(0xFF334155),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (oldGuests != null || oldDuration != null)
+                          Text(
+                            '${oldDuration ?? 2}h • ${oldGuests ?? 1} guests',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8)),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Arrow Indicator
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF), size: 16),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Requested New Schedule
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'REQUESTED NEW SCHEDULE',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF007AFF),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF007AFF)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '$newDate @ $newTime',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: const Color(0xFF007AFF),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (newGuests != null || newDuration != null)
+                          Text(
+                            '${newDuration ?? 2}h • ${newGuests ?? 1} guests',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Customer Reason ──
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.chat_bubble_outline_rounded, size: 14, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Reason: $reason',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: const Color(0xFF334155),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Admin Notes if Reviewed ──
+            if (adminNotes != null && adminNotes.toString().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: status == 'approved'
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Admin (${reviewedBy ?? "Admin"}): $adminNotes',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: status == 'approved' ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                  ),
+                ),
+              ),
+            ],
+
+            // ── Action Buttons for Pending ──
+            if (status == 'pending') ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _showRejectRescheduleDialog(request),
+                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFDC2626)),
+                    label: Text(
+                      'Reject',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFFDC2626),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFDC2626)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: () => _showApproveRescheduleDialog(request),
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: Text(
+                      'Approve Schedule',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF15803D),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );

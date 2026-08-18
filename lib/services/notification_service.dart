@@ -225,29 +225,41 @@ class NotificationService {
         .order('created_at', ascending: false);
   }
 
-  /// Get real-time stream of ADMIN-RELATED notifications for a customer
-  /// Only shows notifications where admin took an action on the customer's reservation
+  /// Get real-time stream of notifications for a customer
+  /// Shows all admin actions, system events, and reschedule/payment updates
   static Stream<List<Map<String, dynamic>>> getCustomerAdminNotificationsStream(
     String email,
   ) {
+    const relevantActionTypes = [
+      // Admin actions on reservations
+      'approved',
+      'rejected',
+      'updated',
+      'cancelled',
+      'completed',
+      'deleted',
+      // Payment confirmations
+      'paid',
+      'deposit_paid',
+      'fully_paid',
+      'balance_cleared',
+      // Reschedule results
+      'reschedule_approved',
+      'reschedule_rejected',
+      // Refund updates
+      'refund_approved',
+      'refund_processed',
+      'refund_rejected',
+    ];
+
     return _supabase
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('recipient_email', email.toLowerCase())
         .order('created_at', ascending: false)
-        .map((notifications) => notifications.where((n) {
-              final isFromAdmin = n['actor_name'] == 'Admin';
-              final isValidAction = [
-                'approved',
-                'rejected',
-                'updated',
-                'paid',
-                'cancelled',
-                'completed',
-                'deleted',
-              ].contains(n['action_type']);
-              return isFromAdmin && isValidAction;
-            }).toList());
+        .map((notifications) => notifications
+            .where((n) => relevantActionTypes.contains(n['action_type']))
+            .toList());
   }
 
   /// Get real-time stream of notifications for admins
