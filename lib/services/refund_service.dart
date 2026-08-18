@@ -500,13 +500,21 @@ class RefundService {
         }).eq('id', sourceId);
       }
 
-      // Send email notification to customer
+      // Send email & in-app notification to customer
       if (refund['customer_email'] != null) {
         await _emailService.sendRefundApproved(
           customerEmail: refund['customer_email'],
           customerName: refund['customer_name'] ?? 'Customer',
           refundAmount: (refund['refund_amount'] as num).toDouble(),
           refundMethod: refund['refund_method'] ?? 'cash',
+        );
+
+        await NotificationService.sendNotification(
+          recipientEmail: refund['customer_email'],
+          actorName: 'Admin',
+          actionType: 'refund_approved',
+          reservationId: sourceId,
+          eventType: 'Your refund request of ₱${(refund['refund_amount'] as num).toStringAsFixed(2)} has been APPROVED by Admin.',
         );
       }
 
@@ -549,13 +557,21 @@ class RefundService {
         }).eq('id', sourceId);
       }
 
-      // Send rejection email
+      // Send rejection email & in-app notification
       if (refund['customer_email'] != null) {
         await _emailService.sendRefundRejected(
           customerEmail: refund['customer_email'],
           customerName: refund['customer_name'] ?? 'Customer',
           refundAmount: (refund['refund_amount'] as num).toDouble(),
           rejectionReason: rejectionReason,
+        );
+
+        await NotificationService.sendNotification(
+          recipientEmail: refund['customer_email'],
+          actorName: 'Admin',
+          actionType: 'refund_rejected',
+          reservationId: sourceId,
+          eventType: 'Your refund request was not approved. Reason: $rejectionReason',
         );
       }
 
@@ -614,13 +630,21 @@ class RefundService {
       // Update source table
       await _markSourceAsRefunded(refund);
 
-      // Send completion email
+      // Send completion email & in-app notification
       if (refund['customer_email'] != null) {
         await _emailService.sendRefundCompleted(
           customerEmail: refund['customer_email'],
           customerName: refund['customer_name'] ?? 'Customer',
           refundAmount: (refund['refund_amount'] as num).toDouble(),
           refundMethod: 'paymongo',
+        );
+
+        await NotificationService.sendNotification(
+          recipientEmail: refund['customer_email'],
+          actorName: 'Admin',
+          actionType: 'refund_processed',
+          reservationId: refund['source_id'] ?? refundId,
+          eventType: 'Your PayMongo refund of ₱${(refund['refund_amount'] as num).toStringAsFixed(2)} has been PROCESSED and COMPLETED.',
         );
       }
 
@@ -663,13 +687,21 @@ class RefundService {
       // Update source table
       await _markSourceAsRefunded(refund);
 
-      // Send completion email
+      // Send completion email & in-app notification
       if (refund['customer_email'] != null) {
         await _emailService.sendRefundCompleted(
           customerEmail: refund['customer_email'],
           customerName: refund['customer_name'] ?? 'Customer',
           refundAmount: (refund['refund_amount'] as num).toDouble(),
           refundMethod: 'cash',
+        );
+
+        await NotificationService.sendNotification(
+          recipientEmail: refund['customer_email'],
+          actorName: 'Admin',
+          actionType: 'refund_processed',
+          reservationId: refund['source_id'] ?? refundId,
+          eventType: 'Your cash refund of ₱${(refund['refund_amount'] as num).toStringAsFixed(2)} has been COMPLETED.',
         );
       }
 

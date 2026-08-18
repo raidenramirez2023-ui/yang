@@ -296,8 +296,12 @@ class ReservationService {
 
 
       // Calculate refund amount based on cancellation policy
-
-      final paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ?? 0.0;
+      final paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ??
+          (reservation['deposit_amount'] as num?)?.toDouble() ??
+          (reservation['amount_paid'] as num?)?.toDouble() ??
+          (reservation['total_price'] as num?)?.toDouble() ??
+          (reservation['total_amount'] as num?)?.toDouble() ??
+          0.0;
 
       final refundService = RefundService();
 

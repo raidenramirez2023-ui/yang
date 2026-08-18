@@ -68,6 +68,8 @@ import 'package:yang_chow/services/reservation_service.dart';
 
 import 'package:yang_chow/services/refund_service.dart';
 
+import 'package:yang_chow/services/reschedule_service.dart';
+
 
 
 
@@ -134,6 +136,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   final ReservationService _reservationService = ReservationService();
+  final RescheduleService _rescheduleService = RescheduleService();
 
 
 
@@ -141,7 +144,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     clientId: kIsWeb
         ? '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com' // Web Client ID
         : '58922100698-jmttb6okfltmpcco2f2rrh8rmppappk6.apps.googleusercontent.com', // iOS Client ID
-    serverClientId: '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Web Client ID - required for idToken on Android
+    serverClientId: kIsWeb
+        ? null
+        : '58922100698-ajm1bssqvgoo9k0qs15hd3g7nhrqabm4.apps.googleusercontent.com', // Web Client ID - required for idToken on Android
   );
 
 
@@ -159,10 +164,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  String? _lastSeenNotificationId;
+  String? _lastToastNotificationId;
+  StreamSubscription<List<Map<String, dynamic>>>? _customerNotifsSubscription;
 
   // ── Featured Dishes (Realtime) ──
   StreamSubscription<List<Map<String, dynamic>>>? _featuredOrdersSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _rescheduleRequestsSubscription;
   List<Map<String, dynamic>> _featuredDishes = [];
   bool _featuredLoading = true;
 
@@ -450,25 +457,28 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
       }
 
-    });
-
-
-
-    final currentUser = Supabase.instance.client.auth.currentUser;
-
-
-
-    if (currentUser != null) {
-
+    });    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser != null && currentUser.email != null) {
       _notificationsStream =
-
           NotificationService.getCustomerAdminNotificationsStream(
-
             currentUser.email!,
-
           );
-
+      _customerNotifsSubscription = _notificationsStream!.listen((notifs) {
+        if (!mounted) return;
+        final unreadNotifs =
+            notifs.where((n) => n['is_read'] == false).toList();
+        if (unreadNotifs.isNotEmpty) {
+          final latestId = unreadNotifs.first['id']?.toString();
+          if (_lastToastNotificationId != null &&
+              _lastToastNotificationId != latestId) {
+            _showNotificationToast(unreadNotifs.first);
+          }
+          _lastToastNotificationId = latestId;
+        }
+      });
     }
+
+    
 
 
 
@@ -509,6 +519,17 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     // ── Featured Dishes realtime stream ──
     _listenToFeaturedDishes();
 
+    // ── Reschedule Requests realtime listener ──
+    final currentEmail = Supabase.instance.client.auth.currentUser?.email;
+    if (currentEmail != null && currentEmail.isNotEmpty) {
+      _rescheduleRequestsSubscription = _rescheduleService
+          .customerRescheduleRequestsStream(currentEmail)
+          .listen((_) {
+        if (mounted) {
+          _loadCustomerReservations();
+        }
+      });
+    }
   }
 
 
@@ -638,92 +659,78 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Future<void> _loadCustomerReservations() async {
-
     try {
-
       final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null || currentUser.email == null) return;
 
+      final email = currentUser.email!;
+      final lowerEmail = email.toLowerCase();
 
-
-      if (currentUser == null) return;
-
-
-
-      // Fetch from both tables in parallel
-
+      // Fetch from reservations, advance_orders, and reschedule_requests in parallel
       final results = await Future.wait([
-
         Supabase.instance.client
-
             .from('reservations')
-
             .select('*')
-
-            .eq('customer_email', currentUser.email!)
-
+            .eq('customer_email', email)
             .order('created_at', ascending: false),
-
         Supabase.instance.client
-
             .from('advance_orders')
-
             .select('*')
-
-            .eq('customer_email', currentUser.email!)
-
+            .eq('customer_email', email)
             .order('created_at', ascending: false),
-
+        Supabase.instance.client
+            .from('reschedule_requests')
+            .select('*')
+            .or('customer_email.eq.$email,customer_email.eq.$lowerEmail')
+            .order('created_at', ascending: false),
       ]);
 
-
+      // Build map of latest reschedule request status by reservation_id
+      final Map<String, String> latestRescheduleStatusMap = {};
+      final rescheduleRequestsList = List<Map<String, dynamic>>.from(results[2]);
+      for (final req in rescheduleRequestsList) {
+        final resId = req['reservation_id']?.toString();
+        final reqStatus = req['status']?.toString().toLowerCase();
+        if (resId != null && !latestRescheduleStatusMap.containsKey(resId)) {
+          if (reqStatus == 'pending') {
+            latestRescheduleStatusMap[resId] = 'pending_approval';
+          } else if (reqStatus == 'rejected') {
+            latestRescheduleStatusMap[resId] = 'reschedule_rejected';
+          } else if (reqStatus == 'approved') {
+            latestRescheduleStatusMap[resId] = 'rescheduled';
+          }
+        }
+      }
 
       final reservations = List<Map<String, dynamic>>.from(results[0]).map((r) {
-
-        return {...r, '_db_table': 'reservations'};
-
+        final resId = r['id']?.toString();
+        final mappedStatus = latestRescheduleStatusMap[resId];
+        return {
+          ...r,
+          if (mappedStatus != null) 'reschedule_status': mappedStatus,
+          '_db_table': 'reservations',
+        };
       }).toList();
-
-
 
       final advanceOrders = List<Map<String, dynamic>>.from(results[1]).map((o) {
-
         return {
-
           ...o,
-
           'event_type': 'Advance Order (${o['order_type']})',
-
           'event_date': o['order_date'],
-
           'start_time': o['order_time'],
-
           'duration_hours': 0,
-
           '_db_table': 'advance_orders',
-
         };
-
       }).toList();
-
-
 
       final combined = [...reservations, ...advanceOrders];
 
-
-
       // Sort combined results by created_at descending
-
       combined.sort((a, b) {
-
         final aTime = DateTime.parse(a['created_at'] ?? DateTime.now().toUtc().toIso8601String());
-
         final bTime = DateTime.parse(b['created_at'] ?? DateTime.now().toUtc().toIso8601String());
-
         return bTime.compareTo(aTime);
-
       });
-
-
 
       if (mounted) {
         setState(() {
@@ -731,33 +738,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         });
       }
     } catch (e) {
-
       debugPrint('Error loading customer records: $e');
-
     }
-
   }
 
 
 
   @override
-
   void dispose() {
-
+    _rescheduleRequestsSubscription?.cancel();
     _scrollController?.removeListener(_onMenuScroll);
-
     _scrollController?.dispose();
-
     _heroPageController.dispose();
-
     _heroTimer?.cancel();
-
     _sidebarAnimController.dispose();
-
     _eventController.dispose();
-
     _dateController.dispose();
-
     _startTimeController.dispose();
 
     _durationController.dispose();
@@ -767,6 +763,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _specialRequestsController.dispose();
 
     _featuredOrdersSubscription?.cancel();
+    _rescheduleRequestsSubscription?.cancel();
+    _customerNotifsSubscription?.cancel();
 
     super.dispose();
 
@@ -1129,159 +1127,160 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
   Widget _buildNotificationIcon() {
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
-
-
     if (currentUser == null) return const SizedBox.shrink();
 
-
-
     return StreamBuilder<List<Map<String, dynamic>>>(
-
       stream: _notificationsStream,
-
-
-
       builder: (context, snapshot) {
-
         final notifications = snapshot.data ?? [];
-
-
-
-        final newestId = notifications.isNotEmpty
-
-            ? notifications.first['id']?.toString()
-
-            : null;
-
-
-
-        // Show dot if:
-
-
-
-        // 1. There are unread items in the list
-
-
-
-        // 2. The newest item's ID is different from what we last "saw" (cleared)
-
-
-
-        final hasUnread = notifications.any((n) => !n['is_read']);
-
-
-
-        final isTrulyNew = newestId != _lastSeenNotificationId;
-
-
-
-        final showDot = hasUnread && isTrulyNew;
-
-
+        final unreadCount =
+            notifications.where((n) => n['is_read'] == false).length;
+        final hasUnread = unreadCount > 0;
 
         return Stack(
-
+          clipBehavior: Clip.none,
           children: [
-
             IconButton(
-
-              icon: const Icon(
-
-                Icons.notifications_none_rounded,
-
-
-
-                color: Colors.white,
-
+              icon: Icon(
+                hasUnread
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_none_rounded,
+                color: hasUnread ? AppTheme.warmGold : Colors.white,
+                size: 24,
               ),
-
-
-
               onPressed: () {
-
-                if (notifications.isNotEmpty) {
-
-                  final currentNewestId = notifications.first['id']?.toString();
-
-
-
-                  setState(() => _lastSeenNotificationId = currentNewestId);
-
-                }
-
-
-
                 _showNotificationsDialog(notifications);
-
               },
-
-
-
-              tooltip: 'Notifications',
-
+              tooltip: hasUnread
+                  ? '$unreadCount unread notification${unreadCount > 1 ? 's' : ''}'
+                  : 'Notifications',
             ),
-
-
-
-            if (showDot)
-
+            if (hasUnread)
               Positioned(
-
-                right: 12,
-
-
-
-                top: 12,
-
-
-
+                right: 6,
+                top: 6,
                 child: Container(
-
-                  width: 10,
-
-
-
-                  height: 10,
-
-
-
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
                   decoration: BoxDecoration(
-
-                    color: AppTheme.primaryColor,
-
-
-
-                    shape: BoxShape.circle,
-
-
-
+                    color: const Color(0xFFEF4444), // Vibrant Red
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-
-                      color: AppTheme.backgroundColor,
-
-
-
-                      width: 2,
-
+                      color: Colors.white,
+                      width: 1.5,
                     ),
-
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withValues(alpha: 0.6),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-
+                  child: Center(
+                    child: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
                 ),
-
               ),
-
           ],
-
         );
-
       },
-
     );
+  }
 
+  void _showNotificationToast(Map<String, dynamic> n) {
+    if (!mounted) return;
+    final title = _getNotificationTitle(n);
+    final subtitle = _getNotificationSubtitle(n);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFF334155), width: 1),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.warmGold.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: AppTheme.warmGold,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                final currentUser = Supabase.instance.client.auth.currentUser;
+                if (currentUser?.email != null) {
+                  NotificationService.getCustomerAdminNotificationsStream(
+                    currentUser!.email!,
+                  ).first.then((notifs) {
+                    if (mounted) _showNotificationsDialog(notifs);
+                  });
+                }
+              },
+              child: Text(
+                'VIEW',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  color: AppTheme.warmGold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -1492,15 +1491,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         icon = Icons.add_circle_outline;
 
-
-
                         color = AppTheme.infoBlue;
 
-
-
                         break;
-
-
 
                       case 'approved':
 
@@ -1508,15 +1501,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         icon = Icons.check_circle_outline;
 
-
-
                         color = AppTheme.successGreen;
 
-
-
                         break;
-
-
 
                       case 'cancelled':
 
@@ -1526,49 +1513,69 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                         icon = Icons.highlight_off;
 
-
-
                         color = AppTheme.errorRed;
 
-
-
                         break;
-
-
 
                       case 'updated':
 
                         icon = Icons.update;
 
-
-
                         color = AppTheme.warningOrange;
 
-
-
                         break;
-
-
 
                       case 'paid':
 
+                      case 'deposit_paid':
+
+                      case 'fully_paid':
+
+                      case 'balance_cleared':
+
                         icon = Icons.payment;
-
-
 
                         color = AppTheme.successGreen;
 
+                        break;
 
+                      case 'reschedule_approved':
+
+                        icon = Icons.event_available_rounded;
+
+                        color = AppTheme.successGreen;
 
                         break;
 
+                      case 'reschedule_rejected':
 
+                        icon = Icons.event_busy_rounded;
+
+                        color = AppTheme.errorRed;
+
+                        break;
+
+                      case 'refund_approved':
+
+                      case 'refund_processed':
+
+                        icon = Icons.currency_exchange_rounded;
+
+                        color = AppTheme.infoBlue;
+
+                        break;
+
+                      case 'refund_rejected':
+
+                        icon = Icons.highlight_off;
+
+                        color = AppTheme.errorRed;
+
+                        break;
 
                       default:
 
                         icon = Icons.notifications_none;
-
-
 
                         color = AppTheme.mediumGrey;
 
@@ -1927,6 +1934,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       case 'paid':
 
         return 'Payment Confirmed';
+
+
+
+      case 'deposit_paid':
+
+        return 'Deposit Payment Confirmed';
+
+
+
+      case 'fully_paid':
+
+        return 'Full Payment Confirmed';
+
+
+
+      case 'balance_cleared':
+
+        return 'Remaining Balance Paid';
+
+
+
+      case 'reschedule_approved':
+
+        return 'Reschedule Request Approved';
+
+
+
+      case 'reschedule_rejected':
+
+        return 'Reschedule Request Declined';
+
+
+
+      case 'refund_approved':
+
+        return 'Refund Request Approved';
+
+
+
+      case 'refund_processed':
+
+        return 'Refund Processed';
+
+
+
+      case 'refund_rejected':
+
+        return 'Refund Request Rejected';
 
 
 
@@ -7054,8 +7109,8 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 3),
-            childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.65),
+            crossAxisCount: ResponsiveUtils.isDesktop(context) ? 5 : (ResponsiveUtils.isTablet(context) ? 4 : 2),
+            childAspectRatio: ResponsiveUtils.isDesktop(context) ? 0.75 : (ResponsiveUtils.isTablet(context) ? 0.7 : 0.72),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -7539,7 +7594,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           children: [
             // Image Section
             Expanded(
-              flex: 3,
+              flex: 4,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
                 child: Stack(
@@ -9422,6 +9477,63 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   ),
                 ),
                 const Spacer(),
+                // ── Track Reschedules Button ──
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _rescheduleService.customerRescheduleRequestsStream(
+                    Supabase.instance.client.auth.currentUser?.email ?? '',
+                  ),
+                  builder: (context, snapshot) {
+                    final requests = snapshot.data ?? [];
+                    if (requests.isEmpty) return const SizedBox.shrink();
+                    final pendingCount = requests.where((r) => r['status'] == 'pending').length;
+
+                    return AnimatedTapScale(
+                      onTap: () => _showRescheduleTrackerModal(),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit_calendar_rounded, size: 14, color: Color(0xFF007AFF)),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Track Reschedules',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF007AFF),
+                              ),
+                            ),
+                            if (pendingCount > 0) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF007AFF),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$pendingCount',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 if (_activityFilter != 'all')
                   AnimatedTapScale(
                     onTap: () {
@@ -9696,6 +9808,88 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     ),
                                   ),
                                 ],
+                                if (reservation['reschedule_status'] == 'pending_approval') ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD97706).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.45)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.pending_actions_rounded, color: Color(0xFFFBBF24), size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'RESCHEDULE PENDING',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFBBF24),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ] else if (reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                    reservation['reschedule_status'] == 'rejected' ||
+                                    reservation['reschedule_status'] == 'declined') ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.45)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'DECLINED',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEF4444),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ] else if (reservation['reschedule_status'] == 'rescheduled' ||
+                                    reservation['reschedule_status'] == 'approved') ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF15803D).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF15803D).withValues(alpha: 0.45)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.event_available_rounded, color: Color(0xFF86EFAC), size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'RESCHEDULED',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF86EFAC),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 if ((status == 'confirmed' || status == 'pending') &&
                                     !(isAdvanceOrder && isPaid)) ...[
                                   PopupMenuButton<String>(
@@ -9705,7 +9899,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       if (value == 'cancel') {
                                         _showCancellationDialog(reservation);
                                       } else if (value == 'reschedule') {
-                                        _showRescheduleDialog(reservation);
+                                        if (reservation['reschedule_status'] == 'pending_approval') {
+                                          _showSnackBar('A reschedule request is already pending approval.', Colors.orange);
+                                        } else {
+                                          _showRescheduleDialog(reservation);
+                                        }
                                       }
                                     },
                                     itemBuilder: (BuildContext context) => [
@@ -9716,8 +9914,20 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                             const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 16),
                                             const SizedBox(width: 10),
                                             Text(
-                                              'Reschedule',
-                                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                                              reservation['reschedule_status'] == 'pending_approval'
+                                                  ? 'Reschedule Pending'
+                                                  : (reservation['reschedule_status'] == 'reschedule_rejected' ||
+                                                          reservation['reschedule_status'] == 'rejected' ||
+                                                          reservation['reschedule_status'] == 'declined'
+                                                      ? 'Reschedule (Declined)'
+                                                      : 'Reschedule'),
+                                              style: GoogleFonts.inter(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: reservation['reschedule_status'] == 'pending_approval'
+                                                    ? Colors.orange
+                                                    : null,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -9794,6 +10004,11 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     (reservation['selected_menu_items'] as Map).isNotEmpty) ...[
                                   const SizedBox(height: 12),
                                   _buildActivityOrderItems(reservation),
+                                ],
+
+                                // In-Card Reschedule Status Tracker Banner
+                                if (reservation['_db_table'] == 'reservations') ...[
+                                  _buildInCardRescheduleStatus(reservation),
                                 ],
 
                                 // Real-time order progress stepper for paid advance orders
@@ -10147,13 +10362,10 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
     final double paymentAmount = (reservation['payment_amount'] as num?)?.toDouble() ??
-
         (reservation['deposit_amount'] as num?)?.toDouble() ??
-
+        (reservation['amount_paid'] as num?)?.toDouble() ??
         (reservation['total_price'] as num?)?.toDouble() ??
-
         (reservation['total_amount'] as num?)?.toDouble() ??
-
         0.0;
 
 
@@ -10533,31 +10745,16 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
                   const SizedBox(height: 8),
-
-
-
                   Text('Expected Refund: ₱${refundAmount.toStringAsFixed(2)}'),
-
-
-
                   const SizedBox(height: 4),
-
-
-
                   Text(
-
                     refundAmount > 0
-
                         ? 'Refund will be processed within 5-7 business days'
-
-                        : 'No refund (cancellation within policy window)',
-
-
-
+                        : (paymentAmount > 0
+                            ? 'No refund (cancellation past policy window)'
+                            : 'No payment made for this booking (Unpaid)'),
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-
                   ),
-
                 ],
 
               ),
@@ -10616,355 +10813,1076 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
-  /// Show dialog to reschedule a reservation
-
-
-
+  /// Show dialog to reschedule a reservation (Pending Admin Approval)
   void _showRescheduleDialog(Map<String, dynamic> reservation) {
-
-    final currentDate = reservation['event_date'];
-
-
-
-    final currentTime = reservation['start_time'];
-
-
-
+    final currentDate = reservation['event_date']?.toString() ?? '';
+    final currentTime = reservation['start_time']?.toString() ?? '';
     final currentDuration = reservation['duration_hours'];
-
-
-
     final currentGuests = reservation['number_of_guests'];
-
-
+    final reasonController = TextEditingController();
 
     String? newDate;
-
-
-
     String? newTime;
-
-
+    DateTime? rawPickedDate;
 
     showDialog(
-
       context: context,
-
-
-
       builder: (context) => StatefulBuilder(
-
-        builder: (context, setState) => AlertDialog(
-
+        builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(
-
-            borderRadius: BorderRadius.circular(12),
-
+            borderRadius: BorderRadius.circular(16),
           ),
-
-
-
-          title: const Row(
-
+          title: Row(
             children: [
-
-              Icon(Icons.edit_calendar, color: Colors.blue),
-
-
-
-              SizedBox(width: 12),
-
-
-
-              Text('Reschedule Reservation'),
-
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF007AFF).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reschedule Request',
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 17),
+                    ),
+                    Text(
+                      'Requires Admin Approval',
+                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFFD97706), fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
             ],
-
           ),
-
-
-
           content: SingleChildScrollView(
-
             child: Column(
-
               mainAxisSize: MainAxisSize.min,
-
-
-
               crossAxisAlignment: CrossAxisAlignment.start,
-
-
-
               children: [
-
-                Text(
-
-                  'Current: $currentDate at $currentTime - ${currentDuration}h with $currentGuests guests',
-
+                // ── Current Schedule Card ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CURRENT SCHEDULE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF64748B),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$currentDate at $currentTime',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '${currentDuration ?? 2}h duration • ${currentGuests ?? 1} guests',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 16),
 
-
-
-                const SizedBox(height: 20),
-
-
-
-                const Text(
-
-                  'New Date:',
-
-
-
-                  style: TextStyle(fontWeight: FontWeight.bold),
-
+                // ── New Date Picker ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Select New Date:',
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    Text(
+                      reservation['_db_table'] == 'advance_orders'
+                          ? 'Same-day available'
+                          : 'Min. ${_appSettings.getMinReservationDaysAhead()} days ahead',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
-
-
-
-                const SizedBox(height: 8),
-
-
-
-                ElevatedButton.icon(
-
-                  onPressed: () async {
-
-                    final minDate = DateTime.now().add(
-
-                      Duration(days: _appSettings.getMinReservationDaysAhead()),
-
-                    );
-
-
-
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () async {
+                    final isAdvance = reservation['_db_table'] == 'advance_orders';
+                    final minDate = isAdvance
+                        ? DateTime.now()
+                        : DateTime.now().add(
+                            Duration(days: _appSettings.getMinReservationDaysAhead()),
+                          );
                     final maxDate = DateTime.now().add(
-
-                      Duration(days: _appSettings.getMaxReservationDaysAhead()),
-
+                      const Duration(days: 365),
                     );
-
-
-
                     final picked = await showDatePicker(
-
                       context: context,
-
-
-
                       initialDate: minDate,
-
-
-
                       firstDate: minDate,
-
-
-
                       lastDate: maxDate,
-
                     );
-
-
-
                     if (picked != null) {
-
-                      setState(() {
-
-                        newDate =
-
-                            "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
-
+                      setDialogState(() {
+                        rawPickedDate = picked;
+                        newDate = DateFormat('MMMM d, yyyy').format(picked);
                       });
-
                     }
-
                   },
-
-
-
-                  icon: const Icon(Icons.calendar_today),
-
-
-
-                  label: Text(newDate ?? 'Select Date'),
-
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: newDate != null ? const Color(0xFF007AFF) : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded, size: 18, color: newDate != null ? const Color(0xFF007AFF) : const Color(0xFF64748B)),
+                        const SizedBox(width: 10),
+                        Text(
+                          newDate ?? 'Choose a new date',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: newDate != null ? FontWeight.w700 : FontWeight.w500,
+                            color: newDate != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 14),
 
-
-
-                const SizedBox(height: 12),
-
-
-
-                const Text(
-
-                  'New Time:',
-
-
-
-                  style: TextStyle(fontWeight: FontWeight.bold),
-
+                // ── New Time Picker ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Select New Time:',
+                      style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    Text(
+                      'Open: ${(reservation['_db_table'] == 'advance_orders' ? 10 : _operatingHoursStart).toString().padLeft(2, '0')}:00 - ${(reservation['_db_table'] == 'advance_orders' ? 19 : _operatingHoursEnd).toString().padLeft(2, '0')}:00',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
                 ),
-
-
-
-                const SizedBox(height: 8),
-
-
-
-                ElevatedButton.icon(
-
-                  onPressed: () async {
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () async {
+                    final isAdvance = reservation['_db_table'] == 'advance_orders';
+                    final startHour = isAdvance ? 10 : _operatingHoursStart;
+                    final endHour = isAdvance ? 19 : _operatingHoursEnd;
 
                     final picked = await showTimePicker(
-
                       context: context,
-
-
-
                       initialTime: TimeOfDay(
-
-                        hour: _operatingHoursStart,
-
-
-
+                        hour: startHour,
                         minute: 0,
-
                       ),
-
                     );
-
-
-
                     if (picked != null) {
-
-                      setState(() {
-
-                        newTime = picked.format(context);
-
-                      });
-
-                    }
-
-                  },
-
-
-
-                  icon: const Icon(Icons.access_time),
-
-
-
-                  label: Text(newTime ?? 'Select Time'),
-
-                ),
-
-              ],
-
-            ),
-
-          ),
-
-
-
-          actions: [
-
-            TextButton(
-
-              onPressed: () => Navigator.pop(context),
-
-
-
-              child: const Text('Cancel'),
-
-            ),
-
-
-
-            ElevatedButton(
-
-              onPressed: (newDate != null && newTime != null)
-
-                  ? () async {
-
-                      Navigator.pop(context);
-
-
-
-                      setState(() => _isLoading = true);
-
-
-
-                      try {
-
-                        await _reservationService.rescheduleReservation(
-
-                          reservationId: reservation['id'],
-
-
-
-                          newDate: _formatDateForStorage(newDate!),
-
-
-
-                          newStartTime: newTime!,
-
-
-
-                          newDuration: null,
-
-
-
-                          newGuests: null,
-
-                        );
-
-
-
+                      // Validate against operating hours
+                      if (picked.hour < startHour ||
+                          picked.hour > endHour ||
+                          (picked.hour == endHour && picked.minute > 0)) {
                         _showSnackBar(
-
-                          'Reservation rescheduled successfully',
-
-
-
-                          Colors.green,
-
+                          'Please select a time between ${startHour.toString().padLeft(2, '0')}:00 and ${endHour.toString().padLeft(2, '0')}:00',
+                          Colors.red,
                         );
-
-
-
-                        _loadCustomerReservations();
-
-                      } catch (e) {
-
-                        _showSnackBar('Error rescheduling: $e', Colors.red);
-
-                      } finally {
-
-                        if (mounted) setState(() => _isLoading = false);
-
+                        return;
                       }
 
+                      // Validate 40-minutes-ahead rule for same-day Advance Orders
+                      if (isAdvance && rawPickedDate != null) {
+                        final now = DateTime.now();
+                        final isToday = rawPickedDate!.year == now.year &&
+                            rawPickedDate!.month == now.month &&
+                            rawPickedDate!.day == now.day;
+                        if (isToday) {
+                          final selectedDateTime = DateTime(
+                            now.year,
+                            now.month,
+                            now.day,
+                            picked.hour,
+                            picked.minute,
+                          );
+                          final timeDifference = selectedDateTime.difference(now);
+                          if (timeDifference.inMinutes < 40) {
+                            final earliestTime = now.add(const Duration(minutes: 40));
+                            final earliestFormatted =
+                                '${earliestTime.hour.toString().padLeft(2, '0')}:${earliestTime.minute.toString().padLeft(2, '0')}';
+                            _showSnackBar(
+                              'For same-day orders, please select a time at least 40 minutes from now (earliest: $earliestFormatted)',
+                              Colors.red,
+                            );
+                            return;
+                          }
+                        }
+                      }
+
+                      setDialogState(() {
+                        newTime = picked.format(context);
+                      });
                     }
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: newTime != null ? const Color(0xFF007AFF) : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 18, color: newTime != null ? const Color(0xFF007AFF) : const Color(0xFF64748B)),
+                        const SizedBox(width: 10),
+                        Text(
+                          newTime ?? 'Choose a new time',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: newTime != null ? FontWeight.w700 : FontWeight.w500,
+                            color: newTime != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
 
-                  : null,
+                // ── Reason Input ──
+                Text(
+                  'Reason for Rescheduling:',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 2,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'e.g., Unexpected schedule conflict, family event...',
+                    hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 14),
 
-
-
-              child: const Text('Confirm'),
-
+                // ── Policy Notice ──
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your original schedule remains active until this request is approved by the admin.',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            color: const Color(0xFF92400E),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B), fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: (newDate != null && newTime != null)
+                  ? () async {
+                      Navigator.pop(context);
+                      setState(() => _isLoading = true);
 
+                      try {
+                        final formattedDate = rawPickedDate != null
+                            ? "${rawPickedDate!.year}-${rawPickedDate!.month.toString().padLeft(2, '0')}-${rawPickedDate!.day.toString().padLeft(2, '0')}"
+                            : _formatDateForStorage(newDate!);
+
+                        // ── Check for time slot conflict (same as event booking flow) ──
+                        final double durationHours = currentDuration is num
+                            ? currentDuration.toDouble()
+                            : 2.0;
+
+                        final bool isOverlapping =
+                            await _reservationService.isTimeSlotOverlapping(
+                          eventDate: formattedDate,
+                          startTime: newTime!,
+                          durationHours: durationHours,
+                          excludeReservationId: reservation['id'].toString(),
+                        );
+
+                        if (isOverlapping) {
+                          if (mounted) setState(() => _isLoading = false);
+                          _showSnackBar(
+                            'This time slot is already booked. Please choose a different time or date.',
+                            Colors.orange,
+                          );
+                          return;
+                        }
+
+                        final result = await _rescheduleService.requestReschedule(
+                          reservationId: reservation['id'].toString(),
+                          customerId: reservation['customer_id']?.toString(),
+                          customerName: reservation['customer_name']?.toString() ?? 'Customer',
+                          customerEmail: reservation['customer_email']?.toString() ?? '',
+                          customerPhone: reservation['customer_phone']?.toString(),
+                          oldDate: currentDate,
+                          oldTime: currentTime,
+                          oldDuration: currentDuration is int ? currentDuration : (currentDuration as num?)?.toInt(),
+                          oldGuests: currentGuests is int ? currentGuests : (currentGuests as num?)?.toInt(),
+                          newDate: formattedDate,
+                          newTime: newTime!,
+                          reason: reasonController.text.trim().isNotEmpty
+                              ? reasonController.text.trim()
+                              : 'Customer requested reschedule',
+                        );
+
+                        if (result['success'] == true) {
+                          _showSnackBar(
+                            'Reschedule request submitted for admin approval!',
+                            Colors.green,
+                          );
+                          _loadCustomerReservations();
+                        } else {
+                          _showSnackBar(
+                            result['error']?.toString() ?? 'Failed to submit request',
+                            Colors.red,
+                          );
+                        }
+                      } catch (e) {
+                        _showSnackBar('Error requesting reschedule: $e', Colors.red);
+                      } finally {
+                        if (mounted) setState(() => _isLoading = false);
+                      }
+                    }
+                  : null,
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: Text(
+                'Submit Request',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF007AFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+            ),
           ],
-
         ),
-
       ),
-
     );
-
   }
 
 
+
+  // ══════════════════════════════════════════════════════════
+  //  RESCHEDULE TRACKER & IN-CARD STATUS
+  // ══════════════════════════════════════════════════════════
+
+  Widget _buildInCardRescheduleStatus(Map<String, dynamic> reservation) {
+    final status = reservation['reschedule_status']?.toString();
+    if (status == null || status.isEmpty || status == 'none') return const SizedBox.shrink();
+
+    Color bgColor;
+    Color borderColor;
+    Color iconColor;
+    IconData icon;
+    String title;
+    String description;
+
+    if (status == 'pending_approval') {
+      bgColor = const Color(0xFFFEF3C7);
+      borderColor = const Color(0xFFF59E0B);
+      iconColor = const Color(0xFFD97706);
+      icon = Icons.hourglass_top_rounded;
+      title = 'Reschedule Request Pending Admin Approval';
+      description = 'You requested a schedule change. We will notify you once admin confirms or updates it.';
+    } else if (status == 'rescheduled') {
+      bgColor = const Color(0xFFDCFCE7);
+      borderColor = const Color(0xFF22C55E);
+      iconColor = const Color(0xFF15803D);
+      icon = Icons.check_circle_rounded;
+      title = 'Reschedule Request Approved!';
+      description = 'Your new schedule has been confirmed by Admin and is now active.';
+    } else if (status == 'reschedule_rejected') {
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = const Color(0xFFEF4444);
+      iconColor = const Color(0xFFDC2626);
+      icon = Icons.cancel_rounded;
+      title = 'Reschedule Request Not Approved';
+      description = 'Admin was unable to accommodate the requested time. Your original schedule remains active.';
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor.withValues(alpha: 0.3)),
+                ),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: const Color(0xFF475569),
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () => _showRescheduleTrackerModal(highlightReservationId: reservation['id']?.toString()),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'View Tracker & Details',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: iconColor,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_rounded, size: 12, color: iconColor),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRescheduleTrackerModal({String? highlightReservationId}) {
+    final userEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Top drag handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Modal Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.edit_calendar_rounded, color: Color(0xFF007AFF), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reschedule Tracker',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Real-time review updates on your requested schedule changes',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+              // Realtime Stream of Reschedule Requests
+              Expanded(
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _rescheduleService.customerRescheduleRequestsStream(userEmail),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF007AFF)),
+                      );
+                    }
+
+                    final requests = snapshot.data ?? [];
+
+                    if (requests.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.event_busy_rounded, size: 40, color: Color(0xFF94A3B8)),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Reschedule Requests',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'When you request to change a booking date or time, you can monitor its real-time review progress here.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: requests.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final req = requests[index];
+                        final isHighlighted = highlightReservationId != null &&
+                            req['reservation_id']?.toString() == highlightReservationId;
+                        return _buildRescheduleTrackerCard(req, isHighlighted);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRescheduleTrackerCard(Map<String, dynamic> req, bool isHighlighted) {
+    final status = (req['status'] ?? 'pending').toString().toLowerCase();
+    final oldDate = req['old_date']?.toString() ?? '';
+    final oldTime = req['old_time']?.toString() ?? '';
+    final newDate = req['new_date']?.toString() ?? '';
+    final newTime = req['new_time']?.toString() ?? '';
+    final reason = req['reason']?.toString() ?? 'Reschedule requested';
+    final adminNotes = req['admin_notes']?.toString();
+    final createdAt = req['created_at']?.toString();
+
+    Color cardBorderColor;
+    Color statusColor;
+    String statusLabel;
+    IconData statusIcon;
+
+    if (status == 'approved') {
+      cardBorderColor = const Color(0xFF22C55E);
+      statusColor = const Color(0xFF15803D);
+      statusLabel = 'APPROVED';
+      statusIcon = Icons.check_circle_rounded;
+    } else if (status == 'rejected') {
+      cardBorderColor = const Color(0xFFEF4444);
+      statusColor = const Color(0xFFDC2626);
+      statusLabel = 'DECLINED';
+      statusIcon = Icons.cancel_rounded;
+    } else if (status == 'cancelled') {
+      cardBorderColor = const Color(0xFF94A3B8);
+      statusColor = const Color(0xFF64748B);
+      statusLabel = 'CANCELLED';
+      statusIcon = Icons.block_rounded;
+    } else {
+      cardBorderColor = const Color(0xFF007AFF);
+      statusColor = const Color(0xFFD97706);
+      statusLabel = 'PENDING APPROVAL';
+      statusIcon = Icons.hourglass_top_rounded;
+    }
+
+    String requestedAtStr = '';
+    if (createdAt != null) {
+      try {
+        final parsed = DateTime.parse(createdAt).toLocal();
+        requestedAtStr = DateFormat('MMM dd, yyyy • h:mm a').format(parsed);
+      } catch (_) {
+        requestedAtStr = createdAt;
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHighlighted ? const Color(0xFF007AFF) : cardBorderColor.withValues(alpha: 0.4),
+          width: isHighlighted ? 2.0 : 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isHighlighted ? const Color(0xFF007AFF) : const Color(0xFF0F172A)).withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row: Status chip & timestamp ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 13, color: statusColor),
+                    const SizedBox(width: 5),
+                    Text(
+                      statusLabel,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: statusColor,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (requestedAtStr.isNotEmpty)
+                Text(
+                  requestedAtStr,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // ── 3-Step Live Progress Stepper ──
+          _buildTrackerStepper(status),
+          const SizedBox(height: 14),
+
+          // ── Comparison Banner ──
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PREVIOUS SCHEDULE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$oldDate\n$oldTime',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF334155),
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF), size: 14),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'REQUESTED SCHEDULE',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF007AFF),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$newDate\n$newTime',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF007AFF),
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // ── Reason ──
+          Text(
+            'Your Reason: $reason',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              color: const Color(0xFF475569),
+            ),
+          ),
+
+          // ── Admin Notes (if any) ──
+          if (adminNotes != null && adminNotes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: status == 'approved' ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Admin Remark: $adminNotes',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: status == 'approved' ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                ),
+              ),
+            ),
+          ],
+
+          // ── Cancel Button if Pending ──
+          if (status == 'pending') ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    '⏳ Admin will review this shortly.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: const Color(0xFFD97706),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _confirmCancelReschedule(req),
+                  icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFDC2626)),
+                  label: Text(
+                    'Cancel Request',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC2626),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackerStepper(String status) {
+    int currentStep = 1; // 0 = submitted, 1 = under review, 2 = resolved
+    if (status == 'approved' || status == 'rejected' || status == 'cancelled') {
+      currentStep = 2;
+    }
+
+    final isDeclined = status == 'rejected' || status == 'cancelled';
+
+    return Row(
+      children: [
+        _buildStepIndicator(
+          stepNumber: 1,
+          title: 'Submitted',
+          isActive: true,
+          isCompleted: true,
+          icon: Icons.send_rounded,
+        ),
+        Expanded(
+          child: Container(
+            height: 2,
+            color: currentStep >= 1 ? const Color(0xFF007AFF) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        _buildStepIndicator(
+          stepNumber: 2,
+          title: 'Under Review',
+          isActive: currentStep >= 1,
+          isCompleted: currentStep >= 2,
+          icon: Icons.rate_review_rounded,
+        ),
+        Expanded(
+          child: Container(
+            height: 2,
+            color: currentStep >= 2
+                ? (isDeclined ? const Color(0xFFDC2626) : const Color(0xFF15803D))
+                : const Color(0xFFE2E8F0),
+          ),
+        ),
+        _buildStepIndicator(
+          stepNumber: 3,
+          title: isDeclined ? 'Declined' : (status == 'approved' ? 'Approved' : 'Decision'),
+          isActive: currentStep == 2,
+          isCompleted: currentStep == 2,
+          isError: isDeclined,
+          icon: isDeclined
+              ? Icons.cancel_rounded
+              : (status == 'approved' ? Icons.check_circle_rounded : Icons.pending_actions_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepIndicator({
+    required int stepNumber,
+    required String title,
+    required bool isActive,
+    required bool isCompleted,
+    bool isError = false,
+    required IconData icon,
+  }) {
+    Color color;
+    if (isError) {
+      color = const Color(0xFFDC2626);
+    } else if (isCompleted) {
+      color = const Color(0xFF15803D);
+    } else if (isActive) {
+      color = const Color(0xFF007AFF);
+    } else {
+      color = const Color(0xFF94A3B8);
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: 1.5),
+          ),
+          child: Icon(icon, size: 14, color: color),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 10,
+            fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmCancelReschedule(Map<String, dynamic> req) {
+    showDialog(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Cancel Reschedule Request?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        content: Text(
+          'Are you sure you want to cancel this reschedule request? Your booking will remain on the original date and time.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: Text('Keep Request', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dCtx);
+              final success = await _rescheduleService.cancelRescheduleRequest(
+                requestId: req['id'].toString(),
+                reservationId: req['reservation_id'].toString(),
+              );
+              if (success) {
+                _showSnackBar('Reschedule request cancelled.', Colors.blue);
+                _loadCustomerReservations();
+              } else {
+                _showSnackBar('Failed to cancel request.', Colors.red);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Cancel Request', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Helper to format date for storage
 
@@ -13183,6 +14101,5 @@ class _StickyCategoryNavBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
 }
-
 
 
