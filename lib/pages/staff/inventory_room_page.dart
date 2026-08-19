@@ -8,7 +8,64 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
 class InventoryRoomPage extends StatefulWidget {
-  const InventoryRoomPage({super.key});
+  final List<Map<String, dynamic>>? initialRestockItems;
+  final String? initialSupplier;
+  final String? initialDrNumber;
+  final bool autoOpenIntake;
+  final int initialTabIndex;
+
+  const InventoryRoomPage({
+    super.key,
+    this.initialRestockItems,
+    this.initialSupplier,
+    this.initialDrNumber,
+    this.autoOpenIntake = false,
+    this.initialTabIndex = 0,
+  });
+
+  static final GlobalKey<_InventoryRoomPageState> globalKey = GlobalKey<_InventoryRoomPageState>();
+
+  static void showDeliveryIntakeDialog(
+    BuildContext context, {
+    List<Map<String, dynamic>>? initialItems,
+    String? initialSupplier,
+    String? initialDrNumber,
+  }) {
+    if (globalKey.currentState != null) {
+      globalKey.currentState!._showBulkReplenishDialog(
+        initialItems: initialItems,
+        initialSupplier: initialSupplier,
+        initialDrNumber: initialDrNumber,
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => InventoryRoomPage(
+            key: globalKey,
+            initialRestockItems: initialItems,
+            initialSupplier: initialSupplier,
+            initialDrNumber: initialDrNumber,
+            autoOpenIntake: true,
+          ),
+        ),
+      );
+    }
+  }
+
+  static void navigateToIncomingTab(BuildContext context) {
+    if (globalKey.currentState != null) {
+      globalKey.currentState!.switchToTab(1);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => InventoryRoomPage(
+            key: globalKey,
+            initialTabIndex: 1,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   State<InventoryRoomPage> createState() => _InventoryRoomPageState();
@@ -53,7 +110,26 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 2),
+    );
+    if (widget.autoOpenIntake) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showBulkReplenishDialog(
+          initialItems: widget.initialRestockItems,
+          initialSupplier: widget.initialSupplier,
+          initialDrNumber: widget.initialDrNumber,
+        );
+      });
+    }
+  }
+
+  void switchToTab(int index) {
+    if (index >= 0 && index < _tabController.length) {
+      _tabController.animateTo(index);
+    }
   }
 
   @override
@@ -62,15 +138,23 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     super.dispose();
   }
 
-  void _showBulkReplenishDialog() {
+  void _showBulkReplenishDialog({
+    List<Map<String, dynamic>>? initialItems,
+    String? initialSupplier,
+    String? initialDrNumber,
+  }) {
     final receiverCtrl = TextEditingController();
-    final supplierCtrl = TextEditingController(text: 'Public Market');
-    final drCtrl = TextEditingController();
+    final supplierCtrl = TextEditingController(
+      text: (initialSupplier != null && initialSupplier.isNotEmpty && initialSupplier != 'All')
+          ? initialSupplier
+          : 'Public Market',
+    );
+    final drCtrl = TextEditingController(text: initialDrNumber ?? '');
     final searchCtrl = TextEditingController();
 
     String selectedCategoryFilter = 'All';
     String stockHealthFilter = 'ALL'; // 'ALL', 'OUT', 'LOW', 'OPTIMAL'
-    bool showOnlySelected = false;
+    bool showOnlySelected = initialItems != null && initialItems.isNotEmpty;
     bool showOnlyUnlisted = false;
 
     // In-memory restock quantity map: itemName -> quantity to add
@@ -160,6 +244,29 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                     final name = itm['name']?.toString() ?? '';
                     if (name.isNotEmpty && !qtyControllers.containsKey(name)) {
                       qtyControllers[name] = TextEditingController(text: '0');
+                    }
+                  }
+
+                  // Pre-populate initial items from PO Generator
+                  if (initialItems != null && initialItems.isNotEmpty) {
+                    for (final initItem in initialItems) {
+                      final name = initItem['name']?.toString() ?? '';
+                      final qty = (initItem['quantity'] as num?)?.toInt() ?? 0;
+                      if (name.isNotEmpty && qty > 0) {
+                        final dbMatch = allDbItems.firstWhere(
+                          (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                          orElse: () => {},
+                        );
+                        if (dbMatch.isEmpty) {
+                          extraCustomItems.add(initItem);
+                        }
+                        restockQtys[name] = qty;
+                        if (!qtyControllers.containsKey(name)) {
+                          qtyControllers[name] = TextEditingController(text: qty.toString());
+                        } else {
+                          qtyControllers[name]!.text = qty.toString();
+                        }
+                      }
                     }
                   }
                 });
@@ -338,23 +445,44 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                 if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
                                   supplierCtrl.text = detectedSupplier.trim();
                                 }
+
+                                // Clear previous scan leftovers so old scans do not stack with new receipt!
+                                extraCustomItems.clear();
+                                restockQtys.clear();
+                                for (var ctrl in qtyControllers.values) {
+                                  ctrl.text = '0';
+                                }
+
                                 for (final item in items) {
                                   final name = item['name']?.toString() ?? '';
                                   final qty = (item['quantity'] as num?)?.toInt() ?? 0;
                                   if (name.isNotEmpty && qty > 0) {
-                                    final exists = combinedList.any(
+                                    final dbMatch = allDbItems.firstWhere(
                                       (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                      orElse: () => {},
                                     );
-                                    if (!exists) {
-                                      extraCustomItems.add(item);
+
+                                    if (dbMatch.isEmpty) {
+                                      final alreadyInExtra = extraCustomItems.indexWhere(
+                                        (e) => (e['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                      );
+                                      if (alreadyInExtra >= 0) {
+                                        extraCustomItems[alreadyInExtra]['quantity'] = qty;
+                                      } else {
+                                        extraCustomItems.add(item);
+                                      }
                                     }
+
                                     if (!qtyControllers.containsKey(name)) {
                                       qtyControllers[name] = TextEditingController(text: qty.toString());
+                                    } else {
+                                      qtyControllers[name]!.text = qty.toString();
                                     }
-                                    setItemQty(name, (restockQtys[name] ?? 0) + qty);
+                                    setItemQty(name, qty);
                                   }
                                 }
                                 showOnlySelected = true;
+                                showOnlyUnlisted = false;
                               });
                             },
                           );
@@ -1314,10 +1442,10 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         return;
       }
 
-      // Match parsed items against inventory using similarity
-      final List<Map<String, dynamic>> itemsToAdd = [];
-      int matchedCount = 0;
-      final List<String> unmatchedNames = [];
+      // Match parsed items against inventory using similarity & deduplicate
+      final Map<String, Map<String, dynamic>> aggregatedItems = {};
+      final Set<String> matchedNamesSet = {};
+      final Set<String> unmatchedDisplaySet = {};
 
       for (final parsed in parsedItems) {
         final String parsedName = (parsed['name'] ?? '').toString().trim();
@@ -1326,44 +1454,102 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
         if (parsedName.isEmpty || parsedQty <= 0) continue;
 
-        // Find best match in inventory
+        String cleanParsedName = parsedName;
+        if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
+          cleanParsedName = cleanParsedName
+              .replaceAll(RegExp(r'\b' + RegExp.escape(detectedSupplier.trim()) + r'\b', caseSensitive: false), ' ')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim();
+        }
+        if (cleanParsedName.isEmpty) cleanParsedName = parsedName;
+
+        // Skip any lingering headers/footers
+        final lower = cleanParsedName.toLowerCase();
+        if (lower.contains('yang chow') ||
+            lower.contains('purchase order') ||
+            lower.contains('delivery receipt') ||
+            lower.contains('prepared &') ||
+            lower.contains('signature') ||
+            lower.contains('acknowledged by') ||
+            lower.contains('combined suppliers') ||
+            lower.contains('target delivery') ||
+            lower.contains('delivery location') ||
+            lower.contains('order qty') ||
+            lower.contains('current stock') ||
+            lower.contains('category /') ||
+            lower == 'fresh produce' ||
+            lower == 'public market' ||
+            lower == 'poultry & meat supplier' ||
+            lower == 'metro wholesale' ||
+            lower == 'beverage distributor' ||
+            lower == 'fresh' ||
+            lower == 'market' ||
+            lower == 'supplier') {
+          continue;
+        }
+
+        // Find best match in inventory (Strict threshold: 0.70)
         Map<String, dynamic>? bestMatch;
         double highestScore = 0.0;
 
         for (final inv in inventoryItems) {
           final invName = inv['name']?.toString() ?? '';
-          final score = DeliveryReceiptOcrService.calculateSimilarity(parsedName, invName);
-          if (score > highestScore && score >= 0.45) {
+          final score = DeliveryReceiptOcrService.calculateSimilarity(cleanParsedName, invName);
+          if (score > highestScore && score >= 0.70) {
             highestScore = score;
             bestMatch = inv;
           }
         }
 
+        // Clean supplier text
+        String finalSupplier = (bestMatch != null && bestMatch['supplier'] != null && bestMatch['supplier'].toString().trim().isNotEmpty)
+            ? bestMatch['supplier'].toString().trim()
+            : (detectedSupplier ?? '');
+        finalSupplier = finalSupplier
+            .replaceAll(RegExp(r'\b(PREPARED BY|DELIVERY LOCATION|TARGET DELIVERY).*$', caseSensitive: false), '')
+            .replaceAll(RegExp(r'[:#*_-]+$'), '')
+            .trim();
+
         if (bestMatch != null) {
-          matchedCount++;
-          itemsToAdd.add({
-            'name': bestMatch['name'] ?? parsedName,
-            'category': bestMatch['category'] ?? 'Groceries',
-            'quantity': parsedQty,
-            'unit': (bestMatch['unit'] != null && bestMatch['unit'].toString().trim().isNotEmpty)
-                ? bestMatch['unit'].toString().trim()
-                : parsedUnit,
-            'supplier': (bestMatch['supplier'] != null && bestMatch['supplier'].toString().trim().isNotEmpty)
-                ? bestMatch['supplier'].toString().trim()
-                : (detectedSupplier ?? ''),
-          });
+          final String matchedName = (bestMatch['name'] ?? cleanParsedName).toString().trim();
+          final String dedupKey = matchedName.toLowerCase();
+          matchedNamesSet.add(dedupKey);
+
+          if (aggregatedItems.containsKey(dedupKey)) {
+            // Merge quantity if already read
+            aggregatedItems[dedupKey]!['quantity'] = (aggregatedItems[dedupKey]!['quantity'] as int) + parsedQty;
+          } else {
+            aggregatedItems[dedupKey] = {
+              'name': matchedName,
+              'category': bestMatch['category'] ?? 'Groceries',
+              'quantity': parsedQty,
+              'unit': (bestMatch['unit'] != null && bestMatch['unit'].toString().trim().isNotEmpty)
+                  ? bestMatch['unit'].toString().trim()
+                  : parsedUnit,
+              'supplier': finalSupplier,
+            };
+          }
         } else {
-          // Add as new item with default/detected info
-          unmatchedNames.add(parsedName);
-          itemsToAdd.add({
-            'name': parsedName,
-            'category': 'Groceries',
-            'quantity': parsedQty,
-            'unit': parsedUnit.isNotEmpty ? parsedUnit : 'Pcs',
-            'supplier': detectedSupplier ?? '',
-          });
+          // Unlisted / New Item: Clean name and deduplicate
+          final String dedupKey = cleanParsedName.toLowerCase();
+          if (aggregatedItems.containsKey(dedupKey)) {
+            aggregatedItems[dedupKey]!['quantity'] = (aggregatedItems[dedupKey]!['quantity'] as int) + parsedQty;
+          } else {
+            aggregatedItems[dedupKey] = {
+              'name': cleanParsedName,
+              'category': 'Groceries',
+              'quantity': parsedQty,
+              'unit': parsedUnit.isNotEmpty ? parsedUnit : 'Pcs',
+              'supplier': finalSupplier,
+            };
+          }
+          unmatchedDisplaySet.add('$cleanParsedName ($parsedQty $parsedUnit)');
         }
       }
+
+      final List<Map<String, dynamic>> itemsToAdd = aggregatedItems.values.toList();
+      final int matchedCount = matchedNamesSet.length;
+      final List<String> unmatchedNames = unmatchedDisplaySet.toList();
 
       // Add all items to the bulk list
       if (itemsToAdd.isNotEmpty) {
@@ -1895,15 +2081,18 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
     String receiver,
     String? drNumber,
     String? deliveryTimestamp,
-    String? purpose,
-  ) async {
+    String? purpose, {
+    bool showNotification = true,
+  }) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
+      final cleanName = name.trim();
 
+      // 1. Check if item exists in inventory (Case-insensitive)
       final existingItems = await Supabase.instance.client
           .from('inventory')
           .select()
-          .eq('name', name)
+          .ilike('name', cleanName)
           .limit(1);
 
       if (existingItems.isNotEmpty) {
@@ -1911,22 +2100,43 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         final currentQty = (existingItem['quantity'] as num?)?.toInt() ?? 0;
         await Supabase.instance.client
             .from('inventory')
-            .update({'quantity': currentQty + quantity})
+            .update({
+              'quantity': currentQty + quantity,
+              if (supplier.isNotEmpty) 'supplier': supplier,
+            })
             .eq('id', existingItem['id']);
       } else {
-        await Supabase.instance.client.from('inventory').insert({
-          'name': name,
-          'category': category,
-          'quantity': quantity,
-          'unit': unit,
-          'supplier': supplier,
-          'created_by': user?.email,
-          'created_at': DateTime.now().toUtc().toIso8601String(),
-        });
+        // Fallback: check normalized name across all inventory
+        final allInv = await Supabase.instance.client
+            .from('inventory')
+            .select('id, name, quantity');
+        final normTarget = cleanName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        final match = allInv.firstWhere(
+          (inv) => (inv['name'] ?? '').toString().trim().toLowerCase().replaceAll(RegExp(r'\s+'), '') == normTarget,
+          orElse: () => {},
+        );
+
+        if (match.isNotEmpty) {
+          final currentQty = (match['quantity'] as num?)?.toInt() ?? 0;
+          await Supabase.instance.client
+              .from('inventory')
+              .update({'quantity': currentQty + quantity})
+              .eq('id', match['id']);
+        } else {
+          await Supabase.instance.client.from('inventory').insert({
+            'name': cleanName,
+            'category': category,
+            'quantity': quantity,
+            'unit': unit,
+            'supplier': supplier,
+            'created_by': user?.email,
+            'created_at': DateTime.now().toUtc().toIso8601String(),
+          });
+        }
       }
 
       await Supabase.instance.client.from('stock_transactions').insert({
-        'item_name': name,
+        'item_name': cleanName,
         'transaction_type': 'incoming',
         'quantity': quantity,
         'unit': unit,
@@ -1937,9 +2147,14 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
         if (purpose != null) 'purpose': purpose,
       });
 
-      _showSuccessSnackBar('Stock added successfully!');
+      if (showNotification) {
+        _showSuccessSnackBar('Stock added successfully!');
+      }
     } catch (e) {
-      _showErrorSnackBar('Failed to add stock: $e');
+      if (showNotification) {
+        _showErrorSnackBar('Failed to add stock: $e');
+      }
+      rethrow;
     }
   }
 
@@ -1968,6 +2183,7 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
           drNumber, // Pass DR Number
           deliveryTimestamp, // Pass delivery timestamp
           purpose, // Pass purpose
+          showNotification: false,
         );
         successCount++;
       } catch (e) {

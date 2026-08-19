@@ -368,17 +368,18 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
         height: 58,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+            colors: [Color(0xFFFDE68A), Color(0xFFD9A441), Color(0xFFB45309)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFD9A441), width: 1.5),
+          border: Border.all(color: Colors.white, width: 2.0),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF14332E).withOpacity(0.35),
+              color: const Color(0xFFD9A441).withOpacity(0.55),
               blurRadius: 16,
-              offset: const Offset(0, 6),
+              spreadRadius: 1,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -389,7 +390,7 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
               _isClosed
                   ? Icons.chat_bubble_rounded
                   : Icons.keyboard_arrow_down_rounded,
-              color: Colors.white,
+              color: const Color(0xFF0F2622),
               size: _isClosed ? 26 : 32,
             ),
             if (_unreadCount > 0)

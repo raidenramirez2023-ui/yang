@@ -1018,6 +1018,12 @@ class _OrderCardState extends State<_OrderCard> {
   void _showPosRefundDialog(BuildContext context) {
     final passcodeCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    String initialCashierName = currentUser?.userMetadata?['full_name']?.toString() ??
+        currentUser?.userMetadata?['name']?.toString() ??
+        currentUser?.email?.split('@').first ??
+        'Cashier Staff';
+    final cashierCtrl = TextEditingController(text: initialCashierName);
     bool isLoading = false;
     String? errorMsg;
     bool obscurePasscode = true;
@@ -1326,6 +1332,39 @@ class _OrderCardState extends State<_OrderCard> {
                     ),
                     const SizedBox(height: 14),
 
+                    // Cashier / Processed By Field
+                    Text(
+                      'CASHIER / PROCESSED BY',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: _grey,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: cashierCtrl,
+                      style: GoogleFonts.inter(fontSize: 13, color: _textDark, fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        hintText: 'Cashier name',
+                        prefixIcon: const Icon(Icons.person_outline, size: 18, color: _grey),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _border),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // Reason Field
                     Text(
                       'REFUND REASON',
@@ -1444,6 +1483,7 @@ class _OrderCardState extends State<_OrderCard> {
                     : () async {
                         final passcode = passcodeCtrl.text.trim();
                         final reason = reasonCtrl.text.trim();
+                        final cashier = cashierCtrl.text.trim();
                         if (passcode.isEmpty) {
                           setDlgState(() =>
                               errorMsg = 'Please enter Admin passcode');
@@ -1480,7 +1520,8 @@ class _OrderCardState extends State<_OrderCard> {
                           reason: reason.isEmpty ? 'POS Item Refund' : reason,
                           staffEmail: Supabase
                                   .instance.client.auth.currentUser?.email ??
-                              'staff@yangchow.com',
+                              'cashier.pos@yangchow.com',
+                          staffName: cashier.isNotEmpty ? cashier : null,
                         );
 
                         if (ctx.mounted) Navigator.pop(ctx);

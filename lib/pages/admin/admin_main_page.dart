@@ -71,6 +71,7 @@ import 'package:yang_chow/pages/admin/remaining_balance_tracking_page.dart';
 import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
+import 'package:yang_chow/pages/admin/audit_logs_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -624,6 +625,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Refunds & Reschedules',
 
+    'Audit Logs',
+
 
 
   ];
@@ -688,6 +691,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.receipt_long,
 
+    Icons.shield_outlined,
+
 
 
   ];
@@ -751,6 +756,8 @@ class _AdminMainPageState extends State<AdminMainPage> {
     const PettyCashPage(),
 
     const RefundManagementPage(),
+
+    const AuditLogsPage(),
 
 
 

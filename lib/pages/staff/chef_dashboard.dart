@@ -394,6 +394,11 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
 
   // ── Notifications ───────────────────────────────────────
   Widget _buildNewNotificationPopup(Map<String, dynamic> n) {
+    // Disable stock alert popups for chef
+    if (n['action_type'] == 'stock_alert') {
+      return const SizedBox.shrink();
+    }
+
     // If popup is already showing, don't show another one
     if (_isPopupShowing) {
       return const SizedBox.shrink();
@@ -417,6 +422,12 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
   void _showComprehensiveNotificationPopup(Map<String, dynamic> notification) {
     final actionType = notification['action_type']?.toString() ?? '';
     
+    // Disable stock alert popups for chef
+    if (actionType == 'stock_alert') {
+      _closePopup();
+      return;
+    }
+
     // Set flag to prevent multiple popups
     setState(() {
       _isPopupShowing = true;
@@ -428,7 +439,7 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     // Route to appropriate popup based on action type
     switch (actionType) {
       case 'stock_alert':
-        _showCriticalStockAlertPopup(notification);
+        _closePopup();
         break;
       case 'pos_order':
         _showNewOrderPopup(notification);
@@ -469,171 +480,6 @@ class _ChefDashboardPageState extends State<ChefDashboardPage>
     setState(() {
       _dismissedNotificationIds.add('all_$actionType');
     });
-  }
-
-  void _showCriticalStockAlertPopup(Map<String, dynamic> notification) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: EdgeInsets.zero,
-        content: Container(
-          width: 400,
-          constraints: const BoxConstraints(maxHeight: 500),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Red Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Critical Stock Alerts',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _dismissedNotificationIds.add(notification['id'].toString());
-                        });
-                        Navigator.pop(context);
-_closePopup();
-                      },
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '8 items need attention',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Out of Stock Section
-                    _buildStockSection(
-                      title: 'Out of Stock',
-                      count: 1,
-                      items: ['Pineapple Chunks'],
-                      icon: Icons.block,
-                      iconColor: Colors.red,
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    // Low Stock Section
-                    _buildStockSection(
-                      title: 'Low Stock',
-                      count: 7,
-                      items: ['Patatim', 'Curry Sauce', 'Soy Sauce', 'Vinegar', 'Garlic', 'Onion', 'Cooking Oil'],
-                      icon: Icons.trending_down,
-                      iconColor: Colors.orange,
-                    ),
-                  ],
-                ),
-              ),
-              // Buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _dismissedNotificationIds.add(notification['id'].toString());
-                          });
-                          Navigator.pop(context);
-_closePopup();
-                          // Navigate to Stock tab
-                          _pageController.animateToPage(
-                            4,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                          );
-                          setState(() => _currentTab = 4);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.primaryColor),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Manage Inventory',
-                          style: TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _dismissedNotificationIds.add(notification['id'].toString());
-                          });
-                          Navigator.pop(context);
-_closePopup();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Understood',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _showNewOrderPopup(Map<String, dynamic> notification) {
@@ -1396,60 +1242,13 @@ _closePopup();
     );
   }
 
-  Widget _buildStockSection({
-    required String title,
-    required int count,
-    required List<String> items,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: iconColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: iconColor.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                '$title ($count)',
-                style: TextStyle(
-                  color: iconColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...items.map((item) => Padding(
-            padding: const EdgeInsets.only(left: 28, bottom: 4),
-            child: Text(
-              '• $item',
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 13,
-              ),
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
   // ── Notifications ───────────────────────────────────────
   Widget _buildNotificationIcon() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: NotificationService.getKitchenNotificationsStream(),
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? [];
-        final unreadNotifications = notifications.where((n) => !n['is_read']).toList();
+        final unreadNotifications = notifications.where((n) => !n['is_read'] && n['action_type'] != 'stock_alert').toList();
         final hasUnread = unreadNotifications.isNotEmpty;
 
         Map<String, dynamic>? latestUnread;

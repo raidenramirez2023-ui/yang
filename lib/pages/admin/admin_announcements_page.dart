@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 class AdminAnnouncementsPage extends StatefulWidget {
   const AdminAnnouncementsPage({super.key});
@@ -58,14 +59,26 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
     }
 
     try {
-      await supabase.from('announcements').insert({
+      final inserted = await supabase.from('announcements').insert({
         'title': titleController.text,
         'content': contentController.text,
         'image_url': imageUrlController.text.trim().isEmpty ? null : imageUrlController.text.trim(),
         'tag': tagController.text.trim().isEmpty ? 'Update' : tagController.text.trim(),
         'is_active': true,
         'expiration_date': selectedDate?.toUtc().toIso8601String(),
-      });
+      }).select('id').maybeSingle();
+
+      AuditLogService.logActivity(
+        action: 'CREATE',
+        module: 'Announcements',
+        description: 'Published announcement: "${titleController.text.trim()}"',
+        entityId: inserted?['id']?.toString(),
+        metadata: {
+          'title': titleController.text.trim(),
+          'tag': tagController.text.trim(),
+          'expires_at': selectedDate?.toIso8601String(),
+        },
+      );
 
       if (mounted) {
         titleController.clear();
@@ -95,6 +108,13 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
           .delete()
           .eq('id', announcementId);
 
+      AuditLogService.logActivity(
+        action: 'DELETE',
+        module: 'Announcements',
+        description: 'Deleted announcement #$announcementId',
+        entityId: announcementId,
+      );
+
       if (mounted) {
         _loadAnnouncements();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -116,6 +136,14 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
           .from('announcements')
           .update({'is_active': !currentStatus})
           .eq('id', announcementId);
+
+      AuditLogService.logActivity(
+        action: 'STATUS_CHANGE',
+        module: 'Announcements',
+        description: 'Changed announcement #$announcementId status to ${!currentStatus ? "ACTIVE" : "INACTIVE"}',
+        entityId: announcementId,
+        metadata: {'is_active': !currentStatus},
+      );
 
       if (mounted) {
         _loadAnnouncements();

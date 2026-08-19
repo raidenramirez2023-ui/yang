@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/services/refund_service.dart';
 import 'package:yang_chow/services/reschedule_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 
 class RefundManagementPage extends StatefulWidget {
@@ -421,6 +422,20 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 adminEmail: adminEmail,
                 adminNotes: notesController.text.isNotEmpty ? notesController.text : null,
               );
+              if (success) {
+                AuditLogService.logActivity(
+                  action: 'APPROVE',
+                  module: 'Refunds',
+                  description: 'Approved refund request for ${refund['customer_name']} (Amount: ₱${refund['refund_amount']})',
+                  entityId: refund['id']?.toString(),
+                  metadata: {
+                    'refund_id': refund['id'],
+                    'customer_name': refund['customer_name'],
+                    'refund_amount': refund['refund_amount'],
+                    'notes': notesController.text.trim(),
+                  },
+                );
+              }
               if (mounted) {
                 _showSnackBar(
                   success ? 'Refund approved successfully!' : 'Failed to approve refund',
@@ -491,6 +506,20 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 adminEmail: adminEmail,
                 rejectionReason: reasonController.text.trim(),
               );
+              if (success) {
+                AuditLogService.logActivity(
+                  action: 'REJECT',
+                  module: 'Refunds',
+                  description: 'Rejected refund request for ${refund['customer_name']}. Reason: ${reasonController.text.trim()}',
+                  entityId: refund['id']?.toString(),
+                  metadata: {
+                    'refund_id': refund['id'],
+                    'customer_name': refund['customer_name'],
+                    'refund_amount': refund['refund_amount'],
+                    'reason': reasonController.text.trim(),
+                  },
+                );
+              }
               if (mounted) {
                 _showSnackBar(
                   success ? 'Refund rejected.' : 'Failed to reject refund',

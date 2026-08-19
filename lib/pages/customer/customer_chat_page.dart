@@ -969,12 +969,24 @@ class _CustomerChatPageState extends State<CustomerChatPage>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              onPressed: () => _sendMessage(suggestion),
+              onPressed: () => _handleQuickSuggestion(suggestion),
             ),
           );
         },
       ),
     );
+  }
+
+  void _handleQuickSuggestion(String suggestion) {
+    if (suggestion.contains('reservation status') || suggestion.contains('remaining balance')) {
+      _showChatInfo(1);
+    } else if (suggestion.contains('Reschedule')) {
+      _showChatInfo(2);
+    } else if (suggestion.contains('Refund') || suggestion.contains('Cancellation')) {
+      _showChatInfo(3);
+    } else {
+      _sendMessage(suggestion);
+    }
   }
 
   Widget _buildImagePreviewTray() {
@@ -1492,15 +1504,44 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     );
   }
 
-  void _showChatInfo() {
-    showDialog(
-      context: context,
-      builder: (context) => _ConciergeHelpHubDialog(
-        onSendMessage: (msg) {
-          _sendMessage(msg);
-        },
-      ),
-    );
+  void _showChatInfo([int initialView = 0]) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 640;
+
+    if (isMobile) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _ConciergeHelpHubModal(
+          initialView: initialView,
+          isBottomSheet: true,
+          onSendMessage: (msg) => _sendMessage(msg),
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          backgroundColor: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              maxWidth: 540,
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: _ConciergeHelpHubModal(
+              initialView: initialView,
+              isBottomSheet: false,
+              onSendMessage: (msg) => _sendMessage(msg),
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -1513,42 +1554,167 @@ class _CustomerChatPageState extends State<CustomerChatPage>
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STATEFUL CONCIERGE HELP HUB (BOUND TO REAL SYSTEM MODULES)
+// STATEFUL CONCIERGE HELP HUB (RESPONSIVE MODAL / BOTTOM SHEET)
 // ══════════════════════════════════════════════════════════════════════════════
-class _ConciergeHelpHubDialog extends StatefulWidget {
+class _ConciergeHelpHubModal extends StatefulWidget {
+  final int initialView;
+  final bool isBottomSheet;
   final Function(String) onSendMessage;
 
-  const _ConciergeHelpHubDialog({required this.onSendMessage});
+  const _ConciergeHelpHubModal({
+    this.initialView = 0,
+    required this.isBottomSheet,
+    required this.onSendMessage,
+  });
 
   @override
-  State<_ConciergeHelpHubDialog> createState() => _ConciergeHelpHubDialogState();
+  State<_ConciergeHelpHubModal> createState() => _ConciergeHelpHubModalState();
 }
 
-class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
-  int _currentView = 0; // 0: Menu, 1: Reservations & Balance, 2: Reschedule Requests, 3: Cancellations & Refunds
+class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
+  late int _currentView; // 0: Menu, 1: Reservations & Balance, 2: Reschedule Requests, 3: Cancellations & Refunds
+
+  @override
+  void initState() {
+    super.initState();
+    _currentView = widget.initialView;
+  }
+
+  // Currency helper
+  String _formatCurrency(num amount) {
+    return NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(amount);
+  }
+
+  // Safe amount parser
+  double _parseAmount(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    final cleanStr = val.toString().replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(cleanStr) ?? 0.0;
+  }
+
+  // Human-readable date & time formatter
+  String _formatEventDateTime(dynamic rawDate, dynamic rawTime) {
+    if (rawDate == null || rawDate.toString().trim().isEmpty) return 'Date TBA';
+    try {
+      final str = rawDate.toString().trim();
+      DateTime? dt;
+      if (str.contains('T')) {
+        dt = DateTime.tryParse(str)?.toLocal();
+      } else if (str.contains(' ')) {
+        final datePart = str.split(' ')[0];
+        dt = DateTime.tryParse(datePart);
+      } else {
+        dt = DateTime.tryParse(str);
+      }
+
+      String dateFormatted = str;
+      if (dt != null) {
+        dateFormatted = DateFormat('MMM d, yyyy').format(dt);
+      }
+
+      String timeFormatted = '';
+      if (rawTime != null && rawTime.toString().trim().isNotEmpty) {
+        final tStr = rawTime.toString().trim();
+        try {
+          if (tStr.contains(':')) {
+            final parts = tStr.split(':');
+            final hour = int.parse(parts[0]);
+            final min = int.parse(parts[1]);
+            final timeDt = DateTime(2026, 1, 1, hour, min);
+            timeFormatted = DateFormat('h:mm a').format(timeDt);
+          } else {
+            timeFormatted = tStr;
+          }
+        } catch (_) {
+          timeFormatted = tStr;
+        }
+      } else if (str.contains(' ') && str.split(' ').length > 1) {
+        final timePart = str.split(' ')[1];
+        try {
+          if (timePart.contains(':')) {
+            final parts = timePart.split(':');
+            final hour = int.parse(parts[0]);
+            final min = int.parse(parts[1]);
+            final timeDt = DateTime(2026, 1, 1, hour, min);
+            timeFormatted = DateFormat('h:mm a').format(timeDt);
+          }
+        } catch (_) {}
+      }
+
+      if (timeFormatted.isNotEmpty) {
+        return '$dateFormatted • $timeFormatted';
+      }
+      return dateFormatted;
+    } catch (_) {
+      return '$rawDate ${rawTime ?? ''}'.trim();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobileDialog = screenWidth < 600;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isMobileDialog ? 10 : 16,
-        vertical: isMobileDialog ? 16 : 24,
-      ),
-      backgroundColor: Colors.white,
-      child: Container(
-        width: double.infinity,
+    if (widget.isBottomSheet) {
+      final screenHeight = MediaQuery.of(context).size.height;
+      return Container(
         constraints: BoxConstraints(
-          maxWidth: 520,
-          maxHeight: MediaQuery.of(context).size.height * 0.88,
+          maxHeight: screenHeight * 0.90,
         ),
-        padding: EdgeInsets.all(isMobileDialog ? 16 : 22),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          child: _buildCurrentView(),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 20,
+              offset: Offset(0, -4),
+            ),
+          ],
         ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              // Drag Indicator Bar
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: _buildCurrentView(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _buildCurrentView(),
       ),
     );
   }
@@ -1599,7 +1765,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   Text(
                     'Help Center & System Services',
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 16.5,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF0F172A),
                       letterSpacing: -0.3,
@@ -1617,17 +1783,17 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
             ),
             IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close_rounded, size: 20),
+              icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
         // Service 1: My Reservations & Balance Tracker
         _buildMenuButton(
           icon: Icons.calendar_month_rounded,
           title: 'My Reservations & Balance',
-          description: 'Check active bookings, event schedule, pax & remaining balance',
+          description: 'Check active bookings, schedule, pax & remaining balance',
           badgeText: 'Reservations',
           badgeColor: const Color(0xFF10B981),
           onPressed: () => setState(() => _currentView = 1),
@@ -1720,7 +1886,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
         borderRadius: BorderRadius.circular(14),
         hoverColor: const Color(0xFF14332E).withOpacity(0.05),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFE2E8F0)),
@@ -1747,7 +1913,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                             title,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 14,
+                              fontSize: 13.5,
                               color: Color(0xFF0F172A),
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -1772,7 +1938,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       description,
                       style: const TextStyle(
@@ -1786,7 +1952,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: Color(0xFF94A3B8),
-                size: 16,
+                size: 14,
               ),
             ],
           ),
@@ -1804,13 +1970,16 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Top Nav Bar
         Row(
           children: [
             IconButton(
               onPressed: () => setState(() => _currentView = 0),
-              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              icon: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1E293B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             const Expanded(
               child: Text(
                 'My Reservations & Balance',
@@ -1818,16 +1987,19 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
                 ),
               ),
             ),
             IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close_rounded, size: 20),
+              icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
         Flexible(
           child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -1836,8 +2008,11 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(color: Color(0xFF14332E)),
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF14332E),
+                      strokeWidth: 3,
+                    ),
                   ),
                 );
               }
@@ -1846,20 +2021,36 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
 
               if (reservations.isEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.event_busy_rounded, size: 48, color: Color(0xFFCBD5E1)),
-                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 38,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       const Text(
                         'No reservations found under your account',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'You can ask support to check your reservation status.',
+                        'If you recently made a booking, you can ask concierge support below.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 18),
@@ -1867,15 +2058,16 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                         onPressed: () {
                           Navigator.pop(context);
                           widget.onSendMessage(
-                            '📅 Hi Support, I would like to inquire about my reservation details and balance.',
+                            '📅 Hi Support, I would like to inquire about my reservation status and balance.',
                           );
                         },
-                        icon: const Icon(Icons.send_rounded, size: 16),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
                         label: const Text('Inquire in Chat'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF14332E),
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
@@ -1886,6 +2078,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
 
               return ListView.separated(
                 shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 6),
                 itemCount: reservations.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -1894,107 +2087,302 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   final resId = rawId.length > 8 ? rawId.substring(0, 8).toUpperCase() : rawId;
                   final eventType = res['event_type'] ?? res['reservation_type'] ?? 'Dining Reservation';
                   final status = (res['status'] ?? res['reservation_status'] ?? 'Pending').toString();
-                  final date = (res['event_date'] ?? res['reservation_date'] ?? res['order_date'] ?? '').toString().split('T')[0];
-                  final time = res['start_time'] ?? res['event_time'] ?? res['time_slot'] ?? res['order_time'] ?? '';
-                  final pax = res['guests'] ?? res['pax'] ?? 'N/A';
-                  final total = res['total_amount'] ?? res['package_amount'] ?? 0;
-                  final paid = res['downpayment_amount'] ?? res['payment_amount'] ?? res['downpayment'] ?? 0;
-                  final remaining = res['remaining_balance'] ?? (total > paid ? total - paid : 0);
+                  final rawDate = res['event_date'] ?? res['reservation_date'] ?? res['order_date'];
+                  final rawTime = res['start_time'] ?? res['event_time'] ?? res['time_slot'] ?? res['order_time'];
+                  final formattedDateTime = _formatEventDateTime(rawDate, rawTime);
+
+                  final rawPax = (res['guests'] ?? res['pax'] ?? '').toString().trim();
+                  final paxStr = (rawPax.isEmpty || rawPax == 'null' || rawPax == 'N/A' || rawPax == '0')
+                      ? 'Standard Table'
+                      : '$rawPax Guests';
+
+                  // Financial calculations
+                  double total = _parseAmount(res['total_amount'] ?? res['package_amount'] ?? res['total_price']);
+                  double paid = _parseAmount(res['downpayment_amount'] ?? res['payment_amount'] ?? res['paid_amount'] ?? res['downpayment']);
+                  double remaining = _parseAmount(res['remaining_balance']);
+
+                  // Realistic fallback logic if database stored 0 for total but has remaining
+                  if (total <= 0 && remaining > 0) {
+                    total = paid + remaining;
+                  } else if (total > 0 && remaining <= 0 && total > paid) {
+                    remaining = total - paid;
+                  } else if (total <= 0 && paid > 0 && remaining <= 0) {
+                    total = paid;
+                  }
+
+                  final isFullyPaid = (remaining <= 0 && (total > 0 || paid > 0)) || status.toLowerCase().contains('completed');
+                  final isCancelled = status.toLowerCase().contains('cancel') || status.toLowerCase().contains('reject');
 
                   return Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Card Header: Event Title, Reference ID & Status Badge
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                '$eventType #${resId.isEmpty ? index + 1 : resId}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                  color: Color(0xFF0F172A),
-                                ),
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF14332E).withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                _getEventIcon(eventType),
+                                color: const Color(0xFF14332E),
+                                size: 18,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    eventType,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Ref #${resId.isEmpty ? index + 1 : resId}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             _buildStatusBadge(status),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(Icons.event_rounded, size: 14, color: Color(0xFF64748B)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$date $time'.trim(),
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
-                            ),
-                            const SizedBox(width: 14),
-                            const Icon(Icons.people_outline_rounded, size: 14, color: Color(0xFF64748B)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$pax Guests',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
-                            ),
-                          ],
+                        const SizedBox(height: 10),
+
+                        // Date & Guests Row
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFF1F5F9)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF475569)),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  formattedDateTime,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFF475569)),
+                              const SizedBox(width: 4),
+                              Text(
+                                paxStr,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF334155),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 10),
+
+                        // Realistic, Clean Financial Breakdown Card (Zero overlapping!)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              // Use a 3-column row if wide enough, else wrap
-                              final isWide = constraints.maxWidth > 220;
-                              final items = [
-                                _buildBalanceItem('Total Package', '₱$total', const Color(0xFF1E293B), CrossAxisAlignment.start),
-                                _buildBalanceItem('Paid / Downpayment', '₱$paid', const Color(0xFF10B981), CrossAxisAlignment.start),
-                                _buildBalanceItem('Remaining Balance', '₱$remaining', const Color(0xFFDC2626), CrossAxisAlignment.end),
-                              ];
-                              if (isWide) {
-                                return Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Top Breakdown: Total Package & Paid/Deposit
+                              Row(
+                                children: [
+                                  // Total Package
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'TOTAL PACKAGE',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF64748B),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _formatCurrency(total),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    height: 26,
+                                    width: 1,
+                                    color: const Color(0xFFCBD5E1),
+                                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                                  ),
+                                  // Paid / Deposit
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'PAID / DEPOSIT',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF64748B),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _formatCurrency(paid),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              const SizedBox(height: 8),
+
+                              // Bottom Highlight Banner: Remaining Balance
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: isFullyPaid
+                                      ? const Color(0xFFDCFCE7)
+                                      : isCancelled
+                                          ? const Color(0xFFFEE2E2)
+                                          : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isFullyPaid
+                                        ? const Color(0xFF86EFAC)
+                                        : isCancelled
+                                            ? const Color(0xFFFECACA)
+                                            : const Color(0xFFFCA5A5),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: items,
-                                );
-                              } else {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    items[0],
-                                    const SizedBox(height: 6),
-                                    items[1],
-                                    const SizedBox(height: 6),
-                                    items[2],
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          isFullyPaid
+                                              ? Icons.check_circle_rounded
+                                              : isCancelled
+                                                  ? Icons.cancel_outlined
+                                                  : Icons.account_balance_wallet_rounded,
+                                          size: 14,
+                                          color: isFullyPaid
+                                              ? const Color(0xFF166534)
+                                              : const Color(0xFF991B1B),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          isFullyPaid
+                                              ? 'Fully Settled'
+                                              : isCancelled
+                                                  ? 'Cancelled Record'
+                                                  : 'Remaining Balance:',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isFullyPaid
+                                                ? const Color(0xFF166534)
+                                                : const Color(0xFF991B1B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      _formatCurrency(isCancelled && remaining == 0 ? total : remaining),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: isFullyPaid
+                                            ? const Color(0xFF166534)
+                                            : const Color(0xFFDC2626),
+                                      ),
+                                    ),
                                   ],
-                                );
-                              }
-                            },
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+
+                        // Action Button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
                               widget.onSendMessage(
-                                '📅 Hi Support, I want to inquire about my Reservation #${resId.isEmpty ? index + 1 : resId} ($eventType on $date, Status: $status, Remaining Balance: ₱$remaining).',
+                                '📅 Hi Support, I want to inquire about my Reservation #${resId.isEmpty ? index + 1 : resId} ($eventType, Date: $formattedDateTime, Status: $status, Remaining Balance: ${_formatCurrency(remaining)}).',
                               );
                             },
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                            label: const Text('Inquire About This Reservation in Chat'),
+                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                            label: const Text(
+                              'Inquire About This Reservation in Chat',
+                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF14332E),
                               foregroundColor: Colors.white,
@@ -2016,6 +2404,18 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
         ),
       ],
     );
+  }
+
+  IconData _getEventIcon(String eventType) {
+    final lower = eventType.toLowerCase();
+    if (lower.contains('anniversary') || lower.contains('wedding') || lower.contains('party') || lower.contains('birthday')) {
+      return Icons.celebration_rounded;
+    } else if (lower.contains('corporate') || lower.contains('meeting') || lower.contains('seminar')) {
+      return Icons.business_center_rounded;
+    } else if (lower.contains('order') || lower.contains('food') || lower.contains('advance')) {
+      return Icons.shopping_bag_rounded;
+    }
+    return Icons.restaurant_rounded;
   }
 
   Future<List<Map<String, dynamic>>> _fetchCustomerReservations() async {
@@ -2106,9 +2506,11 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
           children: [
             IconButton(
               onPressed: () => setState(() => _currentView = 0),
-              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              icon: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1E293B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             const Expanded(
               child: Text(
                 'Reschedule Requests',
@@ -2116,16 +2518,19 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
                 ),
               ),
             ),
             IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close_rounded, size: 20),
+              icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
         Flexible(
           child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -2134,8 +2539,11 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(color: Color(0xFF14332E)),
+                    padding: EdgeInsets.all(36),
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF14332E),
+                      strokeWidth: 3,
+                    ),
                   ),
                 );
               }
@@ -2144,20 +2552,36 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
 
               if (reschedules.isEmpty) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.event_repeat_rounded, size: 48, color: Color(0xFFCBD5E1)),
-                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.event_repeat_rounded,
+                          size: 38,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       const Text(
                         'No reschedule requests found',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'You can request a new date or time through the chat support.',
+                        'You can request a new date or time slot through our chat support.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       const SizedBox(height: 18),
@@ -2168,12 +2592,13 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                             '🔄 Hi Support, I would like to request to reschedule my reservation date/time.',
                           );
                         },
-                        icon: const Icon(Icons.send_rounded, size: 16),
-                        label: const Text('Send Reschedule Inquiry in Chat'),
+                        icon: const Icon(Icons.send_rounded, size: 15),
+                        label: const Text('Send Reschedule Request in Chat'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF14332E),
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
@@ -2184,22 +2609,31 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
 
               return ListView.separated(
                 shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 6),
                 itemCount: reschedules.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final req = reschedules[index];
-                  final resId = req['reservation_id']?.toString().substring(0, 8).toUpperCase() ?? '';
-                  final oldDate = '${req['old_date'] ?? ''} ${req['old_time'] ?? ''}';
-                  final newDate = '${req['new_date'] ?? ''} ${req['new_time'] ?? ''}';
+                  final rawId = (req['reservation_id'] ?? req['id'] ?? '').toString();
+                  final resId = rawId.length > 8 ? rawId.substring(0, 8).toUpperCase() : rawId;
+                  final oldDate = _formatEventDateTime(req['old_date'], req['old_time']);
+                  final newDate = _formatEventDateTime(req['new_date'], req['new_time']);
                   final status = (req['status'] ?? 'pending').toString();
-                  final reason = req['reason'] ?? 'No reason provided';
+                  final reason = req['reason'] ?? 'Customer request';
 
                   return Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2208,49 +2642,110 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: Text(
-                                'Request for #${resId.isEmpty ? index + 1 : resId}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13.5,
-                                  color: Color(0xFF0F172A),
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Reschedule #${resId.isEmpty ? index + 1 : resId}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13.5,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  if (reason.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Reason: $reason',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: Color(0xFF64748B),
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             const SizedBox(width: 8),
                             _buildStatusBadge(status),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Text('Original: ', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                            Text(oldDate, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            const Text('Requested: ', style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-                            Text(newDate, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF14332E))),
-                          ],
-                        ),
-                        if (reason.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text('Reason: $reason', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF64748B))),
-                        ],
                         const SizedBox(height: 10),
+
+                        // Date Change Pathway Container
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.history_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Original: ',
+                                    style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      oldDate,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF10B981)),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Requested: ',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF14332E)),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      newDate,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF14332E),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
                               widget.onSendMessage(
-                                '🔄 Hi Support, I am following up on my Reschedule Request for Reservation #$resId (Moving from $oldDate to $newDate, Status: $status).',
+                                '🔄 Hi Support, I am following up on my Reschedule Request for Reservation #$resId (Original: $oldDate ➔ New: $newDate, Status: $status).',
                               );
                             },
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                            label: const Text('Follow Up Reschedule in Chat'),
+                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 15),
+                            label: const Text(
+                              'Follow Up Reschedule in Chat',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF14332E),
                               foregroundColor: Colors.white,
@@ -2307,9 +2802,11 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
             children: [
               IconButton(
                 onPressed: () => setState(() => _currentView = 0),
-                icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                icon: const Icon(Icons.arrow_back_rounded, size: 20, color: Color(0xFF1E293B)),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
               const Expanded(
                 child: Text(
                   'Cancellations & Refund Status',
@@ -2317,36 +2814,45 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
                   ),
                 ),
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded, size: 20),
+                icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF64748B)),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // System Refund Policy Summary Box
+          // Policy Summary Box
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7).withOpacity(0.5),
+              color: const Color(0xFFFFFBEB),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFFCD34D)),
+              border: Border.all(color: const Color(0xFFFDE68A)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text(
-                  '📋 Yang Chow Cancellation & Refund Policy',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                Row(
+                  children: [
+                    Icon(Icons.policy_rounded, size: 16, color: Color(0xFF92400E)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Yang Chow Cancellation & Refund Policy',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '• 4+ Days Before Event: 100% Full Refund of downpayment\n• 1–3 Days Before Event: 50% Partial Refund\n• Event Day / Passed: Non-refundable',
-                  style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F), height: 1.35),
+                  '• 4+ Days Before Event: 100% Full Refund of deposit\n• 1–3 Days Before Event: 50% Partial Refund\n• Event Day / Passed: Non-refundable',
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F), height: 1.4),
                 ),
               ],
             ),
@@ -2354,7 +2860,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
           const SizedBox(height: 14),
 
           const Text(
-            'Your Cancellation / Refund Requests:',
+            'Your Refund Tickets & Requests:',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
           ),
           const SizedBox(height: 8),
@@ -2365,8 +2871,8 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(color: Color(0xFF14332E)),
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: Color(0xFF14332E), strokeWidth: 3),
                   ),
                 );
               }
@@ -2404,14 +2910,14 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                   final rawId = (req['source_id'] ?? req['id'] ?? '').toString();
                   final shortId = rawId.length > 8 ? rawId.substring(0, 8).toUpperCase() : rawId;
                   final status = (req['status'] ?? 'pending').toString();
-                  final refundAmount = req['refund_amount'] ?? 0;
+                  final refundAmount = _parseAmount(req['refund_amount']);
                   final reason = req['reason'] ?? 'Requested by customer';
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
@@ -2427,10 +2933,15 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
                               ),
                               const SizedBox(height: 2),
                               Text('Reason: $reason', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                              Text('Refund Amount: ₱$refundAmount', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF10B981))),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Refund Amount: ${_formatCurrency(refundAmount)}',
+                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                              ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         _buildStatusBadge(status),
                       ],
                     ),
@@ -2439,7 +2950,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           ElevatedButton.icon(
             onPressed: () {
@@ -2471,7 +2982,7 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
     final lowerEmail = email.toLowerCase();
     final List<Map<String, dynamic>> combined = [];
 
-    // 1. Fetch from 'refunds' table (Primary refund management table)
+    // 1. Fetch from 'refunds' table
     try {
       final refundsList = await Supabase.instance.client
           .from('refunds')
@@ -2557,25 +3068,6 @@ class _ConciergeHelpHubDialogState extends State<_ConciergeHelpHubDialog> {
     });
 
     return combined;
-  }
-
-  Widget _buildBalanceItem(
-    String label,
-    String value,
-    Color valueColor,
-    CrossAxisAlignment alignment,
-  ) {
-    return Column(
-      crossAxisAlignment: alignment,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
-        Text(
-          value,
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: valueColor),
-        ),
-      ],
-    );
   }
 
   Widget _buildStatusBadge(String status) {

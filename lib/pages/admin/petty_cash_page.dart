@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/models/petty_cash_model.dart';
 import 'package:yang_chow/services/petty_cash_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
@@ -2650,6 +2651,20 @@ class _PettyCashPageState extends State<PettyCashPage> {
     final expense = expenses.firstWhere((e) => e.id == expenseId);
 
     final success = await _pettyCashService.approveExpense(expenseId);
+    if (success) {
+      AuditLogService.logActivity(
+        action: 'APPROVE',
+        module: 'Petty Cash',
+        description: 'Approved petty cash expense of ₱${expense.amount.toStringAsFixed(2)} for "${expense.description}" by ${expense.purchasedBy}',
+        entityId: expenseId,
+        metadata: {
+          'expense_id': expenseId,
+          'amount': expense.amount,
+          'category': expense.category,
+          'purchased_by': expense.purchasedBy,
+        },
+      );
+    }
     if (mounted) {
       String message;
       if (success) {
@@ -2675,7 +2690,23 @@ class _PettyCashPageState extends State<PettyCashPage> {
   }
 
   Future<void> _rejectExpense(String expenseId) async {
+    final expenses = await _pettyCashService.getExpenses();
+    final expense = expenses.where((e) => e.id == expenseId).firstOrNull;
+
     final success = await _pettyCashService.rejectExpense(expenseId);
+    if (success) {
+      AuditLogService.logActivity(
+        action: 'REJECT',
+        module: 'Petty Cash',
+        description: 'Rejected petty cash expense of ₱${expense?.amount.toStringAsFixed(2) ?? '0.00'} for "${expense?.description ?? 'Expense'}"',
+        entityId: expenseId,
+        metadata: {
+          'expense_id': expenseId,
+          'amount': expense?.amount,
+          'category': expense?.category,
+        },
+      );
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

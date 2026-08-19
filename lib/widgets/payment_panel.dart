@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/menu_item.dart';
 import '../services/paymongo_service.dart';
+import '../services/staff_service.dart';
 
 class PaymentPanel extends StatefulWidget {
   final List<CartItem> cart;
@@ -54,7 +55,7 @@ class _PaymentPanelState extends State<PaymentPanel>
   Timer? _pollingTimer;
   // ignore: unused_field
   String? _currentLinkId;
-  String _selectedCashier = 'Spongebob Squarepants';
+  String _selectedCashier = 'Tony Stark';
   String _selectedServer = 'Sanji';
 
   static const _border = Color(0xFFE2E8F0);
@@ -63,29 +64,36 @@ class _PaymentPanelState extends State<PaymentPanel>
   static const _indigo = Color(0xFF4F46E5);
   static const _green = Color(0xFF10B981);
 
-  // Get users from user management based on roles
-  List<String> get _cashierNames {
-    // Static list based on your user management data
-    return [
-      'Spongebob Squarepants', // Cashier & Food Server
-      'Squidward Tentacles',  // Cashier & Food Server
-    ];
-  }
+  List<String> _dynamicCashiers = [];
+  List<String> _dynamicServers = [];
 
-  List<String> get _serverNames {
-    // Static list based on your user management data
-    return [
-      'Sanji',        // Dine-in Food Server
-      'Peter Parker', // Dine-in Food Server
-      'Clark Kent',   // Dine-in Food Server
-      'Spongebob Squarepants', // Also serves as food server
-      'Squidward Tentacles',   // Also serves as food server
-    ];
+  List<String> get _cashierNames =>
+      _dynamicCashiers.isNotEmpty ? _dynamicCashiers : StaffService.defaultStaff.map((s) => s['name'].toString()).toList();
+
+  List<String> get _serverNames =>
+      _dynamicServers.isNotEmpty ? _dynamicServers : StaffService.defaultStaff.map((s) => s['name'].toString()).toList();
+
+  Future<void> _loadStaffNames() async {
+    final cashiers = await StaffService.getActiveCashierNames();
+    final servers = await StaffService.getActiveServerNames();
+    if (mounted) {
+      setState(() {
+        _dynamicCashiers = cashiers;
+        _dynamicServers = servers;
+        if (!_dynamicCashiers.contains(_selectedCashier) && _dynamicCashiers.isNotEmpty) {
+          _selectedCashier = _dynamicCashiers.first;
+        }
+        if (!_dynamicServers.contains(_selectedServer) && _dynamicServers.isNotEmpty) {
+          _selectedServer = _dynamicServers.first;
+        }
+      });
+    }
   }
 
   @override
   void initState() {
     super.initState();
+    _loadStaffNames();
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),

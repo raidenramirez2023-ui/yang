@@ -54,12 +54,6 @@ class DeliveryReceiptOcrService {
     'gal': 'Gallon',
   };
 
-  /// Header/label words to skip
-  static final RegExp _headerRegex = RegExp(
-    r'(quantity|unit|item\s*name|total|date|receipt|invoice|delivery|no\.|#)',
-    caseSensitive: false,
-  );
-
   /// Parse a delivery receipt file (image or PDF) and extract items.
   static Future<Map<String, dynamic>> parseDeliveryReceipt({
     required Uint8List fileBytes,
@@ -152,10 +146,35 @@ class DeliveryReceiptOcrService {
   }
 
   /// Parse OCR text into items and detected supplier
+  /// Strict boilerplate & header/footer filter to prevent non-inventory text from being parsed
+  static bool _isBoilerplateOrHeaderLine(String line) {
+    final l = line.toLowerCase().trim();
+    if (l.isEmpty) return true;
+
+    // Restaurant & Document Headers
+    if (l.contains('yang chow') || l.contains('restaurant') || l.contains('pagsanjan')) return true;
+    if (l.contains('purchase order') || l.contains('delivery receipt') || l.contains('sales invoice') || l.contains('billing invoice')) return true;
+    if (l.contains('procurement') || l.contains('delivery location') || l.contains('inventory &') || l.contains('branch')) return true;
+    if (l.contains('item description') || l.contains('category /') || l.contains('current stock') || l.contains('order qty') || l.contains('qty & unit')) return true;
+    if (l.contains('po #') || l.contains('po:') || l.contains('po-') || l.contains('dr #') || l.contains('dr:') || l.contains('date:')) return true;
+
+    // Footers, Signatures & Remarks
+    if (l.contains('prepared') || l.contains('verified by') || l.contains('acknowledged by')) return true;
+    if (l.contains('signature') || l.contains('printed name') || l.contains('received by') || l.contains('delivered by')) return true;
+    if (l.contains('target delivery') || l.contains('please acknowledge') || l.contains('thank you') || l.contains('authorized by')) return true;
+    if (l.contains('combined suppliers') || l.contains('combined restaurant') || l.contains('delivery address')) return true;
+    // Standalone Supplier / Category phrases (NOT food items)
+    if (l == 'fresh produce' || l == 'public market' || l == 'poultry & meat supplier' || l == 'metro wholesale' || l == 'beverage distributor' || l == 'packaging & supplies' || l == 'seafood & fish dealer') return true;
+    if (l == 'fresh' || l == 'market' || l == 'produce' || l == 'supplier' || l == 'groceries' || l == 'vendor' || l == 'dealer' || l == 'distributor') return true;
+
+    return false;
+  }
+
+  /// Parse OCR text into items and detected supplier
   static Map<String, dynamic> _parseDeliveryItems(String text) {
-    final List<Map<String, dynamic>> items = [];
+    final Map<String, Map<String, dynamic>> dedupedItems = {};
     String? detectedSupplier;
-    
+
     final normalizedText = text
         .replaceAll('\t', '  ')
         .replaceAll('\r\n', '\n')
@@ -163,49 +182,162 @@ class DeliveryReceiptOcrService {
 
     final lines = normalizedText.split('\n');
 
+    // Pass 1: Extract Supplier / Vendor from header (same line or next line)
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      final headerPattern = RegExp(r'(?:SUPPLIER\s*(?:/\s*VENDOR)?|VENDOR)\s*:', caseSensitive: false);
+      if (headerPattern.hasMatch(line)) {
+        final supplierMatch = RegExp(r'(?:SUPPLIER\s*(?:/\s*VENDOR)?|VENDOR)\s*:\s*(.+)$', caseSensitive: false).firstMatch(line);
+        String rawSup = supplierMatch?.group(1)?.trim() ?? '';
+        
+        // If empty on same line, inspect the next line!
+        if (rawSup.isEmpty && i + 1 < lines.length) {
+          rawSup = lines[i + 1].trim();
+        }
+
+        rawSup = rawSup
+            .replaceAll(RegExp(r'\b(PREPARED BY|DELIVERY LOCATION|TARGET DELIVERY|PO #|DATE).*$', caseSensitive: false), '')
+            .replaceAll(RegExp(r'[:#*_-]+$'), '')
+            .trim();
+        if (rawSup.isNotEmpty && rawSup.length >= 2 && !_isBoilerplateOrHeaderLine(rawSup)) {
+          detectedSupplier = rawSup;
+          break;
+        }
+      }
+    }
+
+    // Pass 2: Parse table rows & items
     for (final rawLine in lines) {
       final line = rawLine.trim();
       if (line.isEmpty) continue;
 
-      // Check for Supplier line
-      final supplierMatch = RegExp(r'SUPPLIER\s*:\s*(.+)$', caseSensitive: false).firstMatch(line);
-      if (supplierMatch != null) {
-        detectedSupplier = supplierMatch.group(1)?.trim();
-        continue;
-      }
+      // Skip Supplier header line
+      if (RegExp(r'SUPPLIER\s*(?:/\s*VENDOR)?\s*:', caseSensitive: false).hasMatch(line)) continue;
 
-      // Skip header lines (unless it starts with a number or digit-like token)
-      if (_headerRegex.hasMatch(line) && !RegExp(r'^[0-9/|!lLiI]').hasMatch(line)) continue;
+      // Skip document boilerplate, headers, footers & signatures
+      if (_isBoilerplateOrHeaderLine(line)) continue;
 
       // Skip lines that are just scribbles/symbols (e.g. @@@, ###, ---, ***)
       final letterCount = RegExp(r'[a-zA-Z]').allMatches(line).length;
       final digitCount = RegExp(r'[0-9]').allMatches(line).length;
       if (letterCount == 0 && digitCount == 0) continue;
 
-      final parsed = _parseLine(line);
+      final parsed = _parseLine(line, detectedSupplier: detectedSupplier);
       if (parsed != null) {
-        items.add(parsed);
+        final nameKey = (parsed['name'] ?? '').toString().toLowerCase().trim();
+        if (nameKey.isNotEmpty && !_isBoilerplateOrHeaderLine(nameKey)) {
+          // If already encountered, keep the one with higher/actual quantity
+          if (dedupedItems.containsKey(nameKey)) {
+            final existingQty = dedupedItems[nameKey]!['quantity'] as int? ?? 0;
+            final newQty = parsed['quantity'] as int? ?? 0;
+            if (newQty > existingQty) {
+              dedupedItems[nameKey] = parsed;
+            }
+          } else {
+            dedupedItems[nameKey] = parsed;
+          }
+        }
       }
     }
 
     return {
-      'items': items,
+      'items': dedupedItems.values.toList(),
       'supplier': detectedSupplier,
     };
   }
 
-  /// Parse a single line to extract quantity, unit, and item name
-  static Map<String, dynamic>? _parseLine(String line) {
+  /// Parse a single line to extract quantity, unit, and item name cleanly
+  static Map<String, dynamic>? _parseLine(String line, {String? detectedSupplier}) {
     String cleaned = line
         .replaceAll('|', ' ')
+        .replaceAll(RegExp(r'[*_#]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 
-    // 1. Normalize handwritten numbers at start of line
-    // e.g. "/00" -> "100", "l00" -> "100", "I00" -> "100", "|00" -> "100", "10O" -> "100"
-    cleaned = _normalizeLeadingQuantity(cleaned);
+    if (cleaned.isEmpty || _isBoilerplateOrHeaderLine(cleaned)) return null;
 
-    // 2. Extract quantity (digits at the start)
+    // Strip detected supplier if embedded in the table row
+    if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
+      final supPattern = RegExp(r'\b' + RegExp.escape(detectedSupplier.trim()) + r'\b', caseSensitive: false);
+      cleaned = cleaned.replaceAll(supPattern, ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    }
+
+    // Pattern 0: PO Table Row with (optional index) Item + (optional Supplier/Category) + CurrentStock + OrderQty + Unit
+    // e.g. "TEST1 TESTLORD 0 20 kilo" or "1 MAKARONI Poultry & Meat 0 10 pcs" or "Patatim 0 10 pcs"
+    final poTableRowMatch = RegExp(
+      r"^(?:\d+[\.\)]?\s+)?([\w\s/&'\-]+?)\s+(?:(?:[a-zA-Z\s/&'\-]+?\s+)?(?:\d+(?:\.\d+)?\s+))(\d+(?:\.\d+)?)\s*([a-zA-Z]*)$",
+      caseSensitive: false,
+    ).firstMatch(cleaned);
+    if (poTableRowMatch != null) {
+      final rawName = poTableRowMatch.group(1)?.trim() ?? '';
+      final rawQty = double.tryParse(poTableRowMatch.group(2) ?? '') ?? 1.0;
+      final rawUnit = poTableRowMatch.group(3)?.trim() ?? '';
+
+      final cleanedName = _cleanItemName(rawName);
+      if (cleanedName.length >= 2 && !_isBoilerplateOrHeaderLine(cleanedName)) {
+        return {
+          'name': cleanedName,
+          'quantity': rawQty.toInt() > 0 ? rawQty.toInt() : 1,
+          'unit': _resolveUnit(rawUnit) ?? 'Pcs',
+        };
+      }
+    }
+
+    // Pattern 1: Table row with row index: e.g. "1 Patatim Poultry & Meat Supplier 0 10" or "1 Patatim 900" or "1. Patatim -> 10 pcs"
+    final tableRowMatch = RegExp(r"^\d+[\.\)]?\s+([\w\s/&'\-]+?)\s+(?:(?:poultry|meat|produce|market|wholesale|groceries|distributor|dealer|supplier|general|roasting|seafood|fresh|fruits|vegetables|beverage|condiments)\b.*?\s+)?(?:\d+\s+)?(\d+(?:\.\d+)?)\s*([a-zA-Z]*)$", caseSensitive: false).firstMatch(cleaned);
+    if (tableRowMatch != null) {
+      final rawName = tableRowMatch.group(1)?.trim() ?? '';
+      final rawQty = double.tryParse(tableRowMatch.group(2) ?? '') ?? 1.0;
+      final rawUnit = tableRowMatch.group(3)?.trim() ?? '';
+
+      final cleanedName = _cleanItemName(rawName);
+      if (cleanedName.length >= 2 && !_isBoilerplateOrHeaderLine(cleanedName)) {
+        return {
+          'name': cleanedName,
+          'quantity': rawQty.toInt() > 0 ? rawQty.toInt() : 1,
+          'unit': _resolveUnit(rawUnit) ?? 'Pcs',
+        };
+      }
+    }
+
+    // Pattern 2: Arrow / Dash pattern: e.g. "Patatim -> 10 pcs" or "Patatim - 10 kg" or "1. Patatim ➔ 10 pcs"
+    final arrowMatch = RegExp(r"^(.+?)\s*(?:->|➔|=>|-|:)\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]*)(?:\s*\(.*\))?$", caseSensitive: false).firstMatch(cleaned);
+    if (arrowMatch != null) {
+      String rawName = arrowMatch.group(1)?.trim() ?? '';
+      rawName = rawName.replaceFirst(RegExp(r'^\d+[\.\)]?\s*'), '');
+
+      final rawQty = double.tryParse(arrowMatch.group(2) ?? '') ?? 1.0;
+      final rawUnit = arrowMatch.group(3)?.trim() ?? '';
+
+      final cleanedName = _cleanItemName(rawName);
+      if (cleanedName.length >= 2 && !_isBoilerplateOrHeaderLine(cleanedName)) {
+        return {
+          'name': cleanedName,
+          'quantity': rawQty.toInt() > 0 ? rawQty.toInt() : 1,
+          'unit': _resolveUnit(rawUnit) ?? 'Pcs',
+        };
+      }
+    }
+
+    // Pattern 3: Trailing Quantity Format: e.g. "Patatim 10 pcs" or "TEST1 20 kilo" or "Yangchow with Rice 5 order"
+    final trailingQtyMatch = RegExp(r"^([\w\s/&'\-]+?)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]*)$").firstMatch(cleaned);
+    if (trailingQtyMatch != null) {
+      final rawName = trailingQtyMatch.group(1)?.trim() ?? '';
+      final rawQty = double.tryParse(trailingQtyMatch.group(2) ?? '') ?? 1.0;
+      final rawUnit = trailingQtyMatch.group(3)?.trim() ?? '';
+
+      final cleanedName = _cleanItemName(rawName);
+      if (cleanedName.length >= 2 && !_isBoilerplateOrHeaderLine(cleanedName)) {
+        return {
+          'name': cleanedName,
+          'quantity': rawQty.toInt() > 0 ? rawQty.toInt() : 1,
+          'unit': _resolveUnit(rawUnit) ?? 'Pcs',
+        };
+      }
+    }
+
+    // Pattern 4: Leading Quantity Format: e.g. "10 pcs Patatim" or "20 kilo Chicken"
+    cleaned = _normalizeLeadingQuantity(cleaned);
     int quantity = 1;
     String remaining = cleaned;
 
@@ -220,7 +352,7 @@ class DeliveryReceiptOcrService {
 
     if (remaining.isEmpty) return null;
 
-    // 3. Extract unit (first token after quantity or inline unit)
+    // Extract unit
     String? detectedUnit;
     String itemName = remaining;
 
@@ -233,7 +365,6 @@ class DeliveryReceiptOcrService {
       }
     }
 
-    // If unit was not at the start, check if any known unit keyword is in the text
     if (detectedUnit == null) {
       for (final entry in _unitMap.entries) {
         final pattern = RegExp(r'\b' + RegExp.escape(entry.key) + r'\b', caseSensitive: false);
@@ -245,18 +376,13 @@ class DeliveryReceiptOcrService {
       }
     }
 
-    // 4. Clean up item name
-    itemName = itemName
-        .replaceAll(RegExp(r'^[^\w]+'), '') // strip leading non-alphanumeric
-        .replaceAll(RegExp(r'[^\w]+$'), '') // strip trailing non-alphanumeric
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    // Clean up item name
+    itemName = _cleanItemName(itemName);
 
     // Skip scribbles, single letters, or pure number lines
-    if (itemName.isEmpty || itemName.length < 2) return null;
+    if (itemName.isEmpty || itemName.length < 2 || _isBoilerplateOrHeaderLine(itemName)) return null;
     if (RegExp(r'^\d+$').hasMatch(itemName)) return null;
 
-    // Skip if it only contains gibberish symbols
     final letters = RegExp(r'[a-zA-Z]').allMatches(itemName).length;
     if (letters < 2) return null;
 
@@ -265,6 +391,22 @@ class DeliveryReceiptOcrService {
       'unit': detectedUnit ?? 'Pcs',
       'name': itemName,
     };
+  }
+
+  static String _cleanItemName(String name) {
+    return name
+        .replaceAll(RegExp(r'^\d+[\.\)]?\s*'), '') // Strip row numbers like "1." or "2)"
+        .replaceAll(RegExp(r'\b(poultry|meat supplier|fresh produce|public market|metro wholesale|distributor|dealer|supplier|groceries|condiments|beverage|produce|prepared by|delivery location|unlisted)\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s+\d+(?:\.\d+)?\s*(?:kilo|kg|g|gram|pcs|pc|pack|can|bot|order|box|roll)?$', caseSensitive: false), '') // strip trailing numbers/stock
+        .replaceAll(RegExp(r'^[^\w]+'), '') // strip leading non-alphanumeric
+        .replaceAll(RegExp(r'[^\w]+$'), '') // strip trailing non-alphanumeric
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  static String? _resolveUnit(String raw) {
+    final clean = raw.toLowerCase().replaceAll(RegExp(r'[^a-z/]'), '');
+    return _unitMap[clean];
   }
 
   /// Converts handwritten OCR number misreadings (e.g. /00, l00, I00, 10O) into clean digits
@@ -297,12 +439,9 @@ class DeliveryReceiptOcrService {
     if (a == b) return 1.0;
     if (a.isEmpty || b.isEmpty) return 0.0;
 
-    // Substring match gives high score
-    if (a.contains(b) || b.contains(a)) {
-      final shorter = a.length < b.length ? a.length : b.length;
-      final longer = a.length > b.length ? a.length : b.length;
-      return (shorter / longer) * 0.95;
-    }
+    final normA = a.replaceAll(RegExp(r'\s+'), '');
+    final normB = b.replaceAll(RegExp(r'\s+'), '');
+    if (normA == normB) return 0.99;
 
     // Token-based Jaccard similarity
     final wordsA = a.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toSet();
