@@ -6,6 +6,7 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
 
 class AdminReservationsPage extends StatefulWidget {
@@ -291,6 +292,14 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .delete()
           .eq('id', reservationId);
 
+      AuditLogService.logActivity(
+        action: 'DELETE',
+        module: 'Reservations',
+        description: 'Permanently deleted reservation #$reservationId',
+        entityId: reservationId,
+        metadata: {'operation': 'hard_delete'},
+      );
+
       _showSnackBar('Reservation permanently deleted', Colors.green);
     } catch (e) {
       _loadReservations(); // Revert on error
@@ -312,6 +321,20 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           .from('reservations')
           .update({'status': newStatus, 'updated_at': DateTime.now().toUtc().toIso8601String()})
           .eq('id', reservationId);
+
+      // Log reservation status change
+      AuditLogService.logActivity(
+        action: newStatus == 'confirmed' ? 'APPROVE' : (newStatus == 'cancelled' ? 'REJECT' : 'STATUS_CHANGE'),
+        module: 'Reservations',
+        description: 'Updated reservation #$reservationId status to "${newStatus.toUpperCase()}" for ${reservation?['customer_name'] ?? 'Customer'}',
+        entityId: reservationId,
+        metadata: {
+          'status': newStatus,
+          'customer_name': reservation?['customer_name'],
+          'event_type': reservation?['event_type'],
+          'event_date': reservation?['event_date'],
+        },
+      );
 
       // Generate Auto Announcement on Confirm
       if (newStatus == 'confirmed' && reservation != null) {

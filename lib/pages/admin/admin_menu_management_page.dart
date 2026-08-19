@@ -7,6 +7,7 @@ import 'dart:io' show File;
 import '../../models/menu_item.dart';
 import '../../services/menu_service.dart';
 import '../../services/recipe_seeder.dart';
+import '../../services/audit_log_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import '../../utils/app_constants.dart';
@@ -1571,8 +1572,30 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
 
                               if (isEdit) {
                                 await MenuService.updateMenuItem(newItem);
+                                AuditLogService.logActivity(
+                                  action: 'UPDATE',
+                                  module: 'Menu',
+                                  description: 'Updated menu item "${newItem.name}" (Price: ₱${newItem.price.toStringAsFixed(2)}, Category: ${newItem.category})',
+                                  entityId: newItem.id,
+                                  metadata: {
+                                    'item_name': newItem.name,
+                                    'price': newItem.price,
+                                    'category': newItem.category,
+                                  },
+                                );
                               } else {
                                 await MenuService.createMenuItem(newItem);
+                                AuditLogService.logActivity(
+                                  action: 'CREATE',
+                                  module: 'Menu',
+                                  description: 'Created new menu item "${newItem.name}" (Price: ₱${newItem.price.toStringAsFixed(2)}, Category: ${newItem.category})',
+                                  entityId: newItem.id,
+                                  metadata: {
+                                    'item_name': newItem.name,
+                                    'price': newItem.price,
+                                    'category': newItem.category,
+                                  },
+                                );
                               }
 
                               // Sync recipe ingredients to database
@@ -1668,6 +1691,17 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                           setDialogState(() => isDeleting = true);
                           try {
                             await MenuService.deleteMenuItem(item);
+                            AuditLogService.logActivity(
+                              action: 'DELETE',
+                              module: 'Menu',
+                              description: 'Deleted menu item "${item.name}" (ID: ${item.id})',
+                              entityId: item.id,
+                              metadata: {
+                                'item_name': item.name,
+                                'category': item.category,
+                                'price': item.price,
+                              },
+                            );
                             Navigator.pop(context);
                             _loadMenuData();
                             ScaffoldMessenger.of(context).showSnackBar(

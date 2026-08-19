@@ -8505,6 +8505,347 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
 
 
+  void _showOfficialReceiptDialog(Map<String, dynamic> reservation) {
+    final pricingInfo = _reservationService.getReservationPricing(reservation);
+    final depositAmount = pricingInfo['depositAmount'] as double;
+    final totalPrice = pricingInfo['totalPrice'] as double;
+    final isAdvanceOrder = reservation['_db_table'] == 'advance_orders';
+    final paymentStatus = (reservation['payment_status']?.toString() ?? 'pending').toLowerCase();
+    final isPaid = paymentStatus == 'paid' || paymentStatus == 'fully_paid';
+    final isDepositPaid = paymentStatus == 'deposit_paid';
+    final remainingBalance = isAdvanceOrder
+        ? (isPaid ? 0.0 : totalPrice)
+        : (isPaid ? 0.0 : (isDepositPaid ? (totalPrice - depositAmount) : totalPrice));
+    final orderedItems = reservation['selected_menu_items'] as Map<String, dynamic>? ?? {};
+    final refId = reservation['id']?.toString() ?? 'N/A';
+    final shortRef = refId.length > 8 ? refId.substring(0, 8).toUpperCase() : refId.toUpperCase();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 480),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Header Banner ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0C241F), Color(0xFF14332E), Color(0xFF1E4A42)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFD9A441), size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'YANG CHOW PAGSANJAN',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                Text(
+                                  'Official Booking & Order Slip',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    color: const Color(0xFFD9A441),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'REF NO: #YC-$shortRef',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFD9A441),
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          Text(
+                            isPaid
+                                ? 'PAID IN FULL'
+                                : (isDepositPaid ? '50% DEPOSIT PAID' : 'PENDING PAYMENT'),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: isPaid ? const Color(0xFF86EFAC) : const Color(0xFFFBBF24),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Scrollable Slip Details ──
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Event & Dining Parameters
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildActivityDetailRow(
+                              Icons.deck_rounded,
+                              'Type',
+                              reservation['event_type'] ?? (isAdvanceOrder ? 'Advance Order' : 'Reservation'),
+                            ),
+                            const SizedBox(height: 6),
+                            _buildActivityDetailRow(
+                              Icons.calendar_today_rounded,
+                              'Date',
+                              reservation['event_date'] ?? reservation['order_date'] ?? 'N/A',
+                            ),
+                            const SizedBox(height: 6),
+                            _buildActivityDetailRow(
+                              Icons.access_time_rounded,
+                              'Time',
+                              reservation['start_time'] ?? reservation['pickup_time'] ?? 'N/A',
+                            ),
+                            if (reservation['number_of_guests'] != null) ...[
+                              const SizedBox(height: 6),
+                              _buildActivityDetailRow(
+                                Icons.people_alt_rounded,
+                                'Guests',
+                                '${reservation['number_of_guests']} Pax',
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Ordered Items List
+                      if (orderedItems.isNotEmpty) ...[
+                        Text(
+                          'ORDERED MENU ITEMS',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF64748B),
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: orderedItems.entries.map((e) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${e.value}x  ${e.key}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // Financial Statement
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14332E).withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.15)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PAYMENT SUMMARY',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF14332E),
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildPricingRow('Total Bill Amount', totalPrice, const Color(0xFF0F172A)),
+                            if (!isAdvanceOrder) ...[
+                              const SizedBox(height: 4),
+                              _buildPricingRow('50% Downpayment', depositAmount, const Color(0xFF14332E)),
+                            ],
+                            const Divider(height: 14, color: Color(0xFFCBD5E1)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Balance Due at Counter',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: remainingBalance > 0
+                                            ? const Color(0xFFDC2626)
+                                            : const Color(0xFF16A34A),
+                                      ),
+                                    ),
+                                    Text(
+                                      remainingBalance > 0 ? 'Payable upon arrival' : 'Fully Settled',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '₱${_fmt.format(remainingBalance)}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: remainingBalance > 0
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Location & Note
+                      Center(
+                        child: Text(
+                          'Present this slip to Yang Chow staff upon arrival.\nCLA Town Center Mall, Pagsanjan, Laguna',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: const Color(0xFF94A3B8),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Bottom Action ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Close Slip',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showPaymentDialog(Map<String, dynamic> reservation) {
 
     final pricingInfo = _reservationService.getReservationPricing(reservation);
@@ -9860,73 +10201,139 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                       ),
                                     ],
                                   ],
-                                ),
-                                // ── Extra Badges Row (PAID / RESCHEDULE PENDING / Pay button) ──
-                                if (isPaid || (isAdvanceOrder && status == 'confirmed' && !isPaid)) ...[
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      if (isAdvanceOrder && status == 'confirmed' && !isPaid)
-                                        AnimatedTapScale(
-                                          onTap: () => _showPaymentDialog(reservation),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            decoration: BoxDecoration(
-                                              gradient: AppTheme.goldGradient,
-                                              borderRadius: BorderRadius.circular(10),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: AppTheme.warmGold.withValues(alpha: 0.35),
-                                                  blurRadius: 6,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'Pay Now',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w900,
-                                                    color: AppTheme.darkBrownText,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      if (isPaid)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF34C759).withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'PAID',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(0xFF86EFAC),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w900,
-                                                  letterSpacing: 0.4,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
+                                 ),
+                                 // ── Extra Badges Row (PAID / Pay button / E-Receipt / Review) ──
+                                 const SizedBox(height: 8),
+                                 Wrap(
+                                   spacing: 6,
+                                   runSpacing: 6,
+                                   children: [
+                                     if (isAdvanceOrder && status == 'confirmed' && !isPaid)
+                                       AnimatedTapScale(
+                                         onTap: () => _showPaymentDialog(reservation),
+                                         child: Container(
+                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                           decoration: BoxDecoration(
+                                             gradient: AppTheme.goldGradient,
+                                             borderRadius: BorderRadius.circular(10),
+                                             boxShadow: [
+                                               BoxShadow(
+                                                 color: AppTheme.warmGold.withValues(alpha: 0.35),
+                                                 blurRadius: 6,
+                                                 offset: const Offset(0, 2),
+                                               ),
+                                             ],
+                                           ),
+                                           child: Row(
+                                             mainAxisSize: MainAxisSize.min,
+                                             children: [
+                                               const Icon(Icons.payment_rounded, color: AppTheme.darkBrownText, size: 13),
+                                               const SizedBox(width: 4),
+                                               Text(
+                                                 'Pay Now',
+                                                 style: GoogleFonts.inter(
+                                                   fontSize: 11,
+                                                   fontWeight: FontWeight.w900,
+                                                   color: AppTheme.darkBrownText,
+                                                 ),
+                                               ),
+                                             ],
+                                           ),
+                                         ),
+                                       ),
+                                     if (isPaid)
+                                       Container(
+                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                         decoration: BoxDecoration(
+                                           color: const Color(0xFF34C759).withValues(alpha: 0.2),
+                                           borderRadius: BorderRadius.circular(8),
+                                           border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.45)),
+                                         ),
+                                         child: Row(
+                                           mainAxisSize: MainAxisSize.min,
+                                           children: [
+                                             const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 12),
+                                             const SizedBox(width: 4),
+                                             Text(
+                                               'PAID',
+                                               style: GoogleFonts.inter(
+                                                 color: const Color(0xFF86EFAC),
+                                                 fontSize: 10,
+                                                 fontWeight: FontWeight.w900,
+                                                 letterSpacing: 0.4,
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                       ),
+                                     // E-Receipt Official Booking Slip Button
+                                     AnimatedTapScale(
+                                       onTap: () => _showOfficialReceiptDialog(reservation),
+                                       child: Container(
+                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                         decoration: BoxDecoration(
+                                           color: const Color(0xFFD9A441).withValues(alpha: 0.16),
+                                           borderRadius: BorderRadius.circular(8),
+                                           border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.45)),
+                                         ),
+                                         child: Row(
+                                           mainAxisSize: MainAxisSize.min,
+                                           children: [
+                                             const Icon(Icons.receipt_long_rounded, color: Color(0xFFD9A441), size: 12),
+                                             const SizedBox(width: 4),
+                                             Text(
+                                               'E-Receipt',
+                                               style: GoogleFonts.inter(
+                                                 color: const Color(0xFFD9A441),
+                                                 fontSize: 10,
+                                                 fontWeight: FontWeight.w800,
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                       ),
+                                     ),
+                                     // Rate Dining Experience Button for Completed Orders/Reservations
+                                     if (status == 'completed' ||
+                                         status == 'done' ||
+                                         reservation['kitchen_status']?.toString().toLowerCase() == 'done')
+                                       AnimatedTapScale(
+                                         onTap: () {
+                                           Navigator.push(
+                                             context,
+                                             MaterialPageRoute(
+                                               builder: (_) => CustomerReviewsPage(
+                                                 reservationId: reservation['id']?.toString(),
+                                               ),
+                                             ),
+                                           );
+                                         },
+                                         child: Container(
+                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                           decoration: BoxDecoration(
+                                             color: const Color(0xFF007AFF).withValues(alpha: 0.15),
+                                             borderRadius: BorderRadius.circular(8),
+                                             border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.4)),
+                                           ),
+                                           child: Row(
+                                             mainAxisSize: MainAxisSize.min,
+                                             children: [
+                                               const Icon(Icons.star_rounded, color: Color(0xFF38BDF8), size: 12),
+                                               const SizedBox(width: 4),
+                                               Text(
+                                                 'Rate Dining',
+                                                 style: GoogleFonts.inter(
+                                                   color: const Color(0xFF38BDF8),
+                                                   fontSize: 10,
+                                                   fontWeight: FontWeight.w800,
+                                                 ),
+                                               ),
+                                             ],
+                                           ),
+                                         ),
+                                       ),
+                                   ],
+                                 ),
                                 // ── Reschedule Status Badge Row ──
                                 if (reservation['reschedule_status'] == 'pending_approval' ||
                                     reservation['reschedule_status'] == 'reschedule_rejected' ||
@@ -10081,10 +10488,18 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                   _buildInCardRescheduleStatus(reservation),
                                 ],
 
-                                // Real-time order progress stepper for paid advance orders
-                                if (isAdvanceOrder && isPaid) ...[
+                                // Real-time order progress stepper backed by Supabase kitchen_status & order status
+                                if ((isAdvanceOrder && isPaid) ||
+                                    (!isAdvanceOrder &&
+                                        status == 'confirmed' &&
+                                        reservation['selected_menu_items'] != null &&
+                                        (reservation['selected_menu_items'] as Map).isNotEmpty)) ...[
                                   const SizedBox(height: 14),
-                                  _buildProgressStepper(status),
+                                  _buildProgressStepper(
+                                    isAdvanceOrder
+                                        ? status
+                                        : (reservation['kitchen_status']?.toString() ?? 'Pending'),
+                                  ),
                                 ],
                               ],
                             ),
@@ -10116,16 +10531,64 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.restaurant_menu_rounded, size: 14, color: Color(0xFF14332E)),
-              const SizedBox(width: 6),
-              Text(
-                'ORDERED ITEMS',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF64748B),
-                  letterSpacing: 1.1,
+              Row(
+                children: [
+                  const Icon(Icons.restaurant_menu_rounded, size: 14, color: Color(0xFF14332E)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'ORDERED ITEMS',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF64748B),
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+              // 1-Tap "Order Again" Reorder Quick Action
+              AnimatedTapScale(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  int addedCount = 0;
+                  for (final entry in items.entries) {
+                    final qty = (entry.value is num)
+                        ? (entry.value as num).toInt()
+                        : (int.tryParse(entry.value.toString()) ?? 1);
+                    _preOrderCart[entry.key] = (_preOrderCart[entry.key] ?? 0) + qty;
+                    addedCount += qty;
+                  }
+                  _saveCartToPrefs();
+                  setState(() {});
+                  _showSnackBar(
+                    'Added $addedCount item${addedCount > 1 ? 's' : ''} to your Cart! Tap the bag icon at the top to checkout.',
+                    AppTheme.forestGreen,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.replay_rounded, size: 12, color: Color(0xFF14332E)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Order Again',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF14332E),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -10172,14 +10635,25 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   }
 
   Widget _buildProgressStepper(String status) {
-    final steps = ['Paid', 'Preparing', 'Ready'];
+    final steps = ['Received', 'Confirmed', 'Cooking', 'Ready'];
     int currentStep = 0;
 
     final s = status.toLowerCase();
-    if (s == 'preparing' || s == 'cooking') {
+    if (s == 'confirmed' || s == 'paid' || s == 'approved') {
       currentStep = 1;
-    } else if (s == 'ready' || s == 'done' || s == 'completed') {
+    } else if (s == 'preparing' || s == 'cooking' || s == 'in_progress') {
       currentStep = 2;
+    } else if (s == 'ready' || s == 'done' || s == 'completed' || s == 'served') {
+      currentStep = 3;
+    }
+
+    String etaText = '📝 Order placed in queue';
+    if (currentStep == 1) {
+      etaText = '👨‍🍳 Confirmed by kitchen • Prepping fresh ingredients';
+    } else if (currentStep == 2) {
+      etaText = '🔥 Sizzling in Wok Station • Est. 12–18 mins';
+    } else if (currentStep == 3) {
+      etaText = '🛎️ Freshly plated & ready for pickup/dining!';
     }
 
     return Container(
@@ -10210,7 +10684,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                   ),
                 ],
               ),
-              if (currentStep == 1)
+              if (currentStep == 2)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -10225,10 +10699,50 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                       ),
                     ),
                   ],
+                )
+              else if (currentStep == 3)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const LivePulseDot(color: Color(0xFF16A34A), size: 7),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Ready to Serve',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF16A34A),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
+          const SizedBox(height: 10),
+
+          // ETA / Status Sub-banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              etaText,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: currentStep == 2
+                    ? const Color(0xFFB45309)
+                    : (currentStep == 3 ? const Color(0xFF15803D) : const Color(0xFF334155)),
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
+
+          // 4-Stage Stepper Nodes
           Row(
             children: List.generate(steps.length, (index) {
               final isCompleted = index < currentStep;
@@ -10266,7 +10780,9 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                     isCurrent
                                         ? (index == 0
                                             ? Icons.receipt_long_rounded
-                                            : (index == 1 ? Icons.soup_kitchen_rounded : Icons.takeout_dining_rounded))
+                                            : (index == 1
+                                                ? Icons.thumb_up_rounded
+                                                : (index == 2 ? Icons.soup_kitchen_rounded : Icons.takeout_dining_rounded)))
                                         : Icons.radio_button_unchecked_rounded,
                                     size: isCurrent ? 16 : 12,
                                     color: (isActive || isCompleted)
@@ -14031,8 +14547,15 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
       _advanceOrderType = advanceOrderType;
       _dateController.text = date;
       _startTimeController.text = time;
+
+      // Remove the proceeded items from the cart
+      for (final key in selectedSubset.keys) {
+        _preOrderCart.remove(key);
+      }
+      _saveCartToPrefs();
       _selectedIndex = 1; // switch to Reservation tab
     });
+    _handleCartUpdated();
   }
 
   void _showOrderListModal() {

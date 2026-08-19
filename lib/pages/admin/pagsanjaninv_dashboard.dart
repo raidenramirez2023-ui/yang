@@ -8,6 +8,8 @@ import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/pages/staff/inventory_management.dart';
 import 'package:yang_chow/pages/staff/inventory_room_page.dart';
 import 'package:yang_chow/pages/staff/petty_cash_expense_page.dart';
+import 'package:yang_chow/pages/staff/spoilage_wastage_page.dart';
+import 'package:yang_chow/widgets/purchase_order_generator_dialog.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -39,7 +41,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   Map<String, Map<String, int>> _inventoryHealthByCategory = {};
   List<Map<String, dynamic>> _recentActivity = [];
   List<Map<String, dynamic>> _criticalItems = [];
-  bool _hasShownCriticalModal = false;
+  Set<String> _previouslyAlertedCriticalIds = {};
+  bool _isLineChartForRequests = false;
+  bool _isLineChartForHealth = false;
 
   RealtimeChannel? _inventorySubscription;
   late Stream<List<Map<String, dynamic>>> _allRequestsStream;
@@ -179,7 +183,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
       final inventoryResponse = await _supabase
           .from('inventory')
-          .select('quantity, name, category');
+          .select('id, name, category, quantity, unit, supplier');
 
       if (inventoryResponse.isNotEmpty) {
         int total = 0;
@@ -241,6 +245,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           ..sort((a, b) => b.value.compareTo(a.value));
 
         if (mounted) {
+          // Identify newly critical items that haven't been alerted yet
+          final currentCriticalIds = critical
+              .map((e) => (e['id']?.toString() ?? e['name']?.toString() ?? ''))
+              .where((id) => id.isNotEmpty)
+              .toSet();
+          final hasNewCriticalItems = currentCriticalIds.difference(_previouslyAlertedCriticalIds).isNotEmpty;
+
           setState(() {
             _totalInventoryItems = total;
             _lowStockItems = lowStock;
@@ -252,11 +263,14 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
             _isLoading = false;
           });
 
-          if (!_hasShownCriticalModal && critical.isNotEmpty) {
-            _hasShownCriticalModal = true;
+          // Trigger alert if there are newly critical items
+          if (critical.isNotEmpty && hasNewCriticalItems) {
+            _previouslyAlertedCriticalIds = currentCriticalIds;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _showCriticalStockPopup();
             });
+          } else if (critical.isEmpty) {
+            _previouslyAlertedCriticalIds.clear();
           }
         }
       } else {
@@ -334,8 +348,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
       _buildDashboardPage(),
       _buildKitchenRequestsPage(),
       const InventoryPage(),
-      const InventoryRoomPage(),
+      InventoryRoomPage(key: InventoryRoomPage.globalKey),
       const PettyCashExpensePage(),
+      const SpoilageWastagePage(embedded: true),
     ];
   }
 
@@ -812,17 +827,73 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.bar_chart_rounded, color: Color(0xFF14332E), size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Inventory Analytics & Insights',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
-                letterSpacing: -0.3,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Icon(Icons.analytics_rounded, color: Color(0xFF14332E), size: 20),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Inventory Analytics & Insights',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'Department health metrics & kitchen consumption velocity',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'LIVE SYNC',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF059669),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -850,15 +921,29 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildInventoryHealthChart() {
     double maxY = 0;
+    int totalGood = 0;
+    int totalLow = 0;
+    int totalOut = 0;
+
     for (var value in _inventoryHealthByCategory.values) {
-      final total = value['good']! + value['low']! + value['out']!;
+      final good = value['good'] ?? 0;
+      final low = value['low'] ?? 0;
+      final out = value['out'] ?? 0;
+      final total = good + low + out;
       if (total > maxY) maxY = total.toDouble();
+
+      totalGood += good;
+      totalLow += low;
+      totalOut += out;
     }
+    final totalItems = totalGood + totalLow + totalOut;
+    final healthRate = totalItems > 0 ? ((totalGood / totalItems) * 100).round() : 100;
+
     maxY = maxY + (maxY * 0.2).ceil();
     if (maxY < 5) maxY = 5;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -866,8 +951,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -875,26 +960,57 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.health_and_safety_rounded, color: Color(0xFF10B981), size: 18),
-              ),
-              const SizedBox(width: 10),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(
-                    'Category Stock Health',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.inventory_2_rounded, color: Color(0xFF059669), size: 18),
                   ),
-                  Text(
-                    'Item status distribution across departments',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Category Stock Health',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+                      ),
+                      Text(
+                        'Distribution across ${_inventoryHealthByCategory.length} departments',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildChartTypeToggle(
+                    isLine: _isLineChartForHealth,
+                    onToggle: (val) => setState(() => _isLineChartForHealth = val),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      '$healthRate% Optimal',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -903,6 +1019,118 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           const SizedBox(height: 20),
           if (_inventoryHealthByCategory.isEmpty)
             _buildChartEmptyState(Icons.bar_chart_rounded, 'No Category Data', 'Stock metrics will display once inventory is added.')
+          else if (_isLineChartForHealth)
+            SizedBox(
+              height: 260,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 45,
+                        interval: 1,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          final categoryNames = _inventoryHealthByCategory.keys.toList();
+                          final index = value.toInt();
+                          if (index >= 0 && index < categoryNames.length) {
+                            String text = categoryNames[index];
+                            if (text.length > 8) text = '${text.substring(0, 7)}…';
+                            return SideTitleWidget(
+                              meta: meta,
+                              space: 10,
+                              child: Text(
+                                text,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          if (value % 1 != 0) return const SizedBox.shrink();
+                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: (_inventoryHealthByCategory.length > 1 ? _inventoryHealthByCategory.length - 1 : 1).toDouble(),
+                  minY: 0,
+                  maxY: maxY,
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (touchedSpot) => const Color(0xFF0F172A),
+                      tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((spot) {
+                          final category = _inventoryHealthByCategory.keys.toList()[spot.x.toInt()];
+                          final values = _inventoryHealthByCategory[category]!;
+                          return LineTooltipItem(
+                            '$category\n',
+                            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            children: [
+                              TextSpan(text: '🟢 Optimal: ${values['good']}\n', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                              TextSpan(text: '🟠 Low: ${values['low']}\n', style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                              TextSpan(text: '🔴 Out: ${values['out']}', style: const TextStyle(color: Color(0xFFF87171), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            ],
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: _inventoryHealthByCategory.entries.map((e) {
+                        final index = _inventoryHealthByCategory.keys.toList().indexOf(e.key);
+                        return FlSpot(index.toDouble(), (e.value['good'] ?? 0).toDouble());
+                      }).toList(),
+                      isCurved: true,
+                      curveSmoothness: 0.35,
+                      color: const Color(0xFF10B981),
+                      barWidth: 3.5,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                          radius: 4.5,
+                          color: const Color(0xFF10B981),
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF10B981).withValues(alpha: 0.25),
+                            const Color(0xFF10B981).withValues(alpha: 0.0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
             SizedBox(
               height: 260,
@@ -914,16 +1142,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (group) => const Color(0xFF0F172A),
+                      tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final category = _inventoryHealthByCategory.keys.toList()[group.x.toInt()];
                         final values = _inventoryHealthByCategory[category]!;
                         return BarTooltipItem(
                           '$category\n',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                           children: [
-                            TextSpan(text: 'Good: ${values['good']}\n', style: const TextStyle(color: Color(0xFF10B981), fontSize: 12)),
-                            TextSpan(text: 'Low: ${values['low']}\n', style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
-                            TextSpan(text: 'Out: ${values['out']}', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+                            TextSpan(text: '🟢 Good: ${values['good']}\n', style: const TextStyle(color: Color(0xFF34D399), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            TextSpan(text: '🟠 Low: ${values['low']}\n', style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            TextSpan(text: '🔴 Out: ${values['out']}', style: const TextStyle(color: Color(0xFFF87171), fontSize: 11.5, fontWeight: FontWeight.w600)),
                           ],
                         );
                       },
@@ -942,13 +1171,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           final index = value.toInt();
                           if (index >= 0 && index < categoryNames.length) {
                             String text = categoryNames[index];
-                            if (text.length > 10) text = '${text.substring(0, 8)}…';
+                            if (text.length > 8) text = '${text.substring(0, 7)}…';
                             return SideTitleWidget(
                               meta: meta,
                               space: 10,
                               child: Text(
                                 text,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                               ),
                             );
                           }
@@ -962,7 +1191,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         reservedSize: 28,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)));
+                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
                         },
                       ),
                     ),
@@ -970,7 +1199,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(color: const Color(0xFFF1F5F9), strokeWidth: 1),
+                    getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: _inventoryHealthByCategory.entries.map((e) {
@@ -985,8 +1214,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       barRods: [
                         BarChartRodData(
                           toY: total,
-                          width: 20,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                          width: 18,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: maxY,
+                            color: const Color(0xFFF8FAFC),
+                          ),
                           rodStackItems: [
                             BarChartRodStackItem(0, good, const Color(0xFF10B981)),
                             BarChartRodStackItem(good, good + low, const Color(0xFFF59E0B)),
@@ -999,15 +1233,28 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ),
               ),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Rich Status Legend Badges with Counts
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildLegendItem(const Color(0xFF10B981), 'Good (10+)'),
-              const SizedBox(width: 16),
-              _buildLegendItem(const Color(0xFFF59E0B), 'Low (1-9)'),
-              const SizedBox(width: 16),
-              _buildLegendItem(const Color(0xFFEF4444), 'Out (0)'),
+              _buildMetricLegendPill(
+                color: const Color(0xFF10B981),
+                label: 'Optimal',
+                count: totalGood,
+              ),
+              const SizedBox(width: 10),
+              _buildMetricLegendPill(
+                color: const Color(0xFFF59E0B),
+                label: 'Low Stock',
+                count: totalLow,
+              ),
+              const SizedBox(width: 10),
+              _buildMetricLegendPill(
+                color: const Color(0xFFEF4444),
+                label: 'Out of Stock',
+                count: totalOut,
+              ),
             ],
           ),
         ],
@@ -1017,15 +1264,17 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
 
   Widget _buildTopRequestedItemsChart() {
     double maxX = 0;
+    double totalDispatched = 0;
     for (var item in _topRequestedItems) {
       final val = (item['value'] as num).toDouble();
       if (val > maxX) maxX = val;
+      totalDispatched += val;
     }
     maxX = maxX + (maxX * 0.2).ceil();
     if (maxX < 5) maxX = 5;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1033,8 +1282,8 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1047,46 +1296,65 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.trending_up_rounded, color: Color(0xFF0284C7), size: 18),
+                    child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFF0284C7), size: 18),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Top Kitchen Requests',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Top Kitchen Requests',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+                      ),
+                      Text(
+                        'Fastest-moving dispatched items',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              Wrap(
-                spacing: 6,
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildFilterDropdown<int>(
-                    value: _selectedMonth,
-                    items: List.generate(12, (index) => index + 1),
-                    label: 'Month',
-                    itemBuilder: (val) => DateFormat('MMM').format(DateTime(2000, val)),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedMonth = val);
-                        _loadDashboardData();
-                      }
-                    },
+                  _buildChartTypeToggle(
+                    isLine: _isLineChartForRequests,
+                    onToggle: (val) => setState(() => _isLineChartForRequests = val),
                   ),
-                  _buildFilterDropdown<int>(
-                    value: _selectedWeek,
-                    items: [1, 2, 3, 4],
-                    label: 'Week',
-                    itemBuilder: (val) => 'Wk $val',
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedWeek = val);
-                        _loadDashboardData();
-                      }
-                    },
+                  const SizedBox(width: 8),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      _buildFilterDropdown<int>(
+                        value: _selectedMonth,
+                        items: List.generate(12, (index) => index + 1),
+                        label: 'Month',
+                        itemBuilder: (val) => DateFormat('MMM').format(DateTime(2000, val)),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedMonth = val);
+                            _loadDashboardData();
+                          }
+                        },
+                      ),
+                      _buildFilterDropdown<int>(
+                        value: _selectedWeek,
+                        items: [1, 2, 3, 4],
+                        label: 'Week',
+                        itemBuilder: (val) => 'Wk $val',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedWeek = val);
+                            _loadDashboardData();
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1095,6 +1363,117 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           const SizedBox(height: 20),
           if (_topRequestedItems.isEmpty)
             _buildChartEmptyState(Icons.trending_up_outlined, 'No Requests Found', 'Top kitchen items for this timeframe will appear here.')
+          else if (_isLineChartForRequests)
+            SizedBox(
+              height: 260,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 45,
+                        interval: 1,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < _topRequestedItems.length) {
+                            String name = _topRequestedItems[index]['name'];
+                            if (name.length > 8) name = '${name.substring(0, 7)}…';
+                            return SideTitleWidget(
+                              meta: meta,
+                              space: 10,
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          if (value % 1 != 0) return const SizedBox.shrink();
+                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: (_topRequestedItems.length > 1 ? _topRequestedItems.length - 1 : 1).toDouble(),
+                  minY: 0,
+                  maxY: maxX,
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (touchedSpot) => const Color(0xFF0F172A),
+                      tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((spot) {
+                          final index = spot.x.toInt();
+                          final item = _topRequestedItems[index];
+                          return LineTooltipItem(
+                            '#${index + 1} ${item['name']}\n',
+                            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            children: [
+                              TextSpan(
+                                text: 'Dispatched: ${NumberFormat('#,###').format(spot.y)} units',
+                                style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11.5, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: _topRequestedItems.asMap().entries.map((e) {
+                        return FlSpot(e.key.toDouble(), (e.value['value'] as num).toDouble());
+                      }).toList(),
+                      isCurved: true,
+                      curveSmoothness: 0.35,
+                      color: const Color(0xFF0284C7),
+                      barWidth: 3.5,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                          radius: 5,
+                          color: const Color(0xFF0284C7),
+                          strokeWidth: 2.5,
+                          strokeColor: Colors.white,
+                        ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF0284C7).withValues(alpha: 0.25),
+                            const Color(0xFF0284C7).withValues(alpha: 0.0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else
             SizedBox(
               height: 260,
@@ -1106,14 +1485,16 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipColor: (group) => const Color(0xFF0F172A),
+                      tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final item = _topRequestedItems[groupIndex];
                         return BarTooltipItem(
-                          '${_topRequestedItems[groupIndex]['name']}\n',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          '#${groupIndex + 1} ${item['name']}\n',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                           children: [
                             TextSpan(
-                              text: 'Total: ${_topRequestedItems[groupIndex]['value']}',
-                              style: const TextStyle(color: Color(0xFFE6C374), fontSize: 12, fontWeight: FontWeight.bold),
+                              text: 'Dispatched: ${NumberFormat('#,###').format(item['value'])} units',
+                              style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11.5, fontWeight: FontWeight.w700),
                             ),
                           ],
                         );
@@ -1132,13 +1513,13 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           final index = value.toInt();
                           if (index >= 0 && index < _topRequestedItems.length) {
                             String name = _topRequestedItems[index]['name'];
-                            if (name.length > 10) name = '${name.substring(0, 8)}…';
+                            if (name.length > 8) name = '${name.substring(0, 7)}…';
                             return SideTitleWidget(
                               meta: meta,
                               space: 10,
                               child: Text(
                                 name,
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                               ),
                             );
                           }
@@ -1152,7 +1533,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                         reservedSize: 28,
                         getTitlesWidget: (value, meta) {
                           if (value % 1 != 0) return const SizedBox.shrink();
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)));
+                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600));
                         },
                       ),
                     ),
@@ -1160,7 +1541,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(color: const Color(0xFFF1F5F9), strokeWidth: 1),
+                    getDrawingHorizontalLine: (value) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: _topRequestedItems.asMap().entries.map((e) {
@@ -1171,10 +1552,15 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       barRods: [
                         BarChartRodData(
                           toY: val,
-                          width: 20,
+                          width: 22,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: maxX,
+                            color: const Color(0xFFF8FAFC),
+                          ),
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF14332E), Color(0xFF28564D)],
+                            colors: [Color(0xFF0F2621), Color(0xFF1B4D3E), Color(0xFF2D6A4F)],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),
@@ -1185,11 +1571,177 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                 ),
               ),
             ),
-          const SizedBox(height: 12),
-          const Center(
+          const SizedBox(height: 16),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Peak Velocity: ${NumberFormat('#,###').format(totalDispatched)} total units dispatched to kitchen',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF334155), fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartTypeToggle({
+    required bool isLine,
+    required ValueChanged<bool> onToggle,
+  }) {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: () => onToggle(false),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: !isLine ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: !isLine
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.bar_chart_rounded,
+                    size: 14,
+                    color: !isLine ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Bar',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: !isLine ? FontWeight.w800 : FontWeight.w600,
+                      color: !isLine ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => onToggle(true),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: isLine ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: isLine
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.show_chart_rounded,
+                    size: 14,
+                    color: isLine ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Line',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: isLine ? FontWeight.w800 : FontWeight.w600,
+                      color: isLine ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricLegendPill({
+    required Color color,
+    required String label,
+    required int count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(4),
+            ),
             child: Text(
-              'Highest demand ingredients dispatched to kitchen',
-              style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+              count.toString(),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -1226,24 +1778,6 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
           onChanged: onChanged,
         ),
       ),
-    );
-  }
-
-  Widget _buildLegendItem(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w600),
-        ),
-      ],
     );
   }
 
@@ -1447,230 +1981,554 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
   }
 
   void _showCriticalStockPopup() {
-    final outOfStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) == 0).toList();
-    final lowStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toInt() ?? 0) > 0).toList();
+    final outOfStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toDouble() ?? 0) <= 0).toList();
+    final lowStockItems = _criticalItems.where((item) => ((item['quantity'] as num?)?.toDouble() ?? 0) > 0).toList();
+
+    String activeFilter = 'all'; // 'all' | 'out_of_stock' | 'low_stock'
 
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Container(
-            width: 520,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            List<Map<String, dynamic>> displayedItems;
+            if (activeFilter == 'out_of_stock') {
+              displayedItems = outOfStockItems;
+            } else if (activeFilter == 'low_stock') {
+              displayedItems = lowStockItems;
+            } else {
+              displayedItems = _criticalItems;
+            }
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+              child: Container(
+                width: 540,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
                     ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Header (Executive Theme) ──────────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(22, 20, 16, 20),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF0C241F), Color(0xFF143A32)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Critical Stock Alerts',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD97706).withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFD97706).withValues(alpha: 0.40),
+                                width: 1.5,
                               ),
                             ),
-                            Text(
-                              '${_criticalItems.length} item${_criticalItems.length == 1 ? '' : 's'} require immediate replenishment',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            child: const Icon(
+                              Icons.inventory_2_rounded,
+                              color: Color(0xFFFBBF24),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Critical Stock Alerts',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        'ACTION REQUIRED',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFFFCA5A5),
+                                          letterSpacing: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _criticalItems.length == 1
+                                      ? '1 ingredient is below safety threshold'
+                                      : '${_criticalItems.length} ingredients require replenishment before kitchen prep',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white.withValues(alpha: 0.70),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 22),
+                            splashRadius: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Interactive Segmented Filter Chips ────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFilterTab(
+                              label: 'All Critical',
+                              count: _criticalItems.length,
+                              isSelected: activeFilter == 'all',
+                              accentColor: const Color(0xFF0F172A),
+                              onTap: () => setModalState(() => activeFilter = 'all'),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildFilterTab(
+                              label: 'Out of Stock',
+                              count: outOfStockItems.length,
+                              isSelected: activeFilter == 'out_of_stock',
+                              accentColor: const Color(0xFFDC2626),
+                              onTap: () => setModalState(() => activeFilter = 'out_of_stock'),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildFilterTab(
+                              label: 'Low Stock Buffer',
+                              count: lowStockItems.length,
+                              isSelected: activeFilter == 'low_stock',
+                              accentColor: const Color(0xFFD97706),
+                              onTap: () => setModalState(() => activeFilter = 'low_stock'),
                             ),
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  color: const Color(0xFFF8FAFC),
-                  child: Row(
-                    children: [
-                      _buildSummaryChip('Out of Stock', outOfStockItems.length.toString(), const Color(0xFFEF4444)),
-                      const SizedBox(width: 10),
-                      _buildSummaryChip('Low Stock', lowStockItems.length.toString(), const Color(0xFFF59E0B)),
-                    ],
-                  ),
-                ),
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    children: [
-                      if (outOfStockItems.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4, top: 8, bottom: 8),
-                          child: Text(
-                            'OUT OF STOCK',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEF4444), letterSpacing: 0.6),
-                          ),
-                        ),
-                        ...outOfStockItems.map((item) => _buildCriticalItemTile(item, isOutOfStock: true)),
-                      ],
-                      if (lowStockItems.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4, top: 14, bottom: 8),
-                          child: Text(
-                            'LOW STOCK',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFF59E0B), letterSpacing: 0.6),
-                          ),
-                        ),
-                        ...lowStockItems.map((item) => _buildCriticalItemTile(item, isOutOfStock: false)),
-                      ],
-                    ],
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
                     ),
-                    border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _onItemTapped(2);
-                        },
-                        child: const Text('Go to Inventory', style: TextStyle(fontWeight: FontWeight.w700)),
+
+                    // ── Items List ─────────────────────────────────────────
+                    Flexible(
+                      child: displayedItems.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 36),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 44),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'No items in this filter',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF334155),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                              itemCount: displayedItems.length,
+                              separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                              itemBuilder: (ctx, i) {
+                                final item = displayedItems[i];
+                                final isOut = ((item['quantity'] as num?)?.toDouble() ?? 0) <= 0;
+                                return _buildCriticalItemTile(item, isOutOfStock: isOut);
+                              },
+                            ),
+                    ),
+
+                    // ── Footer with direct Navigation ─────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+                        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF14332E),
-                          foregroundColor: const Color(0xFFE6C374),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Understood', style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFDC2626),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${outOfStockItems.length} out of stock',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'Dismiss',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              PurchaseOrderGeneratorDialog.show(
+                                context,
+                                criticalItems: _criticalItems,
+                                onGoToStorageRoom: () {
+                                  _onItemTapped(3);
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    InventoryRoomPage.navigateToIncomingTab(context);
+                                  });
+                                },
+                              );
+                            },
+                            icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFFD97706)),
+                            label: Text(
+                              'Generate PO',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: const Color(0xFF0C241F),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFD97706), width: 1.5),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _onItemTapped(2); // Go to Inventory management tab
+                            },
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFFD9A441)),
+                            label: Text(
+                              'Manage Inventory',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0C241F),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 2,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildSummaryChip(String label, String count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Text(count, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
-        ],
+  Widget _buildFilterTab({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required Color accentColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? accentColor : const Color(0xFFCBD5E1),
+            width: 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : accentColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCriticalItemTile(Map<String, dynamic> item, {required bool isOutOfStock}) {
-    final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-    final statusColor = isOutOfStock ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+    final qty = (item['quantity'] as num?)?.toDouble() ?? 0.0;
+    final minQty = (item['min_quantity'] as num?)?.toDouble() ?? (item['threshold'] as num?)?.toDouble() ?? 5.0;
+    final unit = (item['unit'] as String?) ?? 'kg';
+    final category = (item['category'] as String?) ?? 'General';
+    final name = (item['name'] as String?) ?? 'Unnamed Item';
+
+    final Color statusColor = isOutOfStock ? const Color(0xFFDC2626) : const Color(0xFFD97706);
+    final String statusText = isOutOfStock ? '0.00 $unit left' : '${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} $unit left';
+
+    IconData categoryIcon = Icons.inventory_2_outlined;
+    final catLower = category.toLowerCase();
+    if (catLower.contains('meat') || catLower.contains('beef') || catLower.contains('pork') || catLower.contains('chicken')) {
+      categoryIcon = Icons.restaurant_rounded;
+    } else if (catLower.contains('fresh') || catLower.contains('veg') || catLower.contains('fruit')) {
+      categoryIcon = Icons.eco_rounded;
+    } else if (catLower.contains('sauce') || catLower.contains('condiment') || catLower.contains('spice')) {
+      categoryIcon = Icons.soup_kitchen_rounded;
+    } else if (catLower.contains('beverage') || catLower.contains('drink')) {
+      categoryIcon = Icons.local_drink_rounded;
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: statusColor.withValues(alpha: 0.15)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isOutOfStock ? const Color(0xFFFCA5A5) : const Color(0xFFFDE68A),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(isOutOfStock ? Icons.cancel_rounded : Icons.warning_rounded, color: statusColor, size: 18),
-          const SizedBox(width: 10),
+          // Category Icon badge
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(categoryIcon, color: statusColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+
+          // Name & Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item['name'] ?? 'Unknown',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  item['category'] ?? 'General',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        category,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '• Min buffer: ${minQty.toStringAsFixed(0)} $unit',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              isOutOfStock ? 'OUT OF STOCK' : '$qty left',
-              style: TextStyle(color: statusColor, fontWeight: FontWeight.w800, fontSize: 11),
-            ),
+          const SizedBox(width: 10),
+
+          // Status Badge + Quick Restock Action
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isOutOfStock ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isOutOfStock ? const Color(0xFFF87171) : const Color(0xFFFBBF24),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isOutOfStock ? 'OUT OF STOCK' : statusText,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: statusColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _onItemTapped(2); // Go to inventory tab
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_shopping_cart_rounded, size: 12, color: const Color(0xFF0F766E)),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Restock',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F766E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -2860,6 +3718,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       _buildCompactSidebarItem(icon: Icons.inventory_2_rounded, title: 'Manage Inventory', index: 2),
                       _buildCompactSidebarItem(icon: Icons.warehouse_rounded, title: 'Storage Room', index: 3),
                       _buildCompactSidebarItem(icon: Icons.account_balance_wallet_rounded, title: 'Petty Cash', index: 4),
+                      _buildCompactSidebarItem(icon: Icons.delete_sweep_rounded, title: 'Spoilage & Waste', index: 5),
                     ],
                   ),
                 ),
@@ -2889,7 +3748,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                                     ? 'Inventory Management'
                                     : _selectedIndex == 3
                                         ? 'Storage Rooms'
-                                        : 'Petty Cash Expense',
+                                        : _selectedIndex == 4
+                                            ? 'Petty Cash Expense'
+                                            : 'Spoilage & Wastage Tracker',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
@@ -2960,6 +3821,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                   _buildSidebarItem(icon: Icons.inventory_2_rounded, title: 'Manage Inventory', index: 2),
                   _buildSidebarItem(icon: Icons.warehouse_rounded, title: 'Storage Room', index: 3),
                   _buildSidebarItem(icon: Icons.account_balance_wallet_rounded, title: 'Petty Cash', index: 4),
+                  _buildSidebarItem(icon: Icons.delete_sweep_rounded, title: 'Spoilage & Waste', index: 5),
                 ],
               ),
               const Spacer(),
@@ -2985,7 +3847,9 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                       ? 'Inventory'
                       : _selectedIndex == 3
                           ? 'Storage'
-                          : 'Petty Cash',
+                          : _selectedIndex == 4
+                              ? 'Petty Cash'
+                              : 'Spoilage & Waste',
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
         ),
         actions: [

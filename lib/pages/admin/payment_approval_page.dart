@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/ocr_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 final _moneyFmt = NumberFormat('#,##0.00', 'en_PH');
 
@@ -72,6 +73,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       );
 
       if (success && mounted) {
+        AuditLogService.logActivity(
+          action: 'APPROVE',
+          module: 'Payments',
+          description: 'Approved payment verification for record #$id ($table)',
+          entityId: id,
+          metadata: {'table': table, 'status': 'approved'},
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment approved successfully!'),
@@ -151,6 +160,14 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       );
 
       if (success && mounted) {
+        AuditLogService.logActivity(
+          action: 'REJECT',
+          module: 'Payments',
+          description: 'Rejected payment verification for record #$id ($table). Reason: $reason',
+          entityId: id,
+          metadata: {'table': table, 'status': 'rejected', 'reason': reason},
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Payment rejected successfully!'),

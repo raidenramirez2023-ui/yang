@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 /// Service to manage reservation reschedule requests and approval workflow.
 class RescheduleService {
@@ -221,6 +222,24 @@ class RescheduleService {
         );
       }
 
+      // Log in Audit Trail
+      await AuditLogService.logActivity(
+        action: 'APPROVE',
+        module: 'Reschedule',
+        description: 'Approved reschedule request for Reservation #$reservationId to $newDate ($newTime) for ${customerName ?? targetEmail ?? "Customer"}',
+        entityId: reservationId,
+        customUserEmail: adminEmail,
+        metadata: {
+          'request_id': requestId,
+          'reservation_id': reservationId,
+          'new_date': newDate,
+          'new_time': newTime,
+          'customer_name': customerName,
+          'customer_email': targetEmail,
+          'admin_notes': adminNotes,
+        },
+      );
+
       return true;
     } catch (e) {
       debugPrint('Error approving reschedule: $e');
@@ -292,6 +311,22 @@ class RescheduleService {
           eventType: 'Your reschedule request was not approved. Reason: $rejectionReason',
         );
       }
+
+      // Log in Audit Trail
+      await AuditLogService.logActivity(
+        action: 'REJECT',
+        module: 'Reschedule',
+        description: 'Rejected reschedule request for Reservation #$reservationId (${customerName ?? targetEmail ?? "Customer"}). Reason: $rejectionReason',
+        entityId: reservationId,
+        customUserEmail: adminEmail,
+        metadata: {
+          'request_id': requestId,
+          'reservation_id': reservationId,
+          'customer_name': customerName,
+          'customer_email': targetEmail,
+          'rejection_reason': rejectionReason,
+        },
+      );
 
       return true;
     } catch (e) {

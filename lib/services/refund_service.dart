@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/services/app_settings_service.dart';
 import 'package:yang_chow/services/email_notification_service.dart';
 import 'package:yang_chow/services/notification_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 
 /// Service to manage all refund operations across POS, Reservations, and Advance Orders.
@@ -176,6 +177,7 @@ class RefundService {
     required double originalAmount,
     required String reason,
     required String staffEmail,
+    String? staffName,
   }) async {
     try {
       // Validate: only same-day orders
@@ -266,6 +268,28 @@ class RefundService {
       }
 
       await _supabase.from('orders').update(updateData).eq('id', orderId);
+
+      // Log in Audit Trail
+      AuditLogService.logActivity(
+        action: 'REFUND',
+        module: 'Refunds',
+        description: 'Processed POS cash refund of ₱${refundAmount.toStringAsFixed(2)} for Order #$transactionId ($customerName) by ${staffName ?? staffEmail}. Reason: $reason',
+        entityId: orderId,
+        customUserEmail: staffEmail,
+        customUserName: staffName,
+        metadata: {
+          'order_id': orderId,
+          'transaction_id': transactionId,
+          'customer_name': customerName,
+          'refund_amount': refundAmount,
+          'original_amount': originalAmount,
+          'refund_type': refundType,
+          'refund_method': 'cash',
+          'processed_by': staffName ?? staffEmail,
+          'reason': reason,
+          'refunded_items_count': refundedItems.length,
+        },
+      );
 
       // Send admin notification
       await NotificationService.sendNotification(
@@ -629,6 +653,22 @@ class RefundService {
 
       // Update source table
       await _markSourceAsRefunded(refund);
+
+      // Log PayMongo refund in Audit Trail
+      AuditLogService.logActivity(
+        action: 'REFUND',
+        module: 'Refunds',
+        description: 'Processed PayMongo online gateway refund of ₱${(refund['refund_amount'] as num).toStringAsFixed(2)} for ${refund['customer_name'] ?? 'Customer'} (Gateway ID: $paymongoRefundId)',
+        entityId: refundId,
+        metadata: {
+          'refund_id': refundId,
+          'paymongo_refund_id': paymongoRefundId,
+          'customer_name': refund['customer_name'],
+          'refund_amount': refund['refund_amount'],
+          'refund_method': 'paymongo',
+          'source_table': refund['source_table'],
+        },
+      );
 
       // Send completion email & in-app notification
       if (refund['customer_email'] != null) {
