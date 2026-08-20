@@ -598,14 +598,17 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     ];
 
     if (isMobile) {
-      return GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.35,
-        children: cards,
+      return SizedBox(
+        height: 122,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: cards.map((c) => Container(
+            width: 200,
+            margin: const EdgeInsets.only(right: 10),
+            child: c,
+          )).toList(),
+        ),
       );
     }
 
@@ -626,7 +629,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     bool isAlert = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -646,35 +649,43 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              color: color.withValues(alpha: 0.8),
-              letterSpacing: 0.6,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: color.withValues(alpha: 0.8),
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(icon, color: color, size: 15),
+              ),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
               color: color,
               letterSpacing: -0.3,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
@@ -708,10 +719,11 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Period + Sub-Period Row
-          Row(
-            children: [
-              // Period Toggle
-              Container(
+          if (isMobile) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   color: AppTheme.adminMainBackground.withValues(alpha: 0.6),
@@ -744,13 +756,54 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   }).toList(),
                 ),
               ),
+            ),
+            const SizedBox(height: 10),
+            _buildSecondaryTimeDropdown(),
+          ] else ...[
+            Row(
+              children: [
+                // Period Toggle
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.adminMainBackground.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.cardBorder),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: timeFilters.map((period) {
+                      final isSel = _selectedTimeFilter == period;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedTimeFilter = period),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSel ? const Color(0xFF14332E) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            period,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                              color: isSel ? Colors.white : AppTheme.darkGrey,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
 
-              const SizedBox(width: 10),
+                const SizedBox(width: 10),
 
-              // Secondary Sub-Period Selector
-              Expanded(child: _buildSecondaryTimeDropdown()),
-            ],
-          ),
+                // Secondary Sub-Period Selector
+                Expanded(child: _buildSecondaryTimeDropdown()),
+              ],
+            ),
+          ],
 
           const SizedBox(height: 12),
 
@@ -899,24 +952,52 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // View Mode Switcher Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics'),
-                const SizedBox(width: 6),
-                _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue'),
-                const SizedBox(width: 6),
-                _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits'),
-              ],
-            ),
-            Text(
-              '${timeFiltered.length} demand records',
-              style: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+        if (isMobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics'),
+                    const SizedBox(width: 6),
+                    _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue'),
+                    const SizedBox(width: 6),
+                    _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '${timeFiltered.length} demand records',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          )
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  _viewModeTab('Chart', Icons.bar_chart_rounded, 'Demand Analytics'),
+                  const SizedBox(width: 6),
+                  _viewModeTab('Feed', Icons.format_list_bulleted_rounded, 'Demand Queue'),
+                  const SizedBox(width: 6),
+                  _viewModeTab('Deficit', Icons.warning_amber_rounded, 'Stock Deficits'),
+                ],
+              ),
+              Text(
+                '${timeFiltered.length} demand records',
+                style: const TextStyle(fontSize: 11.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
 
         const SizedBox(height: 12),
 
@@ -1237,7 +1318,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         children: [
           // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Row(
@@ -1263,6 +1344,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                           Text(
                             '$category • $storageRoom',
                             style: const TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -1270,9 +1352,12 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                   ],
                 ),
               ),
-
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              const SizedBox(width: 8),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   // Status Badge (Fulfilled vs Pending)
                   Container(
@@ -1299,8 +1384,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     ),
                   ),
 
-                  const SizedBox(width: 6),
-
                   // Priority Badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
@@ -1315,8 +1398,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                     ),
                   ),
 
-                  if (isPending) ...[
-                    const SizedBox(width: 8),
+                  if (isPending)
                     ElevatedButton.icon(
                       onPressed: () => _markRequestAsGiven(item),
                       icon: const Icon(Icons.check_rounded, size: 12),
@@ -1330,7 +1412,6 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
                         elevation: 0,
                       ),
                     ),
-                  ],
                 ],
               ),
             ],

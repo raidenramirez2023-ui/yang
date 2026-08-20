@@ -377,7 +377,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   }
 
   // -------------------------------------------------------------------------
-  // QUICK STATS
+  // QUICK STATS (Responsive Carousel on Mobile)
   // -------------------------------------------------------------------------
   Widget _buildQuickStats(bool isMobile) {
     final now = DateTime.now();
@@ -390,6 +390,54 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
         return false;
       }
     }).length;
+
+    if (isMobile) {
+      return SizedBox(
+        height: 66,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: [
+            Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 8),
+              child: _buildStatTile(
+                label: 'Total Customers',
+                value: _allCustomers.length.toString(),
+                icon: Icons.people_alt_rounded,
+                color: const Color(0xFF14332E),
+                bgTint: const Color(0xFFDCFCE7),
+                iconColor: const Color(0xFF15803D),
+              ),
+            ),
+            Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 8),
+              child: _buildStatTile(
+                label: 'Joined This Month',
+                value: thisMonth.toString(),
+                icon: Icons.person_add_rounded,
+                color: const Color(0xFF0284C7),
+                bgTint: const Color(0xFFE0F2FE),
+                iconColor: const Color(0xFF0284C7),
+              ),
+            ),
+            Container(
+              width: 160,
+              margin: const EdgeInsets.only(right: 8),
+              child: _buildStatTile(
+                label: 'Search Results',
+                value: _filtered.length.toString(),
+                icon: Icons.filter_list_rounded,
+                color: const Color(0xFFD97706),
+                bgTint: const Color(0xFFFEF3C7),
+                iconColor: const Color(0xFFD97706),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Row(
       children: [
@@ -438,7 +486,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     required Color iconColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -465,11 +513,13 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   value,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
                     color: _darkBg,
                     letterSpacing: -0.5,

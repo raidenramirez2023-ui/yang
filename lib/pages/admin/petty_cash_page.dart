@@ -107,7 +107,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 20,
+        horizontal: isMobile ? 14 : 20,
         vertical: isMobile ? 14 : 18,
       ),
       decoration: BoxDecoration(
@@ -122,126 +122,179 @@ class _PettyCashPageState extends State<PettyCashPage> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF14332E).withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.account_balance_rounded,
-              color: Color(0xFFD9A441),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Petty Cash Treasury & Approvals',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: isMobile ? 17 : 20,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.4,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF14332E).withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD9A441).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.account_balance_rounded,
+                  color: Color(0xFFD9A441),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          'Petty Cash Treasury',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: isMobile ? 16 : 20,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                            letterSpacing: -0.4,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Admin Control',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF9E6D10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD9A441).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFFD9A441).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'Admin Control',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF9E6D10),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formattedDate,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: isMobile ? 11 : 12,
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  formattedDate,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: isMobile ? 11 : 12,
-                    color: const Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
-                  ),
+              ),
+              if (_isAdmin && !isMobile)
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _showSpendingReportDialog,
+                      icon: const Icon(Icons.analytics_rounded, size: 16),
+                      label: const Text('Reports'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF14332E),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _showBudgetManagementDialog,
+                      icon: const Icon(Icons.pie_chart_rounded, size: 16),
+                      label: const Text('Budgets'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF14332E),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showReplenishDialog,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Replenish Fund'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF14332E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+            ],
           ),
-          if (_isAdmin)
-            Wrap(
-              spacing: 8,
+          if (_isAdmin && isMobile) ...[
+            const SizedBox(height: 12),
+            Row(
               children: [
-                if (!isMobile) ...[
-                  OutlinedButton.icon(
+                Expanded(
+                  child: OutlinedButton.icon(
                     onPressed: _showSpendingReportDialog,
-                    icon: const Icon(Icons.analytics_rounded, size: 16),
+                    icon: const Icon(Icons.analytics_rounded, size: 14),
                     label: const Text('Reports'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF14332E),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      textStyle: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  OutlinedButton.icon(
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
                     onPressed: _showBudgetManagementDialog,
-                    icon: const Icon(Icons.pie_chart_rounded, size: 16),
+                    icon: const Icon(Icons.pie_chart_rounded, size: 14),
                     label: const Text('Budgets'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF14332E),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      textStyle: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ],
-                ElevatedButton.icon(
-                  onPressed: _showReplenishDialog,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: Text(isMobile ? 'Replenish' : 'Replenish Fund'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF14332E),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    elevation: 0,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _showReplenishDialog,
+                    icon: const Icon(Icons.add_rounded, size: 15),
+                    label: const Text('Replenish'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14332E),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                      textStyle: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],
             ),
+          ],
         ],
       ),
     );
@@ -550,115 +603,235 @@ class _PettyCashPageState extends State<PettyCashPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
+                child: isMobile
+                    ? Column(
                         children: [
-                          const Icon(
-                            Icons.receipt_long_rounded,
-                            color: Color(0xFFE6C374),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Total Spent',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  '₱${NumberFormat('#,##0.00').format(totalSpent)}',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 24,
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.pending_actions_rounded,
-                            color: Color(0xFFFF9500),
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pending Review',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: const Color(0xFFFFB020),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_isAdmin) ...[
-                      const SizedBox(width: 10),
-                      InkWell(
-                        onTap: _showReconciliationDialog,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD9A441).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
+                          Row(
                             children: [
-                              const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE6C374)),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Reconcile',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFFE6C374),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.receipt_long_rounded,
+                                      color: Color(0xFFE6C374),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Spent',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: const Color(0xFF94A3B8),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            '₱${NumberFormat('#,##0.00').format(totalSpent)}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 24,
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.pending_actions_rounded,
+                                      color: Color(0xFFFF9500),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Pending Review',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: const Color(0xFF94A3B8),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Text(
+                                            '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: const Color(0xFFFFB020),
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
+                          if (_isAdmin) ...[
+                            const SizedBox(height: 10),
+                            const Divider(height: 1, color: Colors.white12),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: _showReconciliationDialog,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFD9A441).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE6C374)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Reconcile Petty Cash',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFE6C374),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.receipt_long_rounded,
+                                  color: Color(0xFFE6C374),
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Total Spent',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF94A3B8),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        '₱${NumberFormat('#,##0.00').format(totalSpent)}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 24,
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.pending_actions_rounded,
+                                  color: Color(0xFFFF9500),
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pending Review',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF94A3B8),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFFFFB020),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_isAdmin) ...[
+                            const SizedBox(width: 10),
+                            InkWell(
+                              onTap: _showReconciliationDialog,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFD9A441).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE6C374)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Reconcile',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFE6C374),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
               ),
             ],
           ),
@@ -722,14 +895,19 @@ class _PettyCashPageState extends State<PettyCashPage> {
     ];
 
     if (isMobile) {
-      return GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.25,
-        children: cards,
+      return SizedBox(
+        height: 116,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: cards
+              .map((c) => Container(
+                    width: 205,
+                    margin: const EdgeInsets.only(right: 10),
+                    child: c,
+                  ))
+              .toList(),
+        ),
       );
     }
 
@@ -755,7 +933,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
     required Color bgTint,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -788,21 +966,21 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(7),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: bgTint,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: iconColor, size: 16),
+                child: Icon(icon, color: iconColor, size: 15),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             style: GoogleFonts.plusJakartaSans(
               color: const Color(0xFF0F172A),
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.4,
             ),
@@ -1409,8 +1587,10 @@ class _PettyCashPageState extends State<PettyCashPage> {
                         const SizedBox(height: 14),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
                               onPressed: () => _rejectExpense(expense.id!),
@@ -1427,7 +1607,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
                             ElevatedButton.icon(
                               onPressed: () => _approveExpense(expense.id!),
                               icon: const Icon(Icons.check_rounded, size: 16),
@@ -1452,8 +1631,10 @@ class _PettyCashPageState extends State<PettyCashPage> {
                         const SizedBox(height: 14),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             ElevatedButton.icon(
                               onPressed: () => _markAsReimbursed(expense.id!),

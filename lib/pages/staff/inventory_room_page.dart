@@ -372,163 +372,305 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
             });
           }
 
+          final isMobile = ResponsiveUtils.isMobile(context);
+
           return Dialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
+            insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: isMobile ? 16 : 24),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: isMobile ? 14 : 20),
               constraints: BoxConstraints(
-                maxWidth: ResponsiveUtils.isMobile(context) ? double.infinity : 900,
-                maxHeight: MediaQuery.of(context).size.height * 0.94,
+                maxWidth: isMobile ? double.infinity : 900,
+                maxHeight: MediaQuery.of(context).size.height * (isMobile ? 0.96 : 0.94),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Header with Title & Quick Utility Actions
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.inventory_2_rounded,
-                          color: Color(0xFF059669),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              'Fast Restock & Delivery Intake',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.3,
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: const Icon(Icons.inventory_2_rounded, color: Color(0xFF059669), size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Delivery & Stock Intake',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Text(
-                              'Quick grid entry • 1-tap auto-replenishment • OCR receipt scanning',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0F172A),
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.document_scanner_rounded, size: 14, color: Color(0xFF059669)),
+                                label: const Text('Scan Receipt', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                onPressed: () {
+                                  _handleUploadDeliveryReceipt(
+                                    allDbItems,
+                                    (List<Map<String, dynamic>> items, {String? detectedSupplier}) {
+                                      setDialogState(() {
+                                        if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
+                                          supplierCtrl.text = detectedSupplier.trim();
+                                        }
+
+                                        extraCustomItems.clear();
+                                        restockQtys.clear();
+                                        for (var ctrl in qtyControllers.values) {
+                                          ctrl.text = '0';
+                                        }
+
+                                        for (final item in items) {
+                                          final name = item['name']?.toString() ?? '';
+                                          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                                          if (name.isNotEmpty && qty > 0) {
+                                            final dbMatch = allDbItems.firstWhere(
+                                              (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                              orElse: () => {},
+                                            );
+
+                                            if (dbMatch.isEmpty) {
+                                              final alreadyInExtra = extraCustomItems.indexWhere(
+                                                (e) => (e['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                              );
+                                              if (alreadyInExtra >= 0) {
+                                                extraCustomItems[alreadyInExtra]['quantity'] = qty;
+                                              } else {
+                                                extraCustomItems.add(item);
+                                              }
+                                            }
+
+                                            if (!qtyControllers.containsKey(name)) {
+                                              qtyControllers[name] = TextEditingController(text: qty.toString());
+                                            } else {
+                                              qtyControllers[name]!.text = qty.toString();
+                                            }
+                                            setItemQty(name, qty);
+                                          }
+                                        }
+                                        showOnlySelected = true;
+                                        showOnlyUnlisted = false;
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0F172A),
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(vertical: 6),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(Icons.add_rounded, size: 15, color: Color(0xFF64748B)),
+                                label: const Text('+ Unlisted', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                onPressed: () {
+                                  _showAddBulkItemDialog(
+                                    allDbItems,
+                                    (item) {
+                                      setDialogState(() {
+                                        extraCustomItems.add(item);
+                                        final name = item['name']?.toString() ?? '';
+                                        final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                                        if (name.isNotEmpty) {
+                                          qtyControllers[name] = TextEditingController(text: qty.toString());
+                                          restockQtys[name] = qty;
+                                        }
+                                        showOnlyUnlisted = true;
+                                        showOnlySelected = false;
+                                        selectedCategoryFilter = 'All';
+                                      });
+                                    },
+                                  );
+                                },
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      // OCR Upload Action
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF0F172A),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          visualDensity: VisualDensity.compact,
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.inventory_2_rounded,
+                            color: Color(0xFF059669),
+                            size: 22,
+                          ),
                         ),
-                        icon: const Icon(Icons.document_scanner_rounded, size: 15, color: Color(0xFF059669)),
-                        label: const Text('Scan Receipt', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
-                        onPressed: () {
-                          _handleUploadDeliveryReceipt(
-                            allDbItems,
-                            (List<Map<String, dynamic>> items, {String? detectedSupplier}) {
-                              setDialogState(() {
-                                if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
-                                  supplierCtrl.text = detectedSupplier.trim();
-                                }
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Fast Restock & Delivery Intake',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              Text(
+                                'Quick grid entry • 1-tap auto-replenishment • OCR receipt scanning',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // OCR Upload Action
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F172A),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.document_scanner_rounded, size: 15, color: Color(0xFF059669)),
+                          label: const Text('Scan Receipt', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                          onPressed: () {
+                            _handleUploadDeliveryReceipt(
+                              allDbItems,
+                              (List<Map<String, dynamic>> items, {String? detectedSupplier}) {
+                                setDialogState(() {
+                                  if (detectedSupplier != null && detectedSupplier.trim().isNotEmpty) {
+                                    supplierCtrl.text = detectedSupplier.trim();
+                                  }
 
-                                // Clear previous scan leftovers so old scans do not stack with new receipt!
-                                extraCustomItems.clear();
-                                restockQtys.clear();
-                                for (var ctrl in qtyControllers.values) {
-                                  ctrl.text = '0';
-                                }
+                                  // Clear previous scan leftovers so old scans do not stack with new receipt!
+                                  extraCustomItems.clear();
+                                  restockQtys.clear();
+                                  for (var ctrl in qtyControllers.values) {
+                                    ctrl.text = '0';
+                                  }
 
-                                for (final item in items) {
+                                  for (final item in items) {
+                                    final name = item['name']?.toString() ?? '';
+                                    final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+                                    if (name.isNotEmpty && qty > 0) {
+                                      final dbMatch = allDbItems.firstWhere(
+                                        (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                        orElse: () => {},
+                                      );
+
+                                      if (dbMatch.isEmpty) {
+                                        final alreadyInExtra = extraCustomItems.indexWhere(
+                                          (e) => (e['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
+                                        );
+                                        if (alreadyInExtra >= 0) {
+                                          extraCustomItems[alreadyInExtra]['quantity'] = qty;
+                                        } else {
+                                          extraCustomItems.add(item);
+                                        }
+                                      }
+
+                                      if (!qtyControllers.containsKey(name)) {
+                                        qtyControllers[name] = TextEditingController(text: qty.toString());
+                                      } else {
+                                        qtyControllers[name]!.text = qty.toString();
+                                      }
+                                      setItemQty(name, qty);
+                                    }
+                                  }
+                                  showOnlySelected = true;
+                                  showOnlyUnlisted = false;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        // Add Unlisted Item
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F172A),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF64748B)),
+                          label: const Text('+ Unlisted', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                          onPressed: () {
+                            _showAddBulkItemDialog(
+                              allDbItems,
+                              (item) {
+                                setDialogState(() {
+                                  extraCustomItems.add(item);
                                   final name = item['name']?.toString() ?? '';
                                   final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                                  if (name.isNotEmpty && qty > 0) {
-                                    final dbMatch = allDbItems.firstWhere(
-                                      (i) => (i['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
-                                      orElse: () => {},
-                                    );
-
-                                    if (dbMatch.isEmpty) {
-                                      final alreadyInExtra = extraCustomItems.indexWhere(
-                                        (e) => (e['name']?.toString() ?? '').toLowerCase() == name.toLowerCase(),
-                                      );
-                                      if (alreadyInExtra >= 0) {
-                                        extraCustomItems[alreadyInExtra]['quantity'] = qty;
-                                      } else {
-                                        extraCustomItems.add(item);
-                                      }
-                                    }
-
-                                    if (!qtyControllers.containsKey(name)) {
-                                      qtyControllers[name] = TextEditingController(text: qty.toString());
-                                    } else {
-                                      qtyControllers[name]!.text = qty.toString();
-                                    }
-                                    setItemQty(name, qty);
+                                  if (name.isNotEmpty) {
+                                    qtyControllers[name] = TextEditingController(text: qty.toString());
+                                    restockQtys[name] = qty;
                                   }
-                                }
-                                showOnlySelected = true;
-                                showOnlyUnlisted = false;
-                              });
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      // Add Unlisted Item
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF0F172A),
-                          side: const BorderSide(color: Color(0xFFCBD5E1)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          visualDensity: VisualDensity.compact,
+                                  showOnlyUnlisted = true; // SOLO UNLISTED VIEW
+                                  showOnlySelected = false;
+                                  selectedCategoryFilter = 'All';
+                                });
+                              },
+                            );
+                          },
                         ),
-                        icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF64748B)),
-                        label: const Text('+ Unlisted', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
-                        onPressed: () {
-                          _showAddBulkItemDialog(
-                            allDbItems,
-                            (item) {
-                              setDialogState(() {
-                                extraCustomItems.add(item);
-                                final name = item['name']?.toString() ?? '';
-                                final qty = (item['quantity'] as num?)?.toInt() ?? 0;
-                                if (name.isNotEmpty) {
-                                  qtyControllers[name] = TextEditingController(text: qty.toString());
-                                  restockQtys[name] = qty;
-                                }
-                                showOnlyUnlisted = true; // SOLO UNLISTED VIEW
-                                showOnlySelected = false;
-                                selectedCategoryFilter = 'All';
-                              });
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: 12),
 
                   // 2. Compact Delivery Header Strip (Receiver, Supplier, DR #)
@@ -539,73 +681,118 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: Row(
-                      children: [
-                        // Receiver
-                        Expanded(
-                          flex: 3,
-                          child: _CustomSearchDropdown(
-                            controller: receiverCtrl,
-                            items: pastReceivers,
-                            label: 'Receiver',
-                            icon: Icons.person_outline_rounded,
-                            onChanged: (_) => setDialogState(() {}),
+                    child: isMobile
+                        ? Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _CustomSearchDropdown(
+                                      controller: receiverCtrl,
+                                      items: pastReceivers,
+                                      label: 'Receiver',
+                                      icon: Icons.person_outline_rounded,
+                                      onChanged: (_) => setDialogState(() {}),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _CustomSearchDropdown(
+                                      controller: supplierCtrl,
+                                      items: pastSuppliers,
+                                      label: 'Supplier',
+                                      hintText: 'Supplier',
+                                      icon: Icons.storefront_rounded,
+                                      onChanged: (_) => setDialogState(() {}),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: drCtrl,
+                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                decoration: InputDecoration(
+                                  labelText: 'DR / Invoice #',
+                                  hintText: 'Optional',
+                                  prefixIcon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF64748B)),
+                                  isDense: true,
+                                  filled: true,
+                                  fillColor: const Color(0xFFFEFDFB),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5)),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              // Receiver
+                              Expanded(
+                                flex: 3,
+                                child: _CustomSearchDropdown(
+                                  controller: receiverCtrl,
+                                  items: pastReceivers,
+                                  label: 'Receiver',
+                                  icon: Icons.person_outline_rounded,
+                                  onChanged: (_) => setDialogState(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Supplier
+                              Expanded(
+                                flex: 3,
+                                child: _CustomSearchDropdown(
+                                  controller: supplierCtrl,
+                                  items: pastSuppliers,
+                                  label: 'Supplier',
+                                  hintText: 'Search or enter supplier',
+                                  icon: Icons.storefront_rounded,
+                                  onChanged: (_) => setDialogState(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // DR Number
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: drCtrl,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                  decoration: InputDecoration(
+                                    labelText: 'DR / Invoice #',
+                                    hintText: 'Optional',
+                                    prefixIcon: const Icon(Icons.receipt_long_rounded, size: 17, color: Color(0xFF64748B)),
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: const Color(0xFFFEFDFB),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        // Supplier
-                        Expanded(
-                          flex: 3,
-                          child: _CustomSearchDropdown(
-                            controller: supplierCtrl,
-                            items: pastSuppliers,
-                            label: 'Supplier',
-                            hintText: 'Search or enter supplier',
-                            icon: Icons.storefront_rounded,
-                            onChanged: (_) => setDialogState(() {}),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // DR Number
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: drCtrl,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                            decoration: InputDecoration(
-                              labelText: 'DR / Invoice #',
-                              hintText: 'Optional',
-                              prefixIcon: const Icon(Icons.receipt_long_rounded, size: 17, color: Color(0xFF64748B)),
-                              isDense: true,
-                              filled: true,
-                              fillColor: const Color(0xFFFEFDFB),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: 10),
 
                   // 3. Clean Integrated Filter & Action Toolbar
-                  Row(
-                    children: [
-                      // Search Input
-                      Expanded(
-                        flex: 3,
-                        child: SizedBox(
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
                           height: 36,
                           child: TextField(
                             controller: searchCtrl,
                             onChanged: (_) => setDialogState(() {}),
-                            style: const TextStyle(fontSize: 12.5),
+                            style: const TextStyle(fontSize: 12),
                             decoration: InputDecoration(
                               hintText: 'Filter ingredients by name...',
-                              hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                              hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                               prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
                               suffixIcon: searchCtrl.text.isNotEmpty
                                   ? IconButton(
@@ -616,207 +803,439 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                               isDense: true,
                               filled: true,
                               fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Interactive "Out of Stock" Badge
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () {
-                          setDialogState(() {
-                            stockHealthFilter = stockHealthFilter == 'OUT' ? 'ALL' : 'OUT';
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFECACA),
-                            ),
-                          ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.cancel_rounded,
-                                size: 14,
-                                color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFFEF4444),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$outOfStockCount Out',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFF991B1B),
+                              // Interactive "Out of Stock" Badge
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () {
+                                  setDialogState(() {
+                                    stockHealthFilter = stockHealthFilter == 'OUT' ? 'ALL' : 'OUT';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFEF2F2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFECACA),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cancel_rounded,
+                                        size: 13,
+                                        color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFFEF4444),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$outOfStockCount Out',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFF991B1B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 6),
+
+                              // Interactive "Low Stock" Badge
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () {
+                                  setDialogState(() {
+                                    stockHealthFilter = stockHealthFilter == 'LOW' ? 'ALL' : 'LOW';
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFDE68A),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 13,
+                                        color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFFD97706),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '$lowStockCount Low',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFF92400E),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+
+                              // Fast 1-Tap Replenish Action
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => autoFillLowStock(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF0FDF4),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.bolt_rounded, size: 13, color: Color(0xFF16A34A)),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Auto-Fill (<10)',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF15803D),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+
+                              // Restocking Only Filter Toggle
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => setDialogState(() {
+                                  showOnlySelected = !showOnlySelected;
+                                  if (showOnlySelected) showOnlyUnlisted = false;
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.shopping_basket_outlined,
+                                        size: 12,
+                                        color: showOnlySelected ? Colors.white : const Color(0xFF475569),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Restocking ($totalSelectedItems)',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: showOnlySelected ? Colors.white : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (extraCustomItems.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => setDialogState(() {
+                                    showOnlyUnlisted = !showOnlyUnlisted;
+                                    if (showOnlyUnlisted) showOnlySelected = false;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFFAF5FF),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFD8B4FE),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.stars_rounded,
+                                          size: 12,
+                                          color: showOnlyUnlisted ? Colors.white : const Color(0xFF9333EA),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '✨ Unlisted (${extraCustomItems.length})',
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: showOnlyUnlisted ? Colors.white : const Color(0xFF7E22CE),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (totalSelectedItems > 0) ...[
+                                const SizedBox(width: 6),
+                                IconButton(
+                                  style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+                                  tooltip: 'Clear All Inputs',
+                                  icon: const Icon(Icons.refresh_rounded, size: 15, color: Color(0xFFEF4444)),
+                                  onPressed: clearAllQuantities,
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Interactive "Low Stock" Badge
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () {
-                          setDialogState(() {
-                            stockHealthFilter = stockHealthFilter == 'LOW' ? 'ALL' : 'LOW';
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFFFBEB),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFDE68A),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        // Search Input
+                        Expanded(
+                          flex: 3,
+                          child: SizedBox(
+                            height: 36,
+                            child: TextField(
+                              controller: searchCtrl,
+                              onChanged: (_) => setDialogState(() {}),
+                              style: const TextStyle(fontSize: 12.5),
+                              decoration: InputDecoration(
+                                hintText: 'Filter ingredients by name...',
+                                hintStyle: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                                prefixIcon: const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                                suffixIcon: searchCtrl.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear_rounded, size: 14),
+                                        onPressed: () => setDialogState(() => searchCtrl.clear()),
+                                      )
+                                    : null,
+                                isDense: true,
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                              ),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                size: 14,
-                                color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFFD97706),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$lowStockCount Low',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFF92400E),
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
+                        const SizedBox(width: 8),
 
-                      // Fast 1-Tap Replenish Action
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () => autoFillLowStock(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0FDF4),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFBBF7D0)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF16A34A)),
-                              SizedBox(width: 3),
-                              Text(
-                                'Auto-Fill (<10)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF15803D),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Restocking Only Filter Toggle
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () => setDialogState(() {
-                          showOnlySelected = !showOnlySelected;
-                          if (showOnlySelected) showOnlyUnlisted = false;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.shopping_basket_outlined,
-                                size: 13,
-                                color: showOnlySelected ? Colors.white : const Color(0xFF475569),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Restocking ($totalSelectedItems)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: showOnlySelected ? Colors.white : const Color(0xFF334155),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (extraCustomItems.isNotEmpty) ...[
-                        const SizedBox(width: 6),
+                        // Interactive "Out of Stock" Badge
                         InkWell(
                           borderRadius: BorderRadius.circular(8),
-                          onTap: () => setDialogState(() {
-                            showOnlyUnlisted = !showOnlyUnlisted;
-                            if (showOnlyUnlisted) showOnlySelected = false;
-                          }),
+                          onTap: () {
+                            setDialogState(() {
+                              stockHealthFilter = stockHealthFilter == 'OUT' ? 'ALL' : 'OUT';
+                            });
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             decoration: BoxDecoration(
-                              color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFFAF5FF),
+                              color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFEF2F2),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFD8B4FE),
+                                color: stockHealthFilter == 'OUT' ? const Color(0xFFEF4444) : const Color(0xFFFECACA),
                               ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.stars_rounded,
-                                  size: 13,
-                                  color: showOnlyUnlisted ? Colors.white : const Color(0xFF9333EA),
+                                  Icons.cancel_rounded,
+                                  size: 14,
+                                  color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFFEF4444),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '✨ Unlisted (${extraCustomItems.length})',
+                                  '$outOfStockCount Out',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
-                                    color: showOnlyUnlisted ? Colors.white : const Color(0xFF7E22CE),
+                                    color: stockHealthFilter == 'OUT' ? Colors.white : const Color(0xFF991B1B),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ],
-                      if (totalSelectedItems > 0) ...[
                         const SizedBox(width: 6),
-                        IconButton(
-                          style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
-                          tooltip: 'Clear All Inputs',
-                          icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFFEF4444)),
-                          onPressed: clearAllQuantities,
+
+                        // Interactive "Low Stock" Badge
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            setDialogState(() {
+                              stockHealthFilter = stockHealthFilter == 'LOW' ? 'ALL' : 'LOW';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: stockHealthFilter == 'LOW' ? const Color(0xFFF59E0B) : const Color(0xFFFDE68A),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 14,
+                                  color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFFD97706),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$lowStockCount Low',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: stockHealthFilter == 'LOW' ? Colors.white : const Color(0xFF92400E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 6),
+
+                        // Fast 1-Tap Replenish Action
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => autoFillLowStock(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF16A34A)),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Auto-Fill (<10)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Restocking Only Filter Toggle
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => setDialogState(() {
+                            showOnlySelected = !showOnlySelected;
+                            if (showOnlySelected) showOnlyUnlisted = false;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: showOnlySelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.shopping_basket_outlined,
+                                  size: 13,
+                                  color: showOnlySelected ? Colors.white : const Color(0xFF475569),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Restocking ($totalSelectedItems)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: showOnlySelected ? Colors.white : const Color(0xFF334155),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (extraCustomItems.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => setDialogState(() {
+                              showOnlyUnlisted = !showOnlyUnlisted;
+                              if (showOnlyUnlisted) showOnlySelected = false;
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFFAF5FF),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: showOnlyUnlisted ? const Color(0xFF7E22CE) : const Color(0xFFD8B4FE),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.stars_rounded,
+                                    size: 13,
+                                    color: showOnlyUnlisted ? Colors.white : const Color(0xFF9333EA),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '✨ Unlisted (${extraCustomItems.length})',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: showOnlyUnlisted ? Colors.white : const Color(0xFF7E22CE),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (totalSelectedItems > 0) ...[
+                          const SizedBox(width: 6),
+                          IconButton(
+                            style: IconButton.styleFrom(visualDensity: VisualDensity.compact),
+                            tooltip: 'Clear All Inputs',
+                            icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFFEF4444)),
+                            onPressed: clearAllQuantities,
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
                   const SizedBox(height: 8),
 
                   // 4. Category Pills (Hidden in solo unlisted mode for ultra-clean view)
@@ -1223,99 +1642,188 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
 
                   // Bottom Actions & Summary
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: Row(
-                      children: [
-                        // Selected counter pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: totalSelectedItems > 0 ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: totalSelectedItems > 0 ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Row(
+                    child: isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Icon(
-                                Icons.inventory_rounded,
-                                size: 16,
-                                color: totalSelectedItems > 0 ? const Color(0xFF059669) : const Color(0xFF64748B),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: totalSelectedItems > 0 ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: totalSelectedItems > 0 ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.inventory_rounded,
+                                      size: 15,
+                                      color: totalSelectedItems > 0 ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        '$totalSelectedItems items  •  $totalUnitsCount units',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: totalSelectedItems > 0 ? const Color(0xFF065F46) : const Color(0xFF64748B),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                                      ),
+                                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontSize: 11.5)),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '$totalSelectedItems items to receive  •  $totalUnitsCount total units',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: totalSelectedItems > 0 ? const Color(0xFF065F46) : const Color(0xFF64748B),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: totalSelectedItems == 0 || receiverCtrl.text.trim().isEmpty
+                                    ? null
+                                    : () async {
+                                        final receiver = receiverCtrl.text.trim();
+                                        final defaultSupplier = supplierCtrl.text.trim().isEmpty ? 'Public Market' : supplierCtrl.text.trim();
+                                        final drNumber = drCtrl.text.trim().isEmpty ? null : drCtrl.text.trim();
+
+                                        final List<Map<String, dynamic>> itemsToProcess = [];
+                                        for (final item in combinedList) {
+                                          final name = item['name']?.toString() ?? '';
+                                          final qty = restockQtys[name] ?? 0;
+                                          if (name.isNotEmpty && qty > 0) {
+                                            itemsToProcess.add({
+                                              'name': name,
+                                              'category': item['category'] ?? 'General',
+                                              'quantity': qty,
+                                              'unit': item['unit'] ?? 'pcs',
+                                              'supplier': item['supplier'] ?? defaultSupplier,
+                                            });
+                                          }
+                                        }
+
+                                        Navigator.pop(context);
+                                        await _processBulkIncomingStock(
+                                          itemsToProcess,
+                                          receiver,
+                                          drNumber != null ? 'DR: $drNumber' : null,
+                                        );
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF059669),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 2,
+                                ),
+                                icon: const Icon(Icons.check_circle_rounded, size: 17),
+                                label: Text(
+                                  totalSelectedItems > 0 ? 'PROCESS $totalSelectedItems ITEMS' : 'SELECT ITEMS TO RESTOCK',
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.3),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              // Selected counter pill
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: totalSelectedItems > 0 ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: totalSelectedItems > 0 ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.inventory_rounded,
+                                      size: 16,
+                                      color: totalSelectedItems > 0 ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '$totalSelectedItems items to receive  •  $totalUnitsCount total units',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: totalSelectedItems > 0 ? const Color(0xFF065F46) : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+
+                              // Cancel
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Process Button
+                              ElevatedButton.icon(
+                                onPressed: totalSelectedItems == 0 || receiverCtrl.text.trim().isEmpty
+                                    ? null
+                                    : () async {
+                                        final receiver = receiverCtrl.text.trim();
+                                        final defaultSupplier = supplierCtrl.text.trim().isEmpty ? 'Public Market' : supplierCtrl.text.trim();
+                                        final drNumber = drCtrl.text.trim().isEmpty ? null : drCtrl.text.trim();
+
+                                        final List<Map<String, dynamic>> itemsToProcess = [];
+                                        for (final item in combinedList) {
+                                          final name = item['name']?.toString() ?? '';
+                                          final qty = restockQtys[name] ?? 0;
+                                          if (name.isNotEmpty && qty > 0) {
+                                            itemsToProcess.add({
+                                              'name': name,
+                                              'category': item['category'] ?? 'General',
+                                              'quantity': qty,
+                                              'unit': item['unit'] ?? 'pcs',
+                                              'supplier': item['supplier'] ?? defaultSupplier,
+                                            });
+                                          }
+                                        }
+
+                                        Navigator.pop(context);
+                                        await _processBulkIncomingStock(
+                                          itemsToProcess,
+                                          receiver,
+                                          drNumber != null ? 'DR: $drNumber' : null,
+                                        );
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF059669),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 2,
+                                ),
+                                icon: const Icon(Icons.check_circle_rounded, size: 18),
+                                label: Text(
+                                  totalSelectedItems > 0 ? 'PROCESS $totalSelectedItems ITEMS' : 'SELECT ITEMS TO RESTOCK',
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5, letterSpacing: 0.4),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const Spacer(),
-
-                        // Cancel
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Process Button
-                        ElevatedButton.icon(
-                          onPressed: totalSelectedItems == 0 || receiverCtrl.text.trim().isEmpty
-                              ? null
-                              : () async {
-                                  final receiver = receiverCtrl.text.trim();
-                                  final defaultSupplier = supplierCtrl.text.trim().isEmpty ? 'Public Market' : supplierCtrl.text.trim();
-                                  final drNumber = drCtrl.text.trim().isEmpty ? null : drCtrl.text.trim();
-
-                                  // Build bulkItems payload
-                                  final List<Map<String, dynamic>> itemsToProcess = [];
-                                  for (final item in combinedList) {
-                                    final name = item['name']?.toString() ?? '';
-                                    final qty = restockQtys[name] ?? 0;
-                                    if (name.isNotEmpty && qty > 0) {
-                                      itemsToProcess.add({
-                                        'name': name,
-                                        'category': item['category'] ?? 'General',
-                                        'quantity': qty,
-                                        'unit': item['unit'] ?? 'pcs',
-                                        'supplier': item['supplier'] ?? defaultSupplier,
-                                      });
-                                    }
-                                  }
-
-                                  Navigator.pop(context);
-                                  await _processBulkIncomingStock(
-                                    itemsToProcess,
-                                    receiver,
-                                    drNumber != null ? 'DR: $drNumber' : null,
-                                  );
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF059669),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            elevation: 2,
-                          ),
-                          icon: const Icon(Icons.check_circle_rounded, size: 18),
-                          label: Text(
-                            totalSelectedItems > 0 ? 'PROCESS $totalSelectedItems ITEMS' : 'SELECT ITEMS TO RESTOCK',
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5, letterSpacing: 0.4),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),

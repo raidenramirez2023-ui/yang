@@ -7,6 +7,7 @@ import 'package:yang_chow/services/refund_service.dart';
 import 'package:yang_chow/services/reschedule_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 
 class RefundManagementPage extends StatefulWidget {
   final bool isFullscreen;
@@ -842,11 +843,13 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       ? <Map<String, dynamic>>[]
                       : filteredReschedules.sublist(rescheduleStartIndex, rescheduleEndIndex);
 
+                  final isMobile = ResponsiveUtils.isMobile(context);
+
                   return CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                          padding: EdgeInsets.fromLTRB(isMobile ? 14 : 24, isMobile ? 14 : 24, isMobile ? 14 : 24, 0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1120,7 +1123,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               (context, index) {
                                 if (index >= pageRefunds.length) return null;
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 24, vertical: 6),
                                   child: _buildRefundCard(pageRefunds[index]),
                                 );
                               },
@@ -1210,7 +1213,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               (context, index) {
                                 if (index >= pageReschedules.length) return null;
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 24, vertical: 6),
                                   child: _buildRescheduleCard(pageReschedules[index]),
                                 );
                               },
@@ -1496,45 +1499,109 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     final completed = allRefunds.where((r) => r['status'] == 'completed').length;
     final rejected = allRefunds.where((r) => r['status'] == 'rejected').length;
 
-    final cards = [
-      _buildMetricTile(
-        title: 'Pending',
-        value: '$pending',
-        subtitle: 'Awaiting admin action',
-        icon: Icons.hourglass_top_rounded,
-        iconColor: const Color(0xFFD97706),
-        bgTint: const Color(0xFFFEF3C7),
-      ),
-      _buildMetricTile(
-        title: 'Approved',
-        value: '$approved',
-        subtitle: 'Ready to be processed',
-        icon: Icons.gpp_good_rounded,
-        iconColor: const Color(0xFF0284C7),
-        bgTint: const Color(0xFFE0F2FE),
-      ),
-      _buildMetricTile(
-        title: 'Completed',
-        value: '$completed',
-        subtitle: 'Funds returned to customer',
-        icon: Icons.verified_rounded,
-        iconColor: const Color(0xFF15803D),
-        bgTint: const Color(0xFFDCFCE7),
-      ),
-      _buildMetricTile(
-        title: 'Rejected',
-        value: '$rejected',
-        subtitle: 'Declined refund requests',
-        icon: Icons.cancel_rounded,
-        iconColor: const Color(0xFFDC2626),
-        bgTint: const Color(0xFFFEE2E2),
-      ),
-    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 700;
+        if (isNarrow) {
+          return SizedBox(
+            height: 110,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              children: [
+                SizedBox(
+                  width: 175,
+                  child: _buildMetricTile(
+                    title: 'Pending',
+                    value: '$pending',
+                    subtitle: 'Awaiting action',
+                    icon: Icons.hourglass_top_rounded,
+                    iconColor: const Color(0xFFD97706),
+                    bgTint: const Color(0xFFFEF3C7),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 175,
+                  child: _buildMetricTile(
+                    title: 'Approved',
+                    value: '$approved',
+                    subtitle: 'Ready to process',
+                    icon: Icons.gpp_good_rounded,
+                    iconColor: const Color(0xFF0284C7),
+                    bgTint: const Color(0xFFE0F2FE),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 180,
+                  child: _buildMetricTile(
+                    title: 'Completed',
+                    value: '$completed',
+                    subtitle: 'Funds returned',
+                    icon: Icons.verified_rounded,
+                    iconColor: const Color(0xFF15803D),
+                    bgTint: const Color(0xFFDCFCE7),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 175,
+                  child: _buildMetricTile(
+                    title: 'Rejected',
+                    value: '$rejected',
+                    subtitle: 'Declined requests',
+                    icon: Icons.cancel_rounded,
+                    iconColor: const Color(0xFFDC2626),
+                    bgTint: const Color(0xFFFEE2E2),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
 
-    return Row(
-      children: cards
-          .map((card) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5), child: card)))
-          .toList(),
+        final cards = [
+          _buildMetricTile(
+            title: 'Pending',
+            value: '$pending',
+            subtitle: 'Awaiting admin action',
+            icon: Icons.hourglass_top_rounded,
+            iconColor: const Color(0xFFD97706),
+            bgTint: const Color(0xFFFEF3C7),
+          ),
+          _buildMetricTile(
+            title: 'Approved',
+            value: '$approved',
+            subtitle: 'Ready to be processed',
+            icon: Icons.gpp_good_rounded,
+            iconColor: const Color(0xFF0284C7),
+            bgTint: const Color(0xFFE0F2FE),
+          ),
+          _buildMetricTile(
+            title: 'Completed',
+            value: '$completed',
+            subtitle: 'Funds returned to customer',
+            icon: Icons.verified_rounded,
+            iconColor: const Color(0xFF15803D),
+            bgTint: const Color(0xFFDCFCE7),
+          ),
+          _buildMetricTile(
+            title: 'Rejected',
+            value: '$rejected',
+            subtitle: 'Declined refund requests',
+            icon: Icons.cancel_rounded,
+            iconColor: const Color(0xFFDC2626),
+            bgTint: const Color(0xFFFEE2E2),
+          ),
+        ];
+
+        return Row(
+          children: cards
+              .map((card) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5), child: card)))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -1547,7 +1614,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     required Color bgTint,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1562,6 +1629,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1683,7 +1751,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Top badges row
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           // Source badge
                           Container(
@@ -1704,7 +1775,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
                           // Refund method badge
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1734,7 +1804,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               ],
                             ),
                           ),
-                          const Spacer(),
                           // Status badge
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1896,8 +1965,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                         const SizedBox(height: 14),
                         const Divider(height: 1, color: Color(0xFFF1F5F9)),
                         const SizedBox(height: 14),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             if (status == 'pending') ...[
                               OutlinedButton.icon(
@@ -1911,7 +1982,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 ),
                               ),
-                              const SizedBox(width: 10),
                               ElevatedButton.icon(
                                 onPressed: () => _showApproveDialog(refund),
                                 icon: const Icon(Icons.check_rounded, size: 16),
@@ -2376,107 +2446,135 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             const SizedBox(height: 16),
 
             // ── Schedule Comparison Banner ──
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                children: [
-                  // Old Schedule
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 460;
+                final oldScheduleWidget = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ORIGINAL SCHEDULE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
                       children: [
-                        Text(
-                          'ORIGINAL SCHEDULE',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF64748B),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                '$oldDate @ $oldTime',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: const Color(0xFF334155),
-                                ),
-                              ),
+                        const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '$oldDate @ $oldTime',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: const Color(0xFF334155),
                             ),
-                          ],
-                        ),
-                        if (oldGuests != null || oldDuration != null)
-                          Text(
-                            '${oldDuration ?? 2}h • ${oldGuests ?? 1} guests',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8)),
                           ),
+                        ),
                       ],
                     ),
-                  ),
+                    if (oldGuests != null || oldDuration != null)
+                      Text(
+                        '${oldDuration ?? 2}h • ${oldGuests ?? 1} guests',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8)),
+                      ),
+                  ],
+                );
 
-                  // Arrow Indicator
-                  Container(
-                    padding: const EdgeInsets.all(6),
+                final newScheduleWidget = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'REQUESTED NEW SCHEDULE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF007AFF),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF007AFF)),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            '$newDate @ $newTime',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: const Color(0xFF007AFF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (newGuests != null || newDuration != null)
+                      Text(
+                        '${newDuration ?? 2}h • ${newGuests ?? 1} guests',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
+                      ),
+                  ],
+                );
+
+                if (isNarrow) {
+                  return Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF007AFF).withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF), size: 16),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Requested New Schedule
-                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'REQUESTED NEW SCHEDULE',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF007AFF),
-                            letterSpacing: 0.5,
+                        oldScheduleWidget,
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF007AFF)),
+                              SizedBox(width: 6),
+                              Text('Change requested to:', style: TextStyle(fontSize: 10, color: Color(0xFF007AFF), fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF007AFF)),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                '$newDate @ $newTime',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  color: const Color(0xFF007AFF),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (newGuests != null || newDuration != null)
-                          Text(
-                            '${newDuration ?? 2}h • ${newGuests ?? 1} guests',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF64748B)),
-                          ),
+                        newScheduleWidget,
                       ],
                     ),
+                  );
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Expanded(child: oldScheduleWidget),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF), size: 16),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: newScheduleWidget),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -2533,8 +2631,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             // ── Action Buttons for Pending ──
             if (status == 'pending') ...[
               const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => _showRejectRescheduleDialog(request),
@@ -2553,7 +2653,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                   ),
-                  const SizedBox(width: 10),
                   ElevatedButton.icon(
                     onPressed: () => _showApproveRescheduleDialog(request),
                     icon: const Icon(Icons.check_rounded, size: 16),

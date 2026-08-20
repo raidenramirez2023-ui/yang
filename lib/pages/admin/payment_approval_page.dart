@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
+import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/ocr_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
@@ -170,7 +171,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment rejected successfully!'),
+            content: Text('Payment rejected'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -196,7 +197,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Future<void> _analyzeReceipt(String paymentId, String imageUrl) async {
-    if (_analyzingState[paymentId] == true) return;
+    if (imageUrl.isEmpty) return;
 
     setState(() {
       _analyzingState[paymentId] = true;
@@ -222,23 +223,26 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
         child: Container(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
+            maxWidth: 600,
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AppBar(
-                title: const Text('PayMongo Receipt'),
-                backgroundColor: AppTheme.primaryColor,
+                title: const Text('PayMongo Receipt', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                backgroundColor: const Color(0xFF14332E),
                 foregroundColor: Colors.white,
+                elevation: 0,
                 automaticallyImplyLeading: false,
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -246,27 +250,31 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Image.network(
-                    receiptUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('Failed to load receipt image', style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    },
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: Image.network(
+                      receiptUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text('Failed to load receipt image', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -401,49 +409,103 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             const SizedBox(height: 12),
 
             // ── Quick Stats Bar ──────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: _buildApprovalStatCard(
-                    'Awaiting Review',
-                    totalPending.toString(),
-                    Icons.pending_actions_rounded,
-                    const Color(0xFFFEF3C7),
-                    const Color(0xFFD97706),
-                  ),
+            if (!ResponsiveUtils.isDesktop(context))
+              SizedBox(
+                height: 66,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      width: 145,
+                      child: _buildApprovalStatCard(
+                        'Awaiting Review',
+                        totalPending.toString(),
+                        Icons.pending_actions_rounded,
+                        const Color(0xFFFEF3C7),
+                        const Color(0xFFD97706),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 175,
+                      child: _buildApprovalStatCard(
+                        'Amount to Verify',
+                        '₱${_moneyFmt.format(totalPendingAmount)}',
+                        Icons.account_balance_wallet_rounded,
+                        const Color(0xFFDCFCE7),
+                        const Color(0xFF15803D),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 140,
+                      child: _buildApprovalStatCard(
+                        'Reservations',
+                        reservationCount.toString(),
+                        Icons.event_seat_rounded,
+                        const Color(0xFFE0F2FE),
+                        const Color(0xFF0284C7),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 145,
+                      child: _buildApprovalStatCard(
+                        'Advance Orders',
+                        advanceCount.toString(),
+                        Icons.fastfood_rounded,
+                        const Color(0xFFF3E8FF),
+                        const Color(0xFF7E22CE),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildApprovalStatCard(
-                    'Amount to Verify',
-                    '₱${_moneyFmt.format(totalPendingAmount)}',
-                    Icons.account_balance_wallet_rounded,
-                    const Color(0xFFDCFCE7),
-                    const Color(0xFF15803D),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildApprovalStatCard(
+                      'Awaiting Review',
+                      totalPending.toString(),
+                      Icons.pending_actions_rounded,
+                      const Color(0xFFFEF3C7),
+                      const Color(0xFFD97706),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildApprovalStatCard(
-                    'Reservations',
-                    reservationCount.toString(),
-                    Icons.event_seat_rounded,
-                    const Color(0xFFE0F2FE),
-                    const Color(0xFF0284C7),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildApprovalStatCard(
+                      'Amount to Verify',
+                      '₱${_moneyFmt.format(totalPendingAmount)}',
+                      Icons.account_balance_wallet_rounded,
+                      const Color(0xFFDCFCE7),
+                      const Color(0xFF15803D),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildApprovalStatCard(
-                    'Advance Orders',
-                    advanceCount.toString(),
-                    Icons.fastfood_rounded,
-                    const Color(0xFFF3E8FF),
-                    const Color(0xFF7E22CE),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildApprovalStatCard(
+                      'Reservations',
+                      reservationCount.toString(),
+                      Icons.event_seat_rounded,
+                      const Color(0xFFE0F2FE),
+                      const Color(0xFF0284C7),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildApprovalStatCard(
+                      'Advance Orders',
+                      advanceCount.toString(),
+                      Icons.fastfood_rounded,
+                      const Color(0xFFF3E8FF),
+                      const Color(0xFF7E22CE),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 14),
 
             // ── Main Content ─────────────────────────────────────────────────
@@ -531,7 +593,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
   Widget _buildApprovalStatCard(String label, String value, IconData icon, Color bg, Color iconColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -655,6 +717,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final double amountToVerify = (payment['deposit_amount'] as num?)?.toDouble() ?? (payment['total_price'] as num?)?.toDouble() ?? 0.0;
     final double totalAmount = (payment['total_price'] as num?)?.toDouble() ?? amountToVerify;
     final String paymentRef = payment['payment_reference'] ?? 'REF-NOT-SET';
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -673,15 +736,19 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: EdgeInsets.all(isMobile ? 14 : 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Transaction Header Bar ────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -760,12 +827,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: Row(
-                    children: [
-                      // Amount to approve
-                      Expanded(
-                        flex: 3,
-                        child: Column(
+                  child: isMobile
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
@@ -809,50 +872,138 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                               'Total Order Price: ₱${_moneyFmt.format(totalAmount)}',
                               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                             ),
-                          ],
-                        ),
-                      ),
-                      // Reference code pill
-                      Expanded(
-                        flex: 2,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'GATEWAY REF NUMBER',
-                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
-                              const SizedBox(height: 3),
-                              Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      paymentRef,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        fontFamily: 'monospace',
-                                        color: Color(0xFF0F172A),
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                  const Text(
+                                    'GATEWAY REF NUMBER',
+                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
                                   ),
-                                  const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          paymentRef,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            fontFamily: 'monospace',
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                    ],
+                                  ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            // Amount to approve
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'PAYMENT AMOUNT TO VERIFY',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF64748B),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        '₱${_moneyFmt.format(amountToVerify)}',
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF15803D),
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFDCFCE7),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          isAdvanceOrder ? 'FULL PAYMENT' : (payment['payment_status'] == 'fully_paid' ? 'FULL (100%)' : 'DEPOSIT (50%)'),
+                                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    'Total Order Price: ₱${_moneyFmt.format(totalAmount)}',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Reference code pill
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'GATEWAY REF NUMBER',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            paymentRef,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              fontFamily: 'monospace',
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 14),
 
@@ -916,6 +1067,69 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Widget _buildCompactDetailGrid(Map<String, dynamic> payment, bool isAdvanceOrder) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCompactDetailItem(
+                    'Customer Name',
+                    payment['customer_name'] ?? 'N/A',
+                    Icons.person_rounded,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCompactDetailItem(
+                    isAdvanceOrder ? 'Order Type' : 'Event Type',
+                    isAdvanceOrder ? (payment['order_type'] ?? 'N/A') : (payment['event_type'] ?? 'N/A'),
+                    isAdvanceOrder ? Icons.fastfood_rounded : Icons.celebration_rounded,
+                    isHighlight: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildCompactDetailItem(
+              'Email Address',
+              payment['customer_email'] ?? 'N/A',
+              Icons.email_rounded,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCompactDetailItem(
+                    'Date & Time',
+                    '${(isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A'} ${(isAdvanceOrder ? payment['order_time'] : payment['start_time']) ?? ''}',
+                    Icons.calendar_today_rounded,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildCompactDetailItem(
+                    'Guest PAX',
+                    '${payment['number_of_guests'] ?? 1} Guests',
+                    Icons.groups_rounded,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

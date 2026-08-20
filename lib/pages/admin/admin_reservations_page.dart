@@ -677,6 +677,31 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final cancelled = unarchived.where((r) => r['status'] == 'cancelled').length;
     final archived  = reservations.where((r) => r['is_archived'] == true).length;
 
+    final isDesktop = ResponsiveUtils.isDesktop(context);
+
+    if (!isDesktop) {
+      return SizedBox(
+        height: 54,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: [
+            _statTile('Total', unarchived.length, Icons.calendar_month_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'all', width: 108),
+            const SizedBox(width: 8),
+            _statTile('Pending', pending, Icons.hourglass_top_rounded, const Color(0xFFFEF3C7), const Color(0xFFD97706), 'pending', width: 112),
+            const SizedBox(width: 8),
+            _statTile('Confirmed', confirmed, Icons.check_circle_rounded, const Color(0xFFDCFCE7), const Color(0xFF15803D), 'confirmed', width: 124),
+            const SizedBox(width: 8),
+            _statTile('Completed', completed, Icons.done_all_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed', width: 124),
+            const SizedBox(width: 8),
+            _statTile('Cancelled', cancelled, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'cancelled', width: 118),
+            const SizedBox(width: 8),
+            _statTile('Archived', archived, Icons.inventory_2_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'archived', width: 114),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -748,8 +773,78 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     );
   }
 
-  Widget _statTile(String label, int value, IconData icon, Color bg, Color iconColor, String filterKey) {
+  Widget _statTile(String label, int value, IconData icon, Color bg, Color iconColor, String filterKey, {double? width}) {
     final bool isSelected = _selectedFilter == filterKey;
+
+    Widget content = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isSelected ? iconColor : const Color(0xFFE2E8F0),
+          width: isSelected ? 2.0 : 1.0,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: iconColor.withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Row(
+        mainAxisSize: width != null ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isSelected ? iconColor : bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: isSelected ? Colors.white : iconColor, size: 14),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value.toString(),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? iconColor : _darkBg,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    color: isSelected ? iconColor : _slate,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -758,73 +853,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           _selectedFilter = filterKey;
           _currentPage = 0;
         }),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSelected ? iconColor : const Color(0xFFE2E8F0),
-              width: isSelected ? 2.0 : 1.0,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: iconColor.withValues(alpha: 0.18),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: isSelected ? iconColor : bg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: isSelected ? Colors.white : iconColor, size: 15),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      value.toString(),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isSelected ? iconColor : _darkBg,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    Text(
-                      label,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 9.5,
-                        color: isSelected ? iconColor : _slate,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: content,
       ),
     );
   }
@@ -1438,36 +1467,42 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              if (totalPrice != null && (totalPrice as num) > 0)
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '\u20b1${totalPrice.toStringAsFixed(0)}',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w900,
-                                        color: _emerald,
+                              Flexible(
+                                child: (totalPrice != null && (totalPrice as num) > 0)
+                                    ? Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '₱${totalPrice.toStringAsFixed(0)}',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              color: _emerald,
+                                            ),
+                                          ),
+                                          Text(
+                                            _getPaymentStatusText(paymentStatus),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 10,
+                                              color: _slate,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      )
+                                    : Text(
+                                        'Price Pending',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          color: const Color(0xFF94A3B8),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      _getPaymentStatusText(paymentStatus),
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 10,
-                                        color: _slate,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              else
-                                Text(
-                                  'Price Pending',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    fontStyle: FontStyle.italic,
-                                    color: const Color(0xFF94A3B8),
-                                  ),
-                                ),
+                              ),
+                              const SizedBox(width: 8),
                               _buildCompactActionButtons(reservation),
                             ],
                           ),

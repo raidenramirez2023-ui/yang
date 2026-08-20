@@ -61,5 +61,11 @@
 	<string>This app needs access to location when open to show your current position on the map and calculate directions to the restaurant.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app needs access to location to show your current position on the map.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>fb</string>
+		<string>fb-messenger</string>
+	</array>
 </dict>
 </plist>

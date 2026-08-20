@@ -264,141 +264,225 @@ class _PurchaseOrderGeneratorDialogState extends State<PurchaseOrderGeneratorDia
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       'Purchase Order (PO) Generator',
                       style: GoogleFonts.plusJakartaSans(
                         color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
+                        fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD9A441).withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        _poNumber,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFFDE68A),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Auto-grouped low stock items for fast supplier replenishment',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white.withValues(alpha: 0.70),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
-            splashRadius: 18,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTargetDeliveryBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF1F5F9),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.local_shipping_outlined, size: 16, color: Color(0xFF0C241F)),
-          const SizedBox(width: 8),
-          Text(
-            'Target Delivery:',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF334155),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
-              ),
-              child: TextField(
-                controller: _deliveryTargetController,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0C241F),
-                ),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  hintText: 'e.g. Tomorrow 8:00 AM, ASAP, Friday...',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          InkWell(
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now().add(const Duration(days: 1)),
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 60)),
-              );
-              if (picked != null) {
-                setState(() {
-                  _deliveryTargetController.text = DateFormat('MMMM d, yyyy (EEEE)').format(picked);
-                });
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF0C241F)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Pick Date',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0C241F)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD9A441).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      _poNumber,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFDE68A),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 3),
+              Text(
+                'Auto-grouped low stock items for fast supplier replenishment',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 20),
+          splashRadius: 18,
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildTargetDeliveryBar() {
+  final isMobile = ResponsiveUtils.isMobile(context);
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    decoration: const BoxDecoration(
+      color: Color(0xFFF1F5F9),
+      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+    ),
+    child: isMobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.local_shipping_outlined, size: 15, color: Color(0xFF0C241F)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Target Delivery:',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF334155),
+                    ),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 60)),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _deliveryTargetController.text = DateFormat('MMMM d, yyyy (EEEE)').format(picked);
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 12, color: Color(0xFF0C241F)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Pick Date',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 10.5, fontWeight: FontWeight.w700, color: const Color(0xFF0C241F)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: TextField(
+                  controller: _deliveryTargetController,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0C241F),
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    hintText: 'e.g. Tomorrow 8:00 AM, ASAP, Friday...',
+                  ),
+                ),
+              ),
+            ],
+          )
+        : Row(
+            children: [
+              const Icon(Icons.local_shipping_outlined, size: 16, color: Color(0xFF0C241F)),
+              const SizedBox(width: 8),
+              Text(
+                'Target Delivery:',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: TextField(
+                    controller: _deliveryTargetController,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0C241F),
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                      hintText: 'e.g. Tomorrow 8:00 AM, ASAP, Friday...',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(const Duration(days: 1)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 60)),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _deliveryTargetController.text = DateFormat('MMMM d, yyyy (EEEE)').format(picked);
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF0C241F)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pick Date',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0C241F)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
+}
 
   Widget _buildSupplierSegment() {
     final suppliers = ['All', ..._supplierGroupedItems.keys];
@@ -646,111 +730,210 @@ class _PurchaseOrderGeneratorDialogState extends State<PurchaseOrderGeneratorDia
   }
 
   Widget _buildFooter(int selectedCount) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+      padding: EdgeInsets.fromLTRB(isMobile ? 14 : 20, 12, isMobile ? 14 : 20, 14),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  '$selectedCount items selected for order',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$selectedCount items selected • ${_selectedSupplier == "All" ? "Combined PO" : _selectedSupplier}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Print / System Preview',
+                      onPressed: selectedCount == 0 ? null : _printOrExportPO,
+                      icon: const Icon(Icons.print_outlined, size: 18, color: Color(0xFF64748B)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: _goToStorageRoom,
+                        icon: const Icon(Icons.meeting_room_outlined, size: 14, color: Color(0xFFFBBF24)),
+                        label: Text(
+                          'Storage',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0C241F),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: selectedCount == 0 ? null : _showMessagingOptions,
+                        icon: const Icon(Icons.send_rounded, size: 14, color: Colors.white),
+                        label: Text(
+                          'Send',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 1,
+                      child: OutlinedButton(
+                        onPressed: selectedCount == 0 ? null : _downloadPdfDirectly,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          side: const BorderSide(color: Color(0xFF0C241F)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: Text(
+                          'PDF',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.5,
+                            color: const Color(0xFF0C241F),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$selectedCount items selected for order',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'Supplier: ${_selectedSupplier == "All" ? "Combined PO" : _selectedSupplier}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          color: const Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'Supplier: ${_selectedSupplier == "All" ? "Combined PO" : _selectedSupplier}',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: const Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
+
+                // 1. Quick Navigation to Storage Room (Outside main view)
+                ElevatedButton.icon(
+                  onPressed: _goToStorageRoom,
+                  icon: const Icon(Icons.meeting_room_outlined, size: 15, color: Color(0xFFFBBF24)),
+                  label: Text(
+                    'Go to Storage Room',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
                   ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0C241F),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 2. Send / Share PO (Viber, Messenger, SMS, WhatsApp)
+                ElevatedButton.icon(
+                  onPressed: selectedCount == 0 ? null : _showMessagingOptions,
+                  icon: const Icon(Icons.send_rounded, size: 15, color: Colors.white),
+                  label: Text(
+                    'Send PO',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 3. Direct Download PDF (Paperless File Save)
+                OutlinedButton.icon(
+                  onPressed: selectedCount == 0 ? null : _downloadPdfDirectly,
+                  icon: const Icon(Icons.download_rounded, size: 15, color: Color(0xFF0C241F)),
+                  label: Text(
+                    'PDF',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      color: const Color(0xFF0C241F),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                    side: const BorderSide(color: Color(0xFF0C241F)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // 4. Print / System Preview
+                IconButton(
+                  tooltip: 'Print / System Preview',
+                  onPressed: selectedCount == 0 ? null : _printOrExportPO,
+                  icon: const Icon(Icons.print_outlined, size: 18, color: Color(0xFF64748B)),
                 ),
               ],
             ),
-          ),
-
-          // 1. Quick Navigation to Storage Room (Outside main view)
-          ElevatedButton.icon(
-            onPressed: _goToStorageRoom,
-            icon: const Icon(Icons.meeting_room_outlined, size: 15, color: Color(0xFFFBBF24)),
-            label: Text(
-              'Go to Storage Room',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                color: Colors.white,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0C241F),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 2,
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 2. Send / Share PO (Viber, Messenger, SMS, WhatsApp)
-          ElevatedButton.icon(
-            onPressed: selectedCount == 0 ? null : _showMessagingOptions,
-            icon: const Icon(Icons.send_rounded, size: 15, color: Colors.white),
-            label: Text(
-              'Send PO',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                color: Colors.white,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF16A34A), // Vibrant Chat Green
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 1,
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 3. Direct Download PDF (Paperless File Save)
-          OutlinedButton.icon(
-            onPressed: selectedCount == 0 ? null : _downloadPdfDirectly,
-            icon: const Icon(Icons.download_rounded, size: 15, color: Color(0xFF0C241F)),
-            label: Text(
-              'PDF',
-              style: GoogleFonts.plusJakartaSans(
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-                color: const Color(0xFF0C241F),
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-              side: const BorderSide(color: Color(0xFF0C241F)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // 4. Print / System Preview
-          IconButton(
-            tooltip: 'Print / System Preview',
-            onPressed: selectedCount == 0 ? null : _printOrExportPO,
-            icon: const Icon(Icons.print_outlined, size: 18, color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
     );
   }
 

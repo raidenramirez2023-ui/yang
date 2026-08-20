@@ -395,42 +395,58 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
     );
   }
 
-  // ── Stats Summary Row ──────────────────────────────────────────────────────
   Widget _buildStatsRow(bool isMobile) {
+    final cards = [
+      _statCard(
+        label: 'Total Quantity Lost',
+        value: '${_totalQuantityWasted.toStringAsFixed(qtyDecimals(_totalQuantityWasted))} units',
+        icon: Icons.inventory_2_outlined,
+        bgTint: const Color(0xFFFEF2F2),
+        iconColor: const Color(0xFFDC2626),
+      ),
+      _statCard(
+        label: 'Wastage Incidents',
+        value: '${_filteredLogs.length} events',
+        icon: Icons.event_busy_rounded,
+        bgTint: const Color(0xFFFFFBEB),
+        iconColor: const Color(0xFFD97706),
+      ),
+      _statCard(
+        label: 'Top Wastage Reason',
+        value: _mostCommonReason,
+        icon: Icons.pie_chart_outline_rounded,
+        bgTint: const Color(0xFFF1F5F9),
+        iconColor: const Color(0xFF475569),
+      ),
+    ];
+
+    if (isMobile) {
+      return SizedBox(
+        height: 72,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          clipBehavior: Clip.none,
+          children: cards
+              .map((c) => Container(
+                    width: 195,
+                    margin: const EdgeInsets.only(right: 10),
+                    child: c,
+                  ))
+              .toList(),
+        ),
+      );
+    }
+
     return Row(
-      children: [
-        Expanded(
-          child: _statCard(
-            label: 'Total Quantity Lost',
-            value: '${_totalQuantityWasted.toStringAsFixed(qtyDecimals(_totalQuantityWasted))} units',
-            icon: Icons.inventory_2_outlined,
-            bgTint: const Color(0xFFFEF2F2),
-            iconColor: const Color(0xFFDC2626),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statCard(
-            label: 'Wastage Incidents',
-            value: '${_filteredLogs.length} events',
-            icon: Icons.event_busy_rounded,
-            bgTint: const Color(0xFFFFFBEB),
-            iconColor: const Color(0xFFD97706),
-          ),
-        ),
-        if (!isMobile) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _statCard(
-              label: 'Top Wastage Reason',
-              value: _mostCommonReason,
-              icon: Icons.pie_chart_outline_rounded,
-              bgTint: const Color(0xFFF1F5F9),
-              iconColor: const Color(0xFF475569),
-            ),
-          ),
-        ],
-      ],
+      children: cards
+          .map((card) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: card,
+                ),
+              ))
+          .toList(),
     );
   }
 
