@@ -72,6 +72,7 @@ import 'package:yang_chow/pages/admin/petty_cash_page.dart';
 
 import 'package:yang_chow/pages/admin/refund_management_page.dart';
 import 'package:yang_chow/pages/admin/audit_logs_page.dart';
+import 'package:yang_chow/pages/admin/backup_restore_page.dart';
 
 import 'package:yang_chow/widgets/admin_chat_modal.dart';
 
@@ -607,7 +608,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-    'User Management',
+    'Employee Management',
 
 
 
@@ -627,7 +628,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     'Audit Logs',
 
-
+    'Backup & Restore',
 
   ];
 
@@ -693,7 +694,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     Icons.shield_outlined,
 
-
+    Icons.settings_backup_restore_rounded,
 
   ];
 
@@ -759,7 +760,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
     const AuditLogsPage(),
 
-
+    const BackupRestorePage(),
 
   ];
 
@@ -770,57 +771,34 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   @override
-
-
-
   Widget build(BuildContext context) {
-
-
-
     final isDesktop = ResponsiveUtils.isDesktop(context);
-
-
-
     final isTablet = ResponsiveUtils.isTablet(context);
-
-
-
     final useDrawer = ResponsiveUtils.shouldUseDrawer(context);
 
-
-
-
-
-
-
+    Widget layout;
     if (isDesktop || isTablet) {
-
-
-
-      return _buildDesktopLayout();
-
-
-
+      layout = _buildDesktopLayout();
     } else if (useDrawer) {
-
-
-
-      return _buildWebMobileLayout();
-
-
-
+      layout = _buildWebMobileLayout();
     } else {
-
-
-
-      return _buildMobileLayout();
-
-
-
+      layout = _buildMobileLayout();
     }
 
-
-
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        } else {
+          _showLogoutDialog(context);
+        }
+      },
+      child: layout,
+    );
   }
 
 

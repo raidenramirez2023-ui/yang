@@ -225,9 +225,18 @@ class _AdminChatPageState extends State<AdminChatPage> {
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveUtils.isDesktop(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+    return PopScope(
+      canPop: _selectedConversation == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedConversation != null) {
+          setState(() => _selectedConversation = null);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF1F5F9),
+        body: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+      ),
     );
   }
 
@@ -267,22 +276,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
       return _buildChatArea();
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF14332E),
-        elevation: 0,
-        title: const Text(
-          'Customer Conversations',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      body: Column(
+    return Container(
+      color: Colors.white,
+      child: Column(
         children: [
+          _buildSidebarHeader(),
           _buildSearchBar(),
           Expanded(child: _buildConversationsList()),
         ],
@@ -422,7 +420,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         }
 
         var conversations = snapshot.data ?? [];
-        final query = (_searchQuery ?? '').trim().toLowerCase();
+        final query = _searchQuery.trim().toLowerCase();
 
         if (query.isNotEmpty) {
           conversations = conversations.where((c) {
@@ -497,7 +495,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: isSelected
-            ? const Color(0xFF14332E).withOpacity(0.06)
+            ? const Color(0xFF14332E).withValues(alpha: 0.06)
             : Colors.transparent,
         child: Row(
           children: [
@@ -613,7 +611,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF14332E).withOpacity(0.18),
+                  color: const Color(0xFF14332E).withValues(alpha: 0.18),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -907,7 +905,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -973,7 +971,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                             fontSize: 10,
                             color: isFromCustomer
                                 ? const Color(0xFF94A3B8)
-                                : Colors.white.withOpacity(0.7),
+                                : Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -1280,7 +1278,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

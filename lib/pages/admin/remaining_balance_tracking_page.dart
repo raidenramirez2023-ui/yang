@@ -206,7 +206,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
         _buildSummaryCards(),
         const SizedBox(height: 12),
         _buildSearchBar(),
-        ResponsiveUtils.verticalSpace(context, mobile: 16, tablet: 20, desktop: 24),
+        const SizedBox(height: 12),
         Expanded(
           child: _buildCardList(),
         ),
@@ -295,7 +295,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
   }
 
   Widget _buildSummaryCards() {
-    final isMobile = ResponsiveUtils.isMobile(context);
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     
     double totalOutstanding = 0;
     double totalCollected = 0;
@@ -307,49 +307,56 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     
     final totalAccounts = _reservationsWithBalance.length;
 
-    final cards = [
-      _buildMetricCard(
-        title: 'Outstanding Balance',
-        value: '₱${_moneyFmt.format(totalOutstanding)}',
-        subtitle: 'To be collected',
-        icon: Icons.account_balance_wallet_rounded,
-        color: const Color(0xFFDC2626),
-        bg: const Color(0xFFFEE2E2),
-      ),
-      _buildMetricCard(
-        title: 'Total Collected',
-        value: '₱${_moneyFmt.format(totalCollected)}',
-        subtitle: 'Deposits received',
-        icon: Icons.check_circle_rounded,
-        color: const Color(0xFF15803D),
-        bg: const Color(0xFFDCFCE7),
-      ),
-      _buildMetricCard(
-        title: 'Pending Accounts',
-        value: '$totalAccounts',
-        subtitle: 'With remaining balance',
-        icon: Icons.people_alt_rounded,
-        color: const Color(0xFF0284C7),
-        bg: const Color(0xFFE0F2FE),
-      ),
-    ];
+    final card1 = _buildMetricCard(
+      title: 'Outstanding Balance',
+      value: '₱${_moneyFmt.format(totalOutstanding)}',
+      subtitle: 'To be collected',
+      icon: Icons.account_balance_wallet_rounded,
+      color: const Color(0xFFDC2626),
+      bg: const Color(0xFFFEE2E2),
+    );
+    final card2 = _buildMetricCard(
+      title: 'Total Collected',
+      value: '₱${_moneyFmt.format(totalCollected)}',
+      subtitle: 'Deposits received',
+      icon: Icons.check_circle_rounded,
+      color: const Color(0xFF15803D),
+      bg: const Color(0xFFDCFCE7),
+    );
+    final card3 = _buildMetricCard(
+      title: 'Pending Accounts',
+      value: '$totalAccounts Accounts',
+      subtitle: 'With remaining balance',
+      icon: Icons.people_alt_rounded,
+      color: const Color(0xFF0284C7),
+      bg: const Color(0xFFE0F2FE),
+    );
 
-    if (isMobile) {
-      return Column(
-        children: cards.map((card) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: card,
-        )).toList(),
+    if (!isDesktop) {
+      return SizedBox(
+        height: 76,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: [
+            SizedBox(width: 215, child: card1),
+            const SizedBox(width: 10),
+            SizedBox(width: 200, child: card2),
+            const SizedBox(width: 10),
+            SizedBox(width: 190, child: card3),
+          ],
+        ),
       );
     }
 
     return Row(
-      children: cards.map((card) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(right: 14),
-          child: card,
-        ),
-      )).toList()..last = Expanded(child: cards.last),
+      children: [
+        Expanded(child: card1),
+        const SizedBox(width: 14),
+        Expanded(child: card2),
+        const SizedBox(width: 14),
+        Expanded(child: card3),
+      ],
     );
   }
 
@@ -362,10 +369,10 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     required Color bg,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
@@ -378,14 +385,14 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(11),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: bg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,28 +402,33 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                   title,
                   style: const TextStyle(
                     color: AppTheme.mediumGrey,
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
                     color: Color(0xFF0F172A),
-                    fontSize: 19,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppTheme.mediumGrey.withValues(alpha: 0.8),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
+                    color: color,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -826,7 +838,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(top: 2, bottom: 16),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final item = filtered[index];
@@ -838,8 +850,8 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: AppTheme.white,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.03),
@@ -849,7 +861,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            borderRadius: BorderRadius.circular(16),
             child: IntrinsicHeight(
               child: Row(
                 children: [
@@ -860,13 +872,13 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [AppTheme.adminPrimaryAccent, AppTheme.adminFeaturedMetricCard],
+                        colors: [Color(0xFF14332E), Color(0xFFD9A441)],
                       ),
                     ),
                   ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(14),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -896,11 +908,12 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                         border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
                                       ),
                                       child: Text(
-                                        '#${item['id'].toString().substring(0, 8)}',
+                                        '#${item['id'].toString().substring(0, 8).toUpperCase()}',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontFamily: 'monospace',
-                                          color: AppTheme.mediumGrey.withValues(alpha: 0.8),
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.mediumGrey.withValues(alpha: 0.9),
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -912,25 +925,25 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.adminChatButton.withValues(alpha: 0.08),
+                                  color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppTheme.adminChatButton.withValues(alpha: 0.2)),
+                                  border: Border.all(color: const Color(0xFF14332E).withValues(alpha: 0.2)),
                                 ),
                                 child: Text(
                                   item['event_type']?.toString() ?? 'Reservation',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.adminChatButton,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF14332E),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           // Divider
                           Divider(color: Colors.grey.withValues(alpha: 0.1), height: 1),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           // Info rows
                           _buildInfoRow(
                             'Reservation Date',
@@ -945,7 +958,7 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                           _buildInfoRow(
                             'Total Amount',
                             '₱${_moneyFmt.format(totalPrice)}',
-                            icon: Icons.attach_money,
+                            icon: Icons.receipt_long_rounded,
                           ),
                           _buildInfoRow(
                             'Deposit Paid',
@@ -956,25 +969,25 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                           const SizedBox(height: 8),
                           // Remaining balance highlight
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.05),
+                              color: const Color(0xFFFEE2E2),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                              border: Border.all(color: const Color(0xFFFCA5A5)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
+                                const Row(
                                   children: [
-                                    const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
-                                    const SizedBox(width: 8),
-                                    const Text(
+                                    Icon(Icons.warning_amber_rounded, size: 15, color: Color(0xFFDC2626)),
+                                    SizedBox(width: 6),
+                                    Text(
                                       'Remaining Balance',
                                       style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.darkGrey,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
                                       ),
                                     ),
                                   ],
@@ -982,9 +995,9 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                                 Text(
                                   '₱${_moneyFmt.format(remainingBalance)}',
                                   style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFFDC2626),
                                   ),
                                 ),
                               ],
@@ -995,15 +1008,16 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: () => _showMarkPaidDialog(item, true),
-                              icon: const Icon(Icons.check_circle_outline, size: 18),
-                              label: const Text('Mark as Fully Paid', style: TextStyle(fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.check_circle_rounded, size: 16),
+                              label: const Text('Mark as Fully Paid', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.adminChatButton,
-                                foregroundColor: Colors.white,
+                                backgroundColor: const Color(0xFF14332E),
+                                foregroundColor: const Color(0xFFD9A441),
                                 elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
+                                  side: const BorderSide(color: Color(0xFFD9A441), width: 0.8),
                                 ),
                               ),
                             ),
@@ -1129,41 +1143,46 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_outline_rounded,
+                size: 44,
+                color: Colors.green,
+              ),
             ),
-            child: const Icon(
-              Icons.check_circle_outline_rounded,
-              size: 56,
-              color: Colors.green,
+            const SizedBox(height: 14),
+            const Text(
+              'All Accounts Cleared!',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.darkGrey,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'All Accounts Cleared!',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.darkGrey,
+            const SizedBox(height: 6),
+            Text(
+              'No outstanding balances at this time.\nAll accounts have been fully settled.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.mediumGrey,
+                height: 1.4,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No outstanding balances at this time.\nAll accounts have been fully settled.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.mediumGrey,
-              height: 1.5,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1198,26 +1217,29 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mark as Fully Paid'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Customer: ${item['customer_name'] ?? 'Unknown'}'),
-            const SizedBox(height: 8),
-            Text('Event Type: ${item['event_type'] ?? 'N/A'}'),
-            const SizedBox(height: 8),
-            Text('Total: ₱${_moneyFmt.format((item['total_price'] as num?)?.toDouble() ?? 0.0)}'),
-            const SizedBox(height: 8),
-            Text('Paid: ₱${_moneyFmt.format((item['deposit_amount'] as num?)?.toDouble() ?? 0.0)}'),
-            const SizedBox(height: 8),
-            Text(
-              'Remaining: ₱${_moneyFmt.format(_calculateRemainingBalance(item))}',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
-            ),
-            const SizedBox(height: 16),
-            const Text('Are you sure you want to mark this as fully paid?'),
-          ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Mark as Fully Paid', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Customer: ${item['customer_name'] ?? 'Unknown'}', style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text('Event Type: ${item['event_type'] ?? 'N/A'}'),
+              const SizedBox(height: 6),
+              Text('Total: ₱${_moneyFmt.format((item['total_price'] as num?)?.toDouble() ?? 0.0)}'),
+              const SizedBox(height: 6),
+              Text('Paid: ₱${_moneyFmt.format((item['deposit_amount'] as num?)?.toDouble() ?? 0.0)}'),
+              const SizedBox(height: 6),
+              Text(
+                'Remaining: ₱${_moneyFmt.format(_calculateRemainingBalance(item))}',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+              ),
+              const SizedBox(height: 14),
+              const Text('Are you sure you want to mark this account as fully paid?'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1236,10 +1258,11 @@ class _RemainingBalanceTrackingPageState extends State<RemainingBalanceTrackingP
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.adminChatButton,
-              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xFF14332E),
+              foregroundColor: const Color(0xFFD9A441),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Confirm'),
+            child: const Text('Confirm Settlement'),
           ),
         ],
       ),

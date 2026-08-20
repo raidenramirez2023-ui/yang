@@ -597,46 +597,55 @@ class _SalesReportPageState extends State<SalesReportPage>
   void _showReceiptModal(BuildContext context, Map<String, dynamic> transaction) {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: Colors.white,
-        child: Container(
-          width: 480,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) {
+        final isMobile = ResponsiveUtils.isMobile(ctx);
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 480),
+            width: double.infinity,
+            padding: EdgeInsets.all(isMobile ? 18 : 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Header
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.adminSidebarBackground.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.adminSidebarBackground.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: AppTheme.adminSidebarBackground, size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Yang Chow Restaurant', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText), overflow: TextOverflow.ellipsis),
+                                  Text('Sales Transaction Voucher', style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, color: AppTheme.adminSidebarBackground, size: 22),
                       ),
-                      const SizedBox(width: 12),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Yang Chow Restaurant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
-                          Text('Sales Transaction Voucher', style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText)),
-                        ],
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.mediumGrey),
                       ),
                     ],
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.mediumGrey),
-                  ),
-                ],
-              ),
               const SizedBox(height: 16),
               const Divider(height: 1, color: AppTheme.cardBorder),
               const SizedBox(height: 16),
@@ -753,7 +762,9 @@ class _SalesReportPageState extends State<SalesReportPage>
         ),
       ),
     );
-  }
+  },
+);
+}
 
   Future<List<Map<String, dynamic>>> _fetchOrderItems(String orderId) async {
     if (orderId.isEmpty) return [];
@@ -1107,46 +1118,52 @@ class _SalesReportPageState extends State<SalesReportPage>
           ),
           child: const Icon(Icons.analytics_rounded, color: AppTheme.warmGold, size: 22),
         ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  'Sales & Revenue Report',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.adminPrimaryText,
-                    letterSpacing: -0.4,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  const Text(
+                    'Sales & Revenue Report',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.adminPrimaryText,
+                      letterSpacing: -0.4,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.successGreen.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.fiber_manual_record, color: AppTheme.successGreen, size: 8),
+                        SizedBox(width: 4),
+                        Text('LIVE SYNC', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppTheme.successGreen)),
+                      ],
+                    ),
                   ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.fiber_manual_record, color: AppTheme.successGreen, size: 8),
-                      SizedBox(width: 4),
-                      Text('LIVE SYNC', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppTheme.successGreen)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              'Real-time multi-channel sales analytics and financial velocity',
-              style: TextStyle(fontSize: 12, color: AppTheme.adminSecondaryText),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'Real-time multi-channel sales analytics and financial velocity',
+                style: TextStyle(fontSize: 11.5, color: AppTheme.adminSecondaryText),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1997,16 +2014,22 @@ class _SalesReportPageState extends State<SalesReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.location_on_outlined, size: 18, color: AppTheme.adminPrimaryAccent),
-                  SizedBox(width: 8),
-                  Text(
-                    'Cities Sales Distribution',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
-                  ),
-                ],
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 18, color: AppTheme.adminPrimaryAccent),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Cities Sales Distribution',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               _buildLocationPeriodDropdown(),
             ],
           ),
@@ -2736,23 +2759,28 @@ class _SalesReportPageState extends State<SalesReportPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: (t['color'] as Color).withValues(alpha: 0.12),
-                    child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 11, fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.adminPrimaryText)),
-                      Text(t['id'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
-                    ],
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: (t['color'] as Color).withValues(alpha: 0.12),
+                      child: Text(t['initials'], style: TextStyle(color: t['color'], fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t['customer'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.adminPrimaryText), overflow: TextOverflow.ellipsis),
+                          Text(t['id'], style: const TextStyle(fontSize: 11, color: AppTheme.adminSecondaryText)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               _statusBadge(t['status']),
             ],
           ),

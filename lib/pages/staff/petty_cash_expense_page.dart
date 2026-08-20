@@ -678,14 +678,20 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
     ];
 
     if (isMobile) {
-      return GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.25,
-        children: cards,
+      return SizedBox(
+        height: 118,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          clipBehavior: Clip.none,
+          children: cards
+              .map((card) => Container(
+                    width: 215,
+                    margin: const EdgeInsets.only(right: 10),
+                    child: card,
+                  ))
+              .toList(),
+        ),
       );
     }
 

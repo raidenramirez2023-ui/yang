@@ -120,6 +120,20 @@ class StaffService {
     return List<Map<String, dynamic>>.from(defaultStaff);
   }
 
+  /// Save all staff to persistent storage
+  static Future<bool> saveStaffList(List<Map<String, dynamic>> staffList) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String encoded = jsonEncode(staffList);
+      final bool success = await prefs.setString(storageKey, encoded);
+      debugPrint('[StaffService] Saved ${staffList.length} staff members to persistent storage (success: $success)');
+      return success;
+    } catch (e) {
+      debugPrint('[StaffService] Error saving staff list: $e');
+      return false;
+    }
+  }
+
   /// Get active cashier names from User Management
   static Future<List<String>> getActiveCashierNames() async {
     final staff = await loadStaffList();

@@ -1282,29 +1282,35 @@ class _InventoryPageState extends State<InventoryPage> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Live Inventory Monitor',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.2,
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Live Inventory Monitor',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          Text(
-                            'Real-time automated stock health & threshold overview',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFFB0C8C3),
+                            Text(
+                              'Real-time automated stock health & threshold overview',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFB0C8C3),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const Spacer(),
-                      if (_selectedStockStatus != null)
+                      if (_selectedStockStatus != null) ...[
+                        const SizedBox(width: 8),
                         TextButton.icon(
                           onPressed: () {
                             setState(() => _selectedStockStatus = null);
@@ -1330,6 +1336,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 12),

@@ -107,23 +107,34 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
         ? allItemsList.fold<double>(0.0, (sum, i) => sum + i.price) / totalItems 
         : 0.0;
 
-    int crossAxisCount = 1;
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    int crossAxisCount = 2;
+    double childAspectRatio = 0.70;
     if (isDesktop) {
       crossAxisCount = 4;
+      childAspectRatio = 0.80;
     } else if (isTablet) {
-      crossAxisCount = 2;
+      crossAxisCount = 3;
+      childAspectRatio = 0.75;
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 8 : 12,
+          vertical: isMobile ? 8 : 12,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Enterprise Header ─────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 14 : 20,
+                vertical: isMobile ? 14 : 16,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -136,151 +147,259 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF14332E).withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.restaurant_menu_rounded, color: Color(0xFFD9A441), size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Menu & Recipe Management',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.4,
-                              ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFDCFCE7),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFF86EFAC)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.cloud_done_rounded, size: 12, color: Color(0xFF15803D)),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'POS Synced',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                          ],
+                        ),
+                        child: const Icon(Icons.restaurant_menu_rounded, color: Color(0xFFD9A441), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  'Menu & Recipe Management',
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 16 : 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                    letterSpacing: -0.4,
                                   ),
-                                ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDCFCE7),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: const Color(0xFF86EFAC)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.cloud_done_rounded, size: 11, color: Color(0xFF15803D)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'POS Synced',
+                                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isMobile
+                                  ? 'Configure food catalog, pricing & recipes'
+                                  : 'Configure food catalog, pricing tiers, ingredient recipes, and kitchen availability',
+                              style: TextStyle(
+                                fontSize: isMobile ? 11 : 12,
+                                color: const Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Configure food catalog, pricing tiers, ingredient recipes, and kitchen availability',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
+                      ),
+                      if (!isMobile) ...[
+                        IconButton(
+                          onPressed: () => RecipeSeeder.seedRecipesToDatabase(context),
+                          icon: const Icon(Icons.upload_file_rounded, color: Color(0xFFC9922E)),
+                          tooltip: 'Upload Hardcoded Recipes to Database',
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _showAddEditDialog(null),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Add Menu Item', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF14332E),
+                            foregroundColor: const Color(0xFFD9A441),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFFD9A441), width: 1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (isMobile) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => RecipeSeeder.seedRecipesToDatabase(context),
+                          icon: const Icon(Icons.upload_file_rounded, size: 14),
+                          label: const Text('Sync Recipes'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFC9922E),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showAddEditDialog(null),
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: const Text('Add Menu Item'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF14332E),
+                              foregroundColor: const Color(0xFFD9A441),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: const BorderSide(color: Color(0xFFD9A441), width: 1),
+                              ),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => RecipeSeeder.seedRecipesToDatabase(context),
-                    icon: const Icon(Icons.upload_file_rounded, color: Color(0xFFC9922E)),
-                    tooltip: 'Upload Hardcoded Recipes to Database',
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _showAddEditDialog(null),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add Menu Item', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF14332E),
-                      foregroundColor: const Color(0xFFD9A441),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFD9A441), width: 1),
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 12),
 
-            // ── KPI Quick Strip ───────────────────────────────────────────────
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMenuKpiCard(
-                    title: 'Total Menu Items',
-                    value: '$totalItems',
-                    subtitle: 'Configured in catalog',
-                    icon: Icons.inventory_2_rounded,
-                    color: const Color(0xFF0284C7),
-                    bg: const Color(0xFFE0F2FE),
-                  ),
+            // ── KPI Quick Strip (Responsive Carousel on Mobile) ───────────────
+            if (isMobile)
+              SizedBox(
+                height: 64,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    Container(
+                      width: 175,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: _buildMenuKpiCard(
+                        title: 'Total Items',
+                        value: '$totalItems',
+                        subtitle: 'In catalog',
+                        icon: Icons.inventory_2_rounded,
+                        color: const Color(0xFF0284C7),
+                        bg: const Color(0xFFE0F2FE),
+                      ),
+                    ),
+                    Container(
+                      width: 175,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: _buildMenuKpiCard(
+                        title: 'Active Categories',
+                        value: '$totalCategories',
+                        subtitle: 'Menu sections',
+                        icon: Icons.category_rounded,
+                        color: const Color(0xFF7E22CE),
+                        bg: const Color(0xFFF3E8FF),
+                      ),
+                    ),
+                    Container(
+                      width: 175,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: _buildMenuKpiCard(
+                        title: 'Average Price',
+                        value: '₱${avgPrice.toStringAsFixed(2)}',
+                        subtitle: 'Per serving',
+                        icon: Icons.monetization_on_rounded,
+                        color: const Color(0xFF15803D),
+                        bg: const Color(0xFFDCFCE7),
+                      ),
+                    ),
+                    Container(
+                      width: 175,
+                      margin: const EdgeInsets.only(right: 8),
+                      child: _buildMenuKpiCard(
+                        title: 'Search Match',
+                        value: '${filteredItems.length}',
+                        subtitle: _searchQuery.isEmpty ? 'Showing all' : 'Filtered results',
+                        icon: Icons.filter_alt_rounded,
+                        color: const Color(0xFFD97706),
+                        bg: const Color(0xFFFEF3C7),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMenuKpiCard(
-                    title: 'Active Categories',
-                    value: '$totalCategories',
-                    subtitle: 'Menu sections',
-                    icon: Icons.category_rounded,
-                    color: const Color(0xFF7E22CE),
-                    bg: const Color(0xFFF3E8FF),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMenuKpiCard(
+                      title: 'Total Menu Items',
+                      value: '$totalItems',
+                      subtitle: 'Configured in catalog',
+                      icon: Icons.inventory_2_rounded,
+                      color: const Color(0xFF0284C7),
+                      bg: const Color(0xFFE0F2FE),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMenuKpiCard(
-                    title: 'Average Price',
-                    value: '₱${avgPrice.toStringAsFixed(2)}',
-                    subtitle: 'Per serving',
-                    icon: Icons.monetization_on_rounded,
-                    color: const Color(0xFF15803D),
-                    bg: const Color(0xFFDCFCE7),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMenuKpiCard(
+                      title: 'Active Categories',
+                      value: '$totalCategories',
+                      subtitle: 'Menu sections',
+                      icon: Icons.category_rounded,
+                      color: const Color(0xFF7E22CE),
+                      bg: const Color(0xFFF3E8FF),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMenuKpiCard(
-                    title: 'Search Match',
-                    value: '${filteredItems.length}',
-                    subtitle: _searchQuery.isEmpty ? 'Showing all' : 'Filtered results',
-                    icon: Icons.filter_alt_rounded,
-                    color: const Color(0xFFD97706),
-                    bg: const Color(0xFFFEF3C7),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMenuKpiCard(
+                      title: 'Average Price',
+                      value: '₱${avgPrice.toStringAsFixed(2)}',
+                      subtitle: 'Per serving',
+                      icon: Icons.monetization_on_rounded,
+                      color: const Color(0xFF15803D),
+                      bg: const Color(0xFFDCFCE7),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMenuKpiCard(
+                      title: 'Search Match',
+                      value: '${filteredItems.length}',
+                      subtitle: _searchQuery.isEmpty ? 'Showing all' : 'Filtered results',
+                      icon: Icons.filter_alt_rounded,
+                      color: const Color(0xFFD97706),
+                      bg: const Color(0xFFFEF3C7),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 12),
 
             // ── Search & Filter Controls ─────────────────────────────────────
@@ -426,7 +545,7 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
                             crossAxisCount: crossAxisCount,
                             crossAxisSpacing: 14,
                             mainAxisSpacing: 14,
-                            childAspectRatio: 0.80,
+                            childAspectRatio: childAspectRatio,
                           ),
                           itemCount: filteredItems.length,
                           itemBuilder: (context, index) {
@@ -1091,14 +1210,19 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
               }
             }
 
+            final isDialogMobile = MediaQuery.of(context).size.width < 500;
             return AlertDialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: isDialogMobile ? 12 : 24,
+                vertical: 20,
+              ),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(
                 isEdit ? 'Edit Menu Item' : 'Add New Menu Item',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               content: SizedBox(
-                width: 550,
+                width: isDialogMobile ? double.maxFinite : 550,
                 child: SingleChildScrollView(
                   child: Form(
                     key: formKey,

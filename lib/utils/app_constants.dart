@@ -65,7 +65,7 @@ class AppConstants {
 
   // Operating hours (24-hour format) - defaults
   static const int defaultOperatingHoursStart = 10; // 10 AM
-  static const int defaultOperatingHoursEnd = 22; // 10 PM
+  static const int defaultOperatingHoursEnd = 20; // 8 PM
 
   // Duration options
   static const List<String> defaultBaseDurations = ['2 Hours', '3 Hours'];

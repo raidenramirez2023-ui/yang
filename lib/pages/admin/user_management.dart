@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yang_chow/services/staff_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -62,8 +61,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Future<void> _saveStaffData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(StaffService.storageKey, jsonEncode(_staff));
+      await StaffService.saveStaffList(_staff);
     } catch (e) {
       debugPrint('Error saving staff to prefs: $e');
     }
@@ -313,9 +311,65 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   // -------------------------------------------------------------------------
-  // STATS ROW
+  // STATS ROW (Responsive Carousel on Mobile)
   // -------------------------------------------------------------------------
   Widget _buildStatsRow(bool isMobile, int active, int onLeave, int inactive) {
+    if (isMobile) {
+      return SizedBox(
+        height: 72,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: [
+            Container(
+              width: 155,
+              margin: const EdgeInsets.only(right: 8),
+              child: _statTile(
+                label: 'Total Staff',
+                value: _staff.length.toString(),
+                icon: Icons.groups_rounded,
+                bgTint: const Color(0xFFDCFCE7),
+                iconColor: const Color(0xFF15803D),
+              ),
+            ),
+            Container(
+              width: 155,
+              margin: const EdgeInsets.only(right: 8),
+              child: _statTile(
+                label: 'Active Personnel',
+                value: active.toString(),
+                icon: Icons.verified_rounded,
+                bgTint: const Color(0xFFE0F2FE),
+                iconColor: const Color(0xFF0284C7),
+              ),
+            ),
+            Container(
+              width: 155,
+              margin: const EdgeInsets.only(right: 8),
+              child: _statTile(
+                label: 'On Leave',
+                value: onLeave.toString(),
+                icon: Icons.event_busy_rounded,
+                bgTint: const Color(0xFFFEF3C7),
+                iconColor: const Color(0xFFD97706),
+              ),
+            ),
+            Container(
+              width: 155,
+              margin: const EdgeInsets.only(right: 8),
+              child: _statTile(
+                label: 'Inactive',
+                value: inactive.toString(),
+                icon: Icons.person_off_rounded,
+                bgTint: const Color(0xFFFEE2E2),
+                iconColor: const Color(0xFFDC2626),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -359,7 +413,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     required Color iconColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -375,22 +429,24 @@ class _UserManagementPageState extends State<UserManagementPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: bgTint,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   value,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: _darkBg,
                   ),
@@ -398,7 +454,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 Text(
                   label,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: _slate,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1005,9 +1061,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
               final picker = ImagePicker();
               final XFile? file = await picker.pickImage(
                 source: source,
-                maxWidth: 800,
-                maxHeight: 800,
-                imageQuality: 85,
+                maxWidth: 320,
+                maxHeight: 320,
+                imageQuality: 70,
               );
               if (file != null) {
                 final bytes = await file.readAsBytes();
@@ -1486,8 +1542,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
                               setState(() {
                                 if (isEditing) {
-                                  final idx = _staff.indexOf(staff);
-                                  if (idx != -1) _staff[idx] = updatedData;
+                                  final targetId = staff['id']?.toString() ?? empId;
+                                  final idx = _staff.indexWhere((s) => s['id']?.toString() == targetId);
+                                  if (idx != -1) {
+                                    _staff[idx] = updatedData;
+                                  } else {
+                                    final nameIdx = _staff.indexWhere((s) => s['name'] == staff['name']);
+                                    if (nameIdx != -1) {
+                                      _staff[nameIdx] = updatedData;
+                                    } else {
+                                      _staff.insert(0, updatedData);
+                                    }
+                                  }
                                 } else {
                                   _staff.insert(0, updatedData);
                                 }
@@ -1574,7 +1640,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
           ElevatedButton(
             onPressed: () {
               setState(() {
-                _staff.remove(staff);
+                _staff.removeWhere((s) => s['id']?.toString() == staff['id']?.toString());
               });
               _saveStaffData();
 

@@ -242,13 +242,15 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final isMobile = MediaQuery.of(context).size.width < 600;
             return Dialog(
+              insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 20),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               backgroundColor: Colors.white,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,7 +919,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   Widget _buildHeader(bool isDesktop) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 22 : 16,
+        vertical: isDesktop ? 20 : 16,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0F2621), Color(0xFF14332E), Color(0xFF1B433C)],
@@ -933,138 +938,192 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
-              color: AppTheme.warmGold,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.warmGold.withValues(alpha: 0.3)),
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  color: AppTheme.warmGold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Audit Trail & Security Logs',
-                      style: GoogleFonts.inter(
-                        fontSize: isDesktop ? 20 : 17,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.3,
-                      ),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          'Audit Trail & Security Logs',
+                          style: GoogleFonts.inter(
+                            fontSize: isDesktop ? 20 : 16,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'LIVE AUDIT',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF6EE7B7),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'LIVE AUDIT',
-                            style: GoogleFonts.inter(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF6EE7B7),
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 3),
+                    Text(
+                      'Immutable record of admin, financial, kitchen & staff actions',
+                      style: GoogleFonts.inter(
+                        fontSize: isDesktop ? 12 : 11,
+                        color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Immutable timeline of administrative, financial, staff, and kitchen operations',
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
-                    color: Colors.white.withValues(alpha: 0.75),
+              ),
+              if (isDesktop) ...[
+                // View Mode Toggle
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.table_rows_rounded, color: _viewMode == 'table' ? AppTheme.warmGold : Colors.white70, size: 20),
+                        tooltip: 'Table Grid View',
+                        onPressed: () => setState(() => _viewMode = 'table'),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.timeline_rounded, color: _viewMode == 'timeline' ? AppTheme.warmGold : Colors.white70, size: 20),
+                        tooltip: 'Security Timeline View',
+                        onPressed: () => setState(() => _viewMode = 'timeline'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Refresh Button
+                Tooltip(
+                  message: 'Refresh Logs',
+                  child: InkWell(
+                    onTap: _loadLogs,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                      child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Export CSV Button
+                ElevatedButton.icon(
+                  onPressed: _exportLogsToCSV,
+                  icon: const Icon(Icons.download_rounded, size: 17),
+                  label: Text('Export CSV', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.warmGold,
+                    foregroundColor: const Color(0xFF14332E),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-          if (isDesktop) ...[
-            // View Mode Toggle
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.table_rows_rounded, color: _viewMode == 'table' ? AppTheme.warmGold : Colors.white70, size: 20),
-                    tooltip: 'Table Grid View',
-                    onPressed: () => setState(() => _viewMode = 'table'),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.timeline_rounded, color: _viewMode == 'timeline' ? AppTheme.warmGold : Colors.white70, size: 20),
-                    tooltip: 'Security Timeline View',
-                    onPressed: () => setState(() => _viewMode = 'timeline'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Refresh Button
-            Tooltip(
-              message: 'Refresh Logs',
-              child: InkWell(
-                onTap: _loadLogs,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
+          if (!isDesktop) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.table_rows_rounded, color: _viewMode == 'table' ? AppTheme.warmGold : Colors.white70, size: 18),
+                        onPressed: () => setState(() => _viewMode = 'table'),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: EdgeInsets.zero,
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.timeline_rounded, color: _viewMode == 'timeline' ? AppTheme.warmGold : Colors.white70, size: 18),
+                        onPressed: () => setState(() => _viewMode = 'timeline'),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: EdgeInsets.zero,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+                        onPressed: _loadLogs,
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-
-            // Export CSV Button
-            ElevatedButton.icon(
-              onPressed: _exportLogsToCSV,
-              icon: const Icon(Icons.download_rounded, size: 17),
-              label: Text('Export CSV', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warmGold,
-                foregroundColor: const Color(0xFF14332E),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+                ElevatedButton.icon(
+                  onPressed: _exportLogsToCSV,
+                  icon: const Icon(Icons.download_rounded, size: 15),
+                  label: Text('Export CSV', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 11.5)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.warmGold,
+                    foregroundColor: const Color(0xFF14332E),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -1072,7 +1131,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     );
   }
 
-  // ── Metric Cards ─────────────────────────────────────────────────────────────
+  // ── Metric Cards (Responsive Horizontal Carousel on Mobile) ─────────────────
   Widget _buildMetricCards({
     required int totalLogs,
     required int todayLogs,
@@ -1084,7 +1143,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       _buildSingleMetricCard(
         title: 'Total Activity History',
         value: totalLogs.toString(),
-        subtitle: 'Lahat ng logs (Reservations, POS, Stock, Menu, etc.)',
+        subtitle: 'All modules activity recorded',
         icon: Icons.history_rounded,
         color: const Color(0xFF0F172A),
         badgeText: 'All-Time',
@@ -1093,7 +1152,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       _buildSingleMetricCard(
         title: "Today's Operations",
         value: todayLogs.toString(),
-        subtitle: 'Mga aksyon at updates na naitala ngayong araw',
+        subtitle: 'Activity recorded today',
         icon: Icons.electric_bolt_rounded,
         color: const Color(0xFF0284C7),
         badgeText: 'Today',
@@ -1102,30 +1161,41 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       _buildSingleMetricCard(
         title: 'Approvals & Decisions',
         value: criticalCount.toString(),
-        subtitle: 'Reschedules, payment approvals, refunds & deletes',
+        subtitle: 'Approvals, refunds & changes',
         icon: Icons.task_alt_rounded,
         color: const Color(0xFFD97706),
         badgeText: 'Decisions',
         badgeColor: const Color(0xFFD97706),
       ),
       _buildSingleMetricCard(
-        title: 'Active Staff & Admins',
+        title: 'Active Operators',
         value: uniqueUsers.toString(),
-        subtitle: 'Mga admin, cashier at staff na nag-process',
+        subtitle: 'Admins & staff personnel',
         icon: Icons.manage_accounts_rounded,
         color: const Color(0xFF7C3AED),
-        badgeText: 'Operators',
+        badgeText: 'Staff',
         badgeColor: const Color(0xFF7C3AED),
       ),
     ];
 
     if (isDesktop) {
       return Row(
-        children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: c))).toList(),
+        children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: c))).toList(),
       );
     } else {
-      return Column(
-        children: cards.map((c) => Padding(padding: const EdgeInsets.only(bottom: 10), child: c)).toList(),
+      return SizedBox(
+        height: 105,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          children: cards
+              .map((c) => Container(
+                    width: 205,
+                    margin: const EdgeInsets.only(right: 8),
+                    child: c,
+                  ))
+              .toList(),
+        ),
       );
     }
   }
@@ -1140,7 +1210,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     required Color badgeColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1164,7 +1234,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF64748B),
                   ),
@@ -1173,16 +1243,16 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, size: 14, color: color),
+                child: Icon(icon, size: 13, color: color),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -1190,7 +1260,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               Text(
                 value,
                 style: GoogleFonts.inter(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                   color: const Color(0xFF0F172A),
                   letterSpacing: -0.3,
@@ -1218,7 +1288,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              fontSize: 10.5,
+              fontSize: 10,
               color: const Color(0xFF94A3B8),
             ),
             maxLines: 1,
@@ -1492,6 +1562,143 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
 
   // ── Main Table Card ──────────────────────────────────────────────────────────
   Widget _buildTableCard(bool isDesktop) {
+    if (!isDesktop) {
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _logs.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final log = _logs[index];
+          final formattedDate = DateFormat('MMM dd, yyyy • hh:mm a').format(log.createdAt);
+          final moduleColor = _getModuleColor(log.module);
+          final actionColor = _getActionColor(log.action);
+          final roleColor = _getRoleColor(log.userRole);
+
+          return InkWell(
+            onTap: () => _showLogDetailsDialog(log),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: moduleColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: moduleColor.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_getModuleIcon(log.module), size: 11, color: moduleColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    log.module,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: moduleColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: actionColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: actionColor.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_getActionIcon(log.action), size: 11, color: actionColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    log.action,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: actionColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        formattedDate,
+                        style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildFormattedDescription(log.description, log),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 11,
+                        backgroundColor: roleColor.withValues(alpha: 0.15),
+                        child: Text(
+                          log.userName.isNotEmpty ? log.userName[0].toUpperCase() : 'U',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: roleColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${log.userName} (${log.userEmail})',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildRolePill(log.userRole),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1629,12 +1836,16 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 children: [
                                   Icon(_getModuleIcon(log.module), size: 12, color: moduleColor),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    log.module,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: moduleColor,
+                                  Flexible(
+                                    child: Text(
+                                      log.module,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: moduleColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -1664,13 +1875,17 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                     color: _getActionColor(log.action),
                                   ),
                                   const SizedBox(width: 5),
-                                  Text(
-                                    log.action,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: _getActionColor(log.action),
-                                      letterSpacing: 0.3,
+                                  Flexible(
+                                    child: Text(
+                                      log.action,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: _getActionColor(log.action),
+                                        letterSpacing: 0.3,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
