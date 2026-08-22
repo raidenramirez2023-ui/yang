@@ -1164,6 +1164,51 @@ class ReservationService {
 
   }
 
+  /// Get reliability metrics and no-show count for a customer by email
+  Future<Map<String, dynamic>> getCustomerReliabilityInfo(String customerEmail) async {
+    try {
+      if (customerEmail.isEmpty) {
+        return {
+          'total': 0,
+          'noShows': 0,
+          'completed': 0,
+          'cancelled': 0,
+          'isHighRisk': false,
+          'hasWarning': false,
+        };
+      }
+      final res = await _supabase
+          .from('reservations')
+          .select('id, status')
+          .eq('customer_email', customerEmail.trim());
+
+      final list = List<Map<String, dynamic>>.from(res);
+      final total = list.length;
+      final noShows = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'no_show').length;
+      final completed = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'completed').length;
+      final cancelled = list.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'cancelled').length;
+
+      return {
+        'total': total,
+        'noShows': noShows,
+        'completed': completed,
+        'cancelled': cancelled,
+        'isHighRisk': noShows >= 2,
+        'hasWarning': noShows == 1,
+      };
+    } catch (e) {
+      debugPrint('Error getting customer reliability info: $e');
+      return {
+        'total': 0,
+        'noShows': 0,
+        'completed': 0,
+        'cancelled': 0,
+        'isHighRisk': false,
+        'hasWarning': false,
+      };
+    }
+  }
+
 
 
   /// Update payment status for a reservation or advance order

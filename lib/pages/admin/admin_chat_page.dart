@@ -821,7 +821,17 @@ class _AdminChatPageState extends State<AdminChatPage> {
   }
 
   Widget _buildAdminMessageBubble(Map<String, dynamic> message, int index) {
-    final isFromCustomer = message['is_from_customer'] ?? true;
+    final rawIsFromCustomer = message['is_from_customer'] ?? true;
+    final isBot = message['customer_name']?.toString().contains('Concierge') == true ||
+                  message['customer_name']?.toString().contains('Bot') == true ||
+                  message['message']?.toString().startsWith('📅 **How to Book') == true ||
+                  message['message']?.toString().startsWith('💳 **Payment') == true ||
+                  message['message']?.toString().startsWith('💸 **Live Refund') == true ||
+                  message['message']?.toString().startsWith('🔄 **Live Reschedule') == true ||
+                  message['message']?.toString().startsWith('📅 **Live Reservation') == true ||
+                  message['message']?.toString().startsWith('💸 **Cancellation') == true ||
+                  message['message']?.toString().startsWith('📊 **Tracking Status') == true;
+    final isFromCustomer = rawIsFromCustomer && !isBot;
     final messageText = message['message'] ?? '';
     final imageUrl = message['image_url'] as String?;
     final isUnsent = messageText == ChatService.unsentMessageSentinel;
@@ -953,7 +963,31 @@ class _AdminChatPageState extends State<AdminChatPage> {
                             ],
                           )
                         else if (messageText.isNotEmpty &&
-                            !(imageUrl != null && messageText == '📷 Image'))
+                            !(imageUrl != null && messageText == '📷 Image')) ...[
+                          if (!isFromCustomer && (message['customer_name']?.toString().contains('Concierge') == true || message['customer_name']?.toString().contains('Bot') == true))
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.smart_toy_rounded, size: 11, color: Color(0xFFD9A441)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Yang Chow Concierge (Bot)',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           Text(
                             messageText,
                             style: TextStyle(
@@ -964,6 +998,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                               height: 1.4,
                             ),
                           ),
+                        ],
                         const SizedBox(height: 4),
                         Text(
                           timeStr,

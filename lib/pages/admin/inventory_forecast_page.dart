@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:yang_chow/utils/app_theme.dart';
@@ -810,6 +811,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
           // Category Carousel Pills
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             child: Row(
               children: categories.map((cat) {
                 final isSelected = _selectedCategory == cat;
@@ -1071,6 +1073,7 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
     final chartData = _getTopItemsData(forecast);
     final barGroups = chartData['barGroups'] as List<BarChartGroupData>;
     final topItems = chartData['topItems'] as List<MapEntry<String, double>>;
+    final isMobile = ResponsiveUtils.isMobile(context);
 
     if (topItems.isEmpty) {
       return Container(
@@ -1084,8 +1087,95 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
       );
     }
 
+    final double? chartWidth = isMobile
+        ? math.max(MediaQuery.of(context).size.width - 64, topItems.length * 64.0)
+        : null;
+
+    final chartWidget = BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: _getBarChartMaxY(),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF14332E),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final item = topItems[group.x];
+              return BarTooltipItem(
+                '${item.key}\n',
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                children: [
+                  TextSpan(
+                    text: '${rod.toY.toInt()} units consumed',
+                    style: const TextStyle(color: AppTheme.warmGold, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 34,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.bold),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 42,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index >= 0 && index < topItems.length) {
+                  final label = topItems[index].key;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                      width: 58,
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.darkGrey,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: AppTheme.cardBorder,
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: barGroups,
+      ),
+    );
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1103,21 +1193,29 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Top Kitchen Ingredients by Consumption',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.darkGrey),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Highest requested supplies for $_selectedTimeFilter',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Top Kitchen Ingredients by Consumption',
+                      style: TextStyle(
+                        fontSize: isMobile ? 13.5 : 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkGrey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Highest requested supplies for $_selectedTimeFilter',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1132,86 +1230,37 @@ class _InventoryForecastPageState extends State<InventoryForecastPage>
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           SizedBox(
             height: 280,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: _getBarChartMaxY(),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (_) => const Color(0xFF14332E),
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      final item = topItems[group.x];
-                      return BarTooltipItem(
-                        '${item.key}\n',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                        children: [
-                          TextSpan(
-                            text: '${rod.toY.toInt()} units consumed',
-                            style: const TextStyle(color: AppTheme.warmGold, fontSize: 10, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 34,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(color: AppTheme.mediumGrey, fontSize: 9.5, fontWeight: FontWeight.bold),
-                        );
-                      },
+            child: isMobile
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: SizedBox(
+                      width: chartWidth,
+                      height: 280,
+                      child: chartWidget,
                     ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 36,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index >= 0 && index < topItems.length) {
-                          final label = topItems[index].key;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              label.length > 8 ? '${label.substring(0, 7)}…' : label,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.darkGrey,
-                              ),
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: AppTheme.cardBorder,
-                    strokeWidth: 1,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                barGroups: barGroups,
-              ),
-            ),
+                  )
+                : chartWidget,
           ),
+
+          if (isMobile && topItems.length > 4) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.swipe_rounded, size: 14, color: AppTheme.mediumGrey.withValues(alpha: 0.8)),
+                const SizedBox(width: 5),
+                const Text(
+                  'Scroll chart horizontally to view all ingredient bars',
+                  style: TextStyle(fontSize: 10.5, color: AppTheme.mediumGrey, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

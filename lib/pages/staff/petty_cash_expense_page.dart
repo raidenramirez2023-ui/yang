@@ -868,6 +868,7 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
         // Status Filter Chips Row
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           child: Row(
             children: [
               _buildFilterPill('All', Icons.apps_rounded, const Color(0xFF14332E)),
@@ -1089,7 +1090,10 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -1107,7 +1111,6 @@ class _PettyCashExpensePageState extends State<PettyCashExpensePage> {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                       decoration: BoxDecoration(
