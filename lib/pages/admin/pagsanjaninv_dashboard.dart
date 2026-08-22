@@ -2928,88 +2928,176 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
                           ),
                         ],
                       ),
-                      child: Row(
-                        children: List.generate(_requestFilterLabels.length, (index) {
-                          final isSelected = _requestFilter == index;
-                          int count;
-                          switch (index) {
-                            case 0:
-                              count = requests.length;
-                              break;
-                            case 1:
-                              count = pendingCount;
-                              break;
-                            case 2:
-                              count = approvedCount;
-                              break;
-                            case 3:
-                              count = rejectedCount;
-                              break;
-                            default:
-                              count = 0;
-                          }
+                      child: ResponsiveUtils.isMobile(context)
+                          ? SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: List.generate(_requestFilterLabels.length, (index) {
+                                  final isSelected = _requestFilter == index;
+                                  int count;
+                                  switch (index) {
+                                    case 0:
+                                      count = requests.length;
+                                      break;
+                                    case 1:
+                                      count = pendingCount;
+                                      break;
+                                    case 2:
+                                      count = approvedCount;
+                                      break;
+                                    case 3:
+                                      count = rejectedCount;
+                                      break;
+                                    default:
+                                      count = 0;
+                                  }
 
-                          return Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _requestFilter = index;
-                                  _currentPage = 1;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(10),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: const Color(0xFF14332E).withValues(alpha: 0.25),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _requestFilterLabels[index],
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : const Color(0xFF64748B),
-                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? const Color(0xFFE6C374)
-                                            : const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '$count',
-                                        style: TextStyle(
-                                          color: isSelected ? const Color(0xFF14332E) : const Color(0xFF475569),
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 11,
+                                  return Padding(
+                                    padding: EdgeInsets.only(right: index == _requestFilterLabels.length - 1 ? 0 : 6),
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _requestFilter = index;
+                                          _currentPage = 1;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              _requestFilterLabels[index],
+                                              style: TextStyle(
+                                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: isSelected
+                                                    ? const Color(0xFFE6C374)
+                                                    : const Color(0xFFF1F5F9),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                '$count',
+                                                style: TextStyle(
+                                                  color: isSelected ? const Color(0xFF14332E) : const Color(0xFF475569),
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  );
+                                }),
                               ),
+                            )
+                          : Row(
+                              children: List.generate(_requestFilterLabels.length, (index) {
+                                final isSelected = _requestFilter == index;
+                                int count;
+                                switch (index) {
+                                  case 0:
+                                    count = requests.length;
+                                    break;
+                                  case 1:
+                                    count = pendingCount;
+                                    break;
+                                  case 2:
+                                    count = approvedCount;
+                                    break;
+                                  case 3:
+                                    count = rejectedCount;
+                                    break;
+                                  default:
+                                    count = 0;
+                                }
+
+                                return Expanded(
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _requestFilter = index;
+                                        _currentPage = 1;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 180),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF14332E) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: const Color(0xFF14332E).withValues(alpha: 0.25),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            _requestFilterLabels[index],
+                                            style: TextStyle(
+                                              color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? const Color(0xFFE6C374)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Text(
+                                              '$count',
+                                              style: TextStyle(
+                                                color: isSelected ? const Color(0xFF14332E) : const Color(0xFF475569),
+                                                fontWeight: FontWeight.w900,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
                             ),
-                          );
-                        }),
-                      ),
                     ),
                     const SizedBox(height: 14),
 

@@ -177,7 +177,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
         border: Border.all(color: AppTheme.cardBorder, width: 1.2), // Light warm gray border #E5E0D2
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -381,6 +381,10 @@ class _TransactionsPageState extends State<TransactionsPage> {
         color = AppTheme.errorRed;
         icon = Icons.cancel_rounded;
         break;
+      case 'no_show':
+        color = const Color(0xFFEA580C);
+        icon = Icons.person_off_rounded;
+        break;
       default:
         color = AppTheme.mediumGrey;
         icon = Icons.help_outline_rounded;
@@ -389,7 +393,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

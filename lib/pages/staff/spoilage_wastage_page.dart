@@ -536,7 +536,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                   controller: _searchController,
                   onChanged: (v) => setState(() => _searchQuery = v),
                   decoration: InputDecoration(
-                    hintText: 'Search by item name, reason, or staff...',
+                    hintText: isMobile ? 'Search by item or reason...' : 'Search by item name, reason, or staff...',
                     hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
                     prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
                     border: InputBorder.none,
@@ -545,10 +545,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             // Time filter dropdown
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
@@ -558,7 +558,7 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                 child: DropdownButton<String>(
                   value: _selectedTimeFilter,
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF64748B)),
-                  items: ['This Week', 'This Month', 'All Time'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600)))).toList(),
+                  items: ['This Week', 'This Month', 'All Time'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w600)))).toList(),
                   onChanged: (v) {
                     if (v != null) setState(() => _selectedTimeFilter = v);
                   },
@@ -569,9 +569,10 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
         ),
         const SizedBox(height: 10),
 
-        // Reason filter pills
+        // Reason filter pills Carousel
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           child: Row(
             children: reasons.map((r) {
               final isSel = _selectedReasonFilter == r;
@@ -725,37 +726,41 @@ class _SpoilageWastagePageState extends State<SpoilageWastagePage> {
                     ),
                     const SizedBox(height: 10),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: reasonColor.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: reasonColor.withValues(alpha: 0.2)),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: reasonColor.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: reasonColor.withValues(alpha: 0.2)),
+                                ),
+                                child: Text(
+                                  reason,
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w700, color: reasonColor),
+                                ),
                               ),
-                              child: Text(
-                                reason,
-                                style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w700, color: reasonColor),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'By: $loggedBy',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
+                                ),
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'By: $loggedBy',
-                                style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF475569)),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 6),
                         InkWell(
                           onTap: () => _confirmDeleteLog(log),
                           borderRadius: BorderRadius.circular(6),

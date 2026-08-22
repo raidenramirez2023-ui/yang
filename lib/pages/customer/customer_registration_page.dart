@@ -667,13 +667,13 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     );
   }
 
-  // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────
-  static const Color _forestGreen = Color(0xFF990000); // dark red
-  static const Color _activeEmerald = Color(0xFFAA0000); // medium red
-  static const Color _warmGold = Color(0xFFFFD166); // warm gold accent
-  static const Color _primaryGold = Color(0xFFC9922E); // amber gold
-  static const Color _darkForest = Color(0xFF770000); // darkest red
-  static const Color _deepBurgundy = Color(0xFF380202); // deep wine burgundy
+  // ─── Yang Chow Luxury Emerald Green & Gold Theme Palette ───────────
+  static const Color _forestGreen = Color(0xFF14332E); // Deep Emerald
+  static const Color _activeEmerald = Color(0xFF1E4D40); // Active Emerald
+  static const Color _warmGold = Color(0xFFD9A441); // Muted Gold Accent
+  static const Color _primaryGold = Color(0xFFC9922E); // Primary Gold Accent
+  static const Color _darkForest = Color(0xFF0D231F); // Dark Forest
+  static const Color _deepBurgundy = Color(0xFF071512); // Deep Jade Shadow
 
   @override
   Widget build(BuildContext context) {
@@ -754,7 +754,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                     _deepBurgundy.withOpacity(0.94),
                     _darkForest.withOpacity(0.90),
                     _forestGreen.withOpacity(0.86),
-                    const Color(0xFF220000).withOpacity(0.96),
+                    const Color(0xFF04120E).withOpacity(0.96),
                   ],
                 ),
               ),
@@ -1238,7 +1238,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
           style: GoogleFonts.playfairDisplay(
             fontSize: 22,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF330505),
+            color: const Color(0xFF0F2B24),
           ),
         ),
         const SizedBox(height: 4),
@@ -1450,7 +1450,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
         ),
         const SizedBox(height: 22),
 
-        // Register Button with Red & Gold Gradient
+        // Register Button with Emerald & Gold Theme
         Container(
           height: 48,
           decoration: BoxDecoration(
@@ -1458,7 +1458,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
             gradient: const LinearGradient(
               colors: [
                 _forestGreen,
-                Color(0xFFBA1717),
+                _activeEmerald,
                 _darkForest,
               ],
             ),

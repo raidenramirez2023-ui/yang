@@ -16,6 +16,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
   final _searchController = TextEditingController();
 
   List<Map<String, dynamic>> _allCustomers = [];
+  Map<String, Map<String, int>> _customerReservationStats = {};
   bool _isLoading = true;
   String _searchQuery = '';
   String _sortBy = 'newest'; // newest, oldest, name_asc, name_desc
@@ -48,9 +49,28 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
           .select('*')
           .eq('role', 'customer')
           .order('created_at', ascending: false);
+
+      final resResponse = await _supabase
+          .from('reservations')
+          .select('customer_email, status');
+
+      final stats = <String, Map<String, int>>{};
+      for (final r in resResponse) {
+        final email = (r['customer_email'] ?? '').toString().trim().toLowerCase();
+        if (email.isEmpty) continue;
+        final status = (r['status'] ?? '').toString().toLowerCase();
+
+        stats.putIfAbsent(email, () => {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0, 'confirmed': 0});
+        stats[email]!['total'] = (stats[email]!['total'] ?? 0) + 1;
+        if (stats[email]!.containsKey(status)) {
+          stats[email]![status] = (stats[email]![status] ?? 0) + 1;
+        }
+      }
+
       if (mounted) {
         setState(() {
           _allCustomers = List<Map<String, dynamic>>.from(response);
+          _customerReservationStats = stats;
           _isLoading = false;
         });
       }
@@ -673,7 +693,7 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                                 ),
                               ),
                               if (isNew) ...[
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
@@ -697,6 +717,89 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                                   ),
                                 ),
                               ],
+                              // Reliability badge
+                              () {
+                                final stat = _customerReservationStats[email.toLowerCase()] ?? {'total': 0, 'no_show': 0, 'completed': 0};
+                                final noShows = stat['no_show'] ?? 0;
+                                final completed = stat['completed'] ?? 0;
+
+                                if (noShows >= 2) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF2F2),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: const Color(0xFFFECACA)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.warning_amber_rounded, size: 10, color: Color(0xFFDC2626)),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '$noShows NO-SHOWS',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFFDC2626),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                } else if (noShows == 1) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: const Color(0xFFFDE68A)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.info_outline_rounded, size: 10, color: Color(0xFFD97706)),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '1 NO-SHOW',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: const Color(0xFFD97706),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                } else if (completed > 0) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF0FDF4),
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                                      ),
+                                      child: Text(
+                                        'RELIABLE',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF16A34A),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              }(),
                             ],
                           ),
                           const SizedBox(height: 3),
@@ -1025,6 +1128,89 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
                             'Registered',
                             _formatDate(customer['created_at'])),
                         const SizedBox(height: 14),
+
+                        // Customer Reliability Stats Banner
+                        () {
+                          final custEmail = (customer['email'] ?? '').toString().trim().toLowerCase();
+                          final stat = _customerReservationStats[custEmail] ?? {'total': 0, 'no_show': 0, 'completed': 0, 'cancelled': 0};
+                          final totalBookings = stat['total'] ?? 0;
+                          final completed = stat['completed'] ?? 0;
+                          final noShows = stat['no_show'] ?? 0;
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: noShows >= 2
+                                  ? const Color(0xFFFEF2F2)
+                                  : (noShows == 1 ? const Color(0xFFFFFBEB) : const Color(0xFFF8FAFC)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: noShows >= 2
+                                    ? const Color(0xFFFECACA)
+                                    : (noShows == 1 ? const Color(0xFFFDE68A) : const Color(0xFFE2E8F0)),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      noShows >= 2
+                                          ? Icons.warning_amber_rounded
+                                          : (noShows == 1 ? Icons.info_outline_rounded : Icons.history_rounded),
+                                      size: 16,
+                                      color: noShows >= 2
+                                          ? const Color(0xFFDC2626)
+                                          : (noShows == 1 ? const Color(0xFFD97706) : _slate),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'BOOKING & RELIABILITY HISTORY',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: noShows >= 2
+                                            ? const Color(0xFFDC2626)
+                                            : (noShows == 1 ? const Color(0xFFD97706) : _slate),
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _statMiniBox('Total Bookings', '$totalBookings', _slate),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _statMiniBox('Completed', '$completed', const Color(0xFF15803D)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _statMiniBox('No-Shows', '$noShows', noShows > 0 ? const Color(0xFFDC2626) : _slate),
+                                    ),
+                                  ],
+                                ),
+                                if (noShows >= 2) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '⚠️ High-Risk: Requires 100% full advance payment before confirming future events.',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFB91C1C),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }(),
+
+                        const SizedBox(height: 14),
                         const Divider(color: Color(0xFFE2E8F0), height: 1),
                         const SizedBox(height: 14),
 
@@ -1291,6 +1477,41 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     );
   }
 
+  Widget _statMiniBox(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: _slate,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'N/A';
     try {
@@ -1301,3 +1522,4 @@ class _CustomerManagementPageState extends State<CustomerManagementPage> {
     }
   }
 }
+

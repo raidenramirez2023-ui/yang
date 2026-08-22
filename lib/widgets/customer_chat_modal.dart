@@ -48,6 +48,8 @@ class _CustomerChatModalState extends State<CustomerChatModal> {
           _unreadCount = unread;
         });
       }
+    }, onError: (e) {
+      debugPrint('Error in chat unread stream: $e');
     });
   }
 

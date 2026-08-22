@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:yang_chow/services/receipt_pdf_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/reservation_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
 import 'package:yang_chow/widgets/price_quotation_dialog.dart';
+import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
 
 class AdminReservationsPage extends StatefulWidget {
   final bool isFullscreen;
@@ -25,6 +27,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   final int _rowsPerPage = 10;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String? _scannedReservationId;
+  Map<String, dynamic>? _scannedReservationMeta;
   
   // Services
   final ReservationService _reservationService = ReservationService();
@@ -324,7 +328,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
 
       // Log reservation status change
       AuditLogService.logActivity(
-        action: newStatus == 'confirmed' ? 'APPROVE' : (newStatus == 'cancelled' ? 'REJECT' : 'STATUS_CHANGE'),
+        action: newStatus == 'confirmed'
+            ? 'APPROVE'
+            : (newStatus == 'no_show'
+                ? 'NO_SHOW'
+                : (newStatus == 'cancelled' ? 'REJECT' : 'STATUS_CHANGE')),
         module: 'Reservations',
         description: 'Updated reservation #$reservationId status to "${newStatus.toUpperCase()}" for ${reservation?['customer_name'] ?? 'Customer'}',
         entityId: reservationId,
@@ -473,6 +481,12 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   }
 
   List<Map<String, dynamic>> get _filteredReservations {
+    // If an exact reservation was scanned, filter strictly to that event
+    if (_scannedReservationId != null) {
+      final match = reservations.where((r) => r['id']?.toString() == _scannedReservationId).toList();
+      if (match.isNotEmpty) return match;
+    }
+
     List<Map<String, dynamic>> base;
     if (_selectedFilter == 'archived') {
       base = reservations.where((r) => r['is_archived'] == true).toList();
@@ -485,10 +499,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     if (_searchQuery.isEmpty) return base;
     final q = _searchQuery.toLowerCase();
     return base.where((r) {
+      final id    = (r['id']              ?? '').toString().toLowerCase();
       final name  = (r['customer_name']  ?? '').toString().toLowerCase();
       final email = (r['customer_email'] ?? '').toString().toLowerCase();
       final event = (r['event_type']     ?? '').toString().toLowerCase();
-      return name.contains(q) || email.contains(q) || event.contains(q);
+      return id.contains(q) || name.contains(q) || email.contains(q) || event.contains(q);
     }).toList();
   }
 
@@ -530,7 +545,9 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
           _buildStatsBar(),
           const SizedBox(height: 10),
           _buildSearchBar(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          _buildActiveSearchFilterNotice(),
+          const SizedBox(height: 2),
           Expanded(child: _buildReservationsTable()),
         ],
       ),
@@ -545,9 +562,115 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         _buildStatsBar(),
         const SizedBox(height: 8),
         _buildSearchBar(),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        _buildActiveSearchFilterNotice(),
+        const SizedBox(height: 2),
         Expanded(child: _buildReservationsList()),
       ],
+    );
+  }
+
+  Widget _buildActiveSearchFilterNotice() {
+    if (_scannedReservationId != null && _scannedReservationMeta != null) {
+      final name = _scannedReservationMeta!['customer_name'] ?? 'Guest';
+      final event = _scannedReservationMeta!['event_type'] ?? 'Event';
+      final date = _scannedReservationMeta!['event_date'] ?? '';
+      return Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF15803D)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Showing verified scanned booking: "$name" • $event${date.isNotEmpty ? ' ($date)' : ''}',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF166534),
+                ),
+              ),
+            ),
+            InkWell(
+              onTap: () => setState(() {
+                _scannedReservationId = null;
+                _scannedReservationMeta = null;
+                _currentPage = 0;
+              }),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.close_rounded, size: 14, color: Color(0xFF15803D)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Show All',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF15803D),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_searchQuery.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 16, color: Color(0xFF15803D)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Showing search result for: "$_searchQuery"',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF166534),
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => setState(() {
+              _searchQuery = '';
+              _searchController.clear();
+              _currentPage = 0;
+            }),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.close_rounded, size: 14, color: Color(0xFF15803D)),
+                const SizedBox(width: 4),
+                Text(
+                  'Show All',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF15803D),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -557,6 +680,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
       child: TextField(
         controller: _searchController,
         onChanged: (v) => setState(() {
+          _scannedReservationId = null;
+          _scannedReservationMeta = null;
           _searchQuery = v.trim();
           _currentPage = 0;
         }),
@@ -659,6 +784,32 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               ],
             ),
           ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 16),
+            label: Text('Scan Pass', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF14332E),
+              foregroundColor: AppTheme.warmGold,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => QrScannerDialog.show(
+              context,
+              onCheckInSuccess: (scanned) {
+                _loadReservations();
+                final resId = scanned['id']?.toString();
+                setState(() {
+                  _scannedReservationId = resId;
+                  _scannedReservationMeta = scanned;
+                  _selectedFilter = 'all';
+                  _searchQuery = '';
+                  _searchController.clear();
+                  _currentPage = 0;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: _loadReservations,
             icon: const Icon(Icons.refresh_rounded, color: _slate, size: 20),
@@ -675,6 +826,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final confirmed = unarchived.where((r) => r['status'] == 'confirmed').length;
     final completed = unarchived.where((r) => r['status'] == 'completed').length;
     final cancelled = unarchived.where((r) => r['status'] == 'cancelled').length;
+    final noShow    = unarchived.where((r) => r['status'] == 'no_show').length;
     final archived  = reservations.where((r) => r['is_archived'] == true).length;
 
     final isDesktop = ResponsiveUtils.isDesktop(context);
@@ -695,6 +847,8 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             _statTile('Completed', completed, Icons.done_all_rounded, const Color(0xFFE0F2FE), const Color(0xFF0284C7), 'completed', width: 124),
             const SizedBox(width: 8),
             _statTile('Cancelled', cancelled, Icons.cancel_rounded, const Color(0xFFFEE2E2), const Color(0xFFDC2626), 'cancelled', width: 118),
+            const SizedBox(width: 8),
+            _statTile('No-Show', noShow, Icons.person_off_rounded, const Color(0xFFFFEDD5), const Color(0xFFEA580C), 'no_show', width: 118),
             const SizedBox(width: 8),
             _statTile('Archived', archived, Icons.inventory_2_rounded, const Color(0xFFF1F5F9), const Color(0xFF475569), 'archived', width: 114),
           ],
@@ -756,6 +910,17 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             const Color(0xFFFEE2E2),
             const Color(0xFFDC2626),
             'cancelled',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _statTile(
+            'No-Show',
+            noShow,
+            Icons.person_off_rounded,
+            const Color(0xFFFFEDD5),
+            const Color(0xFFEA580C),
+            'no_show',
           ),
         ),
         const SizedBox(width: 8),
@@ -1834,11 +1999,13 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
   Widget _buildCompactStatusChip(String status) {
     Color color;
     IconData icon;
+    String label = status.toUpperCase();
     switch (status) {
       case 'pending':   color = const Color(0xFFD97706); icon = Icons.hourglass_top_rounded; break;
       case 'confirmed': color = const Color(0xFF15803D); icon = Icons.check_circle_rounded;  break;
       case 'completed': color = const Color(0xFF0284C7); icon = Icons.done_all_rounded;       break;
       case 'cancelled': color = const Color(0xFFDC2626); icon = Icons.cancel_rounded;         break;
+      case 'no_show':   color = const Color(0xFFEA580C); icon = Icons.person_off_rounded; label = 'NO-SHOW'; break;
       default:          color = _slate;                  icon = Icons.help_outline_rounded;
     }
     return FittedBox(
@@ -1857,7 +2024,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             Icon(icon, size: 10, color: color),
             const SizedBox(width: 4),
             Text(
-              status.toUpperCase(),
+              label,
               style: GoogleFonts.plusJakartaSans(
                 color: color,
                 fontWeight: FontWeight.w800,
@@ -1908,10 +2075,24 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
             ],
             if (status == 'confirmed') ...[
               _buildCompactActionButton(
+                icon: Icons.person_off_outlined,
+                color: const Color(0xFFEA580C),
+                tooltip: 'Mark No-Show',
+                onPressed: () => _showMarkNoShowConfirmationDialog(reservationId, reservation),
+              ),
+              _buildCompactActionButton(
                 icon: Icons.cancel_outlined,
                 color: Colors.red,
                 tooltip: 'Cancel',
                 onPressed: () => _updateReservationStatus(reservationId, 'cancelled', reservation),
+              ),
+            ],
+            if (status == 'no_show') ...[
+              _buildCompactActionButton(
+                icon: Icons.restore_page_rounded,
+                color: const Color(0xFF15803D),
+                tooltip: 'Mark Arrived / Revert',
+                onPressed: () => _showRevertNoShowConfirmationDialog(reservationId, reservation),
               ),
             ],
           ],
@@ -1928,13 +2109,211 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
               tooltip: 'Restore',
               onPressed: () => _restoreReservation(reservationId),
             ),
-          if (isArchived || status == 'cancelled' || status == 'completed')
+          if (isArchived || status == 'cancelled' || status == 'completed' || status == 'no_show')
             _buildCompactActionButton(
               icon: isArchived ? Icons.delete_outline_rounded : Icons.archive_outlined,
               color: isArchived ? Colors.red : Colors.orange,
               tooltip: isArchived ? 'Delete' : 'Archive',
               onPressed: () => _showDeleteConfirmationDialog(reservationId, reservation['event_type'], isArchived: isArchived),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showMarkNoShowConfirmationDialog(String reservationId, Map<String, dynamic> reservation) {
+    final customerName = reservation['customer_name'] ?? 'Customer';
+    final eventType = reservation['event_type'] ?? 'Reservation';
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.person_off_rounded, color: Color(0xFFEA580C), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Mark as No-Show',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: isMobile ? 16 : 18,
+                  color: _darkBg,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Did $customerName fail to show up for "$eventType"?',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _darkBg,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFFEDD5)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Color(0xFFEA580C), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This will flag the reservation as "No-Show" and update the customer\'s reliability record for future bookings.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: const Color(0xFF9A3412),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: _slate,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEA580C),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _updateReservationStatus(reservationId, 'no_show', reservation);
+            },
+            child: Text(
+              'Confirm No-Show',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRevertNoShowConfirmationDialog(String reservationId, Map<String, dynamic> reservation) {
+    final customerName = reservation['customer_name'] ?? 'Customer';
+    final eventType = reservation['event_type'] ?? 'Reservation';
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF15803D), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Customer Arrived / Revert',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: isMobile ? 16 : 18,
+                  color: _darkBg,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Did $customerName arrive for "$eventType" or was marked as No-Show by mistake?',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _darkBg,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.verified_user_rounded, color: Color(0xFF15803D), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This will restore the booking to "Confirmed" and remove the No-Show penalty from the customer\'s profile.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: const Color(0xFF166534),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: _slate,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF15803D),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _updateReservationStatus(reservationId, 'confirmed', reservation);
+            },
+            child: Text(
+              'Mark as Arrived (Revert)',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1986,6 +2365,11 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
     final isMobile = ResponsiveUtils.isMobile(context);
     final needsPricing = _reservationService.needsPricing(reservation);
     final priceQuotationSent = reservation['price_quotation_sent'] == true;
+
+    final customerEmail = (reservation['customer_email'] ?? '').toString().trim().toLowerCase();
+    final customerHistory = reservations.where((r) => (r['customer_email'] ?? '').toString().trim().toLowerCase() == customerEmail).toList();
+    final noShowCount = customerHistory.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'no_show').length;
+    final completedCount = customerHistory.where((r) => (r['status'] ?? '').toString().toLowerCase() == 'completed').length;
 
     Widget buildDetailRow(String label, String value, {IconData? icon}) {
       return Padding(
@@ -2126,6 +2510,73 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                             buildDetailRow('Name',  reservation['customer_name']  ?? 'N/A', icon: Icons.person_rounded),
                             buildDetailRow('Email', reservation['customer_email'] ?? 'N/A', icon: Icons.email_rounded),
                             buildDetailRow('Phone', reservation['customer_phone'] ?? 'N/A', icon: Icons.phone_rounded),
+                          ],
+                        ),
+                      ),
+
+                      // Customer Reliability Banner
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: noShowCount >= 2
+                              ? const Color(0xFFFEF2F2)
+                              : (noShowCount == 1 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDF4)),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: noShowCount >= 2
+                                ? const Color(0xFFFECACA)
+                                : (noShowCount == 1 ? const Color(0xFFFDE68A) : const Color(0xFFBBF7D0)),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              noShowCount >= 2
+                                  ? Icons.warning_amber_rounded
+                                  : (noShowCount == 1 ? Icons.info_outline_rounded : Icons.verified_user_rounded),
+                              color: noShowCount >= 2
+                                  ? const Color(0xFFDC2626)
+                                  : (noShowCount == 1 ? const Color(0xFFD97706) : const Color(0xFF16A34A)),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    noShowCount >= 2
+                                        ? 'HIGH-RISK CUSTOMER (NO-SHOW ALERT)'
+                                        : (noShowCount == 1 ? 'CUSTOMER CAUTION' : 'RELIABLE CUSTOMER'),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: noShowCount >= 2
+                                          ? const Color(0xFFB91C1C)
+                                          : (noShowCount == 1 ? const Color(0xFFB45309) : const Color(0xFF15803D)),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    noShowCount >= 2
+                                        ? 'This customer has $noShowCount missed booking(s) (No-Show). Strict 100% full advance payment is advised before approval.'
+                                        : (noShowCount == 1
+                                            ? 'This customer missed 1 past booking (No-Show). Verify downpayment before confirming.'
+                                            : 'Good standing with $completedCount completed event(s) and 0 no-shows.'),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      color: noShowCount >= 2
+                                          ? const Color(0xFF991B1B)
+                                          : (noShowCount == 1 ? const Color(0xFF92400E) : const Color(0xFF166534)),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2290,6 +2741,61 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
                         child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                        label: Text('Print Pass', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16302A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        onPressed: () => ReceiptPdfService.printOrShareVoucher(reservation),
+                      ),
+                    ),
+                    if (status == 'confirmed') ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.person_off_rounded, size: 16),
+                          label: Text('Mark No-Show', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA580C),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showMarkNoShowConfirmationDialog(reservation['id'], reservation);
+                          },
+                        ),
+                      ),
+                    ],
+                    if (status == 'no_show') ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.restore_page_rounded, size: 16),
+                          label: Text('Mark Arrived', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF15803D),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showRevertNoShowConfirmationDialog(reservation['id'], reservation);
+                          },
+                        ),
+                      ),
+                    ],
                     if (isPending && needsPricing) ...[
                       const SizedBox(width: 10),
                       Expanded(
@@ -2338,6 +2844,7 @@ class _AdminReservationsPageState extends State<AdminReservationsPage> {
         ),
       ),
     );
+
   }
 
   Widget _modalSectionTitle(String title) {

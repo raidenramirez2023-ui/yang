@@ -8,6 +8,8 @@ import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/services/chat_service.dart';
+import 'package:yang_chow/services/chat_faq_service.dart';
+import 'package:yang_chow/services/concierge_live_bot_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CustomerChatPage extends StatefulWidget {
@@ -28,21 +30,14 @@ class _CustomerChatPageState extends State<CustomerChatPage>
   bool _isSending = false;
   bool _isUploading = false;
   bool _isTyping = false;
+  bool _isBotTyping = false;
   XFile? _selectedImage;
   Stream<List<Map<String, dynamic>>>? _messagesStream;
-  String? _currentUserEmail;
   String? _currentUserName;
 
   // Selected quick emoji reactions store (local state for realistic feel)
   final Map<String, String> _messageReactions = {};
-
-  final List<String> _quickSuggestions = [
-    '📅 My reservation status',
-    '💳 Check remaining balance',
-    '🔄 Reschedule inquiry',
-    '💸 Refund & Cancellation policy',
-    '👨‍💼 Talk to staff',
-  ];
+  final List<Map<String, dynamic>> _botMessages = [];
 
   @override
   void initState() {
@@ -61,7 +56,6 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
 
-    _currentUserEmail = currentUser.email;
     _currentUserName = currentUser.userMetadata?['full_name'] ??
         currentUser.userMetadata?['name'] ??
         currentUser.email?.split('@')[0] ??
@@ -162,6 +156,11 @@ class _CustomerChatPageState extends State<CustomerChatPage>
       }
       setState(() => _selectedImage = null);
       _scrollToBottom();
+
+      // Trigger instant automated Concierge FAQ reply if query matches
+      if (textToSend.isNotEmpty) {
+        _checkAndTriggerAutomatedReply(currentUser.email!, textToSend);
+      }
     } catch (e) {
       debugPrint('Error sending message: $e');
       if (!mounted) return;
@@ -179,6 +178,70 @@ class _CustomerChatPageState extends State<CustomerChatPage>
           _isUploading = false;
         });
       }
+    }
+  }
+
+  Future<void> _checkAndTriggerAutomatedReply(
+    String customerEmail,
+    String userText,
+  ) async {
+    String? botReplyText;
+    String? botActionType;
+
+    // 1. Check if the message is asking for live DB data (Reservation status, Balance, Reschedule, Refund)
+    if (ConciergeLiveBotService().isDatabaseInquiry(userText)) {
+      botReplyText = await ConciergeLiveBotService()
+          .generateDatabaseResponse(customerEmail, userText);
+      botActionType = 'live_db_query';
+    }
+
+    // 2. If not a DB query, check static FAQ knowledge base
+    if (botReplyText == null) {
+      final faqMatch = ChatFaqService().findFaqMatch(userText);
+      if (faqMatch != null) {
+        botReplyText = faqMatch.answer;
+        botActionType = faqMatch.actionType;
+      }
+    }
+
+    if (botReplyText == null) return;
+
+    // Simulate realistic typing indicator for Concierge Auto-Bot
+    if (mounted) {
+      setState(() => _isBotTyping = true);
+      _scrollToBottom();
+    }
+
+    await Future.delayed(const Duration(milliseconds: 650));
+
+    if (!mounted) return;
+
+    final botMsg = <String, dynamic>{
+      'id': 'bot_${DateTime.now().millisecondsSinceEpoch}',
+      'customer_email': customerEmail,
+      'customer_name': 'Yang Chow Concierge',
+      'message': botReplyText,
+      'action_type': botActionType,
+      'is_from_customer': false,
+      'is_read': true,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    };
+
+    setState(() {
+      _isBotTyping = false;
+      _botMessages.add(botMsg);
+    });
+    _scrollToBottom();
+
+    try {
+      await ChatService().sendMessage(
+        customerEmail: customerEmail,
+        customerName: 'Yang Chow Concierge',
+        message: botReplyText,
+        isFromCustomer: false,
+      );
+    } catch (e) {
+      debugPrint('Error persisting automated bot reply: $e');
     }
   }
 
@@ -255,14 +318,7 @@ class _CustomerChatPageState extends State<CustomerChatPage>
           // Realistic Message Stream Area
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                image: DecorationImage(
-                  image: AssetImage('assets/images/chat_bg_pattern.png'),
-                  fit: BoxFit.cover,
-                  opacity: 0.03,
-                ),
-              ),
+              color: const Color(0xFFF8FAFC),
               child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
@@ -270,11 +326,10 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                         strokeWidth: 3,
                       ),
                     )
-                  : StreamBuilder<List<Map<String, dynamic>>>(
+                  : StreamBuilder<dynamic>(
                       stream: _messagesStream,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (_isLoading || (_messagesStream != null && snapshot.connectionState == ConnectionState.waiting && _botMessages.isEmpty)) {
                           return const Center(
                             child: CircularProgressIndicator(
                               color: AppTheme.forestGreen,
@@ -283,14 +338,49 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                           );
                         }
 
-                        if (snapshot.hasError) {
+                        if (snapshot.hasError && _botMessages.isEmpty) {
                           return _buildErrorState(snapshot.error.toString());
                         }
 
-                        final dbMessages = snapshot.data ?? [];
+                        final rawData = snapshot.data;
+                        final List<Map<String, dynamic>> dbMessages = [];
+                        if (rawData is List) {
+                          for (final item in rawData) {
+                            if (item is Map) {
+                              dbMessages.add(Map<String, dynamic>.from(item));
+                            }
+                          }
+                        }
 
-                        if (dbMessages.isEmpty) {
+                        // Combine database stream messages and local bot responses
+                        final combinedMessages = <Map<String, dynamic>>[...dbMessages];
+                        for (final botMsg in _botMessages) {
+                          final existsInDb = dbMessages.any((m) =>
+                              m['id'] == botMsg['id'] ||
+                              (m['is_from_customer'] == false &&
+                               m['message'] == botMsg['message']));
+                          if (!existsInDb) {
+                            combinedMessages.add(botMsg);
+                          }
+                        }
+
+                        // Sort chronologically
+                        combinedMessages.sort((a, b) {
+                          final dateA = DateTime.tryParse(a['created_at']?.toString() ?? '') ?? DateTime(2000);
+                          final dateB = DateTime.tryParse(b['created_at']?.toString() ?? '') ?? DateTime(2000);
+                          return dateA.compareTo(dateB);
+                        });
+
+                        if (combinedMessages.isEmpty) {
                           return _buildRealisticEmptyState();
+                        }
+
+                        DateTime firstDate = DateTime.now();
+                        if (combinedMessages.isNotEmpty) {
+                          final firstDateStr = combinedMessages.first['created_at']?.toString();
+                          if (firstDateStr != null && firstDateStr.isNotEmpty) {
+                            firstDate = DateTime.tryParse(firstDateStr) ?? DateTime.now();
+                          }
                         }
 
                         final List<Map<String, dynamic>> messages = [
@@ -300,14 +390,12 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                                 'Hello! 👋 Welcome to Yang Chow Customer Care. How can we make your dining or ordering experience great today?',
                             'is_from_customer': false,
                             'is_read': true,
-                            'created_at': DateTime.parse(
-                              dbMessages.first['created_at'],
-                            )
+                            'created_at': firstDate
                                 .subtract(const Duration(seconds: 1))
                                 .toUtc()
                                 .toIso8601String(),
                           },
-                          ...dbMessages,
+                          ...combinedMessages,
                         ];
 
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -320,9 +408,9 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                             horizontal: 14,
                             vertical: 12,
                           ),
-                          itemCount: messages.length + (_isSending ? 1 : 0),
+                          itemCount: messages.length + ((_isSending || _isBotTyping) ? 1 : 0),
                           itemBuilder: (context, index) {
-                            if (index == messages.length && _isSending) {
+                            if (index == messages.length && (_isSending || _isBotTyping)) {
                               return _buildTypingIndicatorBubble();
                             }
 
@@ -356,9 +444,6 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                     ),
             ),
           ),
-
-          // Suggestion Chips (Quick Responses)
-          _buildQuickSuggestionsBar(),
 
           // Image Attachment floating tray
           if (_selectedImage != null) _buildImagePreviewTray(),
@@ -447,21 +532,24 @@ class _CustomerChatPageState extends State<CustomerChatPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Row(
-                  children: [
-                    const Text(
-                      'Yang Chow Support',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.3,
+                  children: const [
+                    Flexible(
+                      child: Text(
+                        'Yang Chow Support',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.3,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    const Icon(
+                    SizedBox(width: 4),
+                    Icon(
                       Icons.verified_rounded,
                       color: Color(0xFFD9A441),
-                      size: 16,
+                      size: 15,
                     ),
                   ],
                 ),
@@ -477,12 +565,15 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Active now • Typically replies in 2m',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w500,
+                    const Flexible(
+                      child: Text(
+                        'Active now • Replies in 2m',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -493,6 +584,38 @@ class _CustomerChatPageState extends State<CustomerChatPage>
         ],
       ),
       actions: [
+        // Action: Quick FAQs
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          child: TextButton.icon(
+            onPressed: () => _showChatInfo(4),
+            icon: const Icon(
+              Icons.help_center_rounded,
+              size: 14,
+              color: Color(0xFFD9A441),
+            ),
+            label: const Text(
+              'FAQs',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF14332E),
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFF1F5F9),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 2),
+
         // Action: Info & Help Details
         IconButton(
           tooltip: 'Help Center & Info',
@@ -511,7 +634,7 @@ class _CustomerChatPageState extends State<CustomerChatPage>
           ),
           onPressed: _showChatInfo,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
       ],
     );
   }
@@ -551,7 +674,17 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     int index,
     List<Map<String, dynamic>> allMessages,
   ) {
-    final isFromCustomer = message['is_from_customer'] ?? true;
+    final rawIsFromCustomer = message['is_from_customer'] ?? true;
+    final isBot = message['customer_name']?.toString().contains('Concierge') == true ||
+                  message['customer_name']?.toString().contains('Bot') == true ||
+                  message['message']?.toString().startsWith('📅 **How to Book') == true ||
+                  message['message']?.toString().startsWith('💳 **Payment') == true ||
+                  message['message']?.toString().startsWith('💸 **Live Refund') == true ||
+                  message['message']?.toString().startsWith('🔄 **Live Reschedule') == true ||
+                  message['message']?.toString().startsWith('📅 **Live Reservation') == true ||
+                  message['message']?.toString().startsWith('💸 **Cancellation') == true ||
+                  message['message']?.toString().startsWith('📊 **Tracking Status') == true;
+    final isFromCustomer = rawIsFromCustomer && !isBot;
     final messageText = message['message'] ?? '';
     final imageUrl = message['image_url'] as String?;
     final isRead = message['is_read'] ?? false;
@@ -782,19 +915,9 @@ class _CustomerChatPageState extends State<CustomerChatPage>
                             ],
                           )
                         else if (messageText.isNotEmpty &&
-                            !(imageUrl != null && messageText == '📷 Image'))
-                          Text(
-                            messageText,
-                            style: TextStyle(
-                              color: isFromCustomer
-                                  ? Colors.white
-                                  : const Color(0xFF0F172A),
-                              fontSize: 14.5,
-                              height: 1.4,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.1,
-                            ),
-                          ),
+                            !(imageUrl != null && messageText == '📷 Image')) ...[
+                          _buildFormattedMessageText(messageText, isFromCustomer),
+                        ],
 
                         const SizedBox(height: 4),
 
@@ -935,58 +1058,88 @@ class _CustomerChatPageState extends State<CustomerChatPage>
     );
   }
 
-  Widget _buildQuickSuggestionsBar() {
-    return Container(
-      height: 42,
-      margin: const EdgeInsets.only(bottom: 6),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        itemCount: _quickSuggestions.length,
-        itemBuilder: (context, index) {
-          final suggestion = _quickSuggestions[index];
+  Widget _buildFormattedMessageText(String text, bool isFromCustomer) {
+    final baseStyle = TextStyle(
+      color: isFromCustomer ? Colors.white : const Color(0xFF0F172A),
+      fontSize: 14.5,
+      height: 1.45,
+      letterSpacing: -0.1,
+    );
+
+    if (!text.contains('**') && !text.contains('•') && !text.contains('\n')) {
+      return Text(text, style: baseStyle);
+    }
+
+    final lines = text.split('\n');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((line) {
+        if (line.trim().isEmpty) {
+          return const SizedBox(height: 5);
+        }
+
+        final isBullet = line.trimLeft().startsWith('• ') || line.trimLeft().startsWith('- ');
+        final cleanLine = isBullet ? line.trimLeft().substring(2) : line;
+
+        final spans = <TextSpan>[];
+        final parts = cleanLine.split('**');
+        for (int i = 0; i < parts.length; i++) {
+          if (parts[i].isEmpty) continue;
+          if (i % 2 == 1) {
+            spans.add(TextSpan(
+              text: parts[i],
+              style: baseStyle.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isFromCustomer ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ));
+          } else {
+            spans.add(TextSpan(
+              text: parts[i],
+              style: baseStyle.copyWith(
+                fontWeight: FontWeight.w400,
+                color: isFromCustomer
+                    ? Colors.white.withOpacity(0.95)
+                    : const Color(0xFF334155),
+              ),
+            ));
+          }
+        }
+
+        if (isBullet) {
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              avatar: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 14,
-                color: Color(0xFF14332E),
-              ),
-              label: Text(
-                suggestion,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF14332E),
+            padding: const EdgeInsets.only(left: 4, bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '• ',
+                  style: TextStyle(
+                    color: isFromCustomer
+                        ? const Color(0xFF67E8F9)
+                        : const Color(0xFF14332E),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              pressElevation: 1,
-              side: const BorderSide(color: Color(0xFFCBD5E1), width: 1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              onPressed: () => _handleQuickSuggestion(suggestion),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(children: spans),
+                  ),
+                ),
+              ],
             ),
           );
-        },
-      ),
-    );
-  }
+        }
 
-  void _handleQuickSuggestion(String suggestion) {
-    if (suggestion.contains('reservation status') || suggestion.contains('remaining balance')) {
-      _showChatInfo(1);
-    } else if (suggestion.contains('Reschedule')) {
-      _showChatInfo(2);
-    } else if (suggestion.contains('Refund') || suggestion.contains('Cancellation')) {
-      _showChatInfo(3);
-    } else {
-      _sendMessage(suggestion);
-    }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: RichText(
+            text: TextSpan(children: spans),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   Widget _buildImagePreviewTray() {
@@ -1572,12 +1725,20 @@ class _ConciergeHelpHubModal extends StatefulWidget {
 }
 
 class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
-  late int _currentView; // 0: Menu, 1: Reservations & Balance, 2: Reschedule Requests, 3: Cancellations & Refunds
+  late int _currentView; // 0: Menu, 1: Reservations & Balance, 2: Reschedule Requests, 3: Cancellations & Refunds, 4: FAQs
+  String _faqSearchQuery = '';
+  final TextEditingController _faqSearchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _currentView = widget.initialView;
+  }
+
+  @override
+  void dispose() {
+    _faqSearchController.dispose();
+    super.dispose();
   }
 
   // Currency helper
@@ -1727,6 +1888,8 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         return _buildRescheduleView();
       case 3:
         return _buildRefundsView();
+      case 4:
+        return _buildFaqView();
       case 0:
       default:
         return _buildMainMenuView();
@@ -1788,6 +1951,17 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
           ],
         ),
         const SizedBox(height: 16),
+
+        // Service 0: Frequently Asked Questions (FAQs)
+        _buildMenuButton(
+          icon: Icons.quiz_rounded,
+          title: 'Frequently Asked Questions (FAQs)',
+          description: 'Instant answers for GCash, bookings, policies & store hours',
+          badgeText: 'Instant Answers',
+          badgeColor: const Color(0xFF8B5CF6),
+          onPressed: () => setState(() => _currentView = 4),
+        ),
+        const SizedBox(height: 10),
 
         // Service 1: My Reservations & Balance Tracker
         _buildMenuButton(
@@ -2002,7 +2176,7 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         const SizedBox(height: 12),
 
         Flexible(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
+          child: FutureBuilder<dynamic>(
             future: _fetchCustomerReservations(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -2017,7 +2191,15 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                 );
               }
 
-              final reservations = snapshot.data ?? [];
+              final rawData = snapshot.data;
+              final List<Map<String, dynamic>> reservations = [];
+              if (rawData is List) {
+                for (final item in rawData) {
+                  if (item is Map) {
+                    reservations.add(Map<String, dynamic>.from(item));
+                  }
+                }
+              }
 
               if (reservations.isEmpty) {
                 return Padding(
@@ -2533,7 +2715,7 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         const SizedBox(height: 12),
 
         Flexible(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
+          child: FutureBuilder<dynamic>(
             future: _fetchCustomerReschedules(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -2548,7 +2730,15 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                 );
               }
 
-              final reschedules = snapshot.data ?? [];
+              final rawData = snapshot.data;
+              final List<Map<String, dynamic>> reschedules = [];
+              if (rawData is List) {
+                for (final item in rawData) {
+                  if (item is Map) {
+                    reschedules.add(Map<String, dynamic>.from(item));
+                  }
+                }
+              }
 
               if (reschedules.isEmpty) {
                 return Padding(
@@ -2865,7 +3055,7 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
           ),
           const SizedBox(height: 8),
 
-          FutureBuilder<List<Map<String, dynamic>>>(
+          FutureBuilder<dynamic>(
             future: _fetchCustomerRefundRequests(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -2877,7 +3067,15 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                 );
               }
 
-              final requests = snapshot.data ?? [];
+              final rawData = snapshot.data;
+              final List<Map<String, dynamic>> requests = [];
+              if (rawData is List) {
+                for (final item in rawData) {
+                  if (item is Map) {
+                    requests.add(Map<String, dynamic>.from(item));
+                  }
+                }
+              }
 
               if (requests.isEmpty) {
                 return Container(
@@ -2914,35 +3112,85 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
                   final reason = req['reason'] ?? 'Requested by customer';
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
+                    margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cancellation for #${shortId.isEmpty ? 'N/A' : shortId}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Cancellation for #${shortId.isEmpty ? 'N/A' : shortId}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Reason: $reason',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    'Refund Amount: ${_formatCurrency(refundAmount)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 2),
-                              Text('Reason: $reason', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Refund Amount: ${_formatCurrency(refundAmount)}',
-                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF10B981)),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildStatusBadge(status),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              widget.onSendMessage(
+                                '💸 Hi Support, I am following up on my Refund Request for Cancellation #${shortId.isEmpty ? 'N/A' : shortId} (Reason: $reason, Amount: ${_formatCurrency(refundAmount)}, Status: $status).',
+                              );
+                            },
+                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 14),
+                            label: const Text(
+                              'Inquire About This Refund in Chat',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF14332E),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        _buildStatusBadge(status),
                       ],
                     ),
                   );
@@ -3099,6 +3347,302 @@ class _ConciergeHelpHubModalState extends State<_ConciergeHelpHubModal> {
         status.toUpperCase(),
         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: fg),
       ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIEW 4: FREQUENTLY ASKED QUESTIONS (FAQ) KNOWLEDGE HUB
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildFaqView() {
+    final query = _faqSearchQuery.toLowerCase().trim();
+    final filteredFaqs = ChatFaqService.faqList.where((faq) {
+      if (query.isEmpty) return true;
+      return faq.question.toLowerCase().contains(query) ||
+          faq.answer.toLowerCase().contains(query) ||
+          faq.keywords.any((k) => k.toLowerCase().contains(query));
+    }).toList();
+
+    return Column(
+      key: const ValueKey('faq_view'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Top Nav Bar
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => setState(() => _currentView = 0),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                size: 20,
+                color: Color(0xFF1E293B),
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            const SizedBox(width: 6),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Frequently Asked Questions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  Text(
+                    'Instant answers & system guidance',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(
+                Icons.close_rounded,
+                size: 22,
+                color: Color(0xFF64748B),
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Live Search Bar
+        Container(
+          height: 42,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: TextField(
+            controller: _faqSearchController,
+            onChanged: (val) => setState(() => _faqSearchQuery = val),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+            decoration: InputDecoration(
+              hintText: 'Search question (e.g. GCash, refund, hours)...',
+              hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
+              suffixIcon: _faqSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(
+                        Icons.clear_rounded,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
+                      onPressed: () {
+                        _faqSearchController.clear();
+                        setState(() => _faqSearchQuery = '');
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              isDense: true,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // FAQ Question List (Tap to ask in chat)
+        if (filteredFaqs.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            alignment: Alignment.center,
+            child: Column(
+              children: const [
+                Icon(
+                  Icons.search_off_rounded,
+                  size: 36,
+                  color: Color(0xFF94A3B8),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'No matching questions found',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Try searching another keyword or ask our live staff below',
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+          )
+        else
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: filteredFaqs.length,
+              itemBuilder: (context, idx) {
+                final faq = filteredFaqs[idx];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        widget.onSendMessage(faq.question);
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              margin: const EdgeInsets.only(top: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF14332E).withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.help_outline_rounded,
+                                size: 16,
+                                color: Color(0xFF14332E),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    faq.question,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFFE2E8F0), width: 0.7),
+                                    ),
+                                    child: Text(
+                                      faq.shortChip,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF14332E),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Text(
+                                    'Ask',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 3),
+                                  Icon(
+                                    Icons.send_rounded,
+                                    size: 11,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 10),
+
+        // Contact Live Agent Button
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onSendMessage(
+              '👨‍💼 Hi Support, I have a specific inquiry not listed in the FAQs. Could a staff member assist me?',
+            );
+          },
+          icon: const Icon(
+            Icons.support_agent_rounded,
+            size: 16,
+            color: Color(0xFF14332E),
+          ),
+          label: const Text(
+            'Still have questions? Chat with live staff',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF14332E),
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFFCBD5E1)),
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

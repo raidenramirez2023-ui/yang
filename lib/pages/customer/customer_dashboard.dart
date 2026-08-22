@@ -22,6 +22,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:qr_flutter/qr_flutter.dart';
+
+import 'package:yang_chow/services/receipt_pdf_service.dart';
+
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -166,6 +170,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
   // ── Featured Dishes (Realtime) ──
   StreamSubscription<List<Map<String, dynamic>>>? _featuredOrdersSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _rescheduleRequestsSubscription;
+  RealtimeChannel? _customerReservationsRealtimeChannel;
   List<Map<String, dynamic>> _featuredDishes = [];
   bool _featuredLoading = true;
 
@@ -572,7 +577,22 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
           _loadCustomerReservations();
         }
       });
+
+      _customerReservationsRealtimeChannel = Supabase.instance.client
+          .channel('customer_reservations_status_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'reservations',
+            callback: (_) {
+              if (mounted) _loadCustomerReservations();
+            },
+          )
+          .subscribe();
     }
+
+    // Load customer reservations and reliability status immediately on startup
+    _loadCustomerReservations();
   }
 
   void _startHeroTimer() {
@@ -712,12 +732,12 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
         Supabase.instance.client
             .from('reservations')
             .select('*')
-            .eq('customer_email', email)
+            .or('customer_email.eq.$email,customer_email.eq.$lowerEmail')
             .order('created_at', ascending: false),
         Supabase.instance.client
             .from('advance_orders')
             .select('*')
-            .eq('customer_email', email)
+            .or('customer_email.eq.$email,customer_email.eq.$lowerEmail')
             .order('created_at', ascending: false),
         Supabase.instance.client
             .from('reschedule_requests')
@@ -806,6 +826,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     _featuredOrdersSubscription?.cancel();
     _rescheduleRequestsSubscription?.cancel();
     _customerNotifsSubscription?.cancel();
+    _customerReservationsRealtimeChannel?.unsubscribe();
     _dismissTopToast();
 
     super.dispose();
@@ -2141,39 +2162,7 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
               children: [
 
-                if (closeable)
 
-                  GestureDetector(
-
-                    onTap: () {
-
-                      _sidebarAnimController.reverse();
-
-                      setState(() => _isSidebarOpen = false);
-
-                    },
-
-                    child: Container(
-
-                      width: 32,
-
-                      height: 32,
-
-                      margin: const EdgeInsets.only(right: 10),
-
-                      decoration: BoxDecoration(
-
-                        color: AppTheme.sidebarDivider.withValues(alpha: 0.5),
-
-                        shape: BoxShape.circle,
-
-                      ),
-
-                      child: const Icon(Icons.close_rounded, color: AppTheme.sidebarInactiveText, size: 18),
-
-                    ),
-
-                  ),
 
 
 
@@ -2229,51 +2218,121 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                 // Brand Title & Subtitle
 
-                Column(
+                Expanded(
 
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
 
-                  mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-                  children: [
+                    mainAxisSize: MainAxisSize.min,
 
-                    Text(
+                    children: [
 
-                      'Yang Chow',
+                      Text(
 
-                      style: GoogleFonts.lora(
+                        'Yang Chow',
 
-                        color: AppTheme.priceBadgeText, // #F5F1E6
+                        style: GoogleFonts.lora(
 
-                        fontSize: 18,
+                          color: AppTheme.priceBadgeText, // #F5F1E6
 
-                        fontWeight: FontWeight.w800,
+                          fontSize: 18,
 
-                        letterSpacing: 0.3,
+                          fontWeight: FontWeight.w800,
+
+                          letterSpacing: 0.3,
+
+                        ),
+
+                      ),
+
+                      Text(
+
+                        'Customer Portal',
+
+                        style: GoogleFonts.inter(
+
+                          color: AppTheme.sidebarSubtitle, // #8FA89E
+
+                          fontSize: 11,
+
+                          fontWeight: FontWeight.w600,
+
+                          letterSpacing: 0.5,
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                ),
+
+
+
+                // Burger Menu button to collapse/hide sidebar
+
+                Tooltip(
+
+                  message: 'Hide menu',
+
+                  child: Material(
+
+                    color: Colors.transparent,
+
+                    child: InkWell(
+
+                      borderRadius: BorderRadius.circular(8),
+
+                      hoverColor: Colors.white.withValues(alpha: 0.12),
+
+                      onTap: () {
+
+                        HapticFeedback.lightImpact();
+
+                        _sidebarAnimController.reverse();
+
+                        setState(() => _isSidebarOpen = false);
+
+                      },
+
+                      child: Container(
+
+                        padding: const EdgeInsets.all(7),
+
+                        decoration: BoxDecoration(
+
+                          color: AppTheme.sidebarDivider.withValues(alpha: 0.45),
+
+                          borderRadius: BorderRadius.circular(8),
+
+                          border: Border.all(
+
+                            color: AppTheme.sidebarDivider.withValues(alpha: 0.8),
+
+                            width: 1,
+
+                          ),
+
+                        ),
+
+                        child: const Icon(
+
+                          Icons.menu_rounded,
+
+                          color: Colors.white,
+
+                          size: 20,
+
+                        ),
 
                       ),
 
                     ),
 
-                    Text(
-
-                      'Customer Portal',
-
-                      style: GoogleFonts.inter(
-
-                        color: AppTheme.sidebarSubtitle, // #8FA89E
-
-                        fontSize: 11,
-
-                        fontWeight: FontWeight.w600,
-
-                        letterSpacing: 0.5,
-
-                      ),
-
-                    ),
-
-                  ],
+                  ),
 
                 ),
 
@@ -2701,39 +2760,69 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                       // Hamburger button
 
-                      IconButton(
+                      Tooltip(
 
-                        icon: AnimatedIcon(
+                        message: 'Menu',
 
-                          icon: AnimatedIcons.menu_close,
+                        child: Material(
 
-                          progress: _sidebarAnimController,
+                          color: Colors.transparent,
 
-                          color: Colors.white,
+                          child: InkWell(
+
+                            borderRadius: BorderRadius.circular(8),
+
+                            hoverColor: Colors.white.withValues(alpha: 0.12),
+
+                            onTap: () {
+
+                              HapticFeedback.lightImpact();
+
+                              setState(() => _isSidebarOpen = true);
+
+                              _sidebarAnimController.forward();
+
+                            },
+
+                            child: Container(
+
+                              padding: const EdgeInsets.all(7),
+
+                              decoration: BoxDecoration(
+
+                                color: Colors.white.withValues(alpha: 0.12),
+
+                                borderRadius: BorderRadius.circular(8),
+
+                                border: Border.all(
+
+                                  color: Colors.white.withValues(alpha: 0.2),
+
+                                  width: 1,
+
+                                ),
+
+                              ),
+
+                              child: const Icon(
+
+                                Icons.menu_rounded,
+
+                                color: Colors.white,
+
+                                size: 20,
+
+                              ),
+
+                            ),
+
+                          ),
 
                         ),
 
-                        onPressed: () {
-
-                          setState(() => _isSidebarOpen = !_isSidebarOpen);
-
-                          if (_isSidebarOpen) {
-
-                            _sidebarAnimController.forward();
-
-                          } else {
-
-                            _sidebarAnimController.reverse();
-
-                          }
-
-                        },
-
-                        tooltip: 'Menu',
-
                       ),
 
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 8),
 
                       // Centered title
 
@@ -2957,41 +3046,75 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
 
                     children: [
 
-                      // Hamburger toggle
+                      // Burger Menu button to open/display sidebar
 
-                      IconButton(
+                      if (!_isSidebarOpen) ...[
 
-                        icon: AnimatedIcon(
+                        Tooltip(
 
-                          icon: AnimatedIcons.menu_close,
+                          message: 'Show menu',
 
-                          progress: _sidebarAnimController,
+                          child: Material(
 
-                          color: Colors.white,
+                            color: Colors.transparent,
+
+                            child: InkWell(
+
+                              borderRadius: BorderRadius.circular(8),
+
+                              hoverColor: Colors.white.withValues(alpha: 0.12),
+
+                              onTap: () {
+
+                                HapticFeedback.lightImpact();
+
+                                setState(() => _isSidebarOpen = true);
+
+                                _sidebarAnimController.forward();
+
+                              },
+
+                              child: Container(
+
+                                padding: const EdgeInsets.all(7),
+
+                                decoration: BoxDecoration(
+
+                                  color: Colors.white.withValues(alpha: 0.12),
+
+                                  borderRadius: BorderRadius.circular(8),
+
+                                  border: Border.all(
+
+                                    color: Colors.white.withValues(alpha: 0.2),
+
+                                    width: 1,
+
+                                  ),
+
+                                ),
+
+                                child: const Icon(
+
+                                  Icons.menu_rounded,
+
+                                  color: Colors.white,
+
+                                  size: 20,
+
+                                ),
+
+                              ),
+
+                            ),
+
+                          ),
 
                         ),
 
-                        onPressed: () {
+                        const SizedBox(width: 8),
 
-                          setState(() => _isSidebarOpen = !_isSidebarOpen);
-
-                          if (_isSidebarOpen) {
-
-                            _sidebarAnimController.forward();
-
-                          } else {
-
-                            _sidebarAnimController.reverse();
-
-                          }
-
-                        },
-
-                        tooltip: 'Toggle menu',
-
-                      ),
-
-                      const SizedBox(width: 4),
+                      ],
 
                       // Centered title
 
@@ -3753,6 +3876,143 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  Widget _buildCustomerReliabilityBadge() {
+    final noShows = customerReservations.where((r) {
+      final s = (r['status'] ?? '').toString().toLowerCase().replaceAll('-', '_');
+      return s == 'no_show';
+    }).length;
+    final completed = customerReservations.where((r) {
+      final s = (r['status'] ?? '').toString().toLowerCase();
+      return s == 'completed';
+    }).length;
+
+    if (noShows >= 2) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDC2626),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              'HIGH-RISK ACCOUNT ($noShows NO-SHOWS)',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (noShows == 1) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEA580C),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEA580C).withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.info_outline_rounded, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              '1 NO-SHOW RECORDED',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (completed > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF15803D),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF15803D).withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.verified_user_rounded, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              'RELIABLE CUSTOMER',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        gradient: AppTheme.goldGradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.warmGold.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.verified_rounded, size: 13, color: AppTheme.darkBrownText),
+          const SizedBox(width: 4),
+          Text(
+            'VALUED CUSTOMER',
+            style: GoogleFonts.inter(
+              color: AppTheme.darkBrownText,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHomeSection() {
     final Map<String, List<MenuItem>> allMenu = MenuService.getMenu();
     final hour = DateTime.now().hour;
@@ -3865,66 +4125,35 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Flexible(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.calendar_today_rounded, size: 12, color: AppTheme.warmGold),
-                                          const SizedBox(width: 6),
-                                          Flexible(
-                                            child: Text(
-                                              formattedDate,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.inter(
-                                                color: Colors.white.withValues(alpha: 0.9),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
-                                      gradient: AppTheme.goldGradient,
+                                      color: Colors.white.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.warmGold.withValues(alpha: 0.35),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.verified_rounded, size: 13, color: AppTheme.darkBrownText),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'VALUED CUSTOMER',
-                                          style: GoogleFonts.inter(
-                                            color: AppTheme.darkBrownText,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 0.4,
+                                        const Icon(Icons.calendar_today_rounded, size: 12, color: AppTheme.warmGold),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            formattedDate,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              color: Colors.white.withValues(alpha: 0.9),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
+                                  _buildCustomerReliabilityBadge(),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -10501,6 +10730,54 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
                                         : (reservation['kitchen_status']?.toString() ?? 'Pending'),
                                   ),
                                 ],
+
+                                // ── PDF & QR Pass Quick Action Buttons for Confirmed/Paid Bookings & Advance Orders ──
+                                if (status == 'confirmed' || status == 'completed' || (isAdvanceOrder && isPaid)) ...[
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          icon: const Icon(Icons.qr_code_rounded, size: 16, color: AppTheme.forestGreen),
+                                          label: Text(
+                                            isAdvanceOrder ? 'Show Claim Pass' : 'Show QR Pass',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.forestGreen,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(color: AppTheme.forestGreen, width: 1.2),
+                                            padding: const EdgeInsets.symmetric(vertical: 11),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                          onPressed: () => _showQrPassModal(reservation),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                                          label: Text(
+                                            isAdvanceOrder ? 'PDF Claim Slip' : 'PDF Voucher',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppTheme.forestGreen,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(vertical: 11),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                          onPressed: () => ReceiptPdfService.printOrShareVoucher(reservation),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -14197,6 +14474,191 @@ class _CustomerDashboardPageState extends State<CustomerDashboardPage> with Tick
     );
   }
 
+  void _showQrPassModal(Map<String, dynamic> tx) {
+    final resId = (tx['id'] ?? '').toString();
+    final shortId = resId.length > 8 ? resId.substring(0, 8).toUpperCase() : resId.toUpperCase();
+    final customerEmail = (tx['customer_email'] ?? Supabase.instance.client.auth.currentUser?.email ?? '').toString();
+    final customerName = _getUserDisplayName();
+    final isAdvanceOrder = tx['_db_table'] == 'advance_orders' || tx['_is_advance_order'] == true;
+    final orderType = (tx['order_type'] ?? 'Takeout').toString();
+    final eventType = isAdvanceOrder ? 'Advance Order ($orderType)' : (tx['event_type'] ?? 'Reservation').toString();
+    final date = (tx['event_date'] ?? tx['order_date'] ?? 'N/A').toString();
+    final time = (tx['start_time'] ?? tx['order_time'] ?? tx['pickup_time'] ?? 'N/A').toString();
+    final qrPayload = 'YANGCHOW:RES:$resId:$customerEmail';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 360,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isAdvanceOrder ? 'Order Claim Pass' : 'Guest Entry Pass',
+                    style: GoogleFonts.lora(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.forestGreen,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isAdvanceOrder
+                    ? 'Show this Claim QR code at the counter for pickup / dining'
+                    : 'Show this QR code upon arrival at Yang Chow',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(fontSize: 12, color: AppTheme.mediumGrey),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppTheme.warmGold, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.warmGold.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    QrImageView(
+                      data: qrPayload,
+                      version: QrVersions.auto,
+                      size: 180.0,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF16302A),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF16302A),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF16302A),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '#${isAdvanceOrder ? 'ORD' : 'RES'}-$shortId',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          color: const Color(0xFFD9A441),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            customerName,
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.darkGrey),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF15803D).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF15803D).withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            '#${isAdvanceOrder ? 'ORD' : 'RES'}-$shortId',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              color: const Color(0xFF15803D),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$eventType • $date ($time)',
+                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.mediumGrey),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: Text(
+                    isAdvanceOrder ? 'Download Claim Slip (PDF)' : 'Download PDF Voucher',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.forestGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    ReceiptPdfService.printOrShareVoucher(tx);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuotationDetailRow(String label, String value, IconData icon) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -14713,6 +15175,3 @@ class _TopToastWidgetState extends State<_TopToastWidget>
     );
   }
 }
-
-
-

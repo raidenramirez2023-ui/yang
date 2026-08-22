@@ -1411,229 +1411,465 @@ class _InventoryRoomPageState extends State<InventoryRoomPage>
                                     width: (restockQty > 0 || isUnlisted) ? 1.5 : 1,
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    // Item Name & Category / Supplier
-                                    Expanded(
-                                      flex: 3,
-                                      child: Column(
+                                child: isMobile
+                                    ? Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
+                                          // Top Row: Item Details & Stock Status
                                           Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Flexible(
-                                                child: Text(
-                                                  name,
-                                                  style: const TextStyle(
-                                                    fontSize: 13.5,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF0F172A),
-                                                  ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Flexible(
+                                                          child: Text(
+                                                            name,
+                                                            style: const TextStyle(
+                                                              fontSize: 13.5,
+                                                              fontWeight: FontWeight.w800,
+                                                              color: Color(0xFF0F172A),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        if (isUnlisted) ...[
+                                                          const SizedBox(width: 6),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFFF3E8FF),
+                                                              borderRadius: BorderRadius.circular(4),
+                                                              border: Border.all(color: const Color(0xFFD8B4FE)),
+                                                            ),
+                                                            child: const Text(
+                                                              '✨ UNLISTED',
+                                                              style: TextStyle(
+                                                                fontSize: 9.5,
+                                                                fontWeight: FontWeight.w800,
+                                                                color: Color(0xFF7E22CE),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          category,
+                                                          style: const TextStyle(
+                                                            fontSize: 11,
+                                                            color: Color(0xFF64748B),
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                        if (item['supplier'] != null && item['supplier'].toString().trim().isNotEmpty) ...[
+                                                          const Text('  •  ', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
+                                                          Icon(Icons.storefront_rounded, size: 12, color: Colors.amber.shade800),
+                                                          const SizedBox(width: 3),
+                                                          Flexible(
+                                                            child: Text(
+                                                              item['supplier'].toString().trim(),
+                                                              maxLines: 1,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: TextStyle(
+                                                                fontSize: 10.5,
+                                                                color: Colors.amber.shade900,
+                                                                fontWeight: FontWeight.w700,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              if (isUnlisted) ...[
-                                                const SizedBox(width: 6),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFFF3E8FF),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(color: const Color(0xFFD8B4FE)),
-                                                  ),
-                                                  child: const Text(
-                                                    '✨ UNLISTED',
-                                                    style: TextStyle(
-                                                      fontSize: 9.5,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: Color(0xFF7E22CE),
+                                              const SizedBox(width: 8),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: isUnlisted ? const Color(0xFFF3E8FF) : stockColor.withValues(alpha: 0.12),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      isUnlisted ? 'New (0 $unit)' : 'Stock: $currentStock $unit',
+                                                      style: TextStyle(
+                                                        fontSize: 10.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: isUnlisted ? const Color(0xFF7E22CE) : stockColor,
+                                                      ),
                                                     ),
                                                   ),
+                                                  if (restockQty > 0 || isUnlisted) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      restockQty > 0
+                                                          ? '➔ $newTotal $unit'
+                                                          : (isUnlisted ? '➔ $restockQty $unit' : ''),
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: Color(0xFF059669),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              if (isUnlisted) ...[
+                                                const SizedBox(width: 4),
+                                                IconButton(
+                                                  tooltip: 'Remove unlisted item',
+                                                  style: IconButton.styleFrom(
+                                                    backgroundColor: const Color(0xFFFEE2E8),
+                                                    padding: EdgeInsets.zero,
+                                                    minimumSize: const Size(24, 24),
+                                                  ),
+                                                  icon: const Icon(Icons.close_rounded, size: 13, color: Color(0xFFDC2626)),
+                                                  onPressed: () {
+                                                    setDialogState(() {
+                                                      extraCustomItems.removeWhere((e) => (e['name'] ?? '').toString().toLowerCase() == name.toLowerCase());
+                                                      restockQtys.remove(name);
+                                                      qtyControllers.remove(name);
+                                                    });
+                                                  },
                                                 ),
                                               ],
                                             ],
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 8),
+
+                                          // Bottom Row: Stepper & Quick Presets Carousel
                                           Row(
                                             children: [
-                                              Text(
-                                                category,
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Color(0xFF64748B),
-                                                  fontWeight: FontWeight.w600,
+                                              // Minus Button
+                                              IconButton(
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: const Color(0xFFF1F5F9),
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: const Size(28, 28),
                                                 ),
+                                                icon: const Icon(Icons.remove_rounded, size: 16, color: Color(0xFF0F172A)),
+                                                onPressed: restockQty > 0 ? () => setItemQty(name, restockQty - 1) : null,
                                               ),
-                                              if (item['supplier'] != null && item['supplier'].toString().trim().isNotEmpty) ...[
-                                                const Text('  •  ', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
-                                                Icon(Icons.storefront_rounded, size: 12, color: Colors.amber.shade800),
-                                                const SizedBox(width: 3),
-                                                Flexible(
-                                                  child: Text(
-                                                    item['supplier'].toString().trim(),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontSize: 10.5,
-                                                      color: Colors.amber.shade900,
-                                                      fontWeight: FontWeight.w700,
+                                              const SizedBox(width: 6),
+
+                                              // Editable Number Text Box
+                                              SizedBox(
+                                                width: 52,
+                                                height: 32,
+                                                child: TextField(
+                                                  controller: ctrl,
+                                                  textAlign: TextAlign.center,
+                                                  keyboardType: TextInputType.number,
+                                                  style: TextStyle(
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFF0F172A),
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    contentPadding: EdgeInsets.zero,
+                                                    isDense: true,
+                                                    filled: true,
+                                                    fillColor: restockQty > 0 ? Colors.white : const Color(0xFFF8FAFC),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                                                    ),
+                                                    enabledBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
                                                     ),
                                                   ),
+                                                  onChanged: (val) {
+                                                    final parsed = int.tryParse(val) ?? 0;
+                                                    restockQtys[name] = parsed < 0 ? 0 : parsed;
+                                                    setDialogState(() {});
+                                                  },
                                                 ),
-                                              ],
+                                              ),
+                                              const SizedBox(width: 6),
+
+                                              // Plus Button
+                                              IconButton(
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF059669),
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: const Size(28, 28),
+                                                ),
+                                                icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                                                onPressed: () => setItemQty(name, restockQty + 1),
+                                              ),
+                                              const SizedBox(width: 10),
+
+                                              // Quick Presets Carousel
+                                              Expanded(
+                                                child: SingleChildScrollView(
+                                                  scrollDirection: Axis.horizontal,
+                                                  physics: const BouncingScrollPhysics(),
+                                                  child: Row(
+                                                    children: [5, 10, 25, 50].map((preset) {
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(right: 6),
+                                                        child: InkWell(
+                                                          borderRadius: BorderRadius.circular(6),
+                                                          onTap: () => addPresetToItem(name, preset),
+                                                          child: Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFFF1F5F9),
+                                                              borderRadius: BorderRadius.circular(6),
+                                                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                            ),
+                                                            child: Text(
+                                                              '+$preset',
+                                                              style: const TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight: FontWeight.w800,
+                                                                color: Color(0xFF475569),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ],
-                                      ),
-                                    ),
-
-                                    // Current Stock Pill
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isUnlisted ? const Color(0xFFF3E8FF) : stockColor.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        isUnlisted ? 'New Item (0 $unit)' : 'Stock: $currentStock $unit',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                          color: isUnlisted ? const Color(0xFF7E22CE) : stockColor,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 14),
-
-                                    // Stepper & Quick Pills
-                                    Row(
-                                      children: [
-                                        // Minus Button
-                                        IconButton(
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: const Color(0xFFF1F5F9),
-                                            padding: EdgeInsets.zero,
-                                            minimumSize: const Size(28, 28),
-                                          ),
-                                          icon: const Icon(Icons.remove_rounded, size: 16, color: Color(0xFF0F172A)),
-                                          onPressed: restockQty > 0 ? () => setItemQty(name, restockQty - 1) : null,
-                                        ),
-                                        const SizedBox(width: 6),
-
-                                        // Editable Number Text Box
-                                        SizedBox(
-                                          width: 60,
-                                          height: 34,
-                                          child: TextField(
-                                            controller: ctrl,
-                                            textAlign: TextAlign.center,
-                                            keyboardType: TextInputType.number,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w900,
-                                              color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFF0F172A),
+                                      )
+                                    : Row(
+                                        children: [
+                                          // Item Name & Category / Supplier
+                                          Expanded(
+                                            flex: 3,
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        name,
+                                                        style: const TextStyle(
+                                                          fontSize: 13.5,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Color(0xFF0F172A),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (isUnlisted) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFFF3E8FF),
+                                                          borderRadius: BorderRadius.circular(4),
+                                                          border: Border.all(color: const Color(0xFFD8B4FE)),
+                                                        ),
+                                                        child: const Text(
+                                                          '✨ UNLISTED',
+                                                          style: TextStyle(
+                                                            fontSize: 9.5,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: Color(0xFF7E22CE),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      category,
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        color: Color(0xFF64748B),
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    if (item['supplier'] != null && item['supplier'].toString().trim().isNotEmpty) ...[
+                                                      const Text('  •  ', style: TextStyle(fontSize: 10, color: Color(0xFFCBD5E1))),
+                                                      Icon(Icons.storefront_rounded, size: 12, color: Colors.amber.shade800),
+                                                      const SizedBox(width: 3),
+                                                      Flexible(
+                                                        child: Text(
+                                                          item['supplier'].toString().trim(),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: TextStyle(
+                                                            fontSize: 10.5,
+                                                            color: Colors.amber.shade900,
+                                                            fontWeight: FontWeight.w700,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ],
                                             ),
-                                            decoration: InputDecoration(
-                                              contentPadding: EdgeInsets.zero,
-                                              isDense: true,
-                                              filled: true,
-                                              fillColor: restockQty > 0 ? Colors.white : const Color(0xFFF8FAFC),
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
-                                                borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
-                                              ),
-                                              enabledBorder: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
-                                                borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
-                                              ),
-                                            ),
-                                            onChanged: (val) {
-                                              final parsed = int.tryParse(val) ?? 0;
-                                              restockQtys[name] = parsed < 0 ? 0 : parsed;
-                                              setDialogState(() {});
-                                            },
                                           ),
-                                        ),
-                                        const SizedBox(width: 6),
 
-                                        // Plus Button
-                                        IconButton(
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: const Color(0xFF059669),
-                                            padding: EdgeInsets.zero,
-                                            minimumSize: const Size(28, 28),
-                                          ),
-                                          icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                                          onPressed: () => setItemQty(name, restockQty + 1),
-                                        ),
-                                        const SizedBox(width: 8),
-
-                                        // Quick Presets (+5, +10, +25, +50)
-                                        ...[5, 10, 25, 50].map((preset) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(right: 4),
-                                            child: InkWell(
+                                          // Current Stock Pill
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: isUnlisted ? const Color(0xFFF3E8FF) : stockColor.withValues(alpha: 0.12),
                                               borderRadius: BorderRadius.circular(6),
-                                              onTap: () => addPresetToItem(name, preset),
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(0xFFF1F5F9),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                                ),
-                                                child: Text(
-                                                  '+$preset',
-                                                  style: const TextStyle(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Color(0xFF475569),
-                                                  ),
-                                                ),
+                                            ),
+                                            child: Text(
+                                              isUnlisted ? 'New Item (0 $unit)' : 'Stock: $currentStock $unit',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                                color: isUnlisted ? const Color(0xFF7E22CE) : stockColor,
                                               ),
                                             ),
-                                          );
-                                        }),
-                                      ],
-                                    ),
+                                          ),
+                                          const SizedBox(width: 14),
 
-                                    const SizedBox(width: 14),
+                                          // Stepper & Quick Pills
+                                          Row(
+                                            children: [
+                                              // Minus Button
+                                              IconButton(
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: const Color(0xFFF1F5F9),
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: const Size(28, 28),
+                                                ),
+                                                icon: const Icon(Icons.remove_rounded, size: 16, color: Color(0xFF0F172A)),
+                                                onPressed: restockQty > 0 ? () => setItemQty(name, restockQty - 1) : null,
+                                              ),
+                                              const SizedBox(width: 6),
 
-                                    // Resulting Stock Preview
-                                    SizedBox(
-                                      width: 75,
-                                      child: Text(
-                                        restockQty > 0
-                                            ? '➔ $newTotal $unit'
-                                            : (isUnlisted ? '➔ $restockQty $unit' : '—'),
-                                        textAlign: TextAlign.end,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w900,
-                                          color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFF94A3B8),
-                                        ),
+                                              // Editable Number Text Box
+                                              SizedBox(
+                                                width: 60,
+                                                height: 34,
+                                                child: TextField(
+                                                  controller: ctrl,
+                                                  textAlign: TextAlign.center,
+                                                  keyboardType: TextInputType.number,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFF0F172A),
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    contentPadding: EdgeInsets.zero,
+                                                    isDense: true,
+                                                    filled: true,
+                                                    fillColor: restockQty > 0 ? Colors.white : const Color(0xFFF8FAFC),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                                                    ),
+                                                    enabledBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                                                    ),
+                                                  ),
+                                                  onChanged: (val) {
+                                                    final parsed = int.tryParse(val) ?? 0;
+                                                    restockQtys[name] = parsed < 0 ? 0 : parsed;
+                                                    setDialogState(() {});
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+
+                                              // Plus Button
+                                              IconButton(
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF059669),
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: const Size(28, 28),
+                                                ),
+                                                icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                                                onPressed: () => setItemQty(name, restockQty + 1),
+                                              ),
+                                              const SizedBox(width: 8),
+
+                                              // Quick Presets (+5, +10, +25, +50)
+                                              ...[5, 10, 25, 50].map((preset) {
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(right: 4),
+                                                  child: InkWell(
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    onTap: () => addPresetToItem(name, preset),
+                                                    child: Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFF1F5F9),
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                      ),
+                                                      child: Text(
+                                                        '+$preset',
+                                                        style: const TextStyle(
+                                                          fontSize: 10.5,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Color(0xFF475569),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+                                          ),
+
+                                          const SizedBox(width: 14),
+
+                                          // Resulting Stock Preview
+                                          SizedBox(
+                                            width: 75,
+                                            child: Text(
+                                              restockQty > 0
+                                                  ? '➔ $newTotal $unit'
+                                                  : (isUnlisted ? '➔ $restockQty $unit' : '—'),
+                                              textAlign: TextAlign.end,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w900,
+                                                color: restockQty > 0 ? const Color(0xFF059669) : const Color(0xFF94A3B8),
+                                              ),
+                                            ),
+                                          ),
+                                          if (isUnlisted) ...[
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              tooltip: 'Remove unlisted item',
+                                              style: IconButton.styleFrom(
+                                                backgroundColor: const Color(0xFFFEE2E8),
+                                                padding: EdgeInsets.zero,
+                                                minimumSize: const Size(26, 26),
+                                              ),
+                                              icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFDC2626)),
+                                              onPressed: () {
+                                                setDialogState(() {
+                                                  extraCustomItems.removeWhere((e) => (e['name'] ?? '').toString().toLowerCase() == name.toLowerCase());
+                                                  restockQtys.remove(name);
+                                                  qtyControllers.remove(name);
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                    ),
-                                    if (isUnlisted) ...[
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        tooltip: 'Remove unlisted item',
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: const Color(0xFFFEE2E2),
-                                          padding: EdgeInsets.zero,
-                                          minimumSize: const Size(26, 26),
-                                        ),
-                                        icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFDC2626)),
-                                        onPressed: () {
-                                          setDialogState(() {
-                                            extraCustomItems.removeWhere((e) => (e['name'] ?? '').toString().toLowerCase() == name.toLowerCase());
-                                            restockQtys.remove(name);
-                                            qtyControllers.remove(name);
-                                          });
-                                        },
-                                      ),
-                                    ],
-                                  ],
-                                ),
                               );
                             },
                           ),

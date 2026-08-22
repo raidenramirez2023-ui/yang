@@ -1261,23 +1261,21 @@ class _SalesReportPageState extends State<SalesReportPage>
       _buildFeaturedRevenueCard(revenue, data),
       // 2. Total Completed Orders
       _buildStandardKpiCard(
-        title: 'Total Volume',
+        title: 'Total Orders',
         value: orders.toString(),
         unit: 'Orders',
-        subtitle: '${data['regularOrders'] ?? 0} Walk-in • ${data['advanceOrders'] ?? 0} Adv',
+        subtitle: 'All completed orders',
         icon: Icons.shopping_bag_outlined,
         accentColor: AppTheme.infoBlue,
-        trend: '+12.4%',
       ),
       // 3. Average Order Value
       _buildStandardKpiCard(
-        title: 'Average Ticket (AOV)',
+        title: 'Avg. Spend Per Order',
         value: _currencyFormat.format(avgOrder),
         unit: '',
-        subtitle: 'Spend per transaction',
+        subtitle: 'Average bill per customer',
         icon: Icons.receipt_long_outlined,
         accentColor: AppTheme.adminPrimaryAccent,
-        trend: '+5.2%',
       ),
       // 4. Unique Patrons
       _buildStandardKpiCard(
@@ -1287,7 +1285,6 @@ class _SalesReportPageState extends State<SalesReportPage>
         subtitle: 'Unique customer records',
         icon: Icons.people_outline_rounded,
         accentColor: const Color(0xFF8B5CF6),
-        trend: '+8.1%',
       ),
       // 5. Stock Health / Alert
       _buildStandardKpiCard(
@@ -1406,35 +1403,14 @@ class _SalesReportPageState extends State<SalesReportPage>
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(6),
+          const Text(
+            'Total Sales from All Channels',
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFFC7D6D3),
+              fontWeight: FontWeight.w500,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Walk-in: ${_formatCompactCurrency(data['regularRevenue'] ?? 0)}',
-                    style: const TextStyle(fontSize: 9.5, color: Color(0xFFC7D6D3), fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 3),
-                  child: Text('•', style: TextStyle(color: AppTheme.warmGold, fontSize: 9)),
-                ),
-                Expanded(
-                  child: Text(
-                    'Adv: ${_formatCompactCurrency(data['advanceRevenue'] ?? 0)}',
-                    style: const TextStyle(fontSize: 9.5, color: Color(0xFFC7D6D3), fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1458,7 +1434,7 @@ class _SalesReportPageState extends State<SalesReportPage>
     required String subtitle,
     required IconData icon,
     required Color accentColor,
-    required String trend,
+    String? trend,
     bool isWarning = false,
   }) {
     return Container(
@@ -1540,28 +1516,34 @@ class _SalesReportPageState extends State<SalesReportPage>
           const SizedBox(height: 8),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isWarning
-                      ? AppTheme.errorRed.withValues(alpha: 0.1)
-                      : AppTheme.successGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  trend,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    color: isWarning ? AppTheme.errorRed : AppTheme.successGreen,
+              if (trend != null && trend.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isWarning
+                        ? AppTheme.errorRed.withValues(alpha: 0.1)
+                        : AppTheme.successGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    trend,
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: isWarning ? AppTheme.errorRed : AppTheme.successGreen,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 5),
+                const SizedBox(width: 5),
+              ],
               Expanded(
                 child: Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 10, color: AppTheme.adminSecondaryText),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.adminSecondaryText,
+                    fontWeight: FontWeight.w500,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -2187,8 +2169,10 @@ class _SalesReportPageState extends State<SalesReportPage>
     double eventCancelRate,
     Map<String, int> popularEventTypes,
   ) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusXl),
@@ -2244,21 +2228,32 @@ class _SalesReportPageState extends State<SalesReportPage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.inventory_rounded, size: 16, color: AppTheme.advanceOrderGreen),
-                        SizedBox(width: 6),
-                        Text('Advance Orders Channel', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
-                      ],
+                    const Expanded(
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_rounded, size: 16, color: AppTheme.advanceOrderGreen),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Advance Orders Channel',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(_currencyFormat.format(advanceRevenue), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.advanceOrderGreen)),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _buildMicroMetric('Completed', '$advanceCompleted orders', Icons.check_circle_outline, AppTheme.successGreen),
-                    const SizedBox(width: 16),
                     _buildMicroMetric('Cancellation', '${advanceCancelRate.toStringAsFixed(1)}%', Icons.cancel_outlined, advanceCancelRate > 10 ? AppTheme.errorRed : AppTheme.mediumGrey),
                   ],
                 ),
@@ -2306,21 +2301,32 @@ class _SalesReportPageState extends State<SalesReportPage>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.celebration_rounded, size: 16, color: AppTheme.reservationPurple),
-                          SizedBox(width: 6),
-                          Text('Event Catering Channel', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText)),
-                        ],
+                      const Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.celebration_rounded, size: 16, color: AppTheme.reservationPurple),
+                            SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Event Catering Channel',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.adminPrimaryText),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(_currencyFormat.format(eventRevenue), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.reservationPurple)),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _buildMicroMetric('Events Hosted', '$eventCompleted confirmed', Icons.event_available, AppTheme.reservationPurple),
-                      const SizedBox(width: 16),
                       _buildMicroMetric('Cancellation', '${eventCancelRate.toStringAsFixed(1)}%', Icons.cancel_outlined, eventCancelRate > 10 ? AppTheme.errorRed : AppTheme.mediumGrey),
                     ],
                   ),
@@ -2358,6 +2364,7 @@ class _SalesReportPageState extends State<SalesReportPage>
 
   Widget _buildMicroMetric(String label, String value, IconData icon, Color color) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 5),
