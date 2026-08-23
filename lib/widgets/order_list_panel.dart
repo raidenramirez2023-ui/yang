@@ -684,7 +684,7 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
                 keyboardType: TextInputType.number,
 
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
 
                 textAlign: TextAlign.center,
 

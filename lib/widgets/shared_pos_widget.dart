@@ -3344,6 +3344,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
                                 overrideTotalAmount: totalAmount,
 
+                                tableNumber: tableNumber,
+
                                 onBack: () => Navigator.pop(context),
 
                                 onComplete:
