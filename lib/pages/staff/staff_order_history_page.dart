@@ -191,8 +191,11 @@ class _StaffOrderHistoryPageState extends State<StaffOrderHistoryPage> {
           int refundedCount = 0;
 
           for (final o in filtered) {
-            final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
-            totalRevenue += amt;
+            final isFull = o['refund_status'] == 'full_refund';
+            if (!isFull) {
+              final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+              totalRevenue += amt;
+            }
             if (o['refund_status'] == 'full_refund' ||
                 o['refund_status'] == 'partial_refund') {
               refundedCount++;
@@ -476,6 +479,16 @@ class _OrderCardState extends State<_OrderCard> {
     _loadItems();
   }
 
+  @override
+  void didUpdateWidget(covariant _OrderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order['id'] != widget.order['id'] ||
+        oldWidget.order['refund_status'] != widget.order['refund_status']) {
+      _items = null;
+      _loadItems();
+    }
+  }
+
   Future<void> _loadItems() async {
     if (_items != null) return;
     setState(() => _loadingItems = true);
@@ -485,9 +498,31 @@ class _OrderCardState extends State<_OrderCard> {
           .select()
           .eq('order_id', widget.order['id'].toString())
           .order('id');
+
+      List<Map<String, dynamic>> itemsList =
+          List<Map<String, dynamic>>.from(res);
+
+      // Fallback: If order_items has no rows (e.g. from historical refunds where rows were deleted),
+      // recover item details from the refunds table
+      if (itemsList.isEmpty) {
+        final refundRes = await Supabase.instance.client
+            .from('refunds')
+            .select('refunded_items')
+            .eq('source_table', 'orders')
+            .eq('source_id', widget.order['id'].toString())
+            .maybeSingle();
+
+        if (refundRes != null && refundRes['refunded_items'] != null) {
+          final raw = refundRes['refunded_items'];
+          if (raw is List) {
+            itemsList = List<Map<String, dynamic>>.from(raw);
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _items = List<Map<String, dynamic>>.from(res);
+          _items = itemsList;
           _loadingItems = false;
         });
       }
@@ -506,7 +541,17 @@ class _OrderCardState extends State<_OrderCard> {
   @override
   Widget build(BuildContext context) {
     final o = widget.order;
-    final total = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final rawTotal = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final itemsSum = _items?.fold<double>(
+          0.0,
+          (sum, it) =>
+              sum +
+              (((it['unit_price'] as num?)?.toDouble() ?? 0.0) *
+                  ((it['quantity'] as num?)?.toInt() ?? 1)),
+        ) ??
+        0.0;
+    final total =
+        rawTotal > 0 ? rawTotal : (itemsSum > 0 ? itemsSum : rawTotal);
     final tid = o['transaction_id']?.toString();
     final dbid = o['id']?.toString() ?? '';
     final orderId =
@@ -1052,10 +1097,28 @@ class _OrderCardState extends State<_OrderCard> {
                 .select()
                 .eq('order_id', orderId)
                 .order('id')
-                .then((res) {
+                .then((res) async {
+              List<Map<String, dynamic>> loaded =
+                  List<Map<String, dynamic>>.from(res);
+              if (loaded.isEmpty) {
+                try {
+                  final refundRes = await Supabase.instance.client
+                      .from('refunds')
+                      .select('refunded_items')
+                      .eq('source_table', 'orders')
+                      .eq('source_id', orderId)
+                      .maybeSingle();
+                  if (refundRes != null && refundRes['refunded_items'] != null) {
+                    final raw = refundRes['refunded_items'];
+                    if (raw is List) {
+                      loaded = List<Map<String, dynamic>>.from(raw);
+                    }
+                  }
+                } catch (_) {}
+              }
               if (ctx.mounted) {
                 setDlgState(() {
-                  localItems = List<Map<String, dynamic>>.from(res);
+                  localItems = loaded;
                   _items = localItems;
                   fetchingItems = false;
                   selectedIndices =

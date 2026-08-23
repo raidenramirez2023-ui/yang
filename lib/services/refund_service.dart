@@ -238,30 +238,10 @@ class RefundService {
           .select()
           .single();
 
-      // Delete refunded items from order_items table so Kitchen view updates
-      for (final item in refundedItems) {
-        final itemId = item['id']?.toString();
-        final itemName = item['item_name']?.toString();
-        if (itemId != null && itemId.isNotEmpty) {
-          await _supabase
-              .from('order_items')
-              .delete()
-              .eq('id', itemId);
-        } else if (itemName != null && itemName.isNotEmpty) {
-          await _supabase
-              .from('order_items')
-              .delete()
-              .eq('order_id', orderId)
-              .eq('item_name', itemName);
-        }
-      }
-
-      // Update the order's refund_status, payment_status, total_amount, and (only for full refund) kitchen_status
-      final remainingTotal = (originalAmount - refundAmount).clamp(0.0, double.infinity);
+      // Update the order's refund_status, payment_status, and (only for full refund) kitchen_status
       final updateData = <String, dynamic>{
         'refund_status': isFullRefund ? 'full_refund' : 'partial_refund',
         'payment_status': isFullRefund ? 'refunded' : 'partially_refunded',
-        'total_amount': remainingTotal,
       };
       if (isFullRefund) {
         updateData['kitchen_status'] = 'Done';

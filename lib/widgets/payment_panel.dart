@@ -26,6 +26,7 @@ class PaymentPanel extends StatefulWidget {
   final String customerName;
   final String note;
   final double? overrideTotalAmount; // Optional total with discount included
+  final String tableNumber;
 
   const PaymentPanel({
     super.key,
@@ -35,6 +36,7 @@ class PaymentPanel extends StatefulWidget {
     this.customerName = '',
     this.note = '',
     this.overrideTotalAmount,
+    this.tableNumber = '',
   });
 
   @override
@@ -129,17 +131,11 @@ class _PaymentPanelState extends State<PaymentPanel>
   }
 
   Future<void> _printReceipt() async {
-
-    
     final receiptData = await _generateReceiptPDF();
-    
-    // Print or download the PDF
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => receiptData,
       name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf',
     );
-
-    // Complete the transaction after printing
     _ctrl.reverse().then((_) {
       widget.onComplete(
         widget.customerName,
@@ -178,8 +174,8 @@ class _PaymentPanelState extends State<PaymentPanel>
       );
     }
     
-    // Receipt-sized page: 80mm width, auto height
-    final receiptFormat = PdfPageFormat.roll80.copyWith(
+    // Receipt-sized page: 57mm width, auto height
+    final receiptFormat = PdfPageFormat.roll57.copyWith(
       marginTop: 10,
       marginBottom: 10,
       marginLeft: 10,
@@ -214,7 +210,7 @@ class _PaymentPanelState extends State<PaymentPanel>
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Table #: 32', style: baseStyle),
+                  pw.Text('Table #: ${widget.tableNumber.isNotEmpty ? widget.tableNumber : "N/A"}', style: baseStyle),
                   pw.Text('No. of Guest:  ${widget.cart.isNotEmpty ? "1" : "2"}', style: baseStyle),
                 ],
               ),
@@ -630,6 +626,8 @@ class _PaymentPanelState extends State<PaymentPanel>
       ),
     );
   }
+
+
 
   Widget _sidebarItem(String value, IconData icon, String label) {
     bool isSelected = _method == value;
