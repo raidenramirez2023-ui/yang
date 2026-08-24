@@ -9,6 +9,7 @@ import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/widgets/customer/customer_ui_components.dart';
 import 'package:yang_chow/widgets/qr_scanner_dialog.dart';
+import 'package:yang_chow/services/offline_pos_service.dart';
 import 'package:intl/intl.dart';
 
 class StaffDashboardPage extends StatefulWidget {
@@ -123,64 +124,38 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Flexible(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'YANG CHOW RESTAURANT',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFD9A441),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'YANG CHOW RESTAURANT',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFD9A441),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
                         ),
-                        Row(
-                          children: [
-                            Text(
-                              'Staff POS Terminal',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF34C759).withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(0xFF34C759).withValues(alpha: 0.4),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const LivePulseDot(color: Color(0xFF34C759), size: 5),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'ONLINE',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF86EFAC),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 8.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'Staff POS Terminal',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
+
+                  // ── Push all actions to the right side ──
+                  const Spacer(),
+
+                  // ── Offline Mode & Sync Status (Katabi ng Scan Pass) ──
+                  _buildTopOfflineSyncBadge(),
+                  const SizedBox(width: 8),
 
                   // ── Scan Guest Pass QR Button ──
                   AnimatedTapScale(
@@ -574,5 +549,147 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
       return 'POS staff have order please process';
     }
     return '${n['actor_name'] ?? 'System'} ${n['action_type']} reservation for ${n['event_type'] ?? 'Event'}';
+  }
+
+  bool _isSyncingTop = false;
+
+  Widget _buildTopOfflineSyncBadge() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: OfflinePosService().isOnlineNotifier,
+      builder: (context, isOnline, _) {
+        return ValueListenableBuilder<int>(
+          valueListenable: OfflinePosService().pendingOrdersCountNotifier,
+          builder: (context, pendingCount, _) {
+            final isOffline = !isOnline;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Status Pill ──
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isOffline
+                          ? const [Color(0xFFB45309), Color(0xFFD97706)]
+                          : const [Color(0xFF0F5132), Color(0xFF198754)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isOffline
+                          ? const Color(0xFFFDE68A).withValues(alpha: 0.6)
+                          : const Color(0xFF86EFAC).withValues(alpha: 0.5),
+                      width: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isOffline
+                            ? const Color(0xFFD97706).withValues(alpha: 0.35)
+                            : const Color(0xFF198754).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isOffline ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        isOffline ? 'OFFLINE MODE' : 'ONLINE',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Sync Button (if has pending) ──
+                if (pendingCount > 0) ...[
+                  const SizedBox(width: 8),
+                  AnimatedTapScale(
+                    onTap: _isSyncingTop
+                        ? null
+                        : () async {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isSyncingTop = true);
+                            final res = await OfflinePosService().syncPendingOrders();
+                            if (mounted) {
+                              setState(() => _isSyncingTop = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(res.errorMessage != null
+                                      ? 'Sync notice: ${res.errorMessage}'
+                                      : 'Synced ${res.syncedCount} offline orders!'),
+                                  backgroundColor: res.failedCount == 0 ? Colors.green : Colors.orange,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF93C5FD).withValues(alpha: 0.7),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1D4ED8).withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isSyncingTop)
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          else
+                            const Icon(Icons.sync_rounded, color: Colors.white, size: 15),
+                          const SizedBox(width: 5),
+                          Text(
+                            _isSyncingTop ? 'Syncing...' : 'Sync Now ($pendingCount)',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }

@@ -17,8 +17,8 @@ import '../services/recipe_service.dart';
 import '../models/menu_item.dart';
 
 import '../services/menu_service.dart';
-
 import '../services/notification_service.dart';
+import '../services/offline_pos_service.dart';
 
 
 
@@ -58,7 +58,7 @@ class ReceiptTemplate extends StatelessWidget {
 
   final double changeDue;
 
-  final int? tableNumber;
+  final String? tableNumber;
 
   final int? guestCount;
 
@@ -304,7 +304,12 @@ class ReceiptTemplate extends StatelessWidget {
 
                 Text(
 
-                  'Table #: ${tableNumber?.toString() ?? '32'}',
+                  () {
+                    if (tableNumber == null || tableNumber!.isEmpty) return 'Table #: N/A';
+                    final t = tableNumber!.trim().toLowerCase();
+                    if (t.contains('all tables') || t.contains('all table')) return 'Table #: ALL';
+                    return 'Table #: $tableNumber';
+                  }(),
 
                   style: const TextStyle(
 
@@ -1079,6 +1084,8 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     super.initState();
 
+    OfflinePosService().init();
+
     _loadMenu();
 
     _fetchInventory();
@@ -1141,9 +1148,12 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       // Fetch inventory
 
-      final data = await supabase.from('kitchen_inventory').select('name, quantity');
+      final data = await supabase.from('kitchen_inventory').select('name, quantity').timeout(const Duration(seconds: 4));
 
       if (data != null) {
+
+        final rawList = (data as List).map((r) => Map<String, dynamic>.from(r as Map)).toList();
+        OfflinePosService().cacheInventory(rawList);
 
         final Map<String, num> newCache = {};
 
@@ -1173,7 +1183,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       // Fetch recipe ingredients
 
-      final recipeData = await supabase.from('recipe_ingredients').select();
+      final recipeData = await supabase.from('recipe_ingredients').select().timeout(const Duration(seconds: 4));
 
       if (recipeData != null) {
 
@@ -1209,7 +1219,24 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
     } catch (e) {
 
-      debugPrint('Error fetching inventory or recipes for POS: $e');
+      debugPrint('Error fetching inventory or recipes for POS (checking offline cache): $e');
+
+      try {
+        final cached = await OfflinePosService().getCachedInventory();
+        if (cached.isNotEmpty) {
+          final Map<String, num> fallbackCache = {};
+          for (var item in cached) {
+            final name = item['name']?.toString().toLowerCase() ?? '';
+            fallbackCache[name] = (item['quantity'] as num?) ?? 0;
+          }
+          if (mounted) {
+            setState(() {
+              _inventoryCache.clear();
+              _inventoryCache.addAll(fallbackCache);
+            });
+          }
+        }
+      } catch (_) {}
 
     } finally {
 
@@ -1975,7 +2002,15 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
+  String? _formatTableNumberForReceipt(String tableNumber) {
+    if (tableNumber.isEmpty) return null;
+    final t = tableNumber.trim().toLowerCase();
+    if (t.contains('all tables') || t.contains('all table')) return 'ALL';
+    return tableNumber.trim();
+  }
+
   Future<void> _generateReceipt({
+
 
     String customerName = '',
 
@@ -2040,8 +2075,9 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
     // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
-
-    if (widget.userRole == 'Staff') {
+    // Skip Supabase inventory check when offline — order is already queued locally
+    final _isOnlineForReceiptCheck = OfflinePosService().isOnlineNotifier.value;
+    if (widget.userRole == 'Staff' && _isOnlineForReceiptCheck) {
 
       final inventoryError = await RecipeService().checkInventoryAvailability(cartSnapshot);
 
@@ -2071,47 +2107,57 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-    // Determine the next transaction ID (001, 002, ...)
-
-    // Only count clean sequential IDs (<= 9999). Legacy large IDs are ignored.
+    // Determine the next transaction ID (001, 002, ...) or offline ID (OFF-001...)
 
     String transactionId = '001';
 
-    try {
+    final isOnline = OfflinePosService().isOnlineNotifier.value;
 
-      final supabase = Supabase.instance.client;
+    if (isOnline) {
 
-      final res = await supabase
+      try {
 
-          .from('orders')
+        final supabase = Supabase.instance.client;
 
-          .select('transaction_id')
+        final res = await supabase
 
-          .order('created_at', ascending: false)
+            .from('orders')
 
-          .limit(200);
+            .select('transaction_id')
+
+            .order('created_at', ascending: false)
+
+            .limit(200)
+
+            .timeout(const Duration(seconds: 3));
 
 
 
-      int maxId = 0;
+        int maxId = 0;
 
-      for (final row in res) {
+        for (final row in res) {
 
-        final raw = row['transaction_id']?.toString() ?? '';
+          final raw = row['transaction_id']?.toString() ?? '';
 
-        final parsed = int.tryParse(raw);
+          final parsed = int.tryParse(raw);
 
-        // Only accept clean sequential IDs (4 digits or fewer)
+          // Only accept clean sequential IDs (4 digits or fewer)
 
-        if (parsed != null && parsed <= 9999 && parsed > maxId) maxId = parsed;
+          if (parsed != null && parsed <= 9999 && parsed > maxId) maxId = parsed;
+
+        }
+
+        transactionId = (maxId + 1).toString().padLeft(3, '0');
+
+      } catch (e) {
+
+        transactionId = await OfflinePosService().generateOfflineTransactionId();
 
       }
 
-      transactionId = (maxId + 1).toString().padLeft(3, '0');
+    } else {
 
-    } catch (e) {
-
-      transactionId = '001';
+      transactionId = await OfflinePosService().generateOfflineTransactionId();
 
     }
 
@@ -2121,7 +2167,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-    // Persist to Supabase (fire-and-forget, errors shown via snackbar)
+    // Persist to Supabase or Offline Queue
 
     _saveOrderToDatabase(
 
@@ -2197,7 +2243,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
             changeDue: changeDue,
 
-            tableNumber: tableNumber.isNotEmpty ? int.tryParse(tableNumber) : null,
+            tableNumber: _formatTableNumberForReceipt(tableNumber),
 
             guestCount: guestCount,
 
@@ -2263,13 +2309,125 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
   }) async {
 
+    final staffEmail = Supabase.instance.client.auth.currentUser?.email ?? 'staff';
+
+    final itemRows = cartSnapshot
+
+        .map(
+
+          (c) => {
+
+            'item_name': c.item.name,
+
+            'quantity': c.quantity,
+
+            'unit_price': c.item.price,
+
+            'subtotal': c.item.price * c.quantity,
+
+          },
+
+        )
+
+        .toList();
+
+
+
+    final isOnline = OfflinePosService().isOnlineNotifier.value;
+
+
+
+    // If offline, directly enqueue
+
+    if (!isOnline) {
+
+      await OfflinePosService().enqueueOrder(
+
+        transactionId: transactionId,
+
+        total: total,
+
+        customerName: customerName,
+
+        customerAddress: customerAddress,
+
+        note: note,
+
+        paymentMethod: paymentMethod,
+
+        amountPaid: amountPaid,
+
+        changeDue: changeDue,
+
+        guestCount: guestCount,
+
+        tableNumber: tableNumber,
+
+        discountAmount: discountAmount,
+
+        discountLabel: discountLabel,
+
+        discountName: discountName,
+
+        discountAddress: discountAddress,
+
+        staffEmail: staffEmail,
+
+        items: itemRows,
+
+      );
+
+
+
+      if (mounted) {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+
+          SnackBar(
+
+            content: Row(
+
+              children: [
+
+                const Icon(Icons.cloud_off, color: Colors.white, size: 20),
+
+                const SizedBox(width: 8),
+
+                Expanded(
+
+                  child: Text('⚡ Order #$transactionId saved in Offline Mode. It will auto-sync when online.'),
+
+                ),
+
+              ],
+
+            ),
+
+            backgroundColor: const Color(0xFFD97706),
+
+            behavior: SnackBarBehavior.floating,
+
+            duration: const Duration(seconds: 4),
+
+          ),
+
+        );
+
+      }
+
+      return;
+
+    }
+
+
+
     try {
 
       final supabase = Supabase.instance.client;
 
-      final staffEmail = supabase.auth.currentUser?.email ?? 'staff';
 
-      print('DEBUG: Inserting order - customerName: "$customerName", customerAddress: "$customerAddress", discountAmount: $discountAmount, discountName: "$discountName", discountAddress: "$discountAddress"');
+
+      print('DEBUG: Inserting order online - customerName: "$customerName", transactionId: "$transactionId"');
 
 
 
@@ -2323,7 +2481,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
           .select('id')
 
-          .single();
+          .single()
+
+          .timeout(const Duration(seconds: 5));
+
+
 
       print('DEBUG: Order insert succeeded, order ID: ${orderRes['id']}');
 
@@ -2335,7 +2497,7 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
       // Insert each line item
 
-      final itemRows = cartSnapshot
+      final itemRowsToInsert = cartSnapshot
 
           .map(
 
@@ -2359,13 +2521,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-      await supabase.from('order_items').insert(itemRows);
+      await supabase.from('order_items').insert(itemRowsToInsert).timeout(const Duration(seconds: 5));
 
 
 
       // Trigger automatic inventory deduction for each item ordered
-
-      // We run these sequentially to avoid race conditions on the same ingredient stock
 
       for (final cartItem in cartSnapshot) {
 
@@ -2387,22 +2547,67 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
 
 
-      // Send notification to kitchen/admin with debouncing
+      // Send notification to kitchen/admin
+
       await NotificationService.handlePosOrderNotification(
+
         actorName: staffEmail.split('@')[0],
+
         reservationId: orderId,
+
         eventType: 'New POS Order ($transactionId)',
+
       );
 
 
 
     } catch (e) {
 
-      print('ERROR: Supabase insert failed: $e');
+      print('ERROR: Supabase insert failed: $e, enqueuing to offline storage');
 
       debugPrint('Supabase Error: $e');
 
-      // Non-blocking: show a warning but don't block the receipt
+
+
+      // Enqueue to offline storage so no orders are lost!
+
+      await OfflinePosService().enqueueOrder(
+
+        transactionId: transactionId,
+
+        total: total,
+
+        customerName: customerName,
+
+        customerAddress: customerAddress,
+
+        note: note,
+
+        paymentMethod: paymentMethod,
+
+        amountPaid: amountPaid,
+
+        changeDue: changeDue,
+
+        guestCount: guestCount,
+
+        tableNumber: tableNumber,
+
+        discountAmount: discountAmount,
+
+        discountLabel: discountLabel,
+
+        discountName: discountName,
+
+        discountAddress: discountAddress,
+
+        staffEmail: staffEmail,
+
+        items: itemRows,
+
+      );
+
+
 
       if (mounted) {
 
@@ -2410,11 +2615,29 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
           SnackBar(
 
-            content: Text('⚠️ Could not save order: $e'),
+            content: Row(
 
-            backgroundColor: Colors.orange,
+              children: [
+
+                const Icon(Icons.cloud_queue, color: Colors.white, size: 20),
+
+                const SizedBox(width: 8),
+
+                Expanded(
+
+                  child: Text('⚡ Network error: Order #$transactionId queued offline. Will sync automatically.'),
+
+                ),
+
+              ],
+
+            ),
+
+            backgroundColor: const Color(0xFFD97706),
 
             behavior: SnackBarBehavior.floating,
+
+            duration: const Duration(seconds: 4),
 
           ),
 
@@ -3072,6 +3295,10 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
 
         actions: [
 
+          _buildConnectivityBadge(isCompact: true),
+
+          const SizedBox(width: 8),
+
           if (cart.isNotEmpty)
 
             Stack(
@@ -3265,8 +3492,11 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
                       onProceedPayment: (customerName, customerAddress, note, totalAmount, guestCount, tableNumber, discountAmount, discountLabel, discountName, discountAddress) async {
 
                         // Validation for Staff: Stock-based quantity limit (Max = Stock - 1)
+                        // Skip Supabase inventory check when offline — let order proceed to payment
+                        // (order will be queued via OfflinePosService when offline)
+                        final isCurrentlyOnline = OfflinePosService().isOnlineNotifier.value;
 
-                        if (widget.userRole == 'Staff') {
+                        if (widget.userRole == 'Staff' && isCurrentlyOnline) {
 
                           final inventoryError = await RecipeService().checkInventoryAvailability(cart);
 
@@ -3557,6 +3787,406 @@ class _SharedPOSWidgetState extends State<SharedPOSWidget>
         ],
 
       ),
+
+    );
+
+  }
+
+
+
+  bool _isManualSyncing = false;
+
+
+
+  Widget _buildConnectivityBadge({bool isCompact = false}) {
+
+    return ValueListenableBuilder<bool>(
+
+      valueListenable: OfflinePosService().isOnlineNotifier,
+
+      builder: (context, isOnline, _) {
+
+        return ValueListenableBuilder<int>(
+
+          valueListenable: OfflinePosService().pendingOrdersCountNotifier,
+
+          builder: (context, pendingCount, _) {
+
+            final statusColor = isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+
+            final statusBg = isOnline
+
+                ? const Color(0xFF10B981).withValues(alpha: 0.15)
+
+                : const Color(0xFFF59E0B).withValues(alpha: 0.15);
+
+
+
+            if (isCompact) {
+
+              return Row(
+
+                mainAxisSize: MainAxisSize.min,
+
+                children: [
+
+                  Container(
+
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+                    decoration: BoxDecoration(
+
+                      color: statusBg,
+
+                      borderRadius: BorderRadius.circular(12),
+
+                      border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+
+                    ),
+
+                    child: Row(
+
+                      mainAxisSize: MainAxisSize.min,
+
+                      children: [
+
+                        Container(
+
+                          width: 8,
+
+                          height: 8,
+
+                          decoration: BoxDecoration(
+
+                            color: statusColor,
+
+                            shape: BoxShape.circle,
+
+                          ),
+
+                        ),
+
+                        const SizedBox(width: 5),
+
+                        Text(
+
+                          isOnline ? 'Online' : 'Offline',
+
+                          style: TextStyle(
+
+                            fontSize: 11,
+
+                            fontWeight: FontWeight.bold,
+
+                            color: isOnline ? const Color(0xFF065F46) : const Color(0xFF92400E),
+
+                          ),
+
+                        ),
+
+                      ],
+
+                    ),
+
+                  ),
+
+                  if (pendingCount > 0) ...[
+
+                    const SizedBox(width: 6),
+
+                    InkWell(
+
+                      onTap: _isManualSyncing
+
+                          ? null
+
+                          : () async {
+
+                              setState(() => _isManualSyncing = true);
+
+                              final res = await OfflinePosService().syncPendingOrders();
+
+                              if (mounted) {
+
+                                setState(() => _isManualSyncing = false);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+
+                                  SnackBar(
+
+                                    content: Text(res.errorMessage != null
+
+                                        ? 'Sync notice: ${res.errorMessage}'
+
+                                        : 'Synced ${res.syncedCount} offline orders!'),
+
+                                    backgroundColor: res.failedCount == 0 ? Colors.green : Colors.orange,
+
+                                  ),
+
+                                );
+
+                              }
+
+                            },
+
+                      child: Container(
+
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+
+                        decoration: BoxDecoration(
+
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+
+                          borderRadius: BorderRadius.circular(12),
+
+                          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4)),
+
+                        ),
+
+                        child: Row(
+
+                          mainAxisSize: MainAxisSize.min,
+
+                          children: [
+
+                            if (_isManualSyncing)
+
+                              const SizedBox(
+
+                                width: 10,
+
+                                height: 10,
+
+                                child: CircularProgressIndicator(strokeWidth: 2),
+
+                              )
+
+                            else
+
+                              const Icon(Icons.sync, size: 12, color: Color(0xFF1D4ED8)),
+
+                            const SizedBox(width: 4),
+
+                            Text(
+
+                              '$pendingCount unsynced',
+
+                              style: const TextStyle(
+
+                                fontSize: 11,
+
+                                fontWeight: FontWeight.bold,
+
+                                color: Color(0xFF1D4ED8),
+
+                              ),
+
+                            ),
+
+                          ],
+
+                        ),
+
+                      ),
+
+                    ),
+
+                  ],
+
+                ],
+
+              );
+
+            }
+
+
+
+            // Desktop Sidebar Bottom Card
+
+            return Container(
+
+              margin: const EdgeInsets.all(8),
+
+              padding: const EdgeInsets.all(10),
+
+              decoration: BoxDecoration(
+
+                color: const Color(0xFF081C18),
+
+                borderRadius: BorderRadius.circular(10),
+
+                border: Border.all(color: const Color(0xFF1E4A42)),
+
+              ),
+
+              child: Column(
+
+                crossAxisAlignment: CrossAxisAlignment.start,
+
+                mainAxisSize: MainAxisSize.min,
+
+                children: [
+
+                  Row(
+
+                    children: [
+
+                      Container(
+
+                        width: 8,
+
+                        height: 8,
+
+                        decoration: BoxDecoration(
+
+                          color: statusColor,
+
+                          shape: BoxShape.circle,
+
+                          boxShadow: [
+
+                            BoxShadow(
+
+                              color: statusColor.withValues(alpha: 0.6),
+
+                              blurRadius: 4,
+
+                              spreadRadius: 1,
+
+                            ),
+
+                          ],
+
+                        ),
+
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      Text(
+
+                        isOnline ? 'POS ONLINE' : 'OFFLINE MODE',
+
+                        style: TextStyle(
+
+                          color: statusColor,
+
+                          fontSize: 10,
+
+                          fontWeight: FontWeight.bold,
+
+                          letterSpacing: 0.5,
+
+                        ),
+
+                      ),
+
+                    ],
+
+                  ),
+
+                  if (pendingCount > 0) ...[
+
+                    const SizedBox(height: 8),
+
+                    Text(
+
+                      '$pendingCount unsynced orders',
+
+                      style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    SizedBox(
+
+                      width: double.infinity,
+
+                      height: 26,
+
+                      child: ElevatedButton.icon(
+
+                        onPressed: _isManualSyncing
+
+                            ? null
+
+                            : () async {
+
+                                setState(() => _isManualSyncing = true);
+
+                                final res = await OfflinePosService().syncPendingOrders();
+
+                                if (mounted) {
+
+                                  setState(() => _isManualSyncing = false);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+
+                                    SnackBar(
+
+                                      content: Text(res.errorMessage != null
+
+                                          ? 'Sync notice: ${res.errorMessage}'
+
+                                          : 'Synced ${res.syncedCount} offline orders!'),
+
+                                      backgroundColor: res.failedCount == 0 ? Colors.green : Colors.orange,
+
+                                    ),
+
+                                  );
+
+                                }
+
+                              },
+
+                        icon: _isManualSyncing
+
+                            ? const SizedBox(
+
+                                width: 10,
+
+                                height: 10,
+
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+
+                              )
+
+                            : const Icon(Icons.sync_rounded, size: 12),
+
+                        label: Text(_isManualSyncing ? 'Syncing...' : 'Sync Now', style: const TextStyle(fontSize: 10)),
+
+                        style: ElevatedButton.styleFrom(
+
+                          backgroundColor: const Color(0xFFD97706),
+
+                          foregroundColor: Colors.white,
+
+                          padding: EdgeInsets.zero,
+
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+
+                        ),
+
+                      ),
+
+                    ),
+
+                  ],
+
+                ],
+
+              ),
+
+            );
+
+          },
+
+        );
+
+      },
 
     );
 

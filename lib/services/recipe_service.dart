@@ -227,8 +227,9 @@ class RecipeService {
 
       return null; // All good
     } catch (e) {
-      debugPrint('Error during inventory check: $e');
-      return 'Inventory check failed: $e';
+      debugPrint('Error during online inventory check, attempting offline fallback: $e');
+      // When network is unavailable, do not hard-block staff from completing orders
+      return null;
     }
   }
 

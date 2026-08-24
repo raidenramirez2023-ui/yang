@@ -1,16 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-
 import 'package:flutter/services.dart';
-
 import 'package:intl/intl.dart';
-
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/menu_item.dart';
-
 import '../services/menu_service.dart';
-
 import '../services/location_service.dart';
+import '../services/offline_pos_service.dart';
 
 
 
@@ -80,80 +79,83 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
   final TextEditingController _customerAddressController = TextEditingController();
 
-  bool _isDiscountEnabled = false; // Discount state variable
-
+  bool _isDiscountEnabled = false;
   String _discountLabel = 'None';
-
   String _discountCustomerName = '';
-
   String _discountCustomerAddress = '';
+  String? _selectedTableLabel;
 
-  
+  // ── Simple Table Layout (T-1 to T-15, editable pax) ──
+  static const String _prefsKeyTables = 'yang_simple_tables_v2';
+
+  List<Map<String, dynamic>> _tables = [
+    {'number': '1',  'label': 'T-1',  'capacity': 5},
+    {'number': '2',  'label': 'T-2',  'capacity': 5},
+    {'number': '3',  'label': 'T-3',  'capacity': 5},
+    {'number': '4',  'label': 'T-4',  'capacity': 5},
+    {'number': '5',  'label': 'T-5',  'capacity': 6},
+    {'number': '6',  'label': 'T-6',  'capacity': 6},
+    {'number': '7',  'label': 'T-7',  'capacity': 6},
+    {'number': '8',  'label': 'T-8',  'capacity': 6},
+    {'number': '9',  'label': 'T-9',  'capacity': 4},
+    {'number': '10', 'label': 'T-10', 'capacity': 4},
+    {'number': '11', 'label': 'T-11', 'capacity': 4},
+    {'number': '12', 'label': 'T-12', 'capacity': 4},
+    {'number': '13', 'label': 'T-13', 'capacity': 2},
+    {'number': '14', 'label': 'T-14', 'capacity': 2},
+    {'number': '15', 'label': 'T-15', 'capacity': 2},
+  ];
+
+  List<String> _selectedTableNumbers = [];
+
+  Future<void> _loadTableLayout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tablesJson = prefs.getString(_prefsKeyTables);
+      if (tablesJson != null) {
+        final List<dynamic> list = jsonDecode(tablesJson);
+        if (mounted) setState(() => _tables = list.map((e) => Map<String, dynamic>.from(e as Map)).toList());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveTableLayout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsKeyTables, jsonEncode(_tables));
+    } catch (_) {}
+  }
 
   // Map to manage TextEditingController for each cart item
-
   final Map<String, TextEditingController> _quantityControllers = {};
-
-
 
   final NumberFormat _fmt = NumberFormat('#,##0.00', 'en_US');
 
-
-
   static const _indigo = Colors.red;
-
   static const _bg = Color(0xFFF5F6FA);
-
   static const _border = Color(0xFFE5E7EB);
-
   static const _grey = Color(0xFF6B7280);
-
   static const _textDark = Color(0xFF1E293B);
 
-
-
   @override
-
   void initState() {
-
     super.initState();
-
-    // Pass the clearInputs function to parent widget
-
     widget.onClearInputs(clearInputs);
-
-    // Load Laguna municipalities
-
     LocationService.loadLocations();
-
+    _loadTableLayout();
   }
 
-
-
   @override
-
   void dispose() {
-
     _noteController.dispose();
-
     _guestCountController.dispose();
-
     _tableNumberController.dispose();
-
     _customerNameController.dispose();
-
     _customerAddressController.dispose();
-
-    // Dispose all quantity controllers
-
     for (final controller in _quantityControllers.values) {
-
       controller.dispose();
-
     }
-
     super.dispose();
-
   }
 
 
@@ -211,6 +213,10 @@ class _OrderListPanelState extends State<OrderListPanel> {
     _guestCountController.text = '1';
 
     _tableNumberController.clear();
+    setState(() {
+      _selectedTableNumbers.clear();
+      _selectedTableLabel = null;
+    });
 
     _customerNameController.clear();
 
@@ -644,13 +650,585 @@ class _OrderListPanelState extends State<OrderListPanel> {
 
 
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  SIMPLE VISUAL TABLE PICKER (T-1 to T-15 with inline Edit Pax)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _showTablePickerDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        bool isEditMode = false;
+        String? hoveredTable;
+        List<String> tempSelected = List<String>.from(_selectedTableNumbers);
+
+        return StatefulBuilder(builder: (ctx2, setDialog) {
+          final totalTables = _tables.length;
+          final totalCapacity = _tables.fold(0, (s, t) => s + ((t['capacity'] as num?)?.toInt() ?? 1));
+
+          // Calculate current selected total pax
+          final selectedPax = _tables
+              .where((t) => tempSelected.contains(t['number'].toString()) || tempSelected.contains(t['label'].toString()))
+              .fold(0, (s, t) => s + ((t['capacity'] as num?)?.toInt() ?? 1));
+
+          void _adjustPax(int idx, int delta) {
+            final current = (_tables[idx]['capacity'] as num?)?.toInt() ?? 1;
+            final updated = (current + delta).clamp(1, 30);
+            setState(() => _tables[idx]['capacity'] = updated);
+            setDialog(() {});
+            _saveTableLayout();
+          }
+
+          void _addNewTable() {
+            final nextNum = _tables.length + 1;
+            setState(() {
+              _tables.add({
+                'number': nextNum.toString(),
+                'label': 'T-$nextNum',
+                'capacity': 4,
+              });
+            });
+            setDialog(() {});
+            _saveTableLayout();
+          }
+
+          void _removeTable(int idx) {
+            setState(() => _tables.removeAt(idx));
+            setDialog(() {});
+            _saveTableLayout();
+          }
+
+          void _applySelection() {
+            if (tempSelected.isEmpty) {
+              setState(() {
+                _selectedTableNumbers.clear();
+                _tableNumberController.clear();
+                _selectedTableLabel = null;
+              });
+            } else if (tempSelected.length == _tables.length) {
+              final labels = _tables.map((t) => t['label'].toString()).join(', ');
+              setState(() {
+                _selectedTableNumbers = _tables.map((t) => t['number'].toString()).toList();
+                _tableNumberController.text = 'All Tables ($labels)';
+                _selectedTableLabel = 'All Tables ($totalCapacity pax)';
+                _guestCountController.text = totalCapacity.toString();
+              });
+            } else {
+              final chosen = _tables.where((t) =>
+                  tempSelected.contains(t['number'].toString()) ||
+                  tempSelected.contains(t['label'].toString())).toList();
+              final labels = chosen.map((t) => t['label'].toString()).join(', ');
+              final nums = chosen.map((t) => t['number'].toString()).toList();
+              setState(() {
+                _selectedTableNumbers = nums;
+                _tableNumberController.text = labels;
+                _selectedTableLabel = '$labels ($selectedPax pax)';
+                _guestCountController.text = selectedPax.toString();
+              });
+            }
+            Navigator.pop(ctx2);
+          }
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: Container(
+              width: 600,
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx2).size.height * 0.88),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 40,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 14, 16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0C241F), Color(0xFF14332E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.table_restaurant_rounded,
+                            color: Color(0xFFD9A441),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Select Table',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '$totalTables tables · $totalCapacity total pax capacity',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white.withValues(alpha: 0.65),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ── Select All Button ──
+                        if (!isEditMode)
+                          InkWell(
+                            onTap: () {
+                              setDialog(() {
+                                if (tempSelected.length == _tables.length) {
+                                  tempSelected.clear();
+                                } else {
+                                  tempSelected = _tables.map((t) => t['number'].toString()).toList();
+                                }
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: tempSelected.length == _tables.length
+                                    ? const Color(0xFF16A34A)
+                                    : Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: tempSelected.length == _tables.length
+                                      ? const Color(0xFF86EFAC)
+                                      : Colors.white.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    tempSelected.length == _tables.length
+                                        ? Icons.check_box_rounded
+                                        : Icons.check_box_outline_blank_rounded,
+                                    color: Colors.white,
+                                    size: 15,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    tempSelected.length == _tables.length
+                                        ? 'All Selected'
+                                        : 'Select All ($totalCapacity pax)',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // ── Edit Pax Mode Toggle ──
+                        InkWell(
+                          onTap: () => setDialog(() => isEditMode = !isEditMode),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isEditMode
+                                  ? const Color(0xFFD9A441)
+                                  : Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isEditMode
+                                    ? const Color(0xFFD9A441)
+                                    : Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isEditMode ? Icons.check_circle_rounded : Icons.edit_note_rounded,
+                                  color: isEditMode ? const Color(0xFF0C241F) : const Color(0xFFD9A441),
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isEditMode ? 'Done' : 'Edit Pax',
+                                  style: GoogleFonts.inter(
+                                    color: isEditMode ? const Color(0xFF0C241F) : Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 20),
+                          onPressed: () => Navigator.pop(ctx2),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Table Grid Area ──
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isEditMode)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFFCD34D)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.touch_app_rounded, color: Color(0xFFB45309), size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Edit Mode: Gamitin ang - at + para baguhin ang seating capacity (pax) ng bawat mesa.',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF92400E),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          // ── Simple Grid of Tables ──
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              ...List.generate(_tables.length, (idx) {
+                                final t = _tables[idx];
+                                final isSelected = tempSelected.contains(t['number'].toString()) ||
+                                    tempSelected.contains(t['label'].toString());
+                                final pax = (t['capacity'] as num?)?.toInt() ?? 1;
+
+                                return InkWell(
+                                  onTap: isEditMode
+                                      ? null
+                                      : () {
+                                          setDialog(() {
+                                            if (isSelected) {
+                                              tempSelected.remove(t['number'].toString());
+                                              tempSelected.remove(t['label'].toString());
+                                            } else {
+                                              tempSelected.add(t['number'].toString());
+                                            }
+                                          });
+                                        },
+                                  onHover: (h) => setDialog(() => hoveredTable = h ? t['label'] : null),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 160),
+                                    width: isEditMode ? 124 : 96,
+                                    height: isEditMode ? 104 : 96,
+                                    decoration: BoxDecoration(
+                                      gradient: isSelected && !isEditMode
+                                          ? const LinearGradient(
+                                              colors: [Color(0xFF0F5132), Color(0xFF198754)],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            )
+                                          : null,
+                                      color: isSelected && !isEditMode
+                                          ? null
+                                          : (hoveredTable == t['label'] && !isEditMode
+                                              ? const Color(0xFFF1F5F9)
+                                              : const Color(0xFFF8FAFC)),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: isSelected && !isEditMode
+                                            ? const Color(0xFF198754)
+                                            : (isEditMode
+                                                ? const Color(0xFFCBD5E1)
+                                                : const Color(0xFFE2E8F0)),
+                                        width: isSelected && !isEditMode ? 2.5 : 1.2,
+                                      ),
+                                      boxShadow: isSelected && !isEditMode
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFF198754).withValues(alpha: 0.35),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                            ]
+                                          : [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.04),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.table_restaurant_rounded,
+                                                color: isSelected && !isEditMode
+                                                    ? Colors.white
+                                                    : const Color(0xFF0C241F),
+                                                size: 24,
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                t['label'].toString(),
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: isSelected && !isEditMode
+                                                      ? Colors.white
+                                                      : const Color(0xFF1E293B),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+
+                                              // ── Normal Mode Pax Display ──
+                                              if (!isEditMode)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? Colors.white.withValues(alpha: 0.25)
+                                                        : const Color(0xFF0C241F).withValues(alpha: 0.08),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    '$pax pax',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isSelected
+                                                          ? Colors.white
+                                                          : const Color(0xFF0C241F),
+                                                    ),
+                                                  ),
+                                                ),
+
+                                              // ── Edit Mode Inline Stepper ──
+                                              if (isEditMode)
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    GestureDetector(
+                                                      onTap: () => _adjustPax(idx, -1),
+                                                      child: Container(
+                                                        width: 22,
+                                                        height: 22,
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.remove, size: 13, color: Color(0xFFDC2626)),
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                                                      child: Text(
+                                                        '$pax pax',
+                                                        style: GoogleFonts.inter(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: const Color(0xFF0C241F),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    GestureDetector(
+                                                      onTap: () => _adjustPax(idx, 1),
+                                                      child: Container(
+                                                        width: 22,
+                                                        height: 22,
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(Icons.add, size: 13, color: Color(0xFF059669)),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Selection checkmark badge
+                                        if (isSelected && !isEditMode)
+                                          const Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                                          ),
+
+                                        // Delete table in edit mode
+                                        if (isEditMode && _tables.length > 1)
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: GestureDetector(
+                                              onTap: () => _removeTable(idx),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withValues(alpha: 0.1),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.close, size: 12, color: Colors.red),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+
+                              // ── Add Table Button (in Edit Mode) ──
+                              if (isEditMode)
+                                InkWell(
+                                  onTap: _addNewTable,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    width: 124,
+                                    height: 104,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0C241F).withValues(alpha: 0.04),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: const Color(0xFF0C241F).withValues(alpha: 0.3),
+                                        style: BorderStyle.solid,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF0C241F), size: 24),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '+ Add Table',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF0C241F),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          const Divider(height: 24),
+
+                          // ── Footer Helper & Action Buttons ──
+                          Row(
+                            children: [
+                              const Icon(Icons.touch_app_outlined, size: 14, color: Color(0xFF94A3B8)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  tempSelected.isNotEmpty
+                                      ? 'Selected: ${tempSelected.length} tables · $selectedPax pax'
+                                      : 'Pumili ng isa o higit pang mesa.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: tempSelected.isNotEmpty ? FontWeight.w700 : FontWeight.w500,
+                                    color: tempSelected.isNotEmpty ? const Color(0xFF0C241F) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              if (tempSelected.isNotEmpty) ...[
+                                TextButton(
+                                  onPressed: () => setDialog(() => tempSelected.clear()),
+                                  child: Text('Clear', style: GoogleFonts.inter(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              ElevatedButton(
+                                onPressed: _applySelection,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0C241F),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: Text(
+                                  tempSelected.isEmpty ? 'Close' : 'Confirm (${tempSelected.length} Tables)',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
   Widget _buildTableAndGuestFields() {
 
     return Row(
 
       children: [
 
-        // Table Number Field
+        // Table Number Field — visual picker
 
         Expanded(
 
@@ -679,63 +1257,51 @@ class _OrderListPanelState extends State<OrderListPanel> {
               const SizedBox(height: 6),
 
               TextField(
-
                 controller: _tableNumberController,
-
-                keyboardType: TextInputType.number,
-
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
-
+                readOnly: true,
+                onTap: _showTablePickerDialog,
                 textAlign: TextAlign.center,
-
-                style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
-
+                style: const TextStyle(fontSize: 13.5, color: _textDark, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
-
                   hintText: 'Table #',
-
                   hintStyle: const TextStyle(color: _grey, fontSize: 13),
-
                   filled: true,
-
                   fillColor: _bg,
-
                   isDense: true,
-
                   contentPadding: const EdgeInsets.symmetric(
-
                     horizontal: 8,
-
                     vertical: 8,
-
                   ),
-
+                  suffixIcon: _tableNumberController.text.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () => setState(() {
+                            _selectedTableNumbers.clear();
+                            _tableNumberController.clear();
+                            _selectedTableLabel = null;
+                          }),
+                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                        )
+                      : const MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Icon(
+                            Icons.table_restaurant_rounded,
+                            size: 17,
+                            color: Color(0xFF0C241F),
+                          ),
+                        ),
                   border: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
                     borderSide: const BorderSide(color: _border),
-
                   ),
-
                   enabledBorder: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
                     borderSide: const BorderSide(color: _border),
-
                   ),
-
                   focusedBorder: OutlineInputBorder(
-
                     borderRadius: BorderRadius.circular(8),
-
                     borderSide: const BorderSide(color: _indigo, width: 1.5),
-
                   ),
-
                 ),
-
               ),
 
             ],
@@ -783,7 +1349,6 @@ class _OrderListPanelState extends State<OrderListPanel> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
 
                 textAlign: TextAlign.center,
-
                 style: const TextStyle(fontSize: 14, color: _textDark, fontWeight: FontWeight.bold),
 
                 decoration: InputDecoration(
