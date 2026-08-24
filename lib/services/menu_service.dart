@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/menu_item.dart';
-
 import '../utils/app_constants.dart';
+import 'offline_pos_service.dart';
 
 
 
@@ -104,6 +104,10 @@ class MenuService {
 
 
 
+      // Cache locally for offline POS usage
+      final rawList = rows.map((r) => Map<String, dynamic>.from(r as Map)).toList();
+      OfflinePosService().cacheMenuItems(rawList);
+
       final List<String> sortedCategories = tempCategories.toList();
 
       sortedCategories.sort((a, b) {
@@ -137,6 +141,20 @@ class MenuService {
       debugPrint('Error fetching menu from Supabase: $e');
 
       debugPrint(stackTrace.toString());
+
+      // Attempt to load from offline cache
+      try {
+        final cached = await OfflinePosService().getCachedMenu();
+        if (cached.isNotEmpty) {
+          debugPrint('[MenuService] Successfully loaded menu from offline cache (${cached.length} categories).');
+          _cachedMenu = cached;
+          _cachedCategories = cached.keys.toList();
+          _isLoaded = true;
+          return _cachedMenu;
+        }
+      } catch (cacheErr) {
+        debugPrint('[MenuService] Offline cache read failed: $cacheErr');
+      }
 
       _cachedMenu = {};
 
