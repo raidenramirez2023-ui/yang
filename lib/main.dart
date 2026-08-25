@@ -29,6 +29,8 @@ import 'pages/test_email_template.dart';
 
 import 'pages/template_fix_complete.dart';
 
+import 'pages/privacy_policy_page.dart';
+
 import 'pages/otp_password_reset.dart';
 
 import 'pages/landing_page.dart';
@@ -131,6 +133,8 @@ class YangChowApp extends StatelessWidget {
         '/test-email-template': (context) => const TestEmailTemplate(),
 
         '/template-fix-complete': (context) => const TemplateFixComplete(),
+
+        '/privacy': (context) => const PrivacyPolicyPage(),
 
         '/otp-password-reset': (context) {
           final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
