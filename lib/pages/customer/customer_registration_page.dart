@@ -28,6 +28,7 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   bool _agreeToTerms = false;
+  bool _agreeToPrivacy = false;
   final bool _isRedirecting = false;
 
   // Email verification states
@@ -178,6 +179,15 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
     if (!_agreeToTerms) {
       _showSnackBar(
         "Please agree to the terms and conditions",
+        Colors.orange.shade700,
+        Icons.warning_amber,
+      );
+      return;
+    }
+
+    if (!_agreeToPrivacy) {
+      _showSnackBar(
+        "Please agree to the Privacy Policy",
         Colors.orange.shade700,
         Icons.warning_amber,
       );
@@ -624,6 +634,278 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
               onPressed: () {
                 setState(() {
                   _agreeToTerms = true;
+                });
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Accept'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPrivacyPolicyModal() {
+    const boldStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 13,
+      color: Colors.black87,
+      height: 1.5,
+    );
+    const normalStyle = TextStyle(
+      fontSize: 13,
+      color: Colors.black54,
+      height: 1.5,
+    );
+    const sectionTitleStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 15,
+      color: Colors.black87,
+    );
+    const subSectionTitleStyle = TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 13.5,
+      color: Colors.black87,
+    );
+
+    Widget buildBullet(List<TextSpan> spans) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 12, bottom: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('• ', style: normalStyle),
+            Expanded(child: RichText(text: TextSpan(children: spans))),
+          ],
+        ),
+      );
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Privacy Policy',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.black87,
+            ),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Intro paragraph
+                  Text(
+                    'Last updated: August 25, 2026',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Yang Chow Restaurant ("we", "our", or "us") operates the Yang Chow mobile application (the "App"). '
+                    'This Privacy Policy explains how we collect, use, disclose, and protect your information when you use our App.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 1. Information We Collect ──
+                  const SizedBox(height: 20),
+                  const Text('1. Information We Collect', style: sectionTitleStyle),
+                  const SizedBox(height: 12),
+
+                  // 1.1 Personal Information
+                  const Text('1.1 Personal Information', style: subSectionTitleStyle),
+                  const SizedBox(height: 8),
+                  buildBullet([
+                    const TextSpan(text: 'Contact Information: ', style: boldStyle),
+                    const TextSpan(text: 'Firstname, Lastname, Phone Number, Valid ID, and Valid Email Address (if you voluntarily provide it).', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Account Information: ', style: boldStyle),
+                    const TextSpan(text: 'username, password, and any profile details you choose to share.', style: normalStyle),
+                  ]),
+
+                  // 1.2 Non-Personal Information
+                  const SizedBox(height: 12),
+                  const Text('1.2 Non-Personal Information', style: subSectionTitleStyle),
+                  const SizedBox(height: 8),
+                  buildBullet([
+                    const TextSpan(text: 'Device Information: ', style: boldStyle),
+                    const TextSpan(text: 'device model, operating system version, unique device identifiers, and IP address.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Usage Data: ', style: boldStyle),
+                    const TextSpan(text: 'interaction logs, crash reports, analytics events, and performance data.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Location Data: ', style: boldStyle),
+                    const TextSpan(text: 'approximate location derived from IP address or device GPS (only if you enable location services).', style: normalStyle),
+                  ]),
+
+                  // ── 2. How We Use Your Information ──
+                  const SizedBox(height: 20),
+                  const Text('2. How We Use Your Information', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  buildBullet([
+                    const TextSpan(text: 'Provide & Maintain the Service: ', style: boldStyle),
+                    const TextSpan(text: 'to operate, personalize, and improve the App.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Communication: ', style: boldStyle),
+                    const TextSpan(text: 'to send you updates, security alerts, support messages, and marketing communications (you may opt-out).', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Analytics & Research: ', style: boldStyle),
+                    const TextSpan(text: 'to analyze usage patterns, diagnose technical issues, and develop new features.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Legal Compliance: ', style: boldStyle),
+                    const TextSpan(text: 'to comply with legal obligations, enforce our Terms of Service, and protect against fraud.', style: normalStyle),
+                  ]),
+
+                  // ── 3. Sharing & Disclosure ──
+                  const SizedBox(height: 20),
+                  const Text('3. Sharing & Disclosure', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text('We may share your information with:', style: normalStyle),
+                  const SizedBox(height: 4),
+                  buildBullet([
+                    const TextSpan(text: 'Service Providers: ', style: boldStyle),
+                    const TextSpan(text: 'third-party vendors that help us host, analyze, or support the App (e.g., cloud providers, analytics services). They are contractually obligated to protect your data.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Legal Requirements: ', style: boldStyle),
+                    const TextSpan(text: 'when required by law, subpoena, or governmental request.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Business Transfers: ', style: boldStyle),
+                    const TextSpan(text: 'in connection with a merger, acquisition, or sale of assets, provided the acquiring entity agrees to honor this Privacy Policy.', style: normalStyle),
+                  ]),
+                  const SizedBox(height: 8),
+                  RichText(
+                    text: const TextSpan(
+                      children: [
+                        TextSpan(text: 'We ', style: normalStyle),
+                        TextSpan(text: 'do not sell', style: boldStyle),
+                        TextSpan(text: ' your personal information to third parties.', style: normalStyle),
+                      ],
+                    ),
+                  ),
+
+                  // ── 4. Data Retention ──
+                  const SizedBox(height: 20),
+                  const Text('4. Data Retention', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'We retain your personal data only for as long as necessary to fulfill the purposes outlined in this Privacy Policy, '
+                    'unless a longer retention period is required or permitted by law.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 5. Your Rights & Choices ──
+                  const SizedBox(height: 20),
+                  const Text('5. Your Rights & Choices', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  buildBullet([
+                    const TextSpan(text: 'Access & Correction: ', style: boldStyle),
+                    const TextSpan(text: 'you may request access to, correction of, or deletion of your personal data.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Opt-Out: ', style: boldStyle),
+                    const TextSpan(text: 'you can opt out of marketing communications via the unsubscribe link in our emails or by adjusting app settings.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Location Services: ', style: boldStyle),
+                    const TextSpan(text: 'you can disable location permissions in your device settings.', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Data Portability: ', style: boldStyle),
+                    const TextSpan(text: 'upon request, we can provide a copy of your personal data in a machine-readable format.', style: normalStyle),
+                  ]),
+
+                  // ── 6. Security ──
+                  const SizedBox(height: 20),
+                  const Text('6. Security', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'We implement reasonable technical and organizational measures to protect your data against unauthorized access, alteration, '
+                    'disclosure, or destruction. However, no method of transmission over the internet is 100% secure.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 7. Children's Privacy ──
+                  const SizedBox(height: 20),
+                  const Text("7. Children's Privacy", style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'The App is not directed at children under the age of 18, and we do not knowingly collect personal information from minors. '
+                    'Users must be 18 years of age or older to use this App.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 8. International Transfers ──
+                  const SizedBox(height: 20),
+                  const Text('8. International Transfers', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Your information may be transferred to, and processed in, countries outside your residence, which may have different data protection laws. '
+                    'We will ensure appropriate safeguards are in place.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 9. Changes to This Privacy Policy ──
+                  const SizedBox(height: 20),
+                  const Text('9. Changes to This Privacy Policy', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new policy '
+                    'within the App and updating the "Last updated" date.',
+                    style: normalStyle,
+                  ),
+
+                  // ── 10. Contact Us ──
+                  const SizedBox(height: 20),
+                  const Text('10. Contact Us', style: sectionTitleStyle),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'If you have any questions about this Privacy Policy, please contact us at:',
+                    style: normalStyle,
+                  ),
+                  const SizedBox(height: 4),
+                  buildBullet([
+                    const TextSpan(text: 'Email: ', style: boldStyle),
+                    const TextSpan(text: 'bsit-ycprms@yc-pagsanjan.site', style: normalStyle),
+                  ]),
+                  buildBullet([
+                    const TextSpan(text: 'Address: ', style: boldStyle),
+                    const TextSpan(text: 'CLA TOWN CENTER MALL, Ground floor near at mall entrance.', style: normalStyle),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _agreeToPrivacy = true;
                 });
                 Navigator.of(context).pop();
               },
@@ -1438,6 +1720,49 @@ class _CustomerRegistrationPageState extends State<CustomerRegistrationPage> {
                 onTap: _showTermsAndConditionsModal,
                 child: Text(
                   'I agree to the Terms and Conditions',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Privacy Policy Checkbox
+        Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                value: _agreeToPrivacy,
+                onChanged: _isLoading
+                    ? null
+                    : (bool? value) {
+                        if (value ?? false) {
+                          _showPrivacyPolicyModal();
+                        } else {
+                          setState(() => _agreeToPrivacy = false);
+                        }
+                      },
+                activeColor: _forestGreen,
+                checkColor: _warmGold,
+                side: BorderSide(color: Colors.grey.shade400),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: _showPrivacyPolicyModal,
+                child: Text(
+                  'I agree to the Privacy Policy',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: Colors.grey.shade700,
