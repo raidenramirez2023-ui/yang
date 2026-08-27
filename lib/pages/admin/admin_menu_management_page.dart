@@ -21,9 +21,12 @@ class AdminMenuManagementPage extends StatefulWidget {
 
 class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _categoryScrollController = ScrollController();
   String _searchQuery = '';
   String _selectedCategoryFilter = 'All';
   bool _isLoading = true;
+  bool _canScrollLeft = false;
+  bool _canScrollRight = true;
   Map<String, List<MenuItem>> _menu = {};
   List<String> _categories = [];
 
@@ -47,6 +50,33 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
   void initState() {
     super.initState();
     _loadMenuData();
+    _categoryScrollController.addListener(_updateScrollArrows);
+  }
+
+  void _updateScrollArrows() {
+    final sc = _categoryScrollController;
+    if (!sc.hasClients) return;
+    setState(() {
+      _canScrollLeft = sc.offset > 4;
+      _canScrollRight = sc.offset < sc.position.maxScrollExtent - 4;
+    });
+  }
+
+  void _scrollCategoryLeft() {
+    _categoryScrollController.animateTo(
+      (_categoryScrollController.offset - 200).clamp(0.0, double.infinity),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _scrollCategoryRight() {
+    final max = _categoryScrollController.position.maxScrollExtent;
+    _categoryScrollController.animateTo(
+      (_categoryScrollController.offset + 200).clamp(0.0, max),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _loadMenuData() async {
@@ -475,18 +505,58 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
             const SizedBox(height: 10),
 
             // ── Category Pills Bar ───────────────────────────────────────────
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildCategoryPill('All', allItemsList.length, Icons.grid_view_rounded),
-                  ..._categories.map((cat) => _buildCategoryPill(
-                    cat, 
-                    _menu[cat]?.length ?? 0,
-                    _getCategoryIcon(cat),
-                  )),
-                ],
-              ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Scrollable pills
+                SingleChildScrollView(
+                  controller: _categoryScrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Row(
+                    children: [
+                      _buildCategoryPill('All', allItemsList.length, Icons.grid_view_rounded),
+                      ..._categories.map((cat) => _buildCategoryPill(
+                        cat,
+                        _menu[cat]?.length ?? 0,
+                        _getCategoryIcon(cat),
+                      )),
+                    ],
+                  ),
+                ),
+
+                // ← Left arrow
+                Positioned(
+                  left: 0,
+                  child: AnimatedOpacity(
+                    opacity: _canScrollLeft ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: IgnorePointer(
+                      ignoring: !_canScrollLeft,
+                      child: _buildScrollArrow(
+                        icon: Icons.chevron_left_rounded,
+                        onTap: _scrollCategoryLeft,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // → Right arrow
+                Positioned(
+                  right: 0,
+                  child: AnimatedOpacity(
+                    opacity: _canScrollRight ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: IgnorePointer(
+                      ignoring: !_canScrollRight,
+                      child: _buildScrollArrow(
+                        icon: Icons.chevron_right_rounded,
+                        onTap: _scrollCategoryRight,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -703,6 +773,37 @@ class _AdminMenuManagementPageState extends State<AdminMenuManagementPage> {
         ),
       ),
     );
+  }
+
+  /// Small arrow button used on the category pills bar.
+  Widget _buildScrollArrow({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Icon(icon, size: 18, color: const Color(0xFF14332E)),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _categoryScrollController.dispose();
+    super.dispose();
   }
 
   Widget _buildMenuItemCard(MenuItem item) {

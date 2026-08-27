@@ -22,6 +22,8 @@ import 'package:yang_chow/utils/role_helper.dart';
 
 import 'package:yang_chow/utils/responsive_utils.dart';
 
+import 'package:yang_chow/services/app_settings_service.dart';
+
 
 
 import 'package:yang_chow/pages/admin/user_management.dart';
@@ -186,10 +188,13 @@ class _AdminMainPageState extends State<AdminMainPage> {
     }
   }
 
+  bool _isStaffDelegationEnabled = false;
+
   @override
   void initState() {
     super.initState();
     _checkUserRole();
+    _loadDelegationSetting();
     _loadPendingPaymentCount();
     _loadPendingReservationCount();
     _loadRemainingBalanceCount();
@@ -249,6 +254,90 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
+  }
+
+  Future<void> _loadDelegationSetting() async {
+    // Query Supabase directly — bypass local cache which resets on logout
+    try {
+      final response = await Supabase.instance.client
+          .from('app_settings')
+          .select('setting_value')
+          .eq('setting_key', 'staff_delegation_mode')
+          .maybeSingle();
+      final enabled = response != null &&
+          (response['setting_value'] == 'true' || response['setting_value'] == '1');
+      if (mounted) {
+        setState(() {
+          _isStaffDelegationEnabled = enabled;
+        });
+      }
+    } catch (e) {
+      debugPrint('[Admin] Error loading delegation setting: $e');
+    }
+  }
+
+  Future<void> _toggleStaffDelegation(bool newValue) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Icon(
+              newValue ? Icons.beach_access_rounded : Icons.admin_panel_settings_rounded,
+              color: newValue ? const Color(0xFF0D9488) : const Color(0xFF14332E),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                newValue ? 'Turn ON Rest Day Mode?' : 'Return to Admin Duty?',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          newValue
+              ? 'When Rest Day Mode is ON, on-duty Staff / Cashier can approve reservations, verify GCash payment slips, and manage balances from the Staff POS terminal.\n\nAll staff actions will still be recorded under their own name in Audit Logs.'
+              : 'When Rest Day Mode is OFF, Staff approvals are locked. Transaction approvals and cancellations will be exclusive to Admin on duty.',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: newValue ? const Color(0xFF0D9488) : const Color(0xFF14332E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(newValue ? 'Activate Rest Day Mode' : 'Return to Admin Duty'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await AppSettingsService().setStaffDelegationEnabled(newValue);
+      setState(() {
+        _isStaffDelegationEnabled = newValue;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newValue
+                ? '✓ Rest Day Mode is ON: Staff can now process transactions.'
+                : '✓ Rest Day Mode is OFF: Transaction approvals restricted to Admin.'),
+            backgroundColor: newValue ? const Color(0xFF0D9488) : const Color(0xFF14332E),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
   }
 
 
@@ -716,7 +805,7 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
 
-    const InventoryPage(isViewOnly: true),
+    const InventoryPage(isViewOnly: true, showImportExport: true),
 
 
 
@@ -867,15 +956,35 @@ class _AdminMainPageState extends State<AdminMainPage> {
       ),
 
     );
-
   }
 
-
+  Widget _buildNavBadge(int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444), // Uniform Red
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(alpha: 0.35),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10.5,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 
   Widget _buildSidebar() {
-
     return Material(
-
       color: AppTheme.adminSidebarBackground,
 
       child: SizedBox(
@@ -1103,140 +1212,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
                             // Add badge for Reservations
-
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.blue,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingReservationCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
-
-
+                              _buildNavBadge(_pendingReservationCount),
 
                             // Add badge for Payment Approvals
-
                             if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.orange,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingPaymentCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
-
-
+                              _buildNavBadge(_pendingPaymentCount),
 
                             // Add badge for Remaining Balance
-
                             if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.red,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_remainingBalanceCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
-
-
+                              _buildNavBadge(_remainingBalanceCount),
 
                             // Add badge for Refunds & Reschedules
                             if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444), // Vibrant Red
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.red.withValues(alpha: 0.4),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  '$_pendingRefundCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-
-
-
+                              _buildNavBadge(_pendingRefundCount),
                           ],
 
                         ),
@@ -1285,70 +1274,116 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
           const SizedBox(height: 12),
 
-
-
         ],
-
       ),
-
     ),
-
   );
-
 }
 
-
+  Widget _buildStaffDelegationToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _isStaffDelegationEnabled
+            ? const Color(0xFFECFDF5)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isStaffDelegationEnabled
+              ? const Color(0xFF6EE7B7)
+              : const Color(0xFFCBD5E1),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _isStaffDelegationEnabled
+                ? Icons.beach_access_rounded
+                : Icons.admin_panel_settings_rounded,
+            size: 16,
+            color: _isStaffDelegationEnabled
+                ? const Color(0xFF059669)
+                : const Color(0xFF64748B),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _isStaffDelegationEnabled
+                    ? 'REST DAY MODE: ON'
+                    : 'ADMIN DUTY: ACTIVE',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.3,
+                  color: _isStaffDelegationEnabled
+                      ? const Color(0xFF065F46)
+                      : const Color(0xFF334155),
+                ),
+              ),
+              Text(
+                _isStaffDelegationEnabled
+                    ? 'Staff Delegation Active'
+                    : 'Staff Approvals Locked',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: _isStaffDelegationEnabled
+                      ? const Color(0xFF059669)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          Transform.scale(
+            scale: 0.75,
+            child: Switch(
+              value: _isStaffDelegationEnabled,
+              activeThumbColor: const Color(0xFF059669),
+              activeTrackColor: const Color(0xFFA7F3D0),
+              inactiveThumbColor: const Color(0xFF94A3B8),
+              inactiveTrackColor: const Color(0xFFE2E8F0),
+              onChanged: _toggleStaffDelegation,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildModernAppBar() {
-
     final currentUser = Supabase.instance.client.auth.currentUser;
-
     return Container(
-
       height: 70,
-
       padding: const EdgeInsets.symmetric(horizontal: 24),
-
       decoration: const BoxDecoration(
-
         color: Colors.white,
-
         border: Border(bottom: BorderSide(color: AppTheme.cardBorder, width: 1)),
-
       ),
-
       child: Row(
-
         children: [
-
           Text(
-
             _pageTitles[_selectedIndex],
-
             style: const TextStyle(
-
               fontSize: 20,
-
               fontWeight: FontWeight.bold,
-
               color: AppTheme.adminPrimaryText,
-
             ),
-
           ),
-
           const Spacer(),
-
+          _buildStaffDelegationToggle(),
+          const SizedBox(width: 14),
           _buildAdminNotificationIcon(),
-
           const SizedBox(width: 8),
-
           const SizedBox(width: 16),
-
           Row(
-
             children: [
-
               Container(height: 32, width: 1, color: AppTheme.cardBorder),
 
               const SizedBox(width: 24),
@@ -2139,122 +2174,20 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
                             // Add badge for Reservations
-
                             if (_pageTitles[index] == 'Reservations' && _pendingReservationCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.blue,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingReservationCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
-
-
+                              _buildNavBadge(_pendingReservationCount),
 
                             // Add badge for Payment Approvals
-
                             if (_pageTitles[index] == 'Payment Approvals' && _pendingPaymentCount > 0)
-
-                              Container(
-
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-                                decoration: BoxDecoration(
-
-                                  color: Colors.orange,
-
-                                  borderRadius: BorderRadius.circular(10),
-
-                                ),
-
-                                child: Text(
-
-                                  '$_pendingPaymentCount',
-
-                                  style: const TextStyle(
-
-                                    color: Colors.white,
-
-                                    fontSize: 11,
-
-                                    fontWeight: FontWeight.bold,
-
-                                  ),
-
-                                ),
-
-                              ),
-
-
+                              _buildNavBadge(_pendingPaymentCount),
 
                             // Add badge for Remaining Balance
                             if (_pageTitles[index] == 'Remaining Balance' && _remainingBalanceCount > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '$_remainingBalanceCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
+                              _buildNavBadge(_remainingBalanceCount),
 
                             // Add badge for Refunds & Reschedules
                             if ((_pageTitles[index] == 'Refunds & Reschedules' || _pageTitles[index] == 'Refund Management') && _pendingRefundCount > 0)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.red.withValues(alpha: 0.4),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  '$_pendingRefundCount',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-
-
-
+                              _buildNavBadge(_pendingRefundCount),
                           ],
 
 
@@ -3279,79 +3212,71 @@ class _AdminMainPageState extends State<AdminMainPage> {
 
 
   String _getAdminNotificationSubtitle(Map<String, dynamic> n) {
+    final actorName = n['actor_name'] ?? 'Customer';
+    final actionType = n['action_type'];
+    final eventType = n['event_type'] ?? 'Reservation';
 
-    if (n['action_type'] == 'stock_request') {
-
-      return 'Kitchen has requested stock: ${n['event_type']}';
-
+    if (actionType == 'stock_request') {
+      return 'Kitchen has requested stock: $eventType';
+    }
+    if (actionType == 'stock_alert') {
+      return eventType.isNotEmpty ? eventType : 'Stock Alert';
+    }
+    if (actionType == 'pos_order') {
+      return 'POS staff have placed an order to process';
+    }
+    if (actionType == 'balance_cleared') {
+      return '$actorName paid remaining balance for $eventType';
+    }
+    if (actionType == 'deposit_paid') {
+      return '$actorName paid deposit for $eventType';
+    }
+    if (actionType == 'fully_paid') {
+      return '$actorName completed full payment for $eventType';
+    }
+    if (actionType == 'paid') {
+      return '$actorName paid for $eventType';
+    }
+    if (actionType == 'created') {
+      return '$actorName submitted new reservation for $eventType';
     }
 
-    if (n['action_type'] == 'stock_alert') {
-
-      return n['event_type'] ?? 'Stock Alert';
-
-    }
-
-    if (n['action_type'] == 'pos_order') {
-
-      return 'POS staff have order please process';
-
-    }
-
-    return '${n['actor_name']} ${n['action_type']} reservation for ${n['event_type']}';
-
+    return '$actorName: $actionType for $eventType';
   }
 
-
-
   String _getAdminNotificationTitle(Map<String, dynamic> n) {
-
     if (n['action_type'] == 'stock_request') {
-
       return 'Stock Request';
-
     }
-
     if (n['action_type'] == 'stock_alert') {
-
       return 'Stock Alert';
-
     }
-
     if (n['action_type'] == 'pos_order') {
-
       return 'New Order';
-
     }
 
     switch (n['action_type']) {
-
       case 'created':
-
         return 'New Reservation';
-
       case 'cancelled':
-
         return 'Reservation Cancelled';
-
       case 'deleted':
-
         return 'Reservation Deleted';
-
+      case 'deposit_paid':
+        return 'Deposit Payment Received';
+      case 'balance_cleared':
+        return 'Remaining Balance Paid';
+      case 'fully_paid':
+        return 'Full Payment Received';
       case 'paid':
-
         return 'Payment Received';
-
+      case 'balance_payment_link':
+        return 'Payment Link Sent';
       case 'updated':
-
         return 'Reservation Modified';
-
       default:
-
         return 'Activity Alert';
-
     }
-
   }
 
 }

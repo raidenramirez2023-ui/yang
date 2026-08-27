@@ -8,6 +8,7 @@ import 'package:yang_chow/services/email_notification_service.dart';
 import 'package:yang_chow/services/pricing_service.dart';
 import 'package:yang_chow/services/notification_service.dart';
 import 'package:yang_chow/services/refund_service.dart';
+import 'package:yang_chow/services/audit_log_service.dart';
 
 
 
@@ -65,6 +66,7 @@ class ReservationService {
 
     String? uploadedIdUrl,
     String? paymentOption = 'half',
+    String? transactedBy,
   }) async {
     try {
       final now = DateTime.now();
@@ -85,6 +87,7 @@ class ReservationService {
             'customer_phone': customerPhone,
             'customer_address': customerAddress,
             'uploaded_id_url': uploadedIdUrl,
+            'transacted_by': transactedBy,
             'created_at': now.toUtc().toIso8601String(),
             'updated_at': now.toUtc().toIso8601String(),
 
@@ -169,6 +172,7 @@ class ReservationService {
 
     String? uploadedIdUrl,
     String? paymentOption = 'half',
+    String? transactedBy,
   }) async {
     try {
       final now = DateTime.now();
@@ -193,6 +197,7 @@ class ReservationService {
             'customer_address': customerAddress,
 
             'uploaded_id_url': uploadedIdUrl,
+            'transacted_by': transactedBy,
 
             'created_at': now.toUtc().toIso8601String(),
 
@@ -1053,8 +1058,8 @@ class ReservationService {
     try {
 
       final now = DateTime.now();
-
-
+      final currentUser = _supabase.auth.currentUser;
+      final adminIdentifier = currentUser?.email ?? 'Admin';
 
       // Update reservation with pricing details
 
@@ -1075,6 +1080,8 @@ class ReservationService {
             'price_quotation_sent_at': now.toUtc().toIso8601String(),
 
             'admin_set_price': true,
+
+            'transacted_by': adminIdentifier,
 
             'updated_at': now.toUtc().toIso8601String(),
 
@@ -1328,6 +1335,38 @@ class ReservationService {
               guestCount: reservation['number_of_guests'],
             );
 
+            // Log activity to Audit Trail
+            final shortRef = id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+            final eventName = reservation['event_type'] ?? 'Reservation';
+            final custName = reservation['customer_name'] ?? actorName;
+            String auditDesc = '';
+            if (actionType == 'balance_cleared') {
+              auditDesc = 'Customer $custName paid remaining balance for Reservation #$shortRef ($eventName)';
+            } else if (actionType == 'deposit_paid') {
+              auditDesc = 'Customer $custName paid 50% deposit for Reservation #$shortRef ($eventName)';
+            } else if (actionType == 'fully_paid') {
+              auditDesc = 'Customer $custName completed full payment for Reservation #$shortRef ($eventName)';
+            } else {
+              auditDesc = 'Payment received from $custName for Reservation #$shortRef ($eventName)';
+            }
+
+            await AuditLogService.logActivity(
+              action: 'PAYMENT',
+              module: 'Payments',
+              description: auditDesc,
+              entityId: id,
+              customUserEmail: reservation['customer_email'],
+              customUserName: custName,
+              customUserRole: 'CUSTOMER',
+              metadata: {
+                'reservation_id': id,
+                'payment_status': paymentStatus,
+                'payment_reference': paymentReference,
+                'amount': paymentAmount,
+                'event_type': reservation['event_type'],
+              },
+            );
+
             if (paymentStatus == 'deposit_paid') {
               await _emailService.sendDepositPaymentConfirmation(
                 customerEmail: reservation['customer_email'],
@@ -1365,6 +1404,24 @@ class ReservationService {
             eventDate: response['order_date'],
             startTime: response['order_time'],
             guestCount: response['number_of_guests'],
+          );
+
+          // Log advance order payment to Audit Trail
+          final shortRef = id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
+          final custName = response['customer_name'] ?? actorName;
+          await AuditLogService.logActivity(
+            action: 'PAYMENT',
+            module: 'Payments',
+            description: 'Customer $custName completed payment for Advance Order #$shortRef (${response['order_type'] ?? 'Takeout'})',
+            entityId: id,
+            customUserEmail: response['customer_email'],
+            customUserName: custName,
+            customUserRole: 'CUSTOMER',
+            metadata: {
+              'order_id': id,
+              'order_type': response['order_type'],
+              'total_price': response['total_price'],
+            },
           );
 
           if (paymentStatus == 'paid' || paymentStatus == 'fully_paid') {

@@ -13,10 +13,13 @@ class ReceiptPdfService {
 
   static final DateFormat _dateTimeFmt = DateFormat('MMM dd, yyyy • hh:mm a');
 
-  /// Generates the PDF document for a given reservation
+  /// Generates the PDF document for a given reservation.
+  /// Set [isPaymentReceipt] = true to generate an official Payment Receipt
+  /// (used after admin cash settlement) instead of a Booking Pass.
   static Future<Uint8List> generateReservationVoucherPdf(
-    Map<String, dynamic> reservation,
-  ) async {
+    Map<String, dynamic> reservation, {
+    bool isPaymentReceipt = false,
+  }) async {
     final pdf = pw.Document();
 
     final resId = (reservation['id'] ?? 'N/A').toString();
@@ -30,6 +33,9 @@ class ReceiptPdfService {
     final startTime = (reservation['start_time'] ?? reservation['order_time'] ?? reservation['pickup_time'] ?? 'N/A').toString();
     final durationHours = reservation['duration_hours']?.toString() ?? (isAdvanceOrder ? 'Pickup' : '2');
     final guestsCount = (reservation['guests_count'] ?? reservation['guest_count'] ?? (isAdvanceOrder ? '1' : 'N/A')).toString();
+    final transactedBy = (reservation['transacted_by'] != null && reservation['transacted_by'].toString().isNotEmpty)
+        ? reservation['transacted_by'].toString()
+        : 'Pending Admin Processing';
     final paymentStatus = (reservation['payment_status'] ?? 'Pending').toString().toUpperCase();
     final status = (reservation['status'] ?? 'Confirmed').toString().toUpperCase();
     
@@ -38,7 +44,9 @@ class ReceiptPdfService {
     final totalAmount = double.tryParse(rawTotal.toString()) ?? 0.0;
     final rawDeposit = reservation['downpayment_amount'] ?? reservation['deposit_amount'] ?? (totalAmount * 0.5);
     final depositAmount = double.tryParse(rawDeposit.toString()) ?? 0.0;
-    final remainingBalance = totalAmount > depositAmount ? (totalAmount - depositAmount) : 0.0;
+    // If this is a payment receipt, remaining balance is always 0 (fully settled)
+    final remainingBalance = isPaymentReceipt ? 0.0 : (totalAmount > depositAmount ? (totalAmount - depositAmount) : 0.0);
+    final cashSettledAmount = isPaymentReceipt ? (totalAmount - depositAmount).clamp(0.0, double.infinity) : 0.0;
 
     // Menu Items
     final dynamic rawMenu = reservation['selected_menu_items'] ?? reservation['menu_items'] ?? [];
@@ -109,13 +117,15 @@ class ReceiptPdfService {
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('D4AF37'),
+                        color: isPaymentReceipt
+                            ? PdfColor.fromHex('15803D')   // Green for receipt
+                            : PdfColor.fromHex('D4AF37'),  // Gold for booking pass
                         borderRadius: pw.BorderRadius.circular(6),
                       ),
                       child: pw.Text(
-                        'OFFICIAL BOOKING PASS',
+                        isPaymentReceipt ? 'OFFICIAL PAYMENT RECEIPT' : 'OFFICIAL BOOKING PASS',
                         style: pw.TextStyle(
-                          color: PdfColor.fromHex('16302A'),
+                          color: PdfColors.white,
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
                         ),
@@ -135,12 +145,12 @@ class ReceiptPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'BOOKING REFERENCE',
+                        isPaymentReceipt ? 'RECEIPT NUMBER' : 'BOOKING REFERENCE',
                         style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 8),
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        '#${isAdvanceOrder ? 'ORD' : 'RES'}-$shortId',
+                        '#${isPaymentReceipt ? 'RCPT' : (isAdvanceOrder ? 'ORD' : 'RES')}-$shortId',
                         style: pw.TextStyle(
                           color: PdfColor.fromHex('16302A'),
                           fontSize: 14,
@@ -233,6 +243,7 @@ class ReceiptPdfService {
                           _buildPdfInfoRow('Date:', eventDateStr.isNotEmpty ? eventDateStr : 'TBD'),
                           _buildPdfInfoRow('Time Window:', '$startTime ($durationHours hrs)'),
                           _buildPdfInfoRow('Guests (Pax):', '$guestsCount Pax'),
+                          _buildPdfInfoRow('Transacted By:', transactedBy),
                         ],
                       ),
                     ),
@@ -318,60 +329,129 @@ class ReceiptPdfService {
                           pw.SizedBox(height: 8),
                           _buildPdfBillingRow('Total Amount:', _currencyFmt.format(totalAmount), isBold: true),
                           _buildPdfBillingRow('Deposit Paid:', _currencyFmt.format(depositAmount)),
-                          _buildPdfBillingRow('Remaining Balance:', _currencyFmt.format(remainingBalance)),
-                          pw.Divider(color: PdfColors.grey200),
-                          _buildPdfBillingRow('Payment Status:', paymentStatus, isAccent: true),
+                          if (isPaymentReceipt) ...[
+                            _buildPdfBillingRow('Cash Settled:', _currencyFmt.format(cashSettledAmount), isAccent: true),
+                            pw.Divider(color: PdfColors.grey200),
+                            _buildPdfBillingRow('Remaining Balance:', 'PHP 0.00  (FULLY SETTLED)', isBold: true, isAccent: true),
+                          ] else ...[
+                            _buildPdfBillingRow('Remaining Balance:', _currencyFmt.format(remainingBalance)),
+                            pw.Divider(color: PdfColors.grey200),
+                          ],
+                          _buildPdfBillingRow('Payment Status:', isPaymentReceipt ? 'FULLY PAID' : paymentStatus, isAccent: true),
                           _buildPdfBillingRow('Booking Status:', status),
                         ],
                       ),
                     ),
                   ),
                   pw.SizedBox(width: 14),
-                  // QR Verification Card
+                  // QR Verification Card OR Payment Confirmed Seal
                   pw.Expanded(
                     flex: 4,
-                    child: pw.Container(
-                      padding: const pw.EdgeInsets.all(12),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('F9FAFB'),
-                        borderRadius: pw.BorderRadius.circular(8),
-                        border: pw.Border.all(color: PdfColor.fromHex('D4AF37'), width: 1.2),
-                      ),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.center,
-                        children: [
-                          pw.Text(
-                            'ENTRY VERIFICATION QR',
-                            style: pw.TextStyle(
-                              color: PdfColor.fromHex('16302A'),
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
+                    child: isPaymentReceipt
+                        // ── Payment Receipt: green confirmed seal ──
+                        ? pw.Container(
+                            padding: const pw.EdgeInsets.all(12),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('F0FDF4'),
+                              borderRadius: pw.BorderRadius.circular(8),
+                              border: pw.Border.all(color: PdfColor.fromHex('86EFAC'), width: 1.5),
+                            ),
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.center,
+                              mainAxisAlignment: pw.MainAxisAlignment.center,
+                              children: [
+                                pw.Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: pw.BoxDecoration(
+                                    color: PdfColor.fromHex('15803D'),
+                                    shape: pw.BoxShape.circle,
+                                  ),
+                                  child: pw.Center(
+                                    child: pw.Text(
+                                      '✓',
+                                      style: pw.TextStyle(
+                                        color: PdfColors.white,
+                                        fontSize: 28,
+                                        fontWeight: pw.FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                pw.SizedBox(height: 8),
+                                pw.Text(
+                                  'PAYMENT',
+                                  style: pw.TextStyle(
+                                    color: PdfColor.fromHex('15803D'),
+                                    fontSize: 9,
+                                    fontWeight: pw.FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                pw.Text(
+                                  'CONFIRMED',
+                                  style: pw.TextStyle(
+                                    color: PdfColor.fromHex('15803D'),
+                                    fontSize: 9,
+                                    fontWeight: pw.FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 6),
+                                pw.Text(
+                                  'Cash received & recorded\nby Yang Chow staff.',
+                                  textAlign: pw.TextAlign.center,
+                                  style: const pw.TextStyle(
+                                    color: PdfColors.grey700,
+                                    fontSize: 6.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        // ── Booking Pass: entry QR ──
+                        : pw.Container(
+                            padding: const pw.EdgeInsets.all(12),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('F9FAFB'),
+                              borderRadius: pw.BorderRadius.circular(8),
+                              border: pw.Border.all(color: PdfColor.fromHex('D4AF37'), width: 1.2),
+                            ),
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.center,
+                              children: [
+                                pw.Text(
+                                  'ENTRY VERIFICATION QR',
+                                  style: pw.TextStyle(
+                                    color: PdfColor.fromHex('16302A'),
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 6),
+                                pw.Container(
+                                  height: 85,
+                                  width: 85,
+                                  padding: const pw.EdgeInsets.all(4),
+                                  color: PdfColors.white,
+                                  child: pw.BarcodeWidget(
+                                    barcode: pw.Barcode.qrCode(),
+                                    data: qrPayload,
+                                    drawText: false,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 4),
+                                pw.Text(
+                                  'Present to staff upon arrival for 1-click check-in.',
+                                  textAlign: pw.TextAlign.center,
+                                  style: const pw.TextStyle(
+                                    color: PdfColors.grey700,
+                                    fontSize: 6.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          pw.SizedBox(height: 6),
-                          pw.Container(
-                            height: 85,
-                            width: 85,
-                            padding: const pw.EdgeInsets.all(4),
-                            color: PdfColors.white,
-                            child: pw.BarcodeWidget(
-                              barcode: pw.Barcode.qrCode(),
-                              data: qrPayload,
-                              drawText: false,
-                            ),
-                          ),
-                          pw.SizedBox(height: 4),
-                          pw.Text(
-                            'Present to staff upon arrival for 1-click check-in.',
-                            textAlign: pw.TextAlign.center,
-                            style: const pw.TextStyle(
-                              color: PdfColors.grey700,
-                              fontSize: 6.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -410,15 +490,20 @@ class ReceiptPdfService {
 
   /// Trigger PDF preview or printing directly
   static Future<void> printOrShareVoucher(
-    Map<String, dynamic> reservation,
-  ) async {
-    final pdfBytes = await generateReservationVoucherPdf(reservation);
+    Map<String, dynamic> reservation, {
+    bool isPaymentReceipt = false,
+  }) async {
+    final pdfBytes = await generateReservationVoucherPdf(
+      reservation,
+      isPaymentReceipt: isPaymentReceipt,
+    );
     final resId = (reservation['id'] ?? 'booking').toString();
     final shortId = resId.length > 8 ? resId.substring(0, 8) : resId;
+    final label = isPaymentReceipt ? 'Receipt' : 'Voucher';
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfBytes,
-      name: 'YangChow_Voucher_$shortId.pdf',
+      name: 'YangChow_${label}_$shortId.pdf',
     );
   }
 

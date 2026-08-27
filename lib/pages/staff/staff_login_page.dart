@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
+import 'package:yang_chow/utils/global_messenger.dart';
 
 class StaffLoginPage extends StatefulWidget {
   const StaffLoginPage({super.key});
@@ -94,11 +95,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
           debugPrint('Staff display name: "$displayName"');
 
           if (mounted) {
-            _showSnackBar(
-              "Welcome back, $displayName!",
-              Colors.green.shade700,
-              Icons.check_circle_outline,
-            );
+            GlobalMessenger.showSuccess("Welcome back, $displayName!");
             _redirectByUserRole(session.user.email!, userRole);
           }
           return;
@@ -148,20 +145,12 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
     String password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showSnackBar(
-        "Please enter email and password",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
+      GlobalMessenger.showError("Please enter email and password");
       return;
     }
 
     if (!email.contains('@')) {
-      _showSnackBar(
-        "Please enter a valid email address",
-        Colors.orange.shade700,
-        Icons.warning_amber,
-      );
+      GlobalMessenger.showWarning("Please enter a valid email address");
       return;
     }
 
@@ -200,11 +189,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
       debugPrint('Staff user response: $userResponse');
 
       if (userResponse == null) {
-        _showSnackBar(
-          "No staff account found with this email",
-          Colors.red.shade700,
-          Icons.error_outline,
-        );
+        GlobalMessenger.showError("No staff account found with this email");
         await Supabase.instance.client.auth.signOut();
         return;
       }
@@ -215,11 +200,7 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
 
       // Check if role is allowed for staff portal
       if (!_allowedRoles.contains(userRole)) {
-        _showSnackBar(
-          "This account is not authorized for staff portal access",
-          Colors.red.shade700,
-          Icons.block,
-        );
+        GlobalMessenger.showError("This account is not authorized for staff portal access");
         await Supabase.instance.client.auth.signOut();
         return;
       }
@@ -240,15 +221,8 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         displayName = '$firstName $lastName';
       }
 
-      debugPrint('Staff display name: "$displayName"');
-
-      _showSnackBar(
-        "Welcome back, $displayName!",
-        Colors.green.shade700,
-        Icons.check_circle_outline,
-      );
-
       if (mounted) {
+        GlobalMessenger.showSuccess("Welcome back, $displayName!");
         _redirectByUserRole(email, userRole);
       }
     } on AuthException catch (e) {
@@ -266,38 +240,14 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         default:
           errorMessage = 'Login failed: ${e.message}';
       }
-      _showSnackBar(errorMessage, Colors.red.shade700, Icons.error_outline);
+      GlobalMessenger.showError(errorMessage);
     } catch (e) {
-      _showSnackBar(
-        "An error occurred: $e",
-        Colors.red.shade700,
-        Icons.error_outline,
-      );
+      GlobalMessenger.showError("An error occurred: $e");
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _showSnackBar(String message, Color color, IconData icon) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   // ─── Yang Chow Standard Red & Gold Theme Palette ───────────────────

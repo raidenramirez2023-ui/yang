@@ -347,7 +347,7 @@ class _PagsanjaninvDashboardPageState extends State<PagsanjaninvDashboardPage> {
     return [
       _buildDashboardPage(),
       _buildKitchenRequestsPage(),
-      const InventoryPage(),
+      const InventoryPage(showImportExport: true),
       InventoryRoomPage(key: InventoryRoomPage.globalKey),
       const PettyCashExpensePage(),
       const SpoilageWastagePage(embedded: true),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
@@ -9,7 +10,8 @@ import 'package:yang_chow/services/audit_log_service.dart';
 final _moneyFmt = NumberFormat('#,##0.00', 'en_PH');
 
 class PaymentApprovalPage extends StatefulWidget {
-  const PaymentApprovalPage({super.key});
+  final bool isFullscreen;
+  const PaymentApprovalPage({super.key, this.isFullscreen = false});
 
   @override
   State<PaymentApprovalPage> createState() => _PaymentApprovalPageState();
@@ -59,7 +61,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading pending payments: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -84,16 +88,26 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment approved successfully!'),
-            backgroundColor: Colors.green,
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 10),
+                Text('Payment approved successfully!'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF14332E),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
         _loadPendingPayments(); // Refresh list
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to approve payment'),
-            backgroundColor: Colors.red,
+            content: const Text('Failed to approve payment'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -102,7 +116,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error approving payment: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -115,26 +131,59 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reject Payment'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 10),
+            Text(
+              'Reject Payment',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Please provide a reason for rejecting this payment:'),
-            SizedBox(height: 16),
+            const Text(
+              'Please provide a clear reason for rejecting this payment to inform the customer:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+            ),
+            const SizedBox(height: 14),
             TextField(
               controller: reasonController,
               decoration: InputDecoration(
-                hintText: 'Reason for rejection',
-                border: OutlineInputBorder(),
+                hintText: 'e.g., Unclear receipt, amount mismatch, duplicate reference...',
+                hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF14332E), width: 1.5),
+                ),
               ),
               maxLines: 3,
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF64748B),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -142,10 +191,13 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               _rejectPayment(payment['id'], payment['_table'], reasonController.text);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text('Reject'),
+            child: const Text('Confirm Rejection', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -171,16 +223,20 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment rejected'),
-            backgroundColor: Colors.orange,
+            content: const Text('Payment rejected'),
+            backgroundColor: const Color(0xFFD97706),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
         _loadPendingPayments(); // Refresh list
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to reject payment'),
-            backgroundColor: Colors.red,
+            content: const Text('Failed to reject payment'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -189,7 +245,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error rejecting payment: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -235,7 +293,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               AppBar(
-                title: const Text('PayMongo Receipt', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                title: const Text('Digital Payment Receipt', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 backgroundColor: const Color(0xFF14332E),
                 foregroundColor: Colors.white,
                 elevation: 0,
@@ -261,9 +319,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              Icon(Icons.broken_image, size: 48, color: Color(0xFF94A3B8)),
                               SizedBox(height: 16),
-                              Text('Failed to load receipt image', style: TextStyle(color: Colors.grey)),
+                              Text('Failed to load receipt image', style: TextStyle(color: Color(0xFF64748B))),
                             ],
                           ),
                         );
@@ -271,7 +329,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return const Center(
-                          child: CircularProgressIndicator(),
+                          child: CircularProgressIndicator(color: Color(0xFF14332E)),
                         );
                       },
                     ),
@@ -312,39 +370,36 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Row(
                 children: [
+                  if (widget.isFullscreen || Navigator.canPop(context)) ...[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+                      tooltip: 'Back to POS',
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Container(
                     padding: const EdgeInsets.all(11),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF14332E), Color(0xFF1E4A42)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(13),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF14332E).withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                      color: const Color(0xFF14332E),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.verified_user_rounded, color: Color(0xFFD9A441), size: 22),
                   ),
                   const SizedBox(width: 14),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Payment Approvals',
                           style: TextStyle(
                             fontSize: 18,
@@ -357,7 +412,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                           'Review and verify customer deposit and full payments',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.mediumGrey,
+                            color: Color(0xFF64748B),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -368,21 +423,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.hourglass_top_rounded, size: 14, color: Color(0xFFD97706)),
+                          const Icon(Icons.hourglass_top_rounded, size: 14, color: Color(0xFFB45309)),
                           const SizedBox(width: 6),
                           Text(
                             '$totalPending Pending',
                             style: const TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFD97706),
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFB45309),
                             ),
                           ),
                         ],
@@ -390,8 +445,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                   const SizedBox(width: 10),
                   Container(
-                    height: 40,
-                    width: 40,
+                    height: 38,
+                    width: 38,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
@@ -399,8 +454,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                     child: IconButton(
                       onPressed: _loadPendingPayments,
-                      icon: const Icon(Icons.refresh_rounded, size: 18, color: AppTheme.mediumGrey),
+                      icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF475569)),
                       tooltip: 'Refresh',
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
@@ -408,7 +464,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             ),
             const SizedBox(height: 12),
 
-            // ── Quick Stats Bar ──────────────────────────────────────────────
+            // ── Cohesive Stats Bar (Realistic & User-Friendly) ───────────────
             if (!ResponsiveUtils.isDesktop(context))
               SizedBox(
                 height: 66,
@@ -422,8 +478,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         'Awaiting Review',
                         totalPending.toString(),
                         Icons.pending_actions_rounded,
-                        const Color(0xFFFEF3C7),
-                        const Color(0xFFD97706),
+                        const Color(0xFFFFFBEB),
+                        const Color(0xFFB45309),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -433,8 +489,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         'Amount to Verify',
                         '₱${_moneyFmt.format(totalPendingAmount)}',
                         Icons.account_balance_wallet_rounded,
-                        const Color(0xFFDCFCE7),
-                        const Color(0xFF15803D),
+                        const Color(0xFFECFDF5),
+                        const Color(0xFF047857),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -444,8 +500,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         'Reservations',
                         reservationCount.toString(),
                         Icons.event_seat_rounded,
-                        const Color(0xFFE0F2FE),
-                        const Color(0xFF0284C7),
+                        const Color(0xFFF1F5F9),
+                        const Color(0xFF475569),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -455,8 +511,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         'Advance Orders',
                         advanceCount.toString(),
                         Icons.fastfood_rounded,
-                        const Color(0xFFF3E8FF),
-                        const Color(0xFF7E22CE),
+                        const Color(0xFFF1F5F9),
+                        const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -470,8 +526,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       'Awaiting Review',
                       totalPending.toString(),
                       Icons.pending_actions_rounded,
-                      const Color(0xFFFEF3C7),
-                      const Color(0xFFD97706),
+                      const Color(0xFFFFFBEB),
+                      const Color(0xFFB45309),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -480,8 +536,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       'Amount to Verify',
                       '₱${_moneyFmt.format(totalPendingAmount)}',
                       Icons.account_balance_wallet_rounded,
-                      const Color(0xFFDCFCE7),
-                      const Color(0xFF15803D),
+                      const Color(0xFFECFDF5),
+                      const Color(0xFF047857),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -490,8 +546,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       'Reservations',
                       reservationCount.toString(),
                       Icons.event_seat_rounded,
-                      const Color(0xFFE0F2FE),
-                      const Color(0xFF0284C7),
+                      const Color(0xFFF1F5F9),
+                      const Color(0xFF475569),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -500,8 +556,8 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       'Advance Orders',
                       advanceCount.toString(),
                       Icons.fastfood_rounded,
-                      const Color(0xFFF3E8FF),
-                      const Color(0xFF7E22CE),
+                      const Color(0xFFF1F5F9),
+                      const Color(0xFF475569),
                     ),
                   ),
                 ],
@@ -514,7 +570,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   ? Center(
                       child: TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(milliseconds: 1000),
+                        duration: const Duration(milliseconds: 600),
                         builder: (context, value, child) {
                           return Opacity(
                             opacity: value,
@@ -522,31 +578,30 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(20),
+                                  padding: const EdgeInsets.all(18),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                                        blurRadius: 20,
-                                        spreadRadius: 5 * value,
+                                        color: Colors.black.withValues(alpha: 0.04),
+                                        blurRadius: 16,
+                                        spreadRadius: 2,
                                       )
                                     ]
                                   ),
                                   child: const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                                    valueColor: AlwaysStoppedAnimation(Color(0xFF14332E)),
                                     strokeWidth: 3,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 18),
                                 const Text(
-                                  'FETCHING PAYMENTS...',
+                                  'Loading pending payments...',
                                   style: TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                    fontSize: 12,
+                                    color: Color(0xFF475569),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ],
@@ -559,7 +614,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       ? _buildEmptyState()
                       : RefreshIndicator(
                           onRefresh: _loadPendingPayments,
-                          color: AppTheme.primaryColor,
+                          color: const Color(0xFF14332E),
                           child: ListView.builder(
                             padding: const EdgeInsets.only(bottom: 16),
                             itemCount: _pendingPayments.length,
@@ -568,11 +623,11 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                               return TweenAnimationBuilder<double>(
                                 key: ValueKey(payment['id']),
                                 tween: Tween(begin: 0.0, end: 1.0),
-                                duration: Duration(milliseconds: 350 + (index * 80).clamp(0, 500)),
+                                duration: Duration(milliseconds: 250 + (index * 40).clamp(0, 300)),
                                 curve: Curves.easeOutCubic,
                                 builder: (context, value, child) {
                                   return Transform.translate(
-                                    offset: Offset(0, 20 * (1 - value)),
+                                    offset: Offset(0, 15 * (1 - value)),
                                     child: Opacity(
                                       opacity: value,
                                       child: child,
@@ -637,7 +692,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   label,
                   style: const TextStyle(
                     fontSize: 10,
-                    color: AppTheme.mediumGrey,
+                    color: Color(0xFF64748B),
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -656,54 +711,37 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 1200),
-            tween: Tween<double>(begin: 0.0, end: 1.0),
-            curve: Curves.elasticOut,
-            builder: (context, double value, child) {
-              return Transform.scale(
-                scale: value,
-                child: Container(
-                  padding: const EdgeInsets.all(28),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successGreen.withValues(alpha: 0.05),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.successGreen.withValues(alpha: 0.2), width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.successGreen.withValues(alpha: 0.1 * value),
-                        blurRadius: 30,
-                        spreadRadius: 10 * value,
-                      )
-                    ]
-                  ),
-                  child: const Icon(
-                    Icons.check_circle_outline,
-                    size: 72,
-                    color: AppTheme.successGreen,
-                  ),
-                ),
-              );
-            },
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
+            ),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              size: 56,
+              color: Color(0xFF059669),
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           const Text(
             'All Caught Up!',
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: AppTheme.darkGrey,
-              letterSpacing: 0.5,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'There are no payments waiting for approval.\nYou can safely relax for now.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey.shade500,
-              height: 1.6,
+              fontSize: 13,
+              color: Color(0xFF64748B),
+              height: 1.5,
             ),
           ),
         ],
@@ -720,23 +758,23 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final isMobile = ResponsiveUtils.isMobile(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 14),
       child: _HoverAnimatedCard(
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Padding(
-            padding: EdgeInsets.all(isMobile ? 14 : 18),
+            padding: EdgeInsets.all(isMobile ? 14 : 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -750,12 +788,11 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Authentic GCash Brand Tag
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF007DFE), Color(0xFF0056B3)],
-                            ),
+                            color: const Color(0xFF007DFE), // Official GCash Blue
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
@@ -778,6 +815,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        // Type Tag
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -792,22 +830,23 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                         ),
                       ],
                     ),
+                    // Status Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: const Color(0xFFFFFBEB),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                        border: Border.all(color: const Color(0xFFFDE68A)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.hourglass_bottom_rounded, size: 12, color: Color(0xFFD97706)),
+                          Icon(Icons.hourglass_bottom_rounded, size: 12, color: Color(0xFFB45309)),
                           SizedBox(width: 4),
                           Text(
                             'Awaiting Verification',
                             style: TextStyle(
-                              color: Color(0xFFD97706),
+                              color: Color(0xFFB45309),
                               fontWeight: FontWeight.w800,
                               fontSize: 11,
                             ),
@@ -817,7 +856,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 // ── Financial Highlight & Reference Banner ────────────────────
                 Container(
@@ -837,7 +876,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 color: Color(0xFF64748B),
-                                letterSpacing: 0.5,
+                                letterSpacing: 0.3,
                               ),
                             ),
                             const SizedBox(height: 3),
@@ -850,20 +889,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF15803D),
+                                    color: Color(0xFF14332E),
                                     letterSpacing: -0.5,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFDCFCE7),
+                                    color: const Color(0xFFECFDF5),
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFFA7F3D0)),
                                   ),
                                   child: Text(
                                     isAdvanceOrder ? 'FULL PAYMENT' : (payment['payment_status'] == 'fully_paid' ? 'FULL (100%)' : 'DEPOSIT (50%)'),
-                                    style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
                                   ),
                                 ),
                               ],
@@ -873,42 +913,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 10),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'GATEWAY REF NUMBER',
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          paymentRef,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            fontFamily: 'monospace',
-                                            color: Color(0xFF0F172A),
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+                            _buildReferenceBox(paymentRef),
                           ],
                         )
                       : Row(
@@ -925,7 +930,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,
                                       color: Color(0xFF64748B),
-                                      letterSpacing: 0.5,
+                                      letterSpacing: 0.3,
                                     ),
                                   ),
                                   const SizedBox(height: 3),
@@ -938,20 +943,21 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                                         style: const TextStyle(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w900,
-                                          color: Color(0xFF15803D),
+                                          color: Color(0xFF14332E),
                                           letterSpacing: -0.5,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFDCFCE7),
+                                          color: const Color(0xFFECFDF5),
                                           borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFFA7F3D0)),
                                         ),
                                         child: Text(
                                           isAdvanceOrder ? 'FULL PAYMENT' : (payment['payment_status'] == 'fully_paid' ? 'FULL (100%)' : 'DEPOSIT (50%)'),
-                                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
+                                          style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
                                         ),
                                       ),
                                     ],
@@ -966,75 +972,48 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                             // Reference code pill
                             Expanded(
                               flex: 2,
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'GATEWAY REF NUMBER',
-                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            paymentRef,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              fontFamily: 'monospace',
-                                              color: Color(0xFF0F172A),
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              child: _buildReferenceBox(paymentRef),
                             ),
                           ],
                         ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 // ── Customer & Booking Information Grid ───────────────────────
                 _buildCompactDetailGrid(payment, isAdvanceOrder),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
-                // ── Receipt & OCR Actions ────────────────────────────────────
+                // ── Receipt & OCR Actions (Lively & Brand-Aligned) ─────────────
                 if (payment['receipt_url'] != null && payment['receipt_url'].toString().isNotEmpty) ...[
                   _buildReceiptActions(payment),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                 ],
 
                 // ── OCR Assistant Analysis Panel ─────────────────────────────
                 if (_ocrResults.containsKey(payment['id'])) ...[
                   _buildOCRPanel(payment, _ocrResults[payment['id']]!),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                 ],
 
-                // ── Action Buttons ───────────────────────────────────────────
+                // ── Action Buttons (Vibrant, Clear, and Balanced) ─────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _showRejectDialog(payment),
-                      icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFDC2626)),
-                      label: const Text('Reject Payment', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w700, fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFFCA5A5)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    SizedBox(
+                      height: 42,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showRejectDialog(payment),
+                        icon: const Icon(Icons.close_rounded, size: 17, color: Color(0xFFDC2626)),
+                        label: const Text(
+                          'Reject Payment',
+                          style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w800, fontSize: 12.5),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFEF2F2),
+                          side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1051,9 +1030,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                       children: [
                         const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFF94A3B8)),
                         const SizedBox(width: 5),
-                        Text(
+                        const Text(
                           'Run "Auto-Verify" to inspect digital receipt before approval.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
                         ),
                       ],
                     ),
@@ -1066,15 +1045,69 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
+  Widget _buildReferenceBox(String paymentRef) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'GATEWAY REF NUMBER',
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  paymentRef,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'monospace',
+                    color: Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: paymentRef));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Reference copied to clipboard'),
+                      duration: const Duration(seconds: 1),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF64748B)),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Copy Reference',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompactDetailGrid(Map<String, dynamic> payment, bool isAdvanceOrder) {
     final isMobile = ResponsiveUtils.isMobile(context);
 
     if (isMobile) {
       return Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Column(
@@ -1085,7 +1118,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   child: _buildCompactDetailItem(
                     'Customer Name',
                     payment['customer_name'] ?? 'N/A',
-                    Icons.person_rounded,
+                    Icons.person_outline_rounded,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1093,8 +1126,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   child: _buildCompactDetailItem(
                     isAdvanceOrder ? 'Order Type' : 'Event Type',
                     isAdvanceOrder ? (payment['order_type'] ?? 'N/A') : (payment['event_type'] ?? 'N/A'),
-                    isAdvanceOrder ? Icons.fastfood_rounded : Icons.celebration_rounded,
-                    isHighlight: true,
+                    isAdvanceOrder ? Icons.fastfood_outlined : Icons.celebration_outlined,
                   ),
                 ),
               ],
@@ -1103,7 +1135,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
             _buildCompactDetailItem(
               'Email Address',
               payment['customer_email'] ?? 'N/A',
-              Icons.email_rounded,
+              Icons.mail_outline_rounded,
             ),
             const SizedBox(height: 8),
             Row(
@@ -1112,7 +1144,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   child: _buildCompactDetailItem(
                     'Date & Time',
                     '${(isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A'} ${(isAdvanceOrder ? payment['order_time'] : payment['start_time']) ?? ''}',
-                    Icons.calendar_today_rounded,
+                    Icons.calendar_today_outlined,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1120,7 +1152,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   child: _buildCompactDetailItem(
                     'Guest PAX',
                     '${payment['number_of_guests'] ?? 1} Guests',
-                    Icons.groups_rounded,
+                    Icons.groups_outlined,
                   ),
                 ),
               ],
@@ -1131,10 +1163,10 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
@@ -1145,7 +1177,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   'Customer Name',
                   payment['customer_name'] ?? 'N/A',
-                  Icons.person_rounded,
+                  Icons.person_outline_rounded,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1153,7 +1185,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   'Email Address',
                   payment['customer_email'] ?? 'N/A',
-                  Icons.email_rounded,
+                  Icons.mail_outline_rounded,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1161,8 +1193,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   isAdvanceOrder ? 'Order Type' : 'Event Type',
                   isAdvanceOrder ? (payment['order_type'] ?? 'N/A') : (payment['event_type'] ?? 'N/A'),
-                  isAdvanceOrder ? Icons.fastfood_rounded : Icons.celebration_rounded,
-                  isHighlight: true,
+                  isAdvanceOrder ? Icons.fastfood_outlined : Icons.celebration_outlined,
                 ),
               ),
             ],
@@ -1174,7 +1205,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   'Scheduled Date',
                   (isAdvanceOrder ? payment['order_date'] : payment['event_date']) ?? 'N/A',
-                  Icons.calendar_today_rounded,
+                  Icons.calendar_today_outlined,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1182,7 +1213,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   'Scheduled Time',
                   isAdvanceOrder ? (payment['order_time'] ?? 'N/A') : '${payment['start_time']} (${payment['duration_hours'] ?? 4}h)',
-                  Icons.schedule_rounded,
+                  Icons.schedule_outlined,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1190,7 +1221,7 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                 child: _buildCompactDetailItem(
                   'Guest PAX',
                   '${payment['number_of_guests'] ?? 1} Guests',
-                  Icons.groups_rounded,
+                  Icons.groups_outlined,
                 ),
               ),
             ],
@@ -1200,19 +1231,17 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     );
   }
 
-  Widget _buildCompactDetailItem(String label, String value, IconData icon, {bool isHighlight = false}) {
+  Widget _buildCompactDetailItem(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: isHighlight ? const Color(0xFF14332E).withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isHighlight ? const Color(0xFF14332E).withValues(alpha: 0.15) : const Color(0xFFE2E8F0),
-        ),
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: isHighlight ? const Color(0xFFC9922E) : const Color(0xFF64748B)),
+          Icon(icon, size: 14, color: const Color(0xFF64748B)),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -1222,17 +1251,17 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
                   label.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: Color(0xFF64748B),
                     letterSpacing: 0.3,
                   ),
                 ),
                 Text(
                   value,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isHighlight ? FontWeight.w800 : FontWeight.w600,
-                    color: const Color(0xFF0F172A),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1245,43 +1274,51 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   }
 
   Widget _buildReceiptActions(Map<String, dynamic> payment) {
+    final bool isAnalyzing = _analyzingState[payment['id']] == true;
+
     return Row(
       children: [
+        // View Receipt Button (Warm Gold Accent)
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
-            icon: const Icon(Icons.receipt_long, size: 16),
-            label: const Text('View Receipt', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-              foregroundColor: AppTheme.primaryColor,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+          child: SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: () => _viewReceiptImage(payment['receipt_url'].toString()),
+              icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFFB45309)),
+              label: const Text(
+                'View Receipt',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFFBEB),
+                side: const BorderSide(color: Color(0xFFFDE68A), width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
+        // Auto-Verify Button (Smart Emerald Accent)
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _analyzingState[payment['id']] == true 
-                ? null 
-                : () => _analyzeReceipt(payment['id'], payment['receipt_url'].toString()),
-            icon: _analyzingState[payment['id']] == true 
-                ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.document_scanner, size: 16),
-            label: Text(_analyzingState[payment['id']] == true ? 'Analyzing...' : 'Auto-Verify', style: const TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.withValues(alpha: 0.1),
-              foregroundColor: Colors.purple,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.purple.withValues(alpha: 0.3)),
+          child: SizedBox(
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: isAnalyzing 
+                  ? null 
+                  : () => _analyzeReceipt(payment['id'], payment['receipt_url'].toString()),
+              icon: isAnalyzing 
+                  ? const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF047857)))
+                  : const Icon(Icons.document_scanner_rounded, size: 16, color: Color(0xFF047857)),
+              label: Text(
+                isAnalyzing ? 'Analyzing...' : 'Auto-Verify',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF047857)),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: const Color(0xFFECFDF5),
+                side: const BorderSide(color: Color(0xFFA7F3D0), width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
               ),
             ),
           ),
@@ -1323,12 +1360,35 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
   Widget _buildApproveButton(Map<String, dynamic> payment, String table) {
     final bool enabled = _canApprovePayment(payment);
     
-    return _buildActionButton(
-      onPressed: enabled ? () => _approvePayment(payment['id'], table) : () {},
-      icon: Icons.check_circle_outline,
-      label: 'Approve Payment',
-      isPrimary: true,
-      isDisabled: !enabled,
+    return SizedBox(
+      height: 42,
+      child: ElevatedButton.icon(
+        onPressed: enabled ? () => _approvePayment(payment['id'], table) : null,
+        icon: Icon(
+          enabled ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
+          size: 17,
+          color: enabled ? Colors.white : const Color(0xFF94A3B8),
+        ),
+        label: Text(
+          'Approve Payment',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 12.5,
+            color: enabled ? Colors.white : const Color(0xFF94A3B8),
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: enabled ? const Color(0xFF14332E) : const Color(0xFFF1F5F9),
+          elevation: enabled ? 2 : 0,
+          shadowColor: enabled ? const Color(0xFF14332E).withValues(alpha: 0.3) : Colors.transparent,
+          side: BorderSide(
+            color: enabled ? Colors.transparent : const Color(0xFFCBD5E1),
+            width: 1.2,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
     );
   }
 
@@ -1336,8 +1396,23 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     if (ocr['success'] == false) {
       return Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-        child: Row(children: [const Icon(Icons.error_outline, color: Colors.red, size: 18), const SizedBox(width: 8), Expanded(child: Text('Analysis failed: ${ocr['error']}', style: const TextStyle(fontSize: 12, color: Colors.red)))]),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFFECACA)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Analysis failed: ${ocr['error']}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -1348,11 +1423,9 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     final String expectedRef = payment['payment_reference'] ?? '';
     final List<dynamic> detectedRefs = ocr['detectedRefs'] ?? [];
     
-    // Smart Matching: Match if any detected ref is part of the internal ref 
-    // OR if we found a valid-looking PayMongo/GCash reference (e.g., xlSResj or pay_...)
     final bool refMatches = detectedRefs.isNotEmpty && (
       detectedRefs.any((r) => expectedRef.toLowerCase().contains(r.toString().toLowerCase())) ||
-      detectedRefs.any((r) => r.toString().length >= 6) // Most PayMongo/GCash refs are 6+ chars
+      detectedRefs.any((r) => r.toString().length >= 6)
     );
 
     // Payment ID verification (pay_xxx format)
@@ -1374,45 +1447,80 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: allVerified ? Colors.green.shade50 : Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: allVerified ? Colors.green.withValues(alpha: 0.3) : Colors.orange.withValues(alpha: 0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: allVerified ? const Color(0xFF86EFAC) : const Color(0xFFFDE68A),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.image_search, color: allVerified ? Colors.green : Colors.orange, size: 16),
+              Icon(
+                Icons.document_scanner_rounded,
+                color: allVerified ? const Color(0xFF059669) : const Color(0xFFD97706),
+                size: 16,
+              ),
               const SizedBox(width: 8),
-              const Text('OCR Verification Assistant', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const Text(
+                'OCR Verification Summary',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: allVerified ? Colors.green.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
+                  color: allVerified ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: allVerified ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
+                  ),
                 ),
                 child: Text(
                   '$passedChecks/4 Verified',
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: allVerified ? Colors.green.shade700 : Colors.orange.shade700,
+                    fontWeight: FontWeight.w700,
+                    color: allVerified ? const Color(0xFF059669) : const Color(0xFFB45309),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          _buildOCRRow('Amount Detected', detectedAmount != null ? '₱${_moneyFmt.format(detectedAmount)}' : 'Not Found', amountMatches ? Icons.check_circle : (detectedAmount == null ? Icons.help_outline : Icons.warning_amber), amountMatches ? Colors.green : Colors.red),
-          _buildOCRRow('Reference ID', detectedRefs.isNotEmpty ? detectedRefs.first.toString() : 'Not Found', refMatches ? Icons.check_circle : Icons.help_outline, refMatches ? Colors.green : Colors.orange),
-          _buildOCRRow('Payment ID', detectedPaymentId ?? 'Not Found', paymentIdFound ? Icons.check_circle : Icons.help_outline, paymentIdFound ? Colors.green : Colors.red),
-          _buildOCRRow('QRPh Payment Received!', hasQrphReceived ? 'Confirmed' : 'Not Found', hasQrphReceived ? Icons.check_circle : Icons.help_outline, hasQrphReceived ? Colors.green : Colors.red),
+          _buildOCRRow(
+            'Amount Detected',
+            detectedAmount != null ? '₱${_moneyFmt.format(detectedAmount)}' : 'Not Found',
+            amountMatches ? Icons.check_circle_rounded : (detectedAmount == null ? Icons.help_outline_rounded : Icons.warning_amber_rounded),
+            amountMatches ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          _buildOCRRow(
+            'Reference ID',
+            detectedRefs.isNotEmpty ? detectedRefs.first.toString() : 'Not Found',
+            refMatches ? Icons.check_circle_rounded : Icons.help_outline_rounded,
+            refMatches ? const Color(0xFF059669) : const Color(0xFFD97706),
+          ),
+          _buildOCRRow(
+            'Payment ID',
+            detectedPaymentId ?? 'Not Found',
+            paymentIdFound ? Icons.check_circle_rounded : Icons.help_outline_rounded,
+            paymentIdFound ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
+          _buildOCRRow(
+            'QRPh Payment Received!',
+            hasQrphReceived ? 'Confirmed' : 'Not Found',
+            hasQrphReceived ? Icons.check_circle_rounded : Icons.help_outline_rounded,
+            hasQrphReceived ? const Color(0xFF059669) : const Color(0xFFDC2626),
+          ),
           if (!amountMatches && detectedAmount != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('⚠️ Warning: Amount mismatch (Expected ₱${_moneyFmt.format(expectedAmount)})', style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+              child: Text(
+                '⚠️ Amount mismatch (Expected: ₱${_moneyFmt.format(expectedAmount)})',
+                style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626), fontWeight: FontWeight.w700),
+              ),
             ),
           if (!allVerified)
             Padding(
@@ -1420,18 +1528,18 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                  border: Border.all(color: const Color(0xFFFECACA)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    Icon(Icons.shield_outlined, size: 14, color: Colors.red.shade700),
-                    const SizedBox(width: 6),
+                    Icon(Icons.shield_outlined, size: 14, color: Color(0xFFDC2626)),
+                    SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'All 4 checks must be verified before approving. Make sure the receipt shows a completed payment, not a pending QR code.',
-                        style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                        'All 4 checks must be verified before approving. Make sure the receipt shows a completed payment.',
+                        style: TextStyle(fontSize: 10, color: Color(0xFFDC2626), fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -1450,55 +1558,12 @@ class _PaymentApprovalPageState extends State<PaymentApprovalPage> {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
-          Text('$label: ', style: const TextStyle(fontSize: 11, color: AppTheme.mediumGrey)),
-          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+          Text('$label: ', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
         ],
       ),
     );
   }
-
-  Widget _buildActionButton({
-    required VoidCallback onPressed,
-    required IconData icon,
-    required String label,
-    required bool isPrimary,
-    bool isDisabled = false,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      height: 48,
-      child: isPrimary 
-        ? ElevatedButton.icon(
-            onPressed: isDisabled ? null : onPressed,
-            icon: Icon(icon, size: 20),
-            label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDisabled ? Colors.grey.shade300 : AppTheme.successGreen,
-              foregroundColor: isDisabled ? Colors.grey.shade500 : Colors.white,
-              elevation: isDisabled ? 0 : 4,
-              shadowColor: isDisabled ? Colors.transparent : AppTheme.successGreen.withValues(alpha: 0.4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-            ),
-          )
-        : OutlinedButton.icon(
-            onPressed: isDisabled ? null : onPressed,
-            icon: Icon(icon, size: 20),
-            label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: isDisabled ? Colors.grey.shade500 : Colors.red.shade600,
-              side: BorderSide(color: isDisabled ? Colors.grey.shade300 : Colors.red.shade200),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
-            ),
-          ),
-    );
-  }
-
 }
 
 class _HoverAnimatedCard extends StatefulWidget {
@@ -1519,27 +1584,27 @@ class _HoverAnimatedCardState extends State<_HoverAnimatedCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 180),
         curve: Curves.easeOutCubic,
         // ignore: deprecated_member_use
         transform: Matrix4.identity()
           // ignore: deprecated_member_use
-          ..scale(_isHovered ? 1.01 : 1.0)
-          ..setTranslationRaw(0.0, _isHovered ? -4.0 : 0.0, 0.0),
+          ..scale(_isHovered ? 1.005 : 1.0)
+          ..setTranslationRaw(0.0, _isHovered ? -2.0 : 0.0, 0.0),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             if (_isHovered)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               )
             else
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
           ],
         ),

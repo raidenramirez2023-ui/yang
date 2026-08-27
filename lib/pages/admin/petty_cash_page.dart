@@ -372,469 +372,374 @@ class _PettyCashPageState extends State<PettyCashPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0F172A),
-            Color(0xFF142421),
-            Color(0xFF1E3A34),
-          ],
+          colors: [Color(0xFF0D2823), Color(0xFF143B34), Color(0xFF1B4E44)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF14332E).withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(
-          color: const Color(0xFFD9A441).withValues(alpha: 0.35),
-          width: 1.2,
-        ),
+        border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.35), width: 1.2),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Background decorative ambient lights
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFD9A441).withValues(alpha: 0.06),
+          // Top Row: Title, Status Badge, and Reconcile Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD9A441).withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFE6C374), size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      'PETTY CASH TREASURY',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFFE6C374),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          Positioned(
-            right: 40,
-            bottom: -40,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF34C759).withValues(alpha: 0.04),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isLow
+                          ? const Color(0xFFDC2626).withValues(alpha: 0.25)
+                          : const Color(0xFF10B981).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isLow
+                            ? const Color(0xFFFF6B6B).withValues(alpha: 0.5)
+                            : const Color(0xFF34D399).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isLow ? const Color(0xFFFF6B6B) : const Color(0xFF34D399),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isLow ? 'LOW BALANCE' : 'ACTIVE FUND',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isLow ? const Color(0xFFFFAAAA) : const Color(0xFFA7F3D0),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isAdmin && !isMobile) ...[
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      onPressed: _showReconciliationDialog,
+                      icon: const Icon(Icons.sync_rounded, size: 13, color: Color(0xFFE2E8F0)),
+                      label: Text(
+                        'Reconcile',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
+            ],
           ),
+          const SizedBox(height: 18),
 
-          // Main Card Details
+          // Label
+          Text(
+            'AVAILABLE BALANCE',
+            style: GoogleFonts.plusJakartaSans(
+              color: const Color(0xFF94A3B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Available Balance Big Typography
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '₱',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFFD9A441),
+                  fontSize: isMobile ? 24 : 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                NumberFormat('#,##0.00').format(balance),
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: isMobile ? 34 : 40,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Fund Utilization Progress Bar
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Row: Badge, Status, and Emblems
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD9A441).withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFFD9A441).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.stars_rounded,
-                              color: Color(0xFFE6C374),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'YANG CHOW TREASURY',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: const Color(0xFFE6C374),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Fund Remaining: ${percentRemaining.toStringAsFixed(1)}%',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isLow
-                              ? const Color(0xFFDC2626).withValues(alpha: 0.2)
-                              : const Color(0xFF34C759).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isLow
-                                ? const Color(0xFFDC2626).withValues(alpha: 0.4)
-                                : const Color(0xFF34C759).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isLow ? const Color(0xFFEF4444) : const Color(0xFF34C759),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isLow ? 'LOW BALANCE' : 'ACTIVE FUND',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: isLow ? const Color(0xFFFCA5A5) : const Color(0xFF86EFAC),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.contactless_rounded,
-                        color: Color(0xFF94A3B8),
-                        size: 22,
-                      ),
-                    ],
+                  Text(
+                    'Cap: ₱${NumberFormat('#,##0').format(totalAllocated)}',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-
-              // Available Balance Big Typography
-              Text(
-                'TOTAL AVAILABLE PETTY CASH FUND',
-                style: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF94A3B8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  height: 6,
+                  color: Colors.white.withValues(alpha: 0.1),
+                  child: LinearProgressIndicator(
+                    value: percentRemaining / 100,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      percentRemaining > 40
+                          ? const Color(0xFF34D399)
+                          : percentRemaining > 15
+                              ? const Color(0xFFFFB020)
+                              : const Color(0xFFFF6B6B),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '₱',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: const Color(0xFFD9A441),
-                      fontSize: isMobile ? 24 : 28,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    NumberFormat('#,##0.00').format(balance),
-                    style: GoogleFonts.plusJakartaSans(
-                      color: Colors.white,
-                      fontSize: isMobile ? 32 : 38,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-              // Fund Utilization Progress Bar
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Fund Utilization: ${percentRemaining.toStringAsFixed(1)}% remaining',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: const Color(0xFFCBD5E1),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+          // Sub Stats Row — dark glass panel (Total Spent & Pending Review)
+          isMobile
+              ? Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       ),
-                      Text(
-                        'Total Fund: ₱${NumberFormat('#,##0').format(totalAllocated)}',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: const Color(0xFF94A3B8),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      height: 6,
-                      color: Colors.white.withValues(alpha: 0.12),
-                      child: LinearProgressIndicator(
-                        value: percentRemaining / 100,
-                        backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          percentRemaining > 40
-                              ? const Color(0xFF34C759)
-                              : percentRemaining > 15
-                                  ? const Color(0xFFFF9500)
-                                  : const Color(0xFFDC2626),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Sub Stats Row & Quick Action Buttons inside Card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                ),
-                child: isMobile
-                    ? Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.receipt_long_rounded,
-                                      color: Color(0xFFE6C374),
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Total Spent',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: const Color(0xFF94A3B8),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          Text(
-                                            '₱${NumberFormat('#,##0.00').format(totalSpent)}',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 24,
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.pending_actions_rounded,
-                                      color: Color(0xFFFF9500),
-                                      size: 16,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Pending Review',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: const Color(0xFF94A3B8),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          Text(
-                                            '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: const Color(0xFFFFB020),
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_isAdmin) ...[
-                            const SizedBox(height: 10),
-                            const Divider(height: 1, color: Colors.white12),
-                            const SizedBox(height: 8),
-                            InkWell(
-                              onTap: _showReconciliationDialog,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD9A441).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE6C374)),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Reconcile Petty Cash',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFFE6C374),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      )
-                    : Row(
+                      child: Row(
                         children: [
                           Expanded(
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.receipt_long_rounded,
-                                  color: Color(0xFFE6C374),
-                                  size: 16,
-                                ),
+                                const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFFE6C374)),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Total Spent',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          color: const Color(0xFF94A3B8),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Spent',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFF94A3B8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                      Text(
-                                        '₱${NumberFormat('#,##0.00').format(totalSpent)}',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                    ),
+                                    Text(
+                                      '₱${NumberFormat('#,##0.00').format(totalSpent)}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
                                       ),
-                                    ],
-                                  ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            width: 1,
-                            height: 24,
-                            color: Colors.white.withValues(alpha: 0.12),
-                          ),
+                          Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.15)),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.pending_actions_rounded,
-                                  color: Color(0xFFFF9500),
-                                  size: 16,
-                                ),
+                                const Icon(Icons.pending_actions_rounded, size: 16, color: Color(0xFFFFB020)),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Pending Review',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          color: const Color(0xFF94A3B8),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Pending',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFF94A3B8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                      Text(
-                                        '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          color: const Color(0xFFFFB020),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                    ),
+                                    Text(
+                                      '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFFFFD166),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
                                       ),
-                                    ],
-                                  ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          if (_isAdmin) ...[
-                            const SizedBox(width: 10),
-                            InkWell(
-                              onTap: _showReconciliationDialog,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD9A441).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE6C374)),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Reconcile',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFFE6C374),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-              ),
-            ],
-          ),
+                    ),
+                    if (_isAdmin) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _showReconciliationDialog,
+                        icon: const Icon(Icons.sync_rounded, size: 14, color: Color(0xFFE2E8F0)),
+                        label: Text(
+                          'Reconcile Petty Cash',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 38),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                        ),
+                      ),
+                    ],
+                  ],
+                )
+              : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 16),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total Spent This Period',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: const Color(0xFF94A3B8),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '₱${NumberFormat('#,##0.00').format(totalSpent)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(width: 1, height: 26, color: Colors.white.withValues(alpha: 0.15)),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.pending_actions_rounded, color: Color(0xFFFFB020), size: 16),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pending Approvals',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: const Color(0xFF94A3B8),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  '$pendingCount ${pendingCount == 1 ? 'item' : 'items'}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: const Color(0xFFFFD166),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
         ],
       ),
     );
@@ -861,26 +766,23 @@ class _PettyCashPageState extends State<PettyCashPage> {
         value: '₱${NumberFormat('#,##0.00').format(balance)}',
         subtitle: fund?.isLowBalance == true ? '⚠️ Refill Recommended' : '🟢 Ready for Operations',
         icon: Icons.account_balance_wallet_rounded,
-        accentColor: const Color(0xFF14332E),
-        iconColor: const Color(0xFF34C759),
-        bgTint: const Color(0xFFE8F5E9),
+        iconColor: const Color(0xFF14332E),
+        bgTint: const Color(0xFFE6F4EA),
       ),
       _buildMetricTile(
         title: 'All Logged Expenses',
         value: '₱${NumberFormat('#,##0.00').format(totalExpenses)}',
         subtitle: '$expenseCount total entries submitted',
-        icon: Icons.bar_chart_rounded,
-        accentColor: const Color(0xFF0F172A),
-        iconColor: const Color(0xFF0284C7),
-        bgTint: const Color(0xFFE0F2FE),
+        icon: Icons.receipt_long_rounded,
+        iconColor: const Color(0xFF475569),
+        bgTint: const Color(0xFFF1F5F9),
       ),
       _buildMetricTile(
         title: 'Pending Approvals',
         value: '₱${NumberFormat('#,##0.00').format(pendingTotal)}',
         subtitle: '$pendingCount pending review',
         icon: Icons.hourglass_top_rounded,
-        accentColor: const Color(0xFFD97706),
-        iconColor: const Color(0xFFD97706),
+        iconColor: const Color(0xFFB45309),
         bgTint: const Color(0xFFFEF3C7),
       ),
       _buildMetricTile(
@@ -888,7 +790,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
         value: '₱${NumberFormat('#,##0.00').format(approvedTotal)}',
         subtitle: '$approvedCount approved transactions',
         icon: Icons.verified_rounded,
-        accentColor: const Color(0xFF15803D),
         iconColor: const Color(0xFF15803D),
         bgTint: const Color(0xFFDCFCE7),
       ),
@@ -928,7 +829,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
     required String value,
     required String subtitle,
     required IconData icon,
-    required Color accentColor,
     required Color iconColor,
     required Color bgTint,
   }) {
@@ -1087,11 +987,11 @@ class _PettyCashPageState extends State<PettyCashPage> {
           physics: const BouncingScrollPhysics(),
           child: Row(
             children: [
-              _buildFilterPill('All', Icons.apps_rounded, const Color(0xFF14332E)),
-              _buildFilterPill('Pending', Icons.pending_rounded, const Color(0xFFD97706)),
-              _buildFilterPill('Approved', Icons.check_circle_rounded, const Color(0xFF15803D)),
-              _buildFilterPill('Reimbursed', Icons.payments_rounded, const Color(0xFF0284C7)),
-              _buildFilterPill('Rejected', Icons.cancel_rounded, const Color(0xFFDC2626)),
+              _buildFilterPill('All', Icons.apps_rounded),
+              _buildFilterPill('Pending', Icons.pending_rounded),
+              _buildFilterPill('Approved', Icons.check_circle_rounded),
+              _buildFilterPill('Reimbursed', Icons.payments_rounded),
+              _buildFilterPill('Rejected', Icons.cancel_rounded),
             ],
           ),
         ),
@@ -1171,8 +1071,47 @@ class _PettyCashPageState extends State<PettyCashPage> {
     );
   }
 
-  Widget _buildFilterPill(String status, IconData icon, Color color) {
+  Widget _buildFilterPill(String status, IconData icon) {
     final isSelected = _selectedStatus.toLowerCase() == status.toLowerCase();
+
+    Color selectedBg;
+    Color selectedBorder;
+    Color selectedTextColor;
+    Color selectedIconColor;
+
+    switch (status.toLowerCase()) {
+      case 'pending':
+        selectedBg = const Color(0xFFFEF3C7);
+        selectedBorder = const Color(0xFFFDE68A);
+        selectedTextColor = const Color(0xFF92400E);
+        selectedIconColor = const Color(0xFFB45309);
+        break;
+      case 'approved':
+        selectedBg = const Color(0xFFDCFCE7);
+        selectedBorder = const Color(0xFF86EFAC);
+        selectedTextColor = const Color(0xFF166534);
+        selectedIconColor = const Color(0xFF15803D);
+        break;
+      case 'reimbursed':
+        selectedBg = const Color(0xFFE0F2FE);
+        selectedBorder = const Color(0xFFBAE6FD);
+        selectedTextColor = const Color(0xFF0369A1);
+        selectedIconColor = const Color(0xFF0284C7);
+        break;
+      case 'rejected':
+        selectedBg = const Color(0xFFFEE2E2);
+        selectedBorder = const Color(0xFFFECACA);
+        selectedTextColor = const Color(0xFF991B1B);
+        selectedIconColor = const Color(0xFFDC2626);
+        break;
+      case 'all':
+      default:
+        selectedBg = const Color(0xFF14332E);
+        selectedBorder = const Color(0xFF14332E);
+        selectedTextColor = Colors.white;
+        selectedIconColor = const Color(0xFFD9A441);
+        break;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -1183,17 +1122,19 @@ class _PettyCashPageState extends State<PettyCashPage> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: isSelected ? color : Colors.white,
+            color: isSelected ? selectedBg : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? color : const Color(0xFFE2E8F0),
+              color: isSelected ? selectedBorder : const Color(0xFFE2E8F0),
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+                      color: selectedBg == const Color(0xFF14332E)
+                          ? const Color(0xFF14332E).withValues(alpha: 0.15)
+                          : selectedBorder.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
                   ]
                 : null,
@@ -1204,7 +1145,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
               Icon(
                 icon,
                 size: 14,
-                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                color: isSelected ? selectedIconColor : const Color(0xFF64748B),
               ),
               const SizedBox(width: 6),
               Text(
@@ -1212,7 +1153,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  color: isSelected ? selectedTextColor : const Color(0xFF475569),
                 ),
               ),
             ],
@@ -1223,39 +1164,48 @@ class _PettyCashPageState extends State<PettyCashPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // EXPENSE CARD (REALISTIC, HIGH-DEFINITION FOR ADMIN)
+  // EXPENSE CARD (CLEAN, SOPHISTICATED FOR ADMIN)
   // ---------------------------------------------------------------------------
   Widget _buildExpenseCard(PettyCashExpense expense, bool isMobile) {
-    Color statusColor;
+    Color statusBgColor;
+    Color statusTextColor;
+    Color statusIndicatorColor;
     IconData statusIcon;
     String statusLabel;
 
     switch (expense.status.toLowerCase()) {
       case 'approved':
-        statusColor = const Color(0xFF15803D);
+        statusBgColor = const Color(0xFFDCFCE7);
+        statusTextColor = const Color(0xFF166534);
+        statusIndicatorColor = const Color(0xFF15803D);
         statusIcon = Icons.check_circle_rounded;
         statusLabel = 'Approved';
         break;
       case 'rejected':
-        statusColor = const Color(0xFFDC2626);
+        statusBgColor = const Color(0xFFFEE2E2);
+        statusTextColor = const Color(0xFF991B1B);
+        statusIndicatorColor = const Color(0xFFDC2626);
         statusIcon = Icons.cancel_rounded;
         statusLabel = 'Rejected';
         break;
       case 'reimbursed':
-        statusColor = const Color(0xFF0284C7);
+        statusBgColor = const Color(0xFFE0F2FE);
+        statusTextColor = const Color(0xFF0369A1);
+        statusIndicatorColor = const Color(0xFF0284C7);
         statusIcon = Icons.payments_rounded;
         statusLabel = 'Reimbursed';
         break;
       case 'pending':
       default:
-        statusColor = const Color(0xFFD97706);
+        statusBgColor = const Color(0xFFFEF3C7);
+        statusTextColor = const Color(0xFF92400E);
+        statusIndicatorColor = const Color(0xFFD97706);
         statusIcon = Icons.hourglass_top_rounded;
-        statusLabel = 'Pending Approval';
+        statusLabel = 'Pending Review';
         break;
     }
 
     final categoryIcon = _getCategoryIcon(expense.category);
-    final categoryColor = _getCategoryColor(expense.category);
 
     return Container(
       decoration: BoxDecoration(
@@ -1264,9 +1214,9 @@ class _PettyCashPageState extends State<PettyCashPage> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.025),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1278,8 +1228,8 @@ class _PettyCashPageState extends State<PettyCashPage> {
             children: [
               // Left Accent Status Color Bar
               Container(
-                width: 5,
-                color: statusColor,
+                width: 4,
+                color: statusIndicatorColor,
               ),
 
               // Main Card Details
@@ -1296,10 +1246,11 @@ class _PettyCashPageState extends State<PettyCashPage> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: categoryColor.withValues(alpha: 0.12),
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
-                            child: Icon(categoryIcon, color: categoryColor, size: 20),
+                            child: Icon(categoryIcon, color: const Color(0xFF14332E), size: 20),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1312,38 +1263,38 @@ class _PettyCashPageState extends State<PettyCashPage> {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: categoryColor.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(5),
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         expense.categoryDisplay.toUpperCase(),
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: categoryColor,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF475569),
                                           letterSpacing: 0.5,
                                         ),
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: statusColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(5),
+                                        color: statusBgColor,
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(statusIcon, color: statusColor, size: 11),
+                                          Icon(statusIcon, color: statusTextColor, size: 11),
                                           const SizedBox(width: 4),
                                           Text(
                                             statusLabel,
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w700,
-                                              color: statusColor,
+                                              color: statusTextColor,
                                             ),
                                           ),
                                         ],
@@ -1394,7 +1345,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
@@ -1419,7 +1370,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF14332E).withValues(alpha: 0.1),
+                                      color: const Color(0xFF14332E).withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -1441,7 +1392,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
@@ -1615,7 +1566,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                               icon: const Icon(Icons.check_rounded, size: 16),
                               label: const Text('Approve & Deduct'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF15803D),
+                                backgroundColor: const Color(0xFF14332E),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1644,7 +1595,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                               icon: const Icon(Icons.payments_rounded, size: 16),
                               label: const Text('Mark as Reimbursed'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0284C7),
+                                backgroundColor: const Color(0xFF14332E),
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -2462,7 +2413,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                               'Total Spent',
                               '₱${NumberFormat('#,##0.00').format(report['total_spent'] ?? 0.0)}',
                               Icons.payments_rounded,
-                              const Color(0xFF0284C7),
+                              const Color(0xFF14332E),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -2471,7 +2422,7 @@ class _PettyCashPageState extends State<PettyCashPage> {
                               'Avg. Expense',
                               '₱${NumberFormat('#,##0.00').format(report['average_expense'] ?? 0.0)}',
                               Icons.query_stats_rounded,
-                              const Color(0xFF15803D),
+                              const Color(0xFF14332E),
                             ),
                           ),
                         ],
@@ -2930,23 +2881,6 @@ class _PettyCashPageState extends State<PettyCashPage> {
         return Icons.bolt_rounded;
       default:
         return Icons.receipt_long_rounded;
-    }
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'inventory_purchase':
-        return const Color(0xFFD97706); // Warm Amber
-      case 'kitchen_supplies':
-        return const Color(0xFF15803D); // Emerald Green
-      case 'maintenance':
-        return const Color(0xFF4F46E5); // Indigo
-      case 'transportation':
-        return const Color(0xFF0284C7); // Sky Blue
-      case 'utilities':
-        return const Color(0xFF7C3AED); // Purple
-      default:
-        return const Color(0xFF475569); // Slate Gray
     }
   }
 }

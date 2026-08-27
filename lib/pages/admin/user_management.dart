@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yang_chow/services/staff_service.dart';
 import 'package:yang_chow/services/audit_log_service.dart';
-import 'package:yang_chow/utils/app_theme.dart';
 import 'package:yang_chow/utils/responsive_utils.dart';
 
 class UserManagementPage extends StatefulWidget {
@@ -26,14 +27,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
   static const _slate = Color(0xFF64748B);
   static const _slateLight = Color(0xFFE2E8F0);
 
-  // Departments for filter
-  static const _departments = [
+  // Departments for filter — mutable so custom depts added in modal appear here too
+  List<String> _departments = [
     'All',
     'Management',
     'Kitchen',
     'Service',
     'Operations',
   ];
+
+  // Persisted custom roles list
+  List<String> _customRoles = [];
 
   List<Map<String, dynamic>> _staff = [];
   bool _isLoading = true;
@@ -42,6 +46,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   void initState() {
     super.initState();
     _loadStaffData();
+    _loadCustomLists();
   }
 
   Future<void> _loadStaffData() async {
@@ -56,6 +61,47 @@ class _UserManagementPageState extends State<UserManagementPage> {
         _staff = List<Map<String, dynamic>>.from(StaffService.defaultStaff);
         _isLoading = false;
       });
+    }
+  }
+
+  /// Load persisted custom departments & roles, merge into filter lists
+  Future<void> _loadCustomLists() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final depts = prefs.getStringList('yang_custom_departments') ?? [];
+      final roles = prefs.getStringList('yang_custom_roles') ?? [];
+      if (depts.isNotEmpty || roles.isNotEmpty) {
+        setState(() {
+          for (final d in depts) {
+            if (!_departments.contains(d)) _departments.add(d);
+          }
+          _customRoles = roles;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading custom lists: $e');
+    }
+  }
+
+  /// Persist custom departments (everything after the 5 base ones)
+  Future<void> _saveCustomDepartments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final base = {'All', 'Management', 'Kitchen', 'Service', 'Operations'};
+      final custom = _departments.where((d) => !base.contains(d)).toList();
+      await prefs.setStringList('yang_custom_departments', custom);
+    } catch (e) {
+      debugPrint('Error saving custom departments: $e');
+    }
+  }
+
+  /// Persist custom roles
+  Future<void> _saveCustomRoles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('yang_custom_roles', _customRoles);
+    } catch (e) {
+      debugPrint('Error saving custom roles: $e');
     }
   }
 
@@ -75,11 +121,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   List<Map<String, dynamic>> get _filteredStaff {
     return _staff.where((s) {
-      final name = s['name'].toString().toLowerCase();
-      final role = s['role'].toString().toLowerCase();
-      final title = s['title'].toString().toLowerCase();
-      final dept = s['dept'].toString();
-      final id = (s['id'] ?? '').toString().toLowerCase();
+      // Exclude archived staff from active directory
+      if ((s['status'] ?? 'active').toString().toLowerCase() == 'archived') {
+        return false;
+      }
+      final name = (s['name'] ?? s['full_name'] ?? '').toString().toLowerCase();
+      final role = (s['role'] ?? '').toString().toLowerCase();
+      final title = (s['title'] ?? '').toString().toLowerCase();
+      final dept = (s['dept'] ?? '').toString();
+      final id = (s['id'] ?? s['employee_id'] ?? '').toString().toLowerCase();
       final q = _searchQuery.toLowerCase();
 
       final matchesSearch = q.isEmpty ||
@@ -92,15 +142,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }).toList();
   }
 
+  List<Map<String, dynamic>> get _archivedStaff {
+    return _staff.where((s) => (s['status'] ?? '').toString().toLowerCase() == 'archived').toList();
+  }
+
   int get _nextEmpNumber {
-    int maxNum = 0;
-    for (final s in _staff) {
-      final id = (s['id'] ?? '').toString();
-      final numStr = id.replaceAll(RegExp(r'[^0-9]'), '');
-      final parsed = int.tryParse(numStr) ?? 0;
-      if (parsed > maxNum) maxNum = parsed;
-    }
-    return maxNum + 1;
+    // Count only active (non-archived) staff
+    final activeCount = _staff.where(
+      (s) => (s['status'] ?? 'active').toString().toLowerCase() != 'archived',
+    ).length;
+    // Next number = active staff count + 1
+    return activeCount + 1;
   }
 
   @override
@@ -163,30 +215,60 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ),
                         ],
                       ),
-                      // ➕ Add Staff Action Button
-                      ElevatedButton.icon(
-                        onPressed: () => _showAddEditStaffModal(null),
-                        icon: const Icon(Icons.person_add_rounded, size: 16, color: Colors.white),
-                        label: Text(
-                          isMobile ? 'Add' : 'Add New Staff',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            color: Colors.white,
+                      // Action Buttons
+                      Row(
+                        children: [
+                          // 📦 Archived Staff Button
+                          OutlinedButton.icon(
+                            onPressed: _showArchivedStaffModal,
+                            icon: const Icon(Icons.archive_outlined, size: 15, color: Color(0xFFD97706)),
+                            label: Text(
+                              isMobile ? '(${_archivedStaff.length})' : 'Archived (${_archivedStaff.length})',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                color: const Color(0xFFD97706),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: const Color(0xFFD97706).withValues(alpha: 0.5)),
+                              backgroundColor: const Color(0xFFFFFBEB),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 10 : 14,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _emerald,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 12 : 16,
-                            vertical: 10,
+                          const SizedBox(width: 8),
+                          // ➕ Add Staff Action Button
+                          ElevatedButton.icon(
+                            onPressed: () => _showAddEditStaffModal(null),
+                            icon: const Icon(Icons.person_add_rounded, size: 16, color: Colors.white),
+                            label: Text(
+                              isMobile ? 'Add' : 'Add New Staff',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _emerald,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isMobile ? 12 : 16,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
+                              shadowColor: _emerald.withValues(alpha: 0.3),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                          shadowColor: _emerald.withValues(alpha: 0.3),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -645,7 +727,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final accentColor = Color(staff['colorHex'] as int? ?? 0xFF14332E);
     final status = (staff['status'] ?? 'active').toString();
     final levelLabel = _getLevelLabel(staff['level'] as int? ?? 2);
-    final name = staff['name'] as String? ?? 'Unnamed Staff';
+    // Support both 'full_name' and legacy 'name' key
+    final name = (staff['full_name'] ?? staff['name']) as String? ?? 'Unnamed Staff';
     final photo = staff['image'] as String?;
 
     Color statusColor;
@@ -831,22 +914,34 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       ),
                       const SizedBox(width: 4),
 
-                      // 3-Dot Quick Action Menu (Edit / Delete / Toggle Status)
+                      // 3-Dot Quick Action Menu (View Info / Edit / Change Status / Archive)
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert_rounded, size: 18, color: _slate),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         onSelected: (val) {
-                          if (val == 'edit') {
+                          if (val == 'details') {
+                            _showStaffDetailsDialog(staff);
+                          } else if (val == 'edit') {
                             _showAddEditStaffModal(staff);
-                          } else if (val == 'delete') {
-                            _showDeleteDialog(staff);
-                          } else if (val == 'toggle_status') {
-                            _toggleStaffStatus(staff);
+                          } else if (val == 'change_status') {
+                            _showChangeStatusDialog(staff);
+                          } else if (val == 'archive') {
+                            _showArchiveDialog(staff);
                           }
                         },
                         itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            value: 'details',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF0F172A)),
+                                const SizedBox(width: 8),
+                                Text('View Information', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
                           PopupMenuItem(
                             value: 'edit',
                             child: Row(
@@ -858,7 +953,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             ),
                           ),
                           PopupMenuItem(
-                            value: 'toggle_status',
+                            value: 'change_status',
                             child: Row(
                               children: [
                                 const Icon(Icons.sync_alt_rounded, size: 16, color: Color(0xFFD97706)),
@@ -868,12 +963,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             ),
                           ),
                           PopupMenuItem(
-                            value: 'delete',
+                            value: 'archive',
                             child: Row(
                               children: [
-                                const Icon(Icons.delete_rounded, size: 16, color: Color(0xFFDC2626)),
+                                const Icon(Icons.archive_outlined, size: 16, color: Color(0xFFD97706)),
                                 const SizedBox(width: 8),
-                                Text('Delete Staff', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626))),
+                                Text('Archive Staff', style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFFD97706))),
                               ],
                             ),
                           ),
@@ -910,19 +1005,36 @@ class _UserManagementPageState extends State<UserManagementPage> {
     );
   }
 
+  /// Returns hierarchy label. Higher level number = higher rank.
+  /// L4 = Executive (top), L3 = Senior Manager, L2 = Staff, L1 = Support (bottom)
   String _getLevelLabel(int level) {
     switch (level) {
-      case 0:
-        return 'L1 · EXEC';
-      case 1:
-        return 'L2 · SR. MGR';
-      case 2:
-        return 'L3 · STAFF';
+      case 4:
+        return 'L4 · EXEC';
       case 3:
-        return 'L4 · SUPPORT';
+        return 'L3 · SR. MGR';
+      case 2:
+        return 'L2 · STAFF';
+      case 1:
+        return 'L1 · SUPPORT';
       default:
-        return 'L${level + 1}';
+        return 'L$level';
     }
+  }
+
+  /// Auto-detect the recommended hierarchy level from a role string.
+  int _detectLevelFromRole(String role) {
+    final r = role.toLowerCase();
+    if (r.contains('manager') || r.contains('owner') || r.contains('exec') || r.contains('director') || r.contains('ceo') || r.contains('admin')) {
+      return 4;
+    } else if (r.contains('supervisor') || r.contains('head') || r.contains('senior') || r.contains('lead') || r.contains('chief')) {
+      return 3;
+    } else if (r.contains('cook') || r.contains('cashier') || r.contains('server') || r.contains('dine') || r.contains('cutter')) {
+      return 2;
+    } else if (r.contains('dishwasher') || r.contains('cleaner') || r.contains('support') || r.contains('helper') || r.contains('busboy')) {
+      return 1;
+    }
+    return 2; // default to Staff
   }
 
   // -------------------------------------------------------------------------
@@ -980,44 +1092,194 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   // -------------------------------------------------------------------------
-  // STATUS TOGGLE HELPER
+  // CHANGE STATUS SELECTION DIALOG (Active, On Leave, Inactive)
   // -------------------------------------------------------------------------
-  void _toggleStaffStatus(Map<String, dynamic> staff) {
-    final currentStatus = staff['status'] ?? 'active';
-    String nextStatus = 'active';
-    if (currentStatus == 'active') {
-      nextStatus = 'on-leave';
-    } else if (currentStatus == 'on-leave') {
-      nextStatus = 'inactive';
-    } else {
-      nextStatus = 'active';
-    }
+  void _showChangeStatusDialog(Map<String, dynamic> staff) {
+    String current = (staff['status'] ?? 'active').toString().toLowerCase();
+    if (current == 'archived') current = 'active';
+    String selected = current;
 
-    setState(() {
-      staff['status'] = nextStatus;
-    });
-    _saveStaffData();
+    // Check if staff can be placed on leave (hired >= 3 days ago)
+    final dateHiredStr = staff['date_hired'] as String?;
+    final canOnLeave = dateHiredStr != null &&
+        DateTime.now().difference(DateTime.tryParse(dateHiredStr) ?? DateTime.now()).inDays >= 3;
 
-    AuditLogService.logActivity(
-      action: 'STATUS_CHANGE',
-      module: 'Users',
-      description: 'Changed staff status for "${staff['name']}" (${staff['id']}) to ${nextStatus.toUpperCase()}',
-      entityId: staff['id']?.toString(),
-      metadata: {
-        'staff_name': staff['name'],
-        'staff_id': staff['id'],
-        'new_status': nextStatus,
-        'dept': staff['dept'],
-      },
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _emerald.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.sync_alt_rounded, color: _emerald, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Change Status',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select employment status for "${staff['name']}" (${staff['id']}):',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
+              ),
+              const SizedBox(height: 14),
+
+              // Active Option
+              _statusDialogOption(
+                statusKey: 'active',
+                title: 'Active',
+                subtitle: 'Currently on duty and available',
+                icon: Icons.verified_rounded,
+                color: const Color(0xFF15803D),
+                isSelected: selected == 'active',
+                onTap: () => setDialogState(() => selected = 'active'),
+              ),
+              const SizedBox(height: 8),
+
+              // On Leave Option
+              _statusDialogOption(
+                statusKey: 'on-leave',
+                title: canOnLeave ? 'On Leave' : 'On Leave (Locked)',
+                subtitle: canOnLeave
+                    ? 'Temporarily on approved leave'
+                    : 'Requires at least 3 days of employment',
+                icon: Icons.event_busy_rounded,
+                color: const Color(0xFFD97706),
+                isSelected: selected == 'on-leave',
+                isDisabled: !canOnLeave,
+                onTap: canOnLeave ? () => setDialogState(() => selected = 'on-leave') : null,
+              ),
+              const SizedBox(height: 8),
+
+              // Inactive Option
+              _statusDialogOption(
+                statusKey: 'inactive',
+                title: 'Inactive',
+                subtitle: 'Off-shift, suspended, or inactive',
+                icon: Icons.cancel_rounded,
+                color: const Color(0xFFDC2626),
+                isSelected: selected == 'inactive',
+                onTap: () => setDialogState(() => selected = 'inactive'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  staff['status'] = selected;
+                });
+                _saveStaffData();
+
+                AuditLogService.logActivity(
+                  action: 'STATUS_CHANGE',
+                  module: 'Users',
+                  description: 'Changed status for "${staff['name']}" (${staff['id']}) to ${selected.toUpperCase()}',
+                  entityId: staff['id']?.toString(),
+                  metadata: {
+                    'staff_name': staff['name'],
+                    'staff_id': staff['id'],
+                    'new_status': selected,
+                  },
+                );
+
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Updated ${staff['name']}\'s status to: ${selected.toUpperCase()}'),
+                    backgroundColor: _emerald,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _emerald,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text('Update Status', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Updated ${staff['name']}\'s status to: ${nextStatus.toUpperCase()}'),
-        backgroundColor: _emerald,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
+  Widget _statusDialogOption({
+    required String statusKey,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    bool isDisabled = false,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: isDisabled ? null : onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : (isDisabled ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : (isDisabled ? const Color(0xFFE2E8F0) : const Color(0xFFCBD5E1)),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: (isDisabled ? _slate : color).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 16, color: isDisabled ? _slate : color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDisabled ? _slate : (isSelected ? color : _darkBg),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_circle_rounded, color: color, size: 18)
+            else if (isDisabled)
+              const Icon(Icons.lock_outline_rounded, color: Color(0xFF94A3B8), size: 16),
+          ],
+        ),
       ),
     );
   }
@@ -1027,11 +1289,26 @@ class _UserManagementPageState extends State<UserManagementPage> {
   // -------------------------------------------------------------------------
   void _showAddEditStaffModal(Map<String, dynamic>? staff) {
     final isEditing = staff != null;
-    final nameController = TextEditingController(text: isEditing ? staff['name'] : '');
-    final titleController = TextEditingController(text: isEditing ? staff['title'] : '');
-    final phoneController = TextEditingController(text: isEditing ? staff['phone'] : '+63 ');
+    // Support both 'full_name' and legacy 'name' key
+    final existingName = (staff?['full_name'] ?? staff?['name'] ?? '') as String;
+    final nameController = TextEditingController(text: existingName);
+    final titleController = TextEditingController(text: isEditing ? (staff['title'] ?? '') : '');
+    String initialPhone = '';
+    if (isEditing && staff['phone'] != null) {
+      final digits = staff['phone'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.startsWith('63') && digits.length == 12) {
+        initialPhone = '0${digits.substring(2)}';
+      } else if (digits.length == 11) {
+        initialPhone = digits;
+      } else if (digits.length == 10 && digits.startsWith('9')) {
+        initialPhone = '0$digits';
+      } else {
+        initialPhone = digits;
+      }
+    }
+    final phoneController = TextEditingController(text: initialPhone);
     final idController = TextEditingController(
-      text: isEditing ? staff['id'] : 'EMP${_nextEmpNumber.toString().padLeft(3, '0')}',
+      text: isEditing ? (staff['id'] ?? '') : 'EMP${_nextEmpNumber.toString().padLeft(3, '0')}',
     );
 
     String selectedDept = isEditing ? (staff['dept'] ?? 'Kitchen') : 'Kitchen';
@@ -1040,7 +1317,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
     String selectedStatus = isEditing ? (staff['status'] ?? 'active') : 'active';
     String? currentPhoto = isEditing ? (staff['image'] as String?) : null;
 
-    final List<String> deptOptions = ['Management', 'Kitchen', 'Service', 'Operations'];
+    // Compute whether On Leave is available (staff must be hired >= 3 days ago)
+    final String? dateHiredStr = isEditing ? staff['date_hired'] as String? : null;
+    final bool canShowOnLeave = isEditing && dateHiredStr != null &&
+        DateTime.now().difference(DateTime.tryParse(dateHiredStr) ?? DateTime.now()).inDays >= 3;
+
+    // Mutable lists (so user can add custom entries)
+    final List<String> deptOptions = List<String>.from(_departments.where((d) => d != 'All'));
     final List<String> roleOptions = [
       'Supervisor',
       'Cook',
@@ -1048,9 +1331,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
       'Cashier & Food Server',
       'Dine-in Food Server',
       'Dishwasher',
+      'Kitchen Prep',
+      'Kitchen Utility',
+      'Restaurant Manager',
       'Admin',
       'Manager',
+      ..._customRoles,
     ];
+
+    // Ensure existing custom role/dept are in the lists
+    if (isEditing && !roleOptions.contains(selectedRole)) roleOptions.add(selectedRole);
+    if (isEditing && !deptOptions.contains(selectedDept)) deptOptions.add(selectedDept);
 
     showDialog(
       context: context,
@@ -1341,8 +1632,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Full Name
-                          _inputLabel('Full Name *'),
+                          // Name
+                          _inputLabel('Name *'),
                           TextField(
                             controller: nameController,
                             onChanged: (_) => setDialogState(() {}),
@@ -1372,10 +1663,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _inputLabel('Employee ID'),
+                                    _inputLabel(isEditing ? 'Employee ID (Locked)' : 'Employee ID (Auto: Staff #$_nextEmpNumber)'),
                                     TextField(
                                       controller: idController,
-                                      decoration: _inputDecoration('EMP001', Icons.badge_outlined),
+                                      readOnly: true,
+                                      enabled: false,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                      decoration: _inputDecoration('EMP001', Icons.badge_outlined).copyWith(
+                                        fillColor: const Color(0xFFF1F5F9),
+                                        suffixIcon: const Icon(Icons.lock_outline_rounded, size: 15, color: _slate),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1401,12 +1702,72 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
-                                          value: selectedDept,
+                                          value: deptOptions.contains(selectedDept) ? selectedDept : deptOptions.first,
                                           isExpanded: true,
                                           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                          items: deptOptions.map((d) => DropdownMenuItem(value: d, child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 13)))).toList(),
-                                          onChanged: (val) {
-                                            if (val != null) setDialogState(() => selectedDept = val);
+                                          items: [
+                                            ...deptOptions.map((d) => DropdownMenuItem(
+                                              value: d,
+                                              child: Text(d, style: GoogleFonts.plusJakartaSans(fontSize: 13)),
+                                            )),
+                                            DropdownMenuItem(
+                                              value: '__add_dept__',
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Add Another Department',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: _emerald,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          onChanged: (val) async {
+                                            if (val == '__add_dept__') {
+                                              final ctrl = TextEditingController();
+                                              final newDept = await showDialog<String>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                  title: Text('Add Department', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16)),
+                                                  content: TextField(
+                                                    controller: ctrl,
+                                                    autofocus: true,
+                                                    decoration: _inputDecoration('e.g. Delivery, Bar, Maintenance', Icons.business_rounded),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(ctx),
+                                                      child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate)),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                                                      style: ElevatedButton.styleFrom(backgroundColor: _emerald, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                                      child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (newDept != null && newDept.isNotEmpty) {
+                                                setDialogState(() {
+                                                  if (!deptOptions.contains(newDept)) deptOptions.add(newDept);
+                                                  selectedDept = newDept;
+                                                });
+                                                // Also add to the filter tab pills
+                                                setState(() {
+                                                  if (!_departments.contains(newDept)) _departments.add(newDept);
+                                                });
+                                                _saveCustomDepartments();
+                                              }
+                                            } else if (val != null) {
+                                              setDialogState(() => selectedDept = val);
+                                            }
                                           },
                                         ),
                                       ),
@@ -1432,11 +1793,91 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           value: roleOptions.contains(selectedRole) ? selectedRole : roleOptions.first,
                                           isExpanded: true,
                                           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                          items: roleOptions.map((r) => DropdownMenuItem(value: r, child: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-                                          onChanged: (val) {
-                                            if (val != null) setDialogState(() => selectedRole = val);
+                                          items: [
+                                            ...roleOptions.map((r) => DropdownMenuItem(
+                                              value: r,
+                                              child: Text(r, style: GoogleFonts.plusJakartaSans(fontSize: 12), overflow: TextOverflow.ellipsis),
+                                            )),
+                                            DropdownMenuItem(
+                                              value: '__add_role__',
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.add_circle_outline_rounded, size: 14, color: _emerald),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Add Another Role',
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: _emerald,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          onChanged: (val) async {
+                                            if (val == '__add_role__') {
+                                              final ctrl = TextEditingController();
+                                              final newRole = await showDialog<String>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                  title: Text('Add Role', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16)),
+                                                  content: TextField(
+                                                    controller: ctrl,
+                                                    autofocus: true,
+                                                    decoration: _inputDecoration('e.g. Bartender, Delivery Rider', Icons.work_outline_rounded),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () => Navigator.pop(ctx),
+                                                      child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: _slate)),
+                                                    ),
+                                                    ElevatedButton(
+                                                      onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                                                      style: ElevatedButton.styleFrom(backgroundColor: _emerald, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                                      child: Text('Add', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (newRole != null && newRole.isNotEmpty) {
+                                                setDialogState(() {
+                                                  if (!roleOptions.contains(newRole)) roleOptions.add(newRole);
+                                                  selectedRole = newRole;
+                                                  // Auto-detect level from new role
+                                                  selectedLevel = _detectLevelFromRole(newRole);
+                                                });
+                                                // Persist the custom role
+                                                if (!_customRoles.contains(newRole)) {
+                                                  setState(() => _customRoles.add(newRole));
+                                                  _saveCustomRoles();
+                                                }
+                                              }
+                                            } else if (val != null) {
+                                              setDialogState(() {
+                                                selectedRole = val;
+                                                // Auto-detect level from selected role
+                                                selectedLevel = _detectLevelFromRole(val);
+                                              });
+                                            }
                                           },
                                         ),
+                                      ),
+                                    ),
+                                    // Auto-detect hint
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.auto_awesome_rounded, size: 10, color: _slate),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            'Level auto-detected from role',
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 9, color: _slate, fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -1446,41 +1887,177 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // Mobile Phone
-                          _inputLabel('Contact Number'),
+                          // Mobile Phone (Strict 11 digits, numbers only)
+                          _inputLabel('Contact Number (Exact 11 Digits) *'),
                           TextField(
                             controller: phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: _inputDecoration('+63 912 345 6789', Icons.phone_outlined),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(11),
+                            ],
+                            decoration: _inputDecoration('e.g. 09123456789', Icons.phone_outlined),
                           ),
                           const SizedBox(height: 14),
 
-                          // Hierarchy Level
+                          // Hierarchy Level (L4=Exec top, L1=Support bottom)
                           _inputLabel('Staff Hierarchy Level'),
                           Row(
                             children: [
-                              _levelChip(0, 'L1 (Exec)', selectedLevel == 0, () => setDialogState(() => selectedLevel = 0)),
+                              _levelChip(1, 'L1\nSupport', selectedLevel == 1, () => setDialogState(() => selectedLevel = 1)),
                               const SizedBox(width: 6),
-                              _levelChip(1, 'L2 (Mgr)', selectedLevel == 1, () => setDialogState(() => selectedLevel = 1)),
+                              _levelChip(2, 'L2\nStaff', selectedLevel == 2, () => setDialogState(() => selectedLevel = 2)),
                               const SizedBox(width: 6),
-                              _levelChip(2, 'L3 (Staff)', selectedLevel == 2, () => setDialogState(() => selectedLevel = 2)),
+                              _levelChip(3, 'L3\nSr. Mgr', selectedLevel == 3, () => setDialogState(() => selectedLevel = 3)),
                               const SizedBox(width: 6),
-                              _levelChip(3, 'L4 (Support)', selectedLevel == 3, () => setDialogState(() => selectedLevel = 3)),
+                              _levelChip(4, 'L4\nExec', selectedLevel == 4, () => setDialogState(() => selectedLevel = 4)),
                             ],
                           ),
                           const SizedBox(height: 14),
 
                           // Status Selector
                           _inputLabel('Employment Status'),
-                          Row(
-                            children: [
-                              _statusChip('active', 'Active', Icons.verified_rounded, const Color(0xFF15803D), selectedStatus == 'active', () => setDialogState(() => selectedStatus = 'active')),
-                              const SizedBox(width: 8),
-                              _statusChip('on-leave', 'On Leave', Icons.event_busy_rounded, const Color(0xFFD97706), selectedStatus == 'on-leave', () => setDialogState(() => selectedStatus = 'on-leave')),
-                              const SizedBox(width: 8),
-                              _statusChip('inactive', 'Inactive', Icons.cancel_rounded, const Color(0xFFDC2626), selectedStatus == 'inactive', () => setDialogState(() => selectedStatus = 'inactive')),
-                            ],
-                          ),
+                          if (!isEditing)
+                            // NEW STAFF: Active + Inactive only (On Leave needs 3 days first)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    _statusChip('active', 'Active', Icons.verified_rounded, const Color(0xFF15803D), selectedStatus == 'active', () => setDialogState(() => selectedStatus = 'active')),
+                                    const SizedBox(width: 8),
+                                    _statusChip('inactive', 'Inactive', Icons.cancel_rounded, const Color(0xFFDC2626), selectedStatus == 'inactive', () => setDialogState(() => selectedStatus = 'inactive')),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFFDE68A)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.lock_clock_rounded, size: 13, color: Color(0xFFD97706)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'On Leave unlocks after 3 days of employment.',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10,
+                                            color: const Color(0xFFD97706),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            // EDITING: show based on date_hired eligibility
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    _statusChip('active', 'Active', Icons.verified_rounded, const Color(0xFF15803D), selectedStatus == 'active', () => setDialogState(() => selectedStatus = 'active')),
+                                    const SizedBox(width: 8),
+                                    // On Leave: only tappable if >= 3 days hired
+                                    Expanded(
+                                      child: Tooltip(
+                                        message: canShowOnLeave ? '' : 'Available after 3 days of employment',
+                                        child: InkWell(
+                                          onTap: canShowOnLeave
+                                              ? () => setDialogState(() => selectedStatus = 'on-leave')
+                                              : null,
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: selectedStatus == 'on-leave'
+                                                  ? const Color(0xFFD97706).withValues(alpha: 0.15)
+                                                  : canShowOnLeave
+                                                      ? const Color(0xFFF8FAFC)
+                                                      : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: selectedStatus == 'on-leave'
+                                                    ? const Color(0xFFD97706)
+                                                    : canShowOnLeave ? _slateLight : const Color(0xFFCBD5E1),
+                                                width: selectedStatus == 'on-leave' ? 1.5 : 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.event_busy_rounded,
+                                                  size: 12,
+                                                  color: !canShowOnLeave
+                                                      ? const Color(0xFFCBD5E1)
+                                                      : selectedStatus == 'on-leave'
+                                                          ? const Color(0xFFD97706)
+                                                          : _slate,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'On Leave',
+                                                  style: GoogleFonts.plusJakartaSans(
+                                                    fontSize: 11,
+                                                    fontWeight: selectedStatus == 'on-leave' ? FontWeight.w800 : FontWeight.w600,
+                                                    color: !canShowOnLeave
+                                                        ? const Color(0xFFCBD5E1)
+                                                        : selectedStatus == 'on-leave'
+                                                            ? const Color(0xFFD97706)
+                                                            : const Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                                if (!canShowOnLeave) ...[
+                                                  const SizedBox(width: 3),
+                                                  const Icon(Icons.lock_outline_rounded, size: 10, color: Color(0xFFCBD5E1)),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _statusChip('inactive', 'Inactive', Icons.cancel_rounded, const Color(0xFFDC2626), selectedStatus == 'inactive', () => setDialogState(() => selectedStatus = 'inactive')),
+                                  ],
+                                ),
+                                if (!canShowOnLeave) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFBEB),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFFDE68A)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.lock_clock_rounded, size: 13, color: Color(0xFFD97706)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'On Leave unlocks after 3 days of employment.',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 10,
+                                              color: const Color(0xFFD97706),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -1505,19 +2082,110 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         Expanded(
                           flex: 2,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
                               final name = nameController.text.trim();
                               final title = titleController.text.trim();
                               final phone = phoneController.text.trim();
                               final empId = idController.text.trim();
 
-                              if (name.isEmpty || title.isEmpty) {
+                              void showValidationError(String msg) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('Please fill in both Full Name and Job Title'),
-                                    backgroundColor: AppTheme.errorRed,
+                                    content: Row(
+                                      children: [
+                                        const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            msg,
+                                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: const Color(0xFFDC2626),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    duration: const Duration(seconds: 4),
                                   ),
                                 );
+                              }
+
+                              // 1. NAME VALIDATION
+                              if (name.isEmpty) {
+                                showValidationError('Name is required.');
+                                return;
+                              }
+                              if (name.length < 2) {
+                                showValidationError('Name must be at least 2 characters.');
+                                return;
+                              }
+                              if (!RegExp(r"^[a-zA-Z\s\.\,\-\'\ñ\Ñ]+$").hasMatch(name)) {
+                                showValidationError('Name can only contain letters, spaces, and standard name characters.');
+                                return;
+                              }
+
+                              // 2. JOB TITLE VALIDATION
+                              if (title.isEmpty) {
+                                showValidationError('Job Title is required.');
+                                return;
+                              }
+                              if (title.length < 2) {
+                                showValidationError('Job Title must be at least 2 characters.');
+                                return;
+                              }
+
+                              // 3. EMPLOYEE ID VALIDATION & DUPLICATE CHECK
+                              if (empId.isEmpty) {
+                                showValidationError('Employee ID is required.');
+                                return;
+                              }
+                              if (!RegExp(r'^[a-zA-Z0-9\-_]+$').hasMatch(empId)) {
+                                showValidationError('Employee ID can only contain letters, numbers, and hyphens (e.g. EMP001).');
+                                return;
+                              }
+
+                              // Check if Employee ID is already assigned to someone else
+                              final isDuplicateId = _staff.any((s) {
+                                final existingId = (s['id'] ?? '').toString().trim().toUpperCase();
+                                final currentId = empId.toUpperCase();
+                                if (isEditing && (staff['id'] ?? '').toString().trim().toUpperCase() == existingId) {
+                                  return false; // same staff being edited
+                                }
+                                return existingId == currentId;
+                              });
+                              if (isDuplicateId) {
+                                showValidationError('Employee ID "$empId" is already taken by another staff member.');
+                                return;
+                              }
+
+                              // 4. CONTACT NUMBER VALIDATION (Strictly exact 11 digits, numbers only, e.g. 09123456789)
+                              if (phone.isEmpty) {
+                                showValidationError('Contact Number is required.');
+                                return;
+                              }
+                              if (RegExp(r'[a-zA-Z]').hasMatch(phone)) {
+                                showValidationError('Contact Number cannot contain letters. Numbers only.');
+                                return;
+                              }
+                              final digitsOnly = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                              if (digitsOnly.length != 11) {
+                                showValidationError('Contact Number must be exactly 11 digits (e.g. 09123456789). Current: ${digitsOnly.length} digits.');
+                                return;
+                              }
+                              if (!digitsOnly.startsWith('09')) {
+                                showValidationError('Contact Number must start with 09 (e.g. 09123456789).');
+                                return;
+                              }
+                              final formattedPhone = '+63 ${digitsOnly.substring(1, 4)} ${digitsOnly.substring(4, 7)} ${digitsOnly.substring(7)}';
+
+                              // 5. DEPARTMENT & ROLE VALIDATION
+                              if (selectedDept.isEmpty || selectedDept == '__add_dept__') {
+                                showValidationError('Please select a valid Department.');
+                                return;
+                              }
+                              if (selectedRole.isEmpty || selectedRole == '__add_role__') {
+                                showValidationError('Please select a valid Role / Access level.');
                                 return;
                               }
 
@@ -1529,15 +2197,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
                               final updatedData = {
                                 'name': name,
+                                'full_name': name,
                                 'title': title,
                                 'dept': selectedDept,
                                 'role': selectedRole,
                                 'level': selectedLevel,
                                 'status': selectedStatus,
-                                'phone': phone.isEmpty ? '+63 900 000 0000' : phone,
-                                'id': empId.isEmpty ? 'EMP001' : empId,
+                                'phone': formattedPhone,
+                                'id': empId,
                                 'colorHex': colorHex,
                                 'image': currentPhoto ?? '',
+                                'date_hired': isEditing
+                                    ? (staff['date_hired'] ?? DateTime.now().toIso8601String())
+                                    : DateTime.now().toIso8601String(),
                               };
 
                               setState(() {
@@ -1558,7 +2230,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   _staff.insert(0, updatedData);
                                 }
                               });
-                              _saveStaffData();
+
+                              // Save to database & local storage
+                              final bool dbSaved = await StaffService.saveStaffList(_staff);
 
                               AuditLogService.logActivity(
                                 action: isEditing ? 'UPDATE' : 'CREATE',
@@ -1570,15 +2244,38 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 metadata: updatedData,
                               );
 
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isEditing ? 'Staff details updated successfully!' : 'New staff member added successfully!'),
-                                  backgroundColor: _emerald,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              );
+                              if (mounted) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          dbSaved ? Icons.cloud_done_rounded : Icons.check_circle_rounded,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            isEditing
+                                                ? 'Staff "$name" updated & synced to database!'
+                                                : 'New staff "$name" ($empId) saved to database!',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: _emerald,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _emerald,
@@ -1604,9 +2301,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   // -------------------------------------------------------------------------
-  // DELETE CONFIRMATION DIALOG
+  // ARCHIVE STAFF DIALOG (Replaces Permanent Deletion)
   // -------------------------------------------------------------------------
-  void _showDeleteDialog(Map<String, dynamic> staff) {
+  void _showArchiveDialog(Map<String, dynamic> staff) {
+    final empId = (staff['id'] ?? staff['employee_id'] ?? '').toString();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1616,20 +2314,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                color: const Color(0xFFD97706).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFDC2626), size: 22),
+              child: const Icon(Icons.archive_rounded, color: Color(0xFFD97706), size: 22),
             ),
             const SizedBox(width: 10),
             Text(
-              'Remove Staff',
+              'Archive Staff Member',
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
             ),
           ],
         ),
         content: Text(
-          'Are you sure you want to remove "${staff['name']}" (${staff['id']}) from the staff directory? This action cannot be undone.',
+          'Are you sure you want to archive "${staff['name']}" ($empId)?\n\nThis staff member will be moved to the Archived Staff list. You can view their details or restore them back to the active directory anytime.',
           style: GoogleFonts.plusJakartaSans(fontSize: 13, color: const Color(0xFF475569)),
         ),
         actions: [
@@ -1637,18 +2335,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, color: _slate)),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () {
               setState(() {
-                _staff.removeWhere((s) => s['id']?.toString() == staff['id']?.toString());
+                staff['status'] = 'archived';
               });
               _saveStaffData();
+              if (empId.isNotEmpty) {
+                StaffService.archiveStaffMember(empId);
+              }
 
               AuditLogService.logActivity(
-                action: 'DELETE',
+                action: 'ARCHIVE',
                 module: 'Users',
-                description: 'Removed staff member "${staff['name']}" (${staff['id']}) from directory',
-                entityId: staff['id']?.toString(),
+                description: 'Archived staff member "${staff['name']}" ($empId)',
+                entityId: empId,
                 metadata: staff,
               );
 
@@ -1656,18 +2357,30 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Removed ${staff['name']} from staff directory.'),
-                  backgroundColor: const Color(0xFFDC2626),
+                  content: Row(
+                    children: [
+                      const Icon(Icons.archive_rounded, color: Colors.white, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '${staff['name']} moved to Archived Staff.',
+                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFFD97706),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               );
             },
+            icon: const Icon(Icons.archive_rounded, size: 16, color: Colors.white),
+            label: Text('Archive Staff', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
+              backgroundColor: const Color(0xFFD97706),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text('Delete', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: Colors.white)),
           ),
         ],
       ),
@@ -1675,8 +2388,371 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   // -------------------------------------------------------------------------
-  // FORM HELPER WIDGETS
+  // ARCHIVED STAFF MODAL (View Details & Restore Capability)
   // -------------------------------------------------------------------------
+  void _showArchivedStaffModal() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final archivedList = _archivedStaff;
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: 580,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Modal Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD97706).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.inventory_2_rounded, color: Color(0xFFD97706), size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Archived Staff Records',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: _darkBg,
+                              ),
+                            ),
+                            Text(
+                              '${archivedList.length} archived member${archivedList.length == 1 ? '' : 's'}',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+
+                  if (archivedList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Icon(Icons.archive_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No Archived Staff',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w700, color: _slate),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Archived staff will appear here for information and recovery.',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 380),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: archivedList.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, idx) {
+                          final s = archivedList[idx];
+                          final empId = (s['id'] ?? s['employee_id'] ?? '').toString();
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: _slateLight),
+                            ),
+                            child: Row(
+                              children: [
+                                // Avatar
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: const Color(0xFFD97706).withValues(alpha: 0.15),
+                                  child: Text(
+                                    (s['name'] ?? 'S')[0].toUpperCase(),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFFD97706),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        s['name'] ?? '',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                          color: _darkBg,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$empId · ${s['title'] ?? s['role'] ?? ''}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          color: _slate,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // View Info Button
+                                TextButton.icon(
+                                  onPressed: () => _showStaffDetailsDialog(s),
+                                  icon: const Icon(Icons.info_outline_rounded, size: 14, color: _slate),
+                                  label: Text(
+                                    'Details',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: _slate),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Restore Button
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      s['status'] = 'active';
+                                    });
+                                    _saveStaffData();
+                                    if (empId.isNotEmpty) {
+                                      StaffService.restoreStaffMember(empId);
+                                    }
+                                    setModalState(() {});
+
+                                    AuditLogService.logActivity(
+                                      action: 'RESTORE',
+                                      module: 'Users',
+                                      description: 'Restored archived staff member "${s['name']}" ($empId) back to active',
+                                      entityId: empId,
+                                      metadata: s,
+                                    );
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Restored ${s['name']} back to active staff directory!'),
+                                        backgroundColor: _emerald,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.unarchive_rounded, size: 14, color: Colors.white),
+                                  label: Text(
+                                    'Restore',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _emerald,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    elevation: 0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // FULL STAFF INFORMATION DETAILS MODAL
+  // -------------------------------------------------------------------------
+  void _showStaffDetailsDialog(Map<String, dynamic> staff) {
+    final empId = (staff['id'] ?? staff['employee_id'] ?? '').toString();
+    final name = (staff['name'] ?? staff['full_name'] ?? '').toString();
+    final title = (staff['title'] ?? '').toString();
+    final role = (staff['role'] ?? '').toString();
+    final dept = (staff['dept'] ?? '').toString();
+    final phone = (staff['phone'] ?? '').toString();
+    final level = staff['level'] is int ? staff['level'] as int : int.tryParse(staff['level']?.toString() ?? '2') ?? 2;
+    final status = (staff['status'] ?? 'active').toString().toUpperCase();
+    final dateHired = staff['date_hired']?.toString() ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _emerald.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.badge_rounded, color: _emerald, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Staff Information Details',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Profile Card Header
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _slateLight),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: _emerald,
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w800,
+                        color: _gold,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 15, color: _darkBg),
+                        ),
+                        Text(
+                          title.isNotEmpty ? title : role,
+                          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: _slate, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _emerald.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            empId,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w700, color: _emerald),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Detail rows
+            _detailInfoRow('Employee ID', empId, Icons.badge_outlined),
+            _detailInfoRow('Role / Access', role, Icons.admin_panel_settings_outlined),
+            _detailInfoRow('Department', dept.isNotEmpty ? dept : 'Kitchen', Icons.business_rounded),
+            _detailInfoRow('Hierarchy Level', _getLevelLabel(level), Icons.stairs_rounded),
+            _detailInfoRow('Contact Number', phone.isNotEmpty ? phone : 'N/A', Icons.phone_outlined),
+            _detailInfoRow('Status', status, Icons.info_outline_rounded),
+            if (dateHired.isNotEmpty)
+              _detailInfoRow('Date Registered', dateHired.split('T').first, Icons.calendar_today_rounded),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Close', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: _slate)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailInfoRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: _slate),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(fontSize: 11, color: _slate, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: _darkBg),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _inputLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
@@ -1766,7 +2842,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
   void _showStaffModal(Map<String, dynamic> staff) {
     final accentColor = Color(staff['colorHex'] as int? ?? 0xFF14332E);
     final status = (staff['status'] ?? 'active').toString();
-    final name = staff['name'] as String? ?? '';
+    // Support both 'full_name' and legacy 'name' key
+    final name = (staff['full_name'] ?? staff['name']) as String? ?? '';
     final photo = staff['image'] as String?;
 
     Color statusColor;
@@ -1991,16 +3068,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           child: OutlinedButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _showDeleteDialog(staff);
+                              _showArchiveDialog(staff);
                             },
-                            icon: const Icon(Icons.delete_rounded, size: 16, color: Color(0xFFDC2626)),
+                            icon: const Icon(Icons.archive_outlined, size: 16, color: Color(0xFFD97706)),
                             label: Text(
-                              'Delete',
-                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFFDC2626)),
+                              'Archive',
+                              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFFD97706)),
                             ),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: const BorderSide(color: Color(0xFFDC2626)),
+                              side: const BorderSide(color: Color(0xFFD97706)),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),

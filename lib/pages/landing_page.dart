@@ -3439,7 +3439,7 @@ class _LandingPageState extends State<LandingPage>
                     ],
                   ),
                 )
-              else
+               else
                 Column(
                   children: [
                     Stack(
@@ -3465,61 +3465,46 @@ class _LandingPageState extends State<LandingPage>
                           ),
                         ),
 
-                        // Left Scroll Arrow (Desktop / Laptop)
-                        if (!isMobile)
-                          Positioned(
-                            left: -20,
-                            child: Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 6,
-                              child: InkWell(
-                                onTap: () => _scrollCarousel(-300),
-                                customBorder: const CircleBorder(),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(10),
-                                  child: Icon(Icons.arrow_back_ios_new_rounded,
-                                      color: forestGreen, size: 20),
-                                ),
-                              ),
-                            ),
+                        // Left Scroll Arrow
+                        Positioned(
+                          left: isMobile ? 4 : -20,
+                          child: _MenuScrollArrow(
+                            direction: _MenuArrowDirection.left,
+                            isMobile: isMobile,
+                            onTap: () => _scrollCarousel(-300),
                           ),
+                        ),
 
-                        // Right Scroll Arrow (Desktop / Laptop)
-                        if (!isMobile)
-                          Positioned(
-                            right: -20,
-                            child: Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 6,
-                              child: InkWell(
-                                onTap: () => _scrollCarousel(300),
-                                customBorder: const CircleBorder(),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(10),
-                                  child: Icon(Icons.arrow_forward_ios_rounded,
-                                      color: forestGreen, size: 20),
-                                ),
-                              ),
-                            ),
+                        // Right Scroll Arrow
+                        Positioned(
+                          right: isMobile ? 4 : -20,
+                          child: _MenuScrollArrow(
+                            direction: _MenuArrowDirection.right,
+                            isMobile: isMobile,
+                            onTap: () => _scrollCarousel(300),
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Swipe/Scroll Indicator Hint
+                    // Swipe Hint Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.swipe_left_rounded,
-                            color: forestGreen, size: 18),
+                        Icon(
+                          Icons.swipe_rounded,
+                          color: forestGreen.withValues(alpha: 0.6),
+                          size: isMobile ? 16 : 18,
+                        ),
                         const SizedBox(width: 6),
                         Text(
-                          'Swipe or use navigation arrows to explore dishes',
+                          isMobile
+                              ? 'Swipe to explore more dishes'
+                              : 'Swipe or use navigation arrows to explore dishes',
                           style: GoogleFonts.plusJakartaSans(
                             color: AppTheme.mediumGrey,
-                            fontSize: 13,
+                            fontSize: isMobile ? 12 : 13,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -6205,6 +6190,7 @@ class _DraggableServicesSectionState
         description:
             'Enjoy a premium dining atmosphere with attentive service, elegant table settings, and an extensive menu crafted for every occasion.',
         tag: 'Attentive Service',
+        infoLabel: 'Walk-In Welcome  •  Open Daily',
       ),
       _ServiceData(
         number: '02',
@@ -6213,6 +6199,8 @@ class _DraggableServicesSectionState
         description:
             'Planning a birthday, reunion, or corporate event? We offer tailored catering packages and exclusive private dining spaces.',
         tag: 'Catering & Packages',
+        showButton: true,
+        buttonLabel: 'Book an Event',
       ),
       _ServiceData(
         number: '03',
@@ -6221,14 +6209,18 @@ class _DraggableServicesSectionState
         description:
             'Prefer dining at home? Order your favorites physically to takehome or advance order by online to freshly prepared and ready for pickup.',
         tag: 'Freshly Prepared',
+        showButton: true,
+        buttonLabel: 'Order Now',
       ),
       _ServiceData(
         number: '04',
         icon: Icons.event_seat_rounded,
         title: 'Reservation System',
         description:
-            'Skip the wait reserve a table in advance through our quick and easy online booking system. Available 7 days a week.',
+            'Skip the wait and reserve a table in advance through our quick and easy online booking system. Available 7 days a week.',
         tag: 'Skip The Wait',
+        showButton: true,
+        buttonLabel: 'Reserve a Table',
       ),
     ];
   }
@@ -6245,6 +6237,9 @@ class _DraggableServicesSectionState
           title: _items[i].title,
           description: _items[i].description,
           tag: _items[i].tag,
+          showButton: _items[i].showButton,
+          buttonLabel: _items[i].buttonLabel,
+          infoLabel: _items[i].infoLabel,
         );
       }
     });
@@ -6523,6 +6518,9 @@ class _ServiceData {
   final String title;
   final String description;
   final String tag;
+  final bool showButton;
+  final String buttonLabel;
+  final String infoLabel;
 
   _ServiceData({
     required this.number,
@@ -6530,6 +6528,9 @@ class _ServiceData {
     required this.title,
     required this.description,
     required this.tag,
+    this.showButton = false,
+    this.buttonLabel = 'Get Started',
+    this.infoLabel = '',
   });
 }
 
@@ -6595,6 +6596,7 @@ class _LandingServiceCardState extends State<_LandingServiceCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // ── Top content block ──
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -6658,11 +6660,11 @@ class _LandingServiceCardState extends State<_LandingServiceCard> {
                 ),
                 SizedBox(height: isMobile ? 6 : 10),
 
-                // Description
+                // Description — uniform 4 lines on desktop for equal card heights
                 Text(
                   widget.item.description,
-                  maxLines: isMobile ? 3 : null,
-                  overflow: isMobile ? TextOverflow.ellipsis : null,
+                  maxLines: isMobile ? 3 : 4,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: isMobile ? 12 : 13.5,
                     color: const Color(0xFF64748B),
@@ -6671,9 +6673,9 @@ class _LandingServiceCardState extends State<_LandingServiceCard> {
                 ),
               ],
             ),
-            SizedBox(height: isMobile ? 10 : 20),
+            SizedBox(height: isMobile ? 10 : 16),
 
-            // Footer row: Tag Pill + subtle drag hint
+            // ── Footer: Tag Pill row ──
             Row(
               children: [
                 Container(
@@ -6711,7 +6713,236 @@ class _LandingServiceCardState extends State<_LandingServiceCard> {
                 ),
               ],
             ),
+
+            // ── Bottom strip: CTA button OR info badge (same height, all cards align) ──
+            SizedBox(height: isMobile ? 10 : 14),
+            SizedBox(
+              width: double.infinity,
+              child: widget.item.showButton
+                  // ── Clickable gradient button for bookable services ──
+                  ? AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      decoration: BoxDecoration(
+                        gradient: isActive
+                            ? const LinearGradient(
+                                colors: [
+                                  Color(0xFF990000),
+                                  Color(0xFFBB1111),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : LinearGradient(
+                                colors: [
+                                  _LandingPageState.forestGreen
+                                      .withValues(alpha: 0.85),
+                                  _LandingPageState.forestGreen,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _LandingPageState.forestGreen
+                                .withValues(alpha: isActive ? 0.35 : 0.15),
+                            blurRadius: isActive ? 12 : 6,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => Navigator.pushNamed(context, '/login'),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: isMobile ? 9 : 11,
+                              horizontal: 12,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  widget.item.buttonLabel,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: isMobile ? 12 : 13,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: Colors.white,
+                                  size: 15,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  // ── Non-clickable info strip for Dine-In (same height as button) ──
+                  : AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: EdgeInsets.symmetric(
+                        vertical: isMobile ? 9 : 11,
+                        horizontal: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? _LandingPageState.warmGold.withValues(alpha: 0.10)
+                            : const Color(0xFFF8F4EE),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isActive
+                              ? _LandingPageState.warmGold.withValues(alpha: 0.55)
+                              : _LandingPageState.warmGold.withValues(alpha: 0.28),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.storefront_rounded,
+                            size: isMobile ? 12 : 14,
+                            color: isActive
+                                ? _LandingPageState.primaryGold
+                                : _LandingPageState.primaryGold
+                                    .withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            widget.item.infoLabel,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isActive
+                                  ? _LandingPageState.darkGreyText
+                                  : const Color(0xFF92816A),
+                              fontWeight: FontWeight.w600,
+                              fontSize: isMobile ? 11 : 12,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENU SCROLL ARROW
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum _MenuArrowDirection { left, right }
+
+class _MenuScrollArrow extends StatefulWidget {
+  final _MenuArrowDirection direction;
+  final bool isMobile;
+  final VoidCallback onTap;
+
+  const _MenuScrollArrow({
+    required this.direction,
+    required this.isMobile,
+    required this.onTap,
+  });
+
+  @override
+  State<_MenuScrollArrow> createState() => _MenuScrollArrowState();
+}
+
+class _MenuScrollArrowState extends State<_MenuScrollArrow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bounceController;
+  late final Animation<double> _bounceAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    _bounceAnim = Tween<double>(begin: 0.0, end: 6.0).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLeft = widget.direction == _MenuArrowDirection.left;
+
+    // ── Desktop: original white circle ──
+    if (!widget.isMobile) {
+      return Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 6,
+        child: InkWell(
+          onTap: widget.onTap,
+          customBorder: const CircleBorder(),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(
+              isLeft
+                  ? Icons.arrow_back_ios_new_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              color: _LandingPageState.forestGreen,
+              size: 20,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ── Mobile: bouncing frosted pill arrow ──
+    return AnimatedBuilder(
+      animation: _bounceAnim,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(isLeft ? -_bounceAnim.value : _bounceAnim.value, 0),
+          child: child,
+        );
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: _LandingPageState.forestGreen.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: _LandingPageState.forestGreen.withValues(alpha: 0.30),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Icon(
+            isLeft
+                ? Icons.chevron_left_rounded
+                : Icons.chevron_right_rounded,
+            color: _LandingPageState.warmGold,
+            size: 22,
+          ),
         ),
       ),
     );

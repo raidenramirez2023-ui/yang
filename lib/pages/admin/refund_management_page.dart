@@ -101,7 +101,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       case 'pending':
         return const Color(0xFFD97706);
       case 'approved':
-        return const Color(0xFF0284C7);
       case 'completed':
         return const Color(0xFF15803D);
       case 'rejected':
@@ -136,19 +135,6 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         return 'Advance Order';
       default:
         return sourceTable.isNotEmpty ? sourceTable : 'General';
-    }
-  }
-
-  Color _sourceColor(String sourceTable) {
-    switch (sourceTable) {
-      case 'orders':
-        return const Color(0xFF0284C7);
-      case 'reservations':
-        return const Color(0xFF7C3AED);
-      case 'advance_orders':
-        return const Color(0xFFD97706);
-      default:
-        return const Color(0xFF64748B);
     }
   }
 
@@ -262,7 +248,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
               final success = await _rescheduleService.approveReschedule(
                 requestId: request['id'].toString(),
                 reservationId: request['reservation_id'].toString(),
@@ -347,7 +333,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 return;
               }
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
               final success = await _rescheduleService.rejectReschedule(
                 requestId: request['id'].toString(),
                 reservationId: request['reservation_id'].toString(),
@@ -417,7 +403,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
               final success = await _refundService.approveRefund(
                 refundId: refund['id'],
                 adminEmail: adminEmail,
@@ -501,7 +487,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 return;
               }
               Navigator.pop(ctx);
-              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+              final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
               final success = await _refundService.rejectRefund(
                 refundId: refund['id'],
                 adminEmail: adminEmail,
@@ -604,7 +590,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       ),
     );
     if (confirmed == true && mounted) {
-      final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admin';
+      final adminEmail = Supabase.instance.client.auth.currentUser?.email ?? 'admn.pagsanjan@gmail.com';
       final success = await _refundService.completeManualRefund(refundId: refund['id'], adminEmail: adminEmail);
       if (mounted) {
         _showSnackBar(
@@ -970,11 +956,11 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
                                       children: [
-                                        _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded, const Color(0xFF14332E)),
-                                        _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
-                                        _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded, const Color(0xFF0284C7)),
-                                        _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded, const Color(0xFF15803D)),
-                                        _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                                        _buildFilterPill('all', 'All Refunds (${allRefunds.length})', Icons.apps_rounded),
+                                        _buildFilterPill('pending', 'Pending (${allRefunds.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded),
+                                        _buildFilterPill('approved', 'Approved (${allRefunds.where((r) => r['status'] == 'approved').length})', Icons.gpp_good_rounded),
+                                        _buildFilterPill('completed', 'Completed (${allRefunds.where((r) => r['status'] == 'completed').length})', Icons.verified_rounded),
+                                        _buildFilterPill('rejected', 'Rejected (${allRefunds.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded),
                                       ],
                                     ),
                                   ),
@@ -1061,10 +1047,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                   scrollDirection: Axis.horizontal,
                                   child: Row(
                                     children: [
-                                      _buildRescheduleFilterPill('all', 'All Requests (${rawReschedules.length})', Icons.apps_rounded, const Color(0xFF14332E)),
-                                      _buildRescheduleFilterPill('pending', 'Pending Approval (${rawReschedules.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded, const Color(0xFFD97706)),
-                                      _buildRescheduleFilterPill('approved', 'Approved (${rawReschedules.where((r) => r['status'] == 'approved').length})', Icons.check_circle_rounded, const Color(0xFF15803D)),
-                                      _buildRescheduleFilterPill('rejected', 'Rejected (${rawReschedules.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded, const Color(0xFFDC2626)),
+                                      _buildRescheduleFilterPill('all', 'All Requests (${rawReschedules.length})', Icons.apps_rounded),
+                                      _buildRescheduleFilterPill('pending', 'Pending Approval (${rawReschedules.where((r) => r['status'] == 'pending').length})', Icons.hourglass_top_rounded),
+                                      _buildRescheduleFilterPill('approved', 'Approved (${rawReschedules.where((r) => r['status'] == 'approved').length})', Icons.check_circle_rounded),
+                                      _buildRescheduleFilterPill('rejected', 'Rejected (${rawReschedules.where((r) => r['status'] == 'rejected').length})', Icons.cancel_rounded),
                                     ],
                                   ),
                                 ),
@@ -1268,7 +1254,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  // ── Header Card (mirrors Petty Cash Executive Card) ───────
+  // ── Header Card (Rich Emerald & Warm Gold Treasury Card) ───────
   Widget _buildHeader(List<Map<String, dynamic>> allRefunds, double currentOrdersTotal, int ordersCount) {
     double totalRefunded = 0;
     for (final r in allRefunds) {
@@ -1285,208 +1271,250 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF142421), Color(0xFF1E3A34)],
+          colors: [Color(0xFF0D2823), Color(0xFF143B34), Color(0xFF1B4E44)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF14332E).withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
         border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.35), width: 1.2),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Decorative ambient glows
-          Positioned(
-            right: -30,
-            top: -30,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFD9A441).withValues(alpha: 0.06),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 40,
-            bottom: -40,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF34C759).withValues(alpha: 0.04),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      // Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD9A441).withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFE6C374), size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              widget.todayOnly ? 'TODAY POS NET SALES' : 'REFUND MANAGEMENT',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: const Color(0xFFE6C374),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      if (pending > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD97706).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFF9500))),
-                              const SizedBox(width: 6),
-                              Text(
-                                '$pending PENDING',
-                                style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFFB020), fontWeight: FontWeight.w700, fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF34C759).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF34C759).withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(width: 6, height: 6, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF34C759))),
-                              const SizedBox(width: 6),
-                              Text(
-                                'ALL CLEAR',
-                                style: GoogleFonts.plusJakartaSans(color: const Color(0xFF86EFAC), fontWeight: FontWeight.w700, fontSize: 10),
-                              ),
-                            ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD9A441).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFD9A441).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFE6C374), size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.todayOnly ? 'TODAY POS NET SALES' : 'REFUND & RESCHEDULE TREASURY',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFFE6C374),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            letterSpacing: 1.0,
                           ),
                         ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: _showChangePasscodeDialog,
-                        icon: const Icon(Icons.lock_outline, size: 14, color: Color(0xFF94A3B8)),
-                        label: Text('Passcode', style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF94A3B8))),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              Text(
-                widget.todayOnly ? "TODAY'S NET SALES (KITA NGAYONG ARAW)" : 'TOTAL REFUNDED',
-                style: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF94A3B8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 4),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text('₱', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFD9A441), fontSize: 28, fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 4),
-                  Text(
-                    NumberFormat('#,##0.00').format(widget.todayOnly ? (netSales < 0 ? 0 : netSales) : totalRefunded),
-                    style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: -0.8),
+                  if (pending > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD97706).withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFFFFB020),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$pending PENDING',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFFFFD166),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF34D399).withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF34D399),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'ALL CLEAR',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFFA7F3D0),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _showChangePasscodeDialog,
+                    icon: const Icon(Icons.lock_outline, size: 13, color: Color(0xFFE2E8F0)),
+                    label: Text(
+                      'Passcode',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ],
               ),
-              if (!widget.todayOnly) ...[
-                const SizedBox(height: 16),
-                // Sub-stats row (Admin View)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 16),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Total Records', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
-                                Text('${allRefunds.length} ${allRefunds.length == 1 ? 'refund' : 'refunds'}', style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.12)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.pending_actions_rounded, color: Color(0xFFFF9500), size: 16),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Pending Review', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500)),
-                                Text('$pending ${pending == 1 ? 'item' : 'items'}', style: GoogleFonts.plusJakartaSans(color: const Color(0xFFFFB020), fontSize: 13, fontWeight: FontWeight.w700)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
+          const SizedBox(height: 18),
+          Text(
+            widget.todayOnly ? "TODAY'S NET SALES (KITA NGAYONG ARAW)" : 'TOTAL SETTLED REFUNDS',
+            style: GoogleFonts.plusJakartaSans(
+              color: const Color(0xFF94A3B8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '₱',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFFD9A441),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                NumberFormat('#,##0.00').format(widget.todayOnly ? (netSales < 0 ? 0 : netSales) : totalRefunded),
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                ),
+              ),
+            ],
+          ),
+          if (!widget.todayOnly) ...[
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.receipt_long_rounded, color: Color(0xFFE6C374), size: 16),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Records',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF94A3B8),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '${allRefunds.length} ${allRefunds.length == 1 ? 'refund' : 'refunds'}',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.15)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.pending_actions_rounded, color: Color(0xFFFFB020), size: 16),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pending Review',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFF94A3B8),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '$pending ${pending == 1 ? 'item' : 'items'}',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: const Color(0xFFFFD166),
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1516,8 +1544,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     value: '$pending',
                     subtitle: 'Awaiting action',
                     icon: Icons.hourglass_top_rounded,
-                    iconColor: const Color(0xFFD97706),
+                    iconColor: const Color(0xFFB45309),
                     bgTint: const Color(0xFFFEF3C7),
+                    cardBg: const Color(0xFFFFFBEB),
+                    borderColor: const Color(0xFFFDE68A),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1528,8 +1558,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     value: '$approved',
                     subtitle: 'Ready to process',
                     icon: Icons.gpp_good_rounded,
-                    iconColor: const Color(0xFF0284C7),
-                    bgTint: const Color(0xFFE0F2FE),
+                    iconColor: const Color(0xFF15803D),
+                    bgTint: const Color(0xFFDCFCE7),
+                    cardBg: const Color(0xFFF0FDF4),
+                    borderColor: const Color(0xFFBBF7D0),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1540,8 +1572,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     value: '$completed',
                     subtitle: 'Funds returned',
                     icon: Icons.verified_rounded,
-                    iconColor: const Color(0xFF15803D),
-                    bgTint: const Color(0xFFDCFCE7),
+                    iconColor: const Color(0xFF047857),
+                    bgTint: const Color(0xFFD1FAE5),
+                    cardBg: const Color(0xFFECFDF5),
+                    borderColor: const Color(0xFFA7F3D0),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1554,6 +1588,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                     icon: Icons.cancel_rounded,
                     iconColor: const Color(0xFFDC2626),
                     bgTint: const Color(0xFFFEE2E2),
+                    cardBg: const Color(0xFFFEF2F2),
+                    borderColor: const Color(0xFFFECACA),
                   ),
                 ),
               ],
@@ -1567,24 +1603,30 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             value: '$pending',
             subtitle: 'Awaiting admin action',
             icon: Icons.hourglass_top_rounded,
-            iconColor: const Color(0xFFD97706),
+            iconColor: const Color(0xFFB45309),
             bgTint: const Color(0xFFFEF3C7),
+            cardBg: const Color(0xFFFFFBEB),
+            borderColor: const Color(0xFFFDE68A),
           ),
           _buildMetricTile(
             title: 'Approved',
             value: '$approved',
             subtitle: 'Ready to be processed',
             icon: Icons.gpp_good_rounded,
-            iconColor: const Color(0xFF0284C7),
-            bgTint: const Color(0xFFE0F2FE),
+            iconColor: const Color(0xFF15803D),
+            bgTint: const Color(0xFFDCFCE7),
+            cardBg: const Color(0xFFF0FDF4),
+            borderColor: const Color(0xFFBBF7D0),
           ),
           _buildMetricTile(
             title: 'Completed',
             value: '$completed',
             subtitle: 'Funds returned to customer',
             icon: Icons.verified_rounded,
-            iconColor: const Color(0xFF15803D),
-            bgTint: const Color(0xFFDCFCE7),
+            iconColor: const Color(0xFF047857),
+            bgTint: const Color(0xFFD1FAE5),
+            cardBg: const Color(0xFFECFDF5),
+            borderColor: const Color(0xFFA7F3D0),
           ),
           _buildMetricTile(
             title: 'Rejected',
@@ -1593,6 +1635,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             icon: Icons.cancel_rounded,
             iconColor: const Color(0xFFDC2626),
             bgTint: const Color(0xFFFEE2E2),
+            cardBg: const Color(0xFFFEF2F2),
+            borderColor: const Color(0xFFFECACA),
           ),
         ];
 
@@ -1612,16 +1656,18 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     required IconData icon,
     required Color iconColor,
     required Color bgTint,
+    required Color cardBg,
+    required Color borderColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.025),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1637,7 +1683,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               Flexible(
                 child: Text(
                   title,
-                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.plusJakartaSans(color: const Color(0xFF475569), fontSize: 11.5, fontWeight: FontWeight.w700),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1652,12 +1698,12 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF0F172A), fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+            style: GoogleFonts.plusJakartaSans(color: iconColor, fontSize: 23, fontWeight: FontWeight.w900, letterSpacing: -0.4),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w500),
+            style: GoogleFonts.plusJakartaSans(color: const Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w500),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -1667,7 +1713,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
   }
 
   // ── Filter Pill (Admin View) ──────────────────────────────
-  Widget _buildFilterPill(String key, String label, IconData icon, Color color) {
+  Widget _buildFilterPill(String key, String label, IconData icon) {
     final isSelected = _selectedFilter == key;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -1681,11 +1727,11 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: isSelected ? color : Colors.white,
+            color: isSelected ? const Color(0xFF14332E) : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isSelected ? color : const Color(0xFFE2E8F0)),
+            border: Border.all(color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0)),
             boxShadow: isSelected
-                ? [BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 3))]
+                ? [BoxShadow(color: const Color(0xFF14332E).withValues(alpha: 0.18), blurRadius: 6, offset: const Offset(0, 2))]
                 : null,
           ),
           child: Row(
@@ -1708,9 +1754,9 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  // ── Refund card (Petty Cash card style with left accent bar) ──
+  // ── Refund card (Clean Light Card with Soft Pastel Badges) ──
   Widget _buildRefundCard(Map<String, dynamic> refund) {
-    final status = (refund['status'] ?? 'pending').toString();
+    final status = (refund['status'] ?? 'pending').toString().toLowerCase();
     final sourceTable = (refund['source_table'] ?? '').toString();
     final refundMethod = (refund['refund_method'] ?? 'cash').toString();
     final amount = (refund['refund_amount'] as num?)?.toDouble() ?? 0;
@@ -1719,7 +1765,27 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         ? DateFormat('MMM dd, yyyy · h:mm a').format(DateTime.parse(refund['requested_at']).toLocal())
         : 'N/A';
     final statusColor = _statusColor(status);
-    final srcColor = _sourceColor(sourceTable);
+
+    Color statusBg;
+    Color statusText;
+    switch (status) {
+      case 'pending':
+        statusBg = const Color(0xFFFEF3C7);
+        statusText = const Color(0xFF92400E);
+        break;
+      case 'approved':
+      case 'completed':
+        statusBg = const Color(0xFFDCFCE7);
+        statusText = const Color(0xFF166534);
+        break;
+      case 'rejected':
+        statusBg = const Color(0xFFFEE2E2);
+        statusText = const Color(0xFF991B1B);
+        break;
+      default:
+        statusBg = const Color(0xFFF1F5F9);
+        statusText = const Color(0xFF475569);
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1729,8 +1795,8 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1741,7 +1807,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Left accent bar
-              Container(width: 5, color: statusColor),
+              Container(width: 4, color: statusColor),
 
               // Main content
               Expanded(
@@ -1758,31 +1824,31 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                         children: [
                           // Source badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                             decoration: BoxDecoration(
-                              color: srcColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(_sourceIcon(sourceTable), size: 12, color: srcColor),
-                                const SizedBox(width: 4),
+                                Icon(_sourceIcon(sourceTable), size: 12, color: const Color(0xFF475569)),
+                                const SizedBox(width: 5),
                                 Text(
                                   _sourceLabel(sourceTable),
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: srcColor),
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF334155)),
                                 ),
                               ],
                             ),
                           ),
                           // Refund method badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                             decoration: BoxDecoration(
-                              color: refundMethod == 'paymongo'
-                                  ? Colors.indigo.withValues(alpha: 0.1)
-                                  : Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(7),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1790,15 +1856,15 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                 Icon(
                                   refundMethod == 'paymongo' ? Icons.credit_card_rounded : Icons.payments_rounded,
                                   size: 12,
-                                  color: refundMethod == 'paymongo' ? Colors.indigo : Colors.green.shade700,
+                                  color: const Color(0xFF475569),
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 5),
                                 Text(
                                   refundMethod == 'paymongo' ? 'PayMongo' : 'Cash',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: refundMethod == 'paymongo' ? Colors.indigo : Colors.green.shade700,
+                                    color: const Color(0xFF334155),
                                   ),
                                 ),
                               ],
@@ -1806,19 +1872,19 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           ),
                           // Status badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                             decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(7),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(_statusIcon(status), size: 12, color: statusColor),
-                                const SizedBox(width: 4),
+                                Icon(_statusIcon(status), size: 12, color: statusText),
+                                const SizedBox(width: 5),
                                 Text(
                                   status.toUpperCase(),
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w800, color: statusColor),
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w800, color: statusText),
                                 ),
                               ],
                             ),
@@ -1838,7 +1904,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                                 Text(
                                   refund['customer_name'] ?? 'Unknown',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                     color: const Color(0xFF0F172A),
                                     letterSpacing: -0.2,
@@ -1878,14 +1944,30 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                _currencyFormat.format(amount),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  color: const Color(0xFFD9A441),
-                                  letterSpacing: -0.5,
-                                ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    '₱',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF14332E),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    NumberFormat('#,##0.00').format(amount),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFF0F172A),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -1896,7 +1978,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               Text(
                                 '${refund['refund_type']?.toString().toUpperCase() ?? 'N/A'} REFUND',
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: const Color(0xFF94A3B8),
                                 ),
@@ -1940,19 +2022,19 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppTheme.infoBlue.withValues(alpha: 0.05),
+                            color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.infoBlue.withValues(alpha: 0.2)),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, size: 14, color: AppTheme.infoBlue),
+                              const Icon(Icons.admin_panel_settings_rounded, size: 14, color: Color(0xFF475569)),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   'Admin: ${refund['admin_notes']}',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppTheme.infoBlue, fontWeight: FontWeight.w500),
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF334155), fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],
@@ -1973,25 +2055,25 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                             if (status == 'pending') ...[
                               OutlinedButton.icon(
                                 onPressed: () => _showRejectDialog(refund),
-                                icon: const Icon(Icons.close_rounded, size: 16),
-                                label: Text('Reject', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
+                                icon: const Icon(Icons.close_rounded, size: 15),
+                                label: Text('Reject', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5)),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFFDC2626),
                                   side: const BorderSide(color: Color(0xFFDC2626)),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                                 ),
                               ),
                               ElevatedButton.icon(
                                 onPressed: () => _showApproveDialog(refund),
-                                icon: const Icon(Icons.check_rounded, size: 16),
-                                label: Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                                icon: const Icon(Icons.check_rounded, size: 15),
+                                label: Text('Approve', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12.5)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF14332E),
-                                  foregroundColor: const Color(0xFFE6C374),
+                                  foregroundColor: Colors.white,
                                   elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                                 ),
                               ),
                             ],
@@ -1999,27 +2081,27 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                               if (refundMethod == 'paymongo')
                                 ElevatedButton.icon(
                                   onPressed: () => _processPayMongoRefund(refund),
-                                  icon: const Icon(Icons.credit_card_rounded, size: 16),
-                                  label: Text('Process PayMongo Refund', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                                  icon: const Icon(Icons.credit_card_rounded, size: 15),
+                                  label: Text('Process PayMongo Refund', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12.5)),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF14332E),
-                                    foregroundColor: const Color(0xFFE6C374),
+                                    foregroundColor: Colors.white,
                                     elevation: 0,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                                   ),
                                 )
                               else
                                 ElevatedButton.icon(
                                   onPressed: () => _markCashReturned(refund),
-                                  icon: const Icon(Icons.payments_rounded, size: 16),
-                                  label: Text('Mark as Cash Returned', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+                                  icon: const Icon(Icons.payments_rounded, size: 15),
+                                  label: Text('Mark as Cash Returned', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 12.5)),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF14332E),
-                                    foregroundColor: const Color(0xFFE6C374),
+                                    foregroundColor: Colors.white,
                                     elevation: 0,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                                   ),
                                 ),
                             ],
@@ -2045,25 +2127,26 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
           Expanded(
             child: InkWell(
               onTap: () => setState(() => _selectedMainTab = 0),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(9),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
                   color: _selectedMainTab == 0 ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                   boxShadow: _selectedMainTab == 0
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -2075,14 +2158,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   children: [
                     Icon(
                       Icons.receipt_long_rounded,
-                      size: 16,
+                      size: 15,
                       color: _selectedMainTab == 0 ? const Color(0xFF14332E) : const Color(0xFF64748B),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Refund Requests',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: _selectedMainTab == 0 ? FontWeight.w800 : FontWeight.w600,
                         color: _selectedMainTab == 0 ? const Color(0xFF14332E) : const Color(0xFF64748B),
                       ),
@@ -2092,13 +2175,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFD97706),
-                          borderRadius: BorderRadius.circular(10),
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFDE68A)),
                         ),
                         child: Text(
                           '$pendingRefunds',
                           style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
+                            color: const Color(0xFF92400E),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -2114,17 +2198,17 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           Expanded(
             child: InkWell(
               onTap: () => setState(() => _selectedMainTab = 1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(9),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
                   color: _selectedMainTab == 1 ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(9),
                   boxShadow: _selectedMainTab == 1
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
+                            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -2136,16 +2220,16 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   children: [
                     Icon(
                       Icons.edit_calendar_rounded,
-                      size: 16,
-                      color: _selectedMainTab == 1 ? const Color(0xFF007AFF) : const Color(0xFF64748B),
+                      size: 15,
+                      color: _selectedMainTab == 1 ? const Color(0xFF14332E) : const Color(0xFF64748B),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Reschedule Requests',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: _selectedMainTab == 1 ? FontWeight.w800 : FontWeight.w600,
-                        color: _selectedMainTab == 1 ? const Color(0xFF007AFF) : const Color(0xFF64748B),
+                        color: _selectedMainTab == 1 ? const Color(0xFF14332E) : const Color(0xFF64748B),
                       ),
                     ),
                     if (pendingReschedules > 0) ...[
@@ -2153,13 +2237,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF007AFF),
-                          borderRadius: BorderRadius.circular(10),
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFDE68A)),
                         ),
                         child: Text(
                           '$pendingReschedules',
                           style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
+                            color: const Color(0xFF92400E),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -2191,24 +2276,24 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _buildRescheduleStatCard('Total Requests', '$total', Icons.calendar_month_rounded, const Color(0xFF0F172A), cardWidth),
-            _buildRescheduleStatCard('Pending Approval', '$pending', Icons.hourglass_top_rounded, const Color(0xFFD97706), cardWidth),
-            _buildRescheduleStatCard('Approved', '$approved', Icons.check_circle_rounded, const Color(0xFF15803D), cardWidth),
-            _buildRescheduleStatCard('Rejected', '$rejected', Icons.cancel_rounded, const Color(0xFFDC2626), cardWidth),
+            _buildRescheduleStatCard('Total Requests', '$total', Icons.calendar_month_rounded, const Color(0xFF334155), const Color(0xFFE2E8F0), const Color(0xFFF8FAFC), const Color(0xFFE2E8F0), cardWidth),
+            _buildRescheduleStatCard('Pending Approval', '$pending', Icons.hourglass_top_rounded, const Color(0xFFB45309), const Color(0xFFFEF3C7), const Color(0xFFFFFBEB), const Color(0xFFFDE68A), cardWidth),
+            _buildRescheduleStatCard('Approved', '$approved', Icons.check_circle_rounded, const Color(0xFF15803D), const Color(0xFFDCFCE7), const Color(0xFFF0FDF4), const Color(0xFFBBF7D0), cardWidth),
+            _buildRescheduleStatCard('Rejected', '$rejected', Icons.cancel_rounded, const Color(0xFFDC2626), const Color(0xFFFEE2E2), const Color(0xFFFEF2F2), const Color(0xFFFECACA), cardWidth),
           ],
         );
       },
     );
   }
 
-  Widget _buildRescheduleStatCard(String title, String value, IconData icon, Color color, double width) {
+  Widget _buildRescheduleStatCard(String title, String value, IconData icon, Color iconColor, Color bgTint, Color cardBg, Color borderColor, double width) {
     return Container(
       width: width,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.03),
@@ -2226,29 +2311,29 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               Text(
                 title,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF475569),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: bgTint,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16, color: color),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A),
-              letterSpacing: -0.5,
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+              color: iconColor,
+              letterSpacing: -0.4,
             ),
           ),
         ],
@@ -2256,7 +2341,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     );
   }
 
-  Widget _buildRescheduleFilterPill(String filterKey, String label, IconData icon, Color color) {
+  Widget _buildRescheduleFilterPill(String filterKey, String label, IconData icon) {
     final isSelected = _rescheduleFilter == filterKey;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -2267,15 +2352,15 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
         }),
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: isSelected ? color : Colors.white,
+            color: isSelected ? const Color(0xFF14332E) : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isSelected ? color : const Color(0xFFE2E8F0)),
+            border: Border.all(color: isSelected ? const Color(0xFF14332E) : const Color(0xFFE2E8F0)),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: color.withValues(alpha: 0.3),
+                      color: const Color(0xFF14332E).withValues(alpha: 0.18),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -2285,14 +2370,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: isSelected ? Colors.white : color),
+              Icon(icon, size: 14, color: isSelected ? Colors.white : const Color(0xFF64748B)),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
                 ),
               ),
             ],
@@ -2319,6 +2404,27 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
     final adminNotes = request['admin_notes'];
     final reviewedBy = request['reviewed_by'];
 
+    Color statusBg;
+    Color statusText;
+    switch (status) {
+      case 'pending':
+        statusBg = const Color(0xFFFEF3C7);
+        statusText = const Color(0xFF92400E);
+        break;
+      case 'approved':
+      case 'completed':
+        statusBg = const Color(0xFFDCFCE7);
+        statusText = const Color(0xFF166534);
+        break;
+      case 'rejected':
+        statusBg = const Color(0xFFFEE2E2);
+        statusText = const Color(0xFF991B1B);
+        break;
+      default:
+        statusBg = const Color(0xFFF1F5F9);
+        statusText = const Color(0xFF475569);
+    }
+
     String requestedAtStr = '';
     if (request['created_at'] != null) {
       try {
@@ -2333,15 +2439,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: status == 'pending'
-              ? const Color(0xFF007AFF).withValues(alpha: 0.35)
-              : const Color(0xFFE2E8F0),
-          width: status == 'pending' ? 1.5 : 1.0,
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -2357,13 +2458,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: const Icon(Icons.person_rounded, color: Color(0xFF007AFF), size: 22),
+                  child: const Icon(Icons.person_rounded, color: Color(0xFF14332E), size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2420,22 +2522,22 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _statusColor(status).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(_statusIcon(status), size: 12, color: _statusColor(status)),
+                      Icon(_statusIcon(status), size: 12, color: statusText),
                       const SizedBox(width: 4),
                       Text(
                         status.toUpperCase(),
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: _statusColor(status),
+                          color: statusText,
                         ),
                       ),
                     ],
@@ -2494,14 +2596,14 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF007AFF),
+                        color: const Color(0xFF14332E),
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF007AFF)),
+                        const Icon(Icons.event_available_rounded, size: 14, color: Color(0xFF14332E)),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
@@ -2509,7 +2611,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                             style: GoogleFonts.plusJakartaSans(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
-                              color: const Color(0xFF007AFF),
+                              color: const Color(0xFF14332E),
                             ),
                           ),
                         ),
@@ -2539,9 +2641,9 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Row(
                             children: [
-                              Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF007AFF)),
+                              Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF14332E)),
                               SizedBox(width: 6),
-                              Text('Change requested to:', style: TextStyle(fontSize: 10, color: Color(0xFF007AFF), fontWeight: FontWeight.bold)),
+                              Text('Change requested to:', style: TextStyle(fontSize: 10.5, color: Color(0xFF14332E), fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -2564,10 +2666,10 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                          color: const Color(0xFFE2E8F0),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF), size: 16),
+                        child: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF475569), size: 14),
                       ),
                       const SizedBox(width: 12),
                       Expanded(child: newScheduleWidget),
@@ -2583,8 +2685,9 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2622,7 +2725,7 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: status == 'approved' ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                    color: status == 'approved' ? const Color(0xFF166534) : const Color(0xFF991B1B),
                   ),
                 ),
               ),
@@ -2638,37 +2741,37 @@ class _RefundManagementPageState extends State<RefundManagementPage> {
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => _showRejectRescheduleDialog(request),
-                    icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFDC2626)),
+                    icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFDC2626)),
                     label: Text(
                       'Reject',
                       style: GoogleFonts.plusJakartaSans(
                         color: const Color(0xFFDC2626),
                         fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                        fontSize: 12.5,
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFDC2626)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: () => _showApproveRescheduleDialog(request),
-                    icon: const Icon(Icons.check_rounded, size: 16),
+                    icon: const Icon(Icons.check_rounded, size: 15),
                     label: Text(
                       'Approve Schedule',
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                        fontSize: 12.5,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF15803D),
+                      backgroundColor: const Color(0xFF14332E),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                     ),
                   ),
                 ],
